@@ -105,7 +105,12 @@ void JumpZ80(word PC)
 }
 #endif
 
-/* Intel hex code based largely on code taken from the PJRC website */
+/* Intel hex code based largely on code taken from the PJRC website.
+ * Licensing requires the following:
+ *
+ * Author:  Paul Stoffregen
+ * Contact: paul@ece.orst.edu
+ */
 
 /* Name:        parse_hex
  * Description: Parse one line from an Intel hex file
