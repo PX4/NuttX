@@ -100,7 +100,10 @@ void JumpZ80(word PC)
 {
 	if (gtrace)
 	{
-		printf("PC: %04x\n", PC);
+		printf("PC: %04X [%02X] HL: %04X SP: %04X [%04X, %04X, ...]\n",
+			gR.PC.W, memory[gR.PC.W], gR.HL.W, gR.SP.W,
+			((int)memory[gR.SP.W]   | ((int)memory[gR.SP.W+1]) << 8),
+			((int)memory[gR.SP.W+2] | ((int)memory[gR.SP.W+3]) << 8));
 	}
 }
 #endif
