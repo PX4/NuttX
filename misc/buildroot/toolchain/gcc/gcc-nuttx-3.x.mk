@@ -250,12 +250,14 @@ endif
 	# Set up the symlinks to enable lying about target name.
 	set -e; \
 	(cd $(STAGING_DIR); \
-		ln -snf $(REAL_GNU_TARGET_NAME) $(GNU_TARGET_NAME); \
-		cd bin; \
-		for app in $(REAL_GNU_TARGET_NAME)-* ; do \
-			ln -snf $${app} \
-		   	$(GNU_TARGET_NAME)$${app##$(REAL_GNU_TARGET_NAME)}; \
-		done; \
+		if [ "$(REAL_GNU_TARGET_NAME)" != "$(GNU_TARGET_NAME)" ]; then \
+			ln -snf $(REAL_GNU_TARGET_NAME) $(GNU_TARGET_NAME); \
+			cd bin; \
+			for app in $(REAL_GNU_TARGET_NAME)-* ; do \
+				ln -snf $${app} \
+				$(GNU_TARGET_NAME)$${app##$(REAL_GNU_TARGET_NAME)}; \
+			done; \
+		fi; \
 	);
 	#
 	# Now for the ugly 3.3.x soft float hack...

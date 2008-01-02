@@ -62,8 +62,6 @@ include package/Makefile.in
 #
 #############################################################
 
-
-
 all:   world
 
 # In this section, we need .config
@@ -126,6 +124,18 @@ $(STAGING_DIR)/$(REAL_GNU_TARGET_NAME)/include : $(STAGING_DIR) $(NUTTX_DIR)/inc
 		{ echo "Failed to create $(STAGING_DIR)/$(REAL_GNU_TARGET_NAME)/include" ; exit 1 ; }
 	@cp -a $(NUTTX_DIR)/include/* $(STAGING_DIR)/$(REAL_GNU_TARGET_NAME)/include/. || \
 		{ echo "Failed to copy Nuttx header files" ; exit 1 ; }
+
+$(TOOL_BUILD_DIR):
+	mkdir -p $(TOOL_BUILD_DIR)
+
+$(TOOL_BUILD_DIR)/nuttx_dev: $(TOOL_BUILD_DIR)
+	mkdir -p $(TOOL_BUILD_DIR)/nuttx_dev
+
+$(TOOL_BUILD_DIR)/nuttx_dev/usr: $(TOOL_BUILD_DIR)/nuttx_dev
+	mkdir -p $(TOOL_BUILD_DIR)/nuttx_dev/usr
+	
+$(TOOL_BUILD_DIR)/nuttx_dev/usr/include: $(TOOL_BUILD_DIR)/nuttx_dev/usr
+	mkdir -p $(TOOL_BUILD_DIR)/nuttx_dev/usr/include
 
 nuttx_setup: $(TOOL_BUILD_DIR)/nuttx_dev/usr/include
 
