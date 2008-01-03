@@ -1,0 +1,30 @@
+ReleaseNotes v0.1.1:
+^^^^^^^^^^^^^^^^^^^
+
+This is a highly hacked up version of the buildroot (see
+http://buildroot.uclibc.org/ . It has been hacked so
+that it can be used to build the following NuttX-compatible
+toolchains:
+
+o arm-elf toolchain needed for use with the C5471 (ARM7) and
+  DM320 (ARM9) ports provided with the NuttX releases.
+
+o m68k-elf toolchain
+
+o m68hc11-elf toolchain
+
+This is NOT a part of the NuttX project and is provided only
+for convenience. This package is licensed as GPL (see
+http://buildroot.uclibc.org/about.html).
+
+Instructions:
+
+  -You must have already configured Nuttx in <some-dir>nuttx
+  -download into <some-dir>
+  -unpack -cd <some-dir>/buildroot
+  -cp configs/c5471-defconfig .config
+  - make oldconfig
+  - make
+
+Other configuration files: m68k-defconfig, m68hc11-defconfig
+
