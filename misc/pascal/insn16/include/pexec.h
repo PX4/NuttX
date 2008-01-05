@@ -53,15 +53,15 @@
  * Type Definitions
  ****************************************************************************/
 
-typedef uint16 uStackType; /* Stack values are 16-bits in length */
-typedef sint16 sStackType;
-typedef uint16 addrType;   /* Addresses are 16-bits in length */
-typedef uint16 levelType;  /* Limits to MAXUINT16 levels */
+typedef uint16 ustack_t;   /* Stack values are 16-bits in length */
+typedef sint16 sstack_t;
+typedef uint16 addr_t;     /* Addresses are 16-bits in length */
+typedef uint16 level_t;    /* Limits to MAXUINT16 levels */
 
 union stack_u
 {
-  uStackType *i;
-  ubyte      *b;
+  ustack_t *i;
+  ubyte    *b;
 };
 typedef union stack_u stackType;
 
@@ -74,18 +74,18 @@ struct pexec_attr_s
   /* Instruction space (I-Space) */
 
   FAR ubyte *ispace;  /* Allocated I-Space containing p-code data */
-  addrType   entry;   /* Entry point */
-  addrType   maxpc;   /* Last valid p-code address */
+  addr_t     entry;   /* Entry point */
+  addr_t     maxpc;   /* Last valid p-code address */
 
   /* Read-only data block */
 
   FAR ubyte *rodata;  /* Address of read-only data block */
-  addrType   rosize;  /* Size of read-only data block */
+  addr_t     rosize;  /* Size of read-only data block */
 
   /* Allocate for variable storage */
 
-  addrType   varsize; /* Variable storage size */
-  addrType   strsize; /* String storage size */
+  addr_t     varsize; /* Variable storage size */
+  addr_t     strsize; /* String storage size */
 };
 
 /* This structure defines the current state of the p-code interpreter */
@@ -102,7 +102,7 @@ struct pexec_s
 
  /* Address of last valid P-Code */
 
-  addrType maxpc;
+  addr_t maxpc;
 
   /* These are the emulated P-Machine registers:
    *
@@ -116,19 +116,19 @@ struct pexec_s
    * pc: Holds the current p-code location
    */
 
-  addrType spb;                  /* Pascal stack base */
-  addrType sp;                   /* Pascal stack pointer */
-  addrType csp;                  /* Character stack pointer */
-  addrType fp;                   /* Base of the current frame */
-  addrType rop;                  /* Read-only data pointer */
-  addrType pc;                   /* Program counter */
+  addr_t spb;                  /* Pascal stack base */
+  addr_t sp;                   /* Pascal stack pointer */
+  addr_t csp;                  /* Character stack pointer */
+  addr_t fp;                   /* Base of the current frame */
+  addr_t rop;                  /* Read-only data pointer */
+  addr_t pc;                   /* Program counter */
 
   /* Info needed to perform a simulated reset */
 
-  addrType strsize;              /* String stack size */
-  addrType rosize;               /* Read-only stack size */
-  addrType entry;                /* Entry point */
-  addrType stacksize;            /* (debug only) */
+  addr_t strsize;              /* String stack size */
+  addr_t rosize;               /* Read-only stack size */
+  addr_t entry;                /* Entry point */
+  addr_t stacksize;            /* (debug only) */
 };
 
 /****************************************************************************
@@ -142,10 +142,11 @@ extern "C" {
 #define EXTERN extern
 #endif
 
-EXTERN FAR struct pexec_s *pload(const char *filename, addrType varsize, addrType strsize);
+EXTERN FAR struct pexec_s *pload(const char *filename, addr_t varsize, addr_t strsize);
 EXTERN FAR struct pexec_s *pexec_init(struct pexec_attr_s *attr);
 EXTERN int pexec(FAR struct pexec_s *st);
 EXTERN void pexec_reset(struct pexec_s *st);
+EXTERN void pexec_release(struct pexec_s *st);
 
 #undef EXTERN
 #ifdef __cplusplus
