@@ -38,15 +38,14 @@
 MKDEP	= $(TOPDIR)/tools/mkdeps.sh
 CFLAGS	+= -Iinclude -Iinsn/include
 
-ifeq ($(CONFIG_NET),y)
-include insn/Make.defs
+include insn/prun/Make.defs
 include libpoff/Make.defs
-endif
+include libpas/Make.defs
 
-ASRCS		= $(INSN_ASRCS) $(POFF_ASRCS)
+ASRCS		= $(PRUN_ASRCS) $(POFF_ASRCS) $(PAS_ASRCS)
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
 
-CSRCS		= $(INSN_CSRCS) $(POFF_CSRCS)
+CSRCS		= $(PRUN_CSRCS) $(POFF_CSRCS) $(PAS_CSRCS)
 COBJS		= $(CSRCS:.c=$(OBJEXT))
 
 SRCS		= $(ASRCS) $(CSRCS)
@@ -54,7 +53,7 @@ OBJS		= $(AOBJS) $(COBJS)
 
 BIN		= libpcode$(LIBEXT)
 
-VPATH		= insn:libpoff
+VPATH		= insn/prun:libpoff
 
 all:	$(BIN)
 
@@ -71,11 +70,8 @@ $(BIN):	$(OBJS)
 	done ; )
 
 .depend: Makefile $(SRCS)
-ifeq ($(CONFIG_NET),y)
-	$(MKDEP) --dep-path . --dep-path insn --dep-path liboff $(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
-else
-	$(MKDEP) $(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
-endif
+	$(MKDEP) --dep-path . --dep-path insn/prun --dep-path libpoff --dep-path libpas \
+		$(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
 	touch $@
 
 depend: .depend

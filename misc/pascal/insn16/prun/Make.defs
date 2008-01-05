@@ -34,5 +34,5 @@
 #
 ############################################################################
 
-INSN_ASRCS  =
-INSN_CSRCS  = pload.c pexec.c
+PRUN_ASRCS  =
+PRUN_CSRCS  = pload.c pexec.c

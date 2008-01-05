@@ -112,13 +112,36 @@ mkdir ${nuttxdir}/pcode/include || \
 mkdir ${nuttxdir}/pcode/insn || \
   { echo "mkdir ${nuttxdir}/pcode/insn failed" ; exit 1 ; }
 
+mkdir ${nuttxdir}/pcode/insn/include || \
+  { echo "mkdir ${nuttxdir}/pcode/insn/include failed" ; exit 1 ; }
+
+mkdir ${nuttxdir}/pcode/insn/prun || \
+  { echo "mkdir ${nuttxdir}/pcode/insn/prun failed" ; exit 1 ; }
+
+mkdir ${nuttxdir}/pcode/libpoff || \
+  { echo "mkdir ${nuttxdir}/pcode/libpoff failed" ; exit 1 ; }
+
+mkdir ${nuttxdir}/pcode/libpas || \
+  { echo "mkdir ${nuttxdir}/pcode/libpas failed" ; exit 1 ; }
+
 # Copy runtime files
 
-cp -a ${pascaldir}/include/poff.h ${nuttxdir}/pcode/include/. || \
-  { echo "Failed to copy ${pascaldir}/include/poff.h" ; exit 1; }
+cp -a ${pascaldir}/include/poff.h ${pascaldir}/include/pofflib.h \
+      ${pascaldir}/include/pedefs.h ${pascaldir}/include/perr.h \
+      ${pascaldir}/include/pdefs.h ${pascaldir}/include/pfdefs.h \
+      ${pascaldir}/include/pxdefs.h ${pascaldir}/include/paslib.h \
+      ${nuttxdir}/pcode/include/. || \
+  { echo "Failed to copy ${pascaldir}/include" ; exit 1; }
 
-cp -a ${pascaldir}/include/pofflib.h ${nuttxdir}/pcode/include/. || \
-  { echo "Failed to copy ${pascaldir}/include/poff.h" ; exit 1; }
+echo "#ifndef __CONFIG_H" >${nuttxdir}/pcode/include/config.h
+echo "#define __CONFIG_H 1" >>${nuttxdir}/pcode/include/config.h
+echo "" >>${nuttxdir}/pcode/include/config.h
+echo "#undef  CONFIG_DEBUG" >>${nuttxdir}/pcode/include/config.h
+echo "#undef  CONFIG_TRACE" >>${nuttxdir}/pcode/include/config.h
+echo "#define CONFIG_INSN16 1" >>${nuttxdir}/pcode/include/config.h
+echo "#undef  CONFIG_INSN32" >>${nuttxdir}/pcode/include/config.h
+echo "" >>${nuttxdir}/pcode/include/config.h
+echo "#endif /* __CONFIG_H */" >>${nuttxdir}/pcode/include/config.h
 
 cp -a ${pascaldir}/nuttx/Makefile ${nuttxdir}/pcode/. || \
   { echo "Failed to copy ${pascaldir}/nuttx/Makefile" ; exit 1; }
@@ -126,18 +149,18 @@ cp -a ${pascaldir}/nuttx/Makefile ${nuttxdir}/pcode/. || \
 cp -a ${pascaldir}/nuttx/keywords.h ${nuttxdir}/pcode/include/. || \
   { echo "Failed to copy ${pascaldir}/nuttx/keywords.h" ; exit 1; }
 
-cp -a ${pascaldir}/libpoff ${nuttxdir}/pcode/. || \
+cp -a ${pascaldir}/libpoff/*.c ${pascaldir}/libpoff/*.h \
+      ${pascaldir}/libpoff/Make.defs ${nuttxdir}/pcode/libpoff/. || \
   { echo "Failed to copy ${pascaldir}/libpoff" ; exit 1; }
 
-rm -f ${nuttxdir}/pcode/libpoff/Makefile || \
-  { echo "Failed to remove ${nuttxdir}/pcode/libpoff/Makefile" ; exit 1; }
+cp -a ${pascaldir}/libpas/psignextend16.c ${pascaldir}/libpas/Make.defs \
+      ${nuttxdir}/pcode/libpas/. || \
+  { echo "Failed to copy ${pascaldir}/libpas" ; exit 1; }
 
-cp -a ${pascaldir}/${modeldir}/include  ${nuttxdir}/pcode/insn/. || \
+cp -a ${pascaldir}/${modeldir}/include/pexec.h  ${pascaldir}/${modeldir}/include/pinsn16.h \
+      ${nuttxdir}/pcode/insn/include/. || \
   { echo "Failed to copy ${pascaldir}/${modeldir}/include" ; exit 1; }
 
-cp -a ${pascaldir}/${modeldir}/prun  ${nuttxdir}/pcode/insn/. || \
+cp -a ${pascaldir}/${modeldir}/prun/pexec.c  ${pascaldir}/${modeldir}/prun/pload.c \
+      ${pascaldir}/${modeldir}/prun/Make.defs ${nuttxdir}/pcode/insn/prun/. || \
   { echo "Failed to copy ${pascaldir}/${modeldir}/prun" ; exit 1; }
-
-rm -f ${nuttxdir}/pcode/insn/Makefile || \
-  { echo "Failed to remove ${nuttxdir}/pcode/insn/Makefile" ; exit 1; }
-
