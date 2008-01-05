@@ -40,14 +40,14 @@ fi
 
 # Define the ZIP file pathes
 
-TAR_NAME=${SUBDIR}-${DATECODE}.tar
+TAR_NAME=${SUBDIR}.tar
 ZIP_NAME=${TAR_NAME}.gz
 
 # Prepare the nuttx directory -- Remove garbage directories
 
 for dir in ${GARBAGEDIRS}; do
-	echo "Removing ${NUTTX}/${dir}"
-	rm -rf ${NUTTX}/${dir}
+	echo "Removing ${SUBDIR}/${dir}"
+	rm -rf ${SUBDIR}/${dir}
 done
 
 # Prepare the directory
