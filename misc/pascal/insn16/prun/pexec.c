@@ -49,7 +49,6 @@
 #include "pfdefs.h"
 #include "pxdefs.h"
 #include "pedefs.h"
-#include "pmach.h"
 
 #include "paslib.h"
 #include "pexec.h"

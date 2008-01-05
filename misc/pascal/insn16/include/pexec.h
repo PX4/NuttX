@@ -44,9 +44,26 @@
  * Definitions
  ****************************************************************************/
 
+#define BPERI         2
+#define ITOBSTACK(i)  ((i) << 1)
+#define BTOISTACK(i)  ((i) >> 1)
+#define ROUNDBTOI(i)  (((i) + 1) >> 1)
+
 /****************************************************************************
  * Type Definitions
  ****************************************************************************/
+
+typedef uint16 uStackType; /* Stack values are 16-bits in length */
+typedef sint16 sStackType;
+typedef uint16 addrType;   /* Addresses are 16-bits in length */
+typedef uint16 levelType;  /* Limits to MAXUINT16 levels */
+
+union stack_u
+{
+  uStackType *i;
+  ubyte      *b;
+};
+typedef union stack_u stackType;
 
 /* This structure describes the parameters needed to initialize the p-code
  * interpreter.

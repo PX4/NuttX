@@ -49,7 +49,6 @@
 #include "pinsn16.h"
 #include "pxdefs.h"
 #include "pedefs.h"
-#include "pmach.h"
 
 #include "paslib.h"
 #include "perr.h"

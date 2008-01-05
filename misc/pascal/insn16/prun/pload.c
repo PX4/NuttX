@@ -38,10 +38,10 @@
  ****************************************************************************/
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 
 #include "keywords.h"
-#include "pmach.h"
 #include "pedefs.h"
 #include "pofflib.h"
 #include "perr.h"
