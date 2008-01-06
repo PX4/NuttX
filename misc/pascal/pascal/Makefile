@@ -47,10 +47,6 @@ BINDIR-$(CONFIG_INSN16)	= $(PASCAL)/bin16
 BINDIR-$(CONFIG_INSN32)	= $(PASCAL)/bin32
 
 #
-# Tools
-#
-CFLAGS			+= -I.
-#
 # Objects and targets
 #
 PASSRCS			= pas.c pprgm.c punit.c pblck.c pstm.c pexpr.c \

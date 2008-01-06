@@ -1,6 +1,6 @@
 /***********************************************************************
- * pdefs.h
- * General definitions for the Pascal Compiler/Optimizer
+ * include/pdefs.h
+ * Common definitions
  *
  *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -48,20 +48,12 @@
  * Definitions
  ***********************************************************************/
 
-/* Size Parameters -- some of these can be overridden from the
- * command line.
- */
+/* Common Sizing Parameters */
 
-#define MAX_SYM           (4096)
-#define MAX_STRINGS       (65536)
-#define MAX_INCL           3
-#define MAX_FILES          8            /* max number of opened files */
-#define FNAME_SIZE         40           /* max size file name */
-#define LINE_SIZE          256          /* max size of input line buffer */
-#define FNAME_SIZE         40           /* max size of file name */
-#define MAX_INCPATHES       8           /* max number of include pathes */
+#define FNAME_SIZE         40           /* Max size file name */
+#define LINE_SIZE          256          /* Max size of input line buffer */
 
-/* Data Storage Sizes */
+/* Target P-Machine Data Storage Sizes */
 
 #ifdef CONFIG_INSN16
 # define sINT_SIZE          2
@@ -96,180 +88,11 @@
 #define MAXCHAR            255
 #define MINCHAR            0
 
-/* Bit values for the 'flags' field of the symType_t, symProc_t, and
- * symVar_t (see below)
- */
-
-#define STYPE_VARSIZE      0x01 /* Type has variable size */
-#define SPROC_EXTERNAL     0x01 /* Proc/func. is defined externally */
-#define SVAR_EXTERNAL      0x01 /* Variable is defined externally */
-
 /***********************************************************************
- * Public Enumeration Types
+ * Public Structure/Types
  ***********************************************************************/
 
-/* This enumeration identies what kind of binary object we are creating
- * with the compilation.  At present, we may be generating either a 
- * program binary or a unit binary.
- */
-
-enum fileKind_e
-{
-  eIsProgram = 0,
-  eIsUnit
-};
-typedef enum fileKind_e fileKind_t;
-
-/* This enumeration determines what part of a file that we are
- * processing now.
- */
-
-enum fileSection_e
-{
-  eIsOtherSection = 0,      /* Unspecified part of the file */
-  eIsProgramSection,        /* Any part of a program file */
-  eIsInterfaceSection,      /* INTERFACE section of a unit file */
-  eIsImplementationSection, /* IMPLEMENTATION section of a unit file */
-  eIsInitializationSection, /* INITIALIZATION section of a unit file */
-};
-typedef enum fileSection_e fileSection_t;
-
-/***********************************************************************
- * Public Structure Types
- ***********************************************************************/
-
-/* Reserved word table entry */
-
-struct R
-{
-  char   *rname;         /* pointer to name in string stack */
-  ubyte   rtype;         /* reserved word type */
-  ubyte   subtype;       /* reserved word extended type */
-};
-typedef struct R RTYPE;
-
-/* Symbol table entry */
-
-struct symType_s         /* for sKind = sTYPE */
-{
-  ubyte     type;        /* specific type */
-  ubyte     rtype;       /* reference to type */
-  ubyte     subType;     /* constant type for subrange types */
-  ubyte     flags;       /* flags to customize a type (see above) */
-  uint32    asize;       /* size of allocated instances of this type */
-  uint32    rsize;       /* size of reference to an instances of this type */
-  sint32    minValue;    /* minimum value taken subrange */
-  sint32    maxValue;    /* maximum value taken by subrange or scalar */
-  struct S *parent;      /* pointer to parent type */
-};
-typedef struct symType_s symType_t;
-
-struct symConst_s        /* for sKind == constant type */
-{
-  union
-  {
-    float64 f;           /* real value */
-    sint32  i;           /* integer value */
-  } val;
-  struct S *parent;      /* pointer to parent type */
-};
-typedef struct symConst_s symConst_t;
-
-struct symStringConst_s  /* for sKind == sSTRING_CONST */
-{
-  uint32 offset;         /* RO data section offset of string */
-  uint32 size;           /* length of string in bytes */
-};
-typedef struct symStringConst_s symStringConst_t;
-
-struct symVarString_s    /* for sKind == sSTRING */
-{
-  uint16 label;          /* label at string declaration */
-  uint16 size;           /* valid length of string in bytes */
-  uint16 alloc;          /* max length of string in bytes */
-};
-typedef struct symVarString_s symVarString_t;
-
-struct symLabel_s        /* for sKind == sLABEL */
-{
-  uint16  label;         /* label number */
-  boolean unDefined;     /* set false when defined */
-};
-typedef struct symLabel_s symLabel_t;
-
-struct symVar_s          /* for sKind == type identifier */
-{
-  sint32    offset;      /* Data stack offset */
-  uint32    size;        /* Size of variable */
-  ubyte     flags;       /* flags to customize a variable (see above) */
-  uint32    symIndex;    /* POFF symbol table index (if undefined) */
-  struct S *parent;      /* pointer to parent type */
-};
-typedef struct symVar_s symVar_t;
-
-struct symProc_s         /* for sKind == sPROC or sFUNC */
-{
-  uint16    label;       /* entry point label */
-  uint16    nParms;      /* number of parameters that follow */
-  ubyte     flags;       /* flags to customize a proc/func (see above) */
-  uint32    symIndex;    /* POFF symbol table index (if undefined) */
-  struct S *parent;      /* pointer to parent type (sFUNC only) */
-};
-typedef struct symProc_s symProc_t;
-
-struct symRecord_s       /* for sKind == sRECORD_OBJECT */
-{
-  uint32    size;        /* size of this field */
-  uint32    offset;      /* offset into the RECORD */
-  struct S *record;      /* pointer to parent sRECORD type */
-  struct S *parent;      /* pointer to parent field type */
-};
-typedef struct symRecord_s symRecord_t;
-
-struct S
-{
-  char     *sName;       /* pointer to name in string stack */
-  ubyte     sKind;       /* kind of symbol */
-  ubyte     sLevel;      /* static nesting level */
-  union
-  {
-    symType_t        t;          /* for type definitions */
-    symConst_t       c;          /* for constants */
-    symStringConst_t s;          /* for strings of constant size*/
-    symVarString_t   vs;         /* for strings of variable size*/
-    uint16           fileNumber; /* for files */
-    symLabel_t       l;          /* for labels */
-    symVar_t         v;          /* for variables */
-    symProc_t        p;          /* for functions & procedures */
-    symRecord_t      r;          /* for files of RECORDS */
-  } sParm;
-};
-typedef struct S STYPE;
-
-/* WITH structure */
-
-struct W
-{
-  ubyte     level;       /* static nesting level */
-  boolean   pointer;     /* TRUE if offset is to pointer to RECORD */
-  boolean   varParm;     /* TRUE if VAR param (+pointer) */
-  sint32    offset;      /* Data stack offset */
-  uint16    index;       /* RECORD offset (if pointer) */
-  STYPE    *parent;      /* pointer to parent RECORD type */
-};
-typedef struct W WTYPE;
-
-/* File table record */
-
-struct F
-{
-  sint16  defined;
-  sint16  flevel;
-  sint16  ftype;
-  sint32  faddr;
-  sint16  fsize;
-};
-typedef struct F FTYPE;
+/* Representation of one P-Code */
 
 #ifdef CONFIG_INSN16
 typedef struct P
@@ -287,48 +110,5 @@ typedef struct P
   uint32  arg;
 } OPTYPE;
 #endif
-
-/* This structure captures the parsing state of the compiler for a particular
- * file.  Since multiple, nested files can be processed, this represents
- * only level in the "stack" of nested files.
- */
-
-struct fileState_s
-{
-  /* These fields are managed by the higher level parsing logic
-   *
-   * stream    - Stream pointer the input stream associated with this
-   *             file.
-   * kind      - Kind of file we are processing.  If include > 0,
-   *             this should be eIsUnit.
-   * section   - This is the part of the program that we are parsing
-   *             now.
-   * dstack    - Level zero dstack offset at the time the unit was
-   *             included.  This is used to convert absolute program
-   *             stack offsets into relative unit stack offsets.
-   * include   - Is a unique number that identifies the file.  In
-   *             POFF ouput file, this would be the index to the
-   *             entry in the .files section.
-   */
-
-  FILE          *stream;
-  fileKind_t     kind;
-  fileSection_t  section;
-  sint32         dstack;
-  sint16         include;
-
-  /* These fields are managed by the tokenizer.  These are all
-   * initialized by primeTokenizer().
-   *
-   * buffer[]  - Holds the current input line
-   * line      - Is the line number in this file for the current line
-   * cp        - Is the current pointer into buffer[]
-   */
-
-  uint32         line;
-  unsigned char *cp;
-  unsigned char  buffer[LINE_SIZE + 1];
-};
-typedef struct fileState_s fileState_t;
 
 #endif /* __PDEFS_H */

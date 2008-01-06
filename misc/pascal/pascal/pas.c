@@ -48,7 +48,7 @@
 
 #include "config.h"
 #include "keywords.h"
-#include "pdefs.h"
+#include "pasdefs.h"
 #include "ptdefs.h"
 #include "podefs.h"
 #include "pedefs.h"

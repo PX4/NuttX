@@ -44,7 +44,7 @@
 
 #include "config.h"   /* Configuration */
 #include "keywords.h" /* Standard types */
-#include "pdefs.h"    /* Common types */
+#include "pasdefs.h"  /* Common types */
 #include "ptdefs.h"   /* Token / symbol table definitions */
 #include "podefs.h"   /* Logical opcode definitions */
 #include "pedefs.h"   /* error code definitions */
