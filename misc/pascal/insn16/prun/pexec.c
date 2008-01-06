@@ -41,7 +41,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <math.h>
 
 #include "keywords.h"
 #include "pdefs.h"
@@ -52,6 +51,10 @@
 
 #include "paslib.h"
 #include "pexec.h"
+
+#ifdef CONFIG_HAVE_LIBM
+#include <math.h>
+#endif
 
 /****************************************************************************
  * Definitions
@@ -1037,6 +1040,7 @@ static uint16 pexec_execfp(struct pexec_s *st, ubyte fpop)
       PUSH(st, result.hw[2]);
       PUSH(st, result.hw[3]);
       break;
+#ifdef CONFIG_HAVE_LIBM
     case fpABS :
       pexec_getfparguments(st, fpop, &arg1, NULL);
       result.f = fabs(arg1.f);
@@ -1045,6 +1049,7 @@ static uint16 pexec_execfp(struct pexec_s *st, ubyte fpop)
       PUSH(st, result.hw[2]);
       PUSH(st, result.hw[3]);
       break;
+#endif
     case fpSQR :
       pexec_getfparguments(st, fpop, &arg1, NULL);
       result.f = arg1.f * arg1.f;
@@ -1053,6 +1058,7 @@ static uint16 pexec_execfp(struct pexec_s *st, ubyte fpop)
       PUSH(st, result.hw[2]);
       PUSH(st, result.hw[3]);
       break;
+#ifdef CONFIG_HAVE_LIBM
     case fpSQRT :
       pexec_getfparguments(st, fpop, &arg1, NULL);
       result.f = sqrt(arg1.f);
@@ -1101,6 +1107,7 @@ static uint16 pexec_execfp(struct pexec_s *st, ubyte fpop)
       PUSH(st, result.hw[2]);
       PUSH(st, result.hw[3]);
       break;
+#endif
 
     default :
       return eBADFPOPCODE;

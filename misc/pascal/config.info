@@ -58,3 +58,7 @@ CONFIGS="$CONFIGS CONFIG_INSN32:n"
 # Register model selection
 CONFIG_REGM_INFO="Processor module supports a register machine"
 CONFIGS="$CONFIGS CONFIG_REGM:n"
+
+# Availability of libma.a
+CONFIG_HAVE_LIBM_INFO="Host toolchain supports libm.a"
+CONFIGS="$CONFIGS CONFIG_HAVE_LIBM:y"
