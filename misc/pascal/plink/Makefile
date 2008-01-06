@@ -47,6 +47,11 @@ BINDIR-$(CONFIG_INSN16)	= $(PASCAL)/bin16
 BINDIR-$(CONFIG_INSN32)	= $(PASCAL)/bin32
 
 #
+# Tools
+#
+CFLAGS			+= -I.
+
+#
 # Objects and targets
 #
 PLINKSRCS		= plink.c plsym.c plreloc.c

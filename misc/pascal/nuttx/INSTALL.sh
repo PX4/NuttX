@@ -126,9 +126,9 @@ mkdir ${nuttxdir}/pcode/libpas || \
 
 # Copy runtime files
 
-cp -a ${pascaldir}/include/poff.h ${pascaldir}/include/pofflib.h \
+cp -a ${pascaldir}/include/poff.h   ${pascaldir}/include/pofflib.h \
       ${pascaldir}/include/pedefs.h ${pascaldir}/include/perr.h \
-      ${pascaldir}/include/pdefs.h ${pascaldir}/include/pfdefs.h \
+      ${pascaldir}/include/pdefs.h  ${pascaldir}/include/pfdefs.h \
       ${pascaldir}/include/pxdefs.h ${pascaldir}/include/paslib.h \
       ${nuttxdir}/pcode/include/. || \
   { echo "Failed to copy ${pascaldir}/include" ; exit 1; }
@@ -161,6 +161,6 @@ cp -a ${pascaldir}/${modeldir}/include/pexec.h  ${pascaldir}/${modeldir}/include
       ${nuttxdir}/pcode/insn/include/. || \
   { echo "Failed to copy ${pascaldir}/${modeldir}/include" ; exit 1; }
 
-cp -a ${pascaldir}/${modeldir}/prun/pexec.c  ${pascaldir}/${modeldir}/prun/pload.c \
+cp -a ${pascaldir}/${modeldir}/prun/pexec.c   ${pascaldir}/${modeldir}/prun/pload.c \
       ${pascaldir}/${modeldir}/prun/Make.defs ${nuttxdir}/pcode/insn/prun/. || \
   { echo "Failed to copy ${pascaldir}/${modeldir}/prun" ; exit 1; }
