@@ -84,7 +84,7 @@ void poffAddProgByte(poffHandle_t handle, ubyte progByte)
     {
       /* No, allocate it now */
 
-      poffInfo->progSectionData = (char*)malloc(INITIAL_PROG_SECTION_SIZE);
+      poffInfo->progSectionData = (ubyte*)malloc(INITIAL_PROG_SECTION_SIZE);
       if (!poffInfo->progSectionData)
 	{
 	  fatal(eNOMEMORY);

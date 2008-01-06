@@ -41,6 +41,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <errno.h>
 
 #include "keywords.h"  /* Standard types */
@@ -207,7 +208,7 @@ static uint16 poffReadSectionData(poffSectionHeader_t *shdr,
 
   /* Allocate memory to hold the section data */
 
-  *sdata = (char*)malloc(shdr->sh_size);
+  *sdata = (ubyte*)malloc(shdr->sh_size);
   if (*sdata == NULL)
     {
       return eNOMEMORY;

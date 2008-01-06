@@ -76,7 +76,7 @@ static uint16 poffCheckRoDataAlloc(poffInfo_t *poffInfo)
     {
       /* No, allocate it now */
 
-      poffInfo->roDataSectionData = (char*)malloc(INITIAL_RODATA_SECTION_SIZE);
+      poffInfo->roDataSectionData = (ubyte*)malloc(INITIAL_RODATA_SECTION_SIZE);
       if (!poffInfo->roDataSectionData)
 	{
 	  return eNOMEMORY;

@@ -560,7 +560,7 @@ static uint16 pexec_libcall(struct pexec_s *st, ubyte fileno, uint16 subfunc)
 
 	  /* Then transfer the string contents */
 
-	  memcpy(dest, src, len);
+	  memcpy(dest, src, uparm1);
 	  ref[1] = uparm1;
 	}
       break;

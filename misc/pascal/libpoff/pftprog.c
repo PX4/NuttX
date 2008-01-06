@@ -74,7 +74,7 @@ static uint16 poffCheckProgAlloc(poffProgInfo_t *poffProgInfo)
     {
       /* No, allocate it now */
 
-      poffProgInfo->progSectionData = (char*)malloc(INITIAL_PROG_SECTION_SIZE);
+      poffProgInfo->progSectionData = (ubyte*)malloc(INITIAL_PROG_SECTION_SIZE);
       if (!poffProgInfo->progSectionData)
 	{
 	  return eNOMEMORY;
