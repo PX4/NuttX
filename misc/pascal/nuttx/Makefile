@@ -35,8 +35,7 @@
 
 -include $(TOPDIR)/Make.defs
 
-MKDEP	= $(TOPDIR)/tools/mkdeps.sh
-CFLAGS	+= -Iinclude -Iinsn/include
+CFLAGS		+= -Iinclude -Iinsn/include
 
 include insn/prun/Make.defs
 include libpoff/Make.defs
