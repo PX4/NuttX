@@ -59,6 +59,5 @@
 #endif
 
 #define TRACE(stream, format, arg...) dbg(format, ##arg)
-#define errno *get_errno_ptr()
 
 #endif /* __KEYWORDS_H */
