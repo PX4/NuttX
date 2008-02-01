@@ -1,3 +1,7 @@
-P0.1.0 2008-01-07  Gregory Nutt <spudmonkey@racsa.co.cr>
+pascal-0.1.0 2008-01-07 Gregory Nutt <spudmonkey@racsa.co.cr>
 
-  * Initial release
+	* Initial release
+
+pascal-0.1.1 2008-xx-xx Gregory Nutt <spudmonkey@racsa.co.cr>
+
+	* Correct some errors in the NuttX installation logic

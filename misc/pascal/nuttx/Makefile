@@ -52,20 +52,19 @@ OBJS		= $(AOBJS) $(COBJS)
 
 BIN		= libpcode$(LIBEXT)
 
-VPATH		= insn/prun:libpoff
+VPATH		= insn/prun:libpoff:libpas
 
 all:	$(BIN)
 
 $(AOBJS): %$(OBJEXT): %.S
-	$(CC) -c $(CFLAGS) -D__ASSEMBLY__ $< -o $@
+	$(call ASSEMBLE, $<, $@)
 
 $(COBJS): %$(OBJEXT): %.c
-	$(CC) -c $(CFLAGS) $< -o $@
+	$(call COMPILE, $<, $@)
 
 $(BIN):	$(OBJS)
 	( for obj in $(OBJS) ; do \
-		$(AR) $@ $${obj} || \
-			{ echo "$(AR) $@ $obj FAILED!" ; exit 1 ; } ; \
+		$(call ARCHIVE, $@, $${obj}); \
 	done ; )
 
 .depend: Makefile $(SRCS)
@@ -76,7 +75,8 @@ $(BIN):	$(OBJS)
 depend: .depend
 
 clean:
-	rm -f $(BIN) *.o *.rel *.asm *.lst *.sym *.adb *~
+	rm -f $(BIN) *~ .*.swp
+	$(call CLEAN)
 
 distclean: clean
 	rm -f Make.dep .depend
