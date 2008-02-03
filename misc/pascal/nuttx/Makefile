@@ -35,7 +35,14 @@
 
 -include $(TOPDIR)/Make.defs
 
-CFLAGS		+= -Iinclude -Iinsn/include
+COMPILER	= ${shell basename $(CC)}
+ifeq ($(COMPILER),zneocc.exe)
+USRINCLUDES     = -usrinc:'.;$(WTOPDIR)\pcode\include;$(WTOPDIR)\pcode\insn\include'
+else
+USRINCLUDES     = -I$(TOPDIR)/pcode/include -I$(TOPDIR)/pcode/insn/include
+endif
+INCLUDES        = $(ARCHSTDINCLUDES) $(USRINCLUDES)
+CFLAGS          = $(ARCHWARNINGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(INCLUDES) $(ARCHDEFINES)
 
 include insn/prun/Make.defs
 include libpoff/Make.defs
@@ -57,20 +64,28 @@ VPATH		= insn/prun:libpoff:libpas
 all:	$(BIN)
 
 $(AOBJS): %$(OBJEXT): %.S
+ifeq ($(COMPILER),zneocc.exe)
+	$(call ASSEMBLE, `cygpath -w $<`, $@)
+else
 	$(call ASSEMBLE, $<, $@)
+endif
 
 $(COBJS): %$(OBJEXT): %.c
+ifeq ($(COMPILER),zneocc.exe)
+	$(call COMPILE, `cygpath -w $<`, $@)
+else
 	$(call COMPILE, $<, $@)
+endif
 
 $(BIN):	$(OBJS)
-	( for obj in $(OBJS) ; do \
+	@( for obj in $(OBJS) ; do \
 		$(call ARCHIVE, $@, $${obj}); \
 	done ; )
 
 .depend: Makefile $(SRCS)
-	$(MKDEP) --dep-path . --dep-path insn/prun --dep-path libpoff --dep-path libpas \
+	@$(MKDEP) --dep-path . --dep-path insn/prun --dep-path libpoff --dep-path libpas \
 		$(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
-	touch $@
+	@touch $@
 
 depend: .depend
 
