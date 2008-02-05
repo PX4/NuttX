@@ -192,7 +192,7 @@ static void showUsage(const char *progname)
 	  progname);
   fprintf(stderr, "options:\n");
   fprintf(stderr, "  -a --all              Equivalent to: -h -S -s -r -d\n");
-  fprintf(stderr, "  -h --file-header      Display the ELF file header\n");
+  fprintf(stderr, "  -h --file-header      Display the POFF file header\n");
   fprintf(stderr, "  -S --section-headers  Display the sections' header\n");
   fprintf(stderr, "  -s --symbols          Display the symbol table\n");
   fprintf(stderr, "  -r --relocs           Display the relocations\n");
