@@ -10,4 +10,5 @@ pascal-0.1.2 2008-xx-xx Gregory Nutt <spudmonkey@racsa.co.cr>
 
 	* Add logic to build and link with the ZDS-II toolchain
 	  use with the z16f.
+	* Make sure that POFF header structures are aligned
 
