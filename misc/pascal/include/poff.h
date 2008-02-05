@@ -193,6 +193,10 @@ struct poffFileHeader_s
 
   ubyte  fh_arch;
 
+  /* Pad so that the next field is aligned */
+
+  ubyte  fh_padding;
+
   /* fh_shsize is the size a section header.  This should be
    * sizeof(poffSectionHeader_t)
    */
