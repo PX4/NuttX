@@ -153,8 +153,8 @@ cp -a ${pascaldir}/libpoff/*.c ${pascaldir}/libpoff/*.h \
       ${pascaldir}/libpoff/Make.defs ${nuttxdir}/pcode/libpoff/. || \
   { echo "Failed to copy ${pascaldir}/libpoff" ; exit 1; }
 
-cp -a ${pascaldir}/libpas/psignextend16.c ${pascaldir}/libpas/Make.defs \
-      ${nuttxdir}/pcode/libpas/. || \
+cp -a ${pascaldir}/libpas/psignextend16.c ${pascaldir}/libpas/pswap.c \
+      ${pascaldir}/libpas/Make.defs ${nuttxdir}/pcode/libpas/. || \
   { echo "Failed to copy ${pascaldir}/libpas" ; exit 1; }
 
 cp -a ${pascaldir}/${modeldir}/include/pexec.h  ${pascaldir}/${modeldir}/include/pinsn16.h \

@@ -1,6 +1,6 @@
-/***************************************************************************
- * include/paslib.h
- * External Declarations associated with paslib
+/**********************************************************************
+ * libpas/pswap.c
+ * Byte swapping to handling endian-ness conversions
  *
  *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -32,57 +32,28 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ***************************************************************************/
+ **********************************************************************/
 
-#ifndef __PASLIB_H
-#define __PASLIB_H
-
-/***************************************************************************
+/**********************************************************************
  * Included Files
- ***************************************************************************/
+ **********************************************************************/
+
+#include <string.h>
 
 #include "keywords.h"
 #include "pdefs.h"
-#include "pofflib.h"
+#include "paslib.h"
 
-/***************************************************************************
- * Global Function Prototypes
- ***************************************************************************/
+/***********************************************************************/
 
-/* POFF file is always big-endian */
+uint16 poffSwap16(uint16 val)
+{
+  return val >> 8 | val << 8;
+}
 
-#ifdef CONFIG_BIG_ENDIAN
-# undef  CONFIG_POFF_SWAPNEEDED
-# define poff16(val) (val)
-# define poff32(val) (val)
-#else
-# define CONFIG_POFF_SWAPNEEDED 1
-# define poff16(val) poffSwap16(val)
-# define poff32(val) poffSwap32(val)
-#endif
+uint32 poffSwap32(uint32 val)
+{
+  return val >> 24 | ((val >> 8) & 0x0000ff00) | ((val << 8) & 0x00ff0000) | val << 24;
+}
 
-/***************************************************************************
- * Global Function Prototypes
- ***************************************************************************/
-
-/* File name extension helper */
-
-extern boolean extension(const char *inName, const char *ext, char *outName,
-			 boolean force_default);
-
-/* Math helpers */
-
-extern sint32  signExtend16(uint16 arg16);
-extern sint32  signExtend25(uint32 arg25);
-
-/* Endian-ness helpers */
-
-extern uint16 poffSwap16(uint16 val);
-extern uint32 poffSwap32(uint32 val);
-
-/***************************************************************************
- * Global Variables
- ***************************************************************************/
-
-#endif /* __PASLIB_H */
-
+/***********************************************************************/

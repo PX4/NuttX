@@ -35,4 +35,4 @@
 ############################################################################
 
 PAS_ASRCS		= 
-PAS_CSRCS		= psignextend16.c
+PAS_CSRCS		= psignextend16.c pswap.c

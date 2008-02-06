@@ -79,7 +79,7 @@ check_libs:
 	fi
 
 $(BINDIR)/prun: check_libs $(RUNOBJS)
-	@$(CC) -o $@ $(LDFLAGS) $(RUNOBJS)  -lpas -linsn -lm -lpoff
+	@$(CC) -o $@ $(LDFLAGS) $(RUNOBJS) -linsn -lpoff -lpas -lm
 
 prun: $(BINDIR)/prun
 

@@ -47,7 +47,7 @@ LIBDIR			= $(PASCAL)/lib
 #
 # Objects and targets
 #
-LIBPASSRCS		= pextension.c psignextend16.c
+LIBPASSRCS		= pextension.c psignextend16.c pswap.c
 LIBPASOBJS		= $(LIBPASSRCS:.c=.o)
 
 OBJS			= $(LIBPASOBJS)

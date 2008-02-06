@@ -101,6 +101,10 @@ static uint16 poffReadFileHeader(poffHandle_t handle, FILE *poffFile)
       return ePOFFREADERROR;
     }
 
+  /* The POFF file is retained in big-endian order.  Fixup fields as necessary */
+
+  poffSwapFileHeader(&poffInfo->fileHeader);
+
   /* Verify that this is a valid POFF header */
 
   if ((poffInfo->fileHeader.fh_ident[FHI_MAG0] != FHI_POFF_MAG0) ||
@@ -144,6 +148,10 @@ static uint16 poffReadSectionHeaders(poffHandle_t handle, FILE *poffFile)
 	{
 	  return ePOFFREADERROR;
 	}
+
+      /* The POFF file is retained in big-endian order.  Fixup fields as necessary */
+
+      poffSwapSectionHeader(&sectionHeader);
 
       /* Copy the section header to the correct location */
 
@@ -251,6 +259,12 @@ static uint16 poffReadAllSectionData(poffHandle_t handle, FILE *poffFile)
       retval = poffReadSectionData(&poffInfo->symbolTableSection,
 				   (ubyte**)&poffInfo->symbolTable,
 				   poffFile);
+#ifdef CONFIG_POFF_SWAPNEEDED
+      if (retval == eNOERROR)
+        {
+          poffSwapSymbolTableData(poffInfo);
+        }
+#endif
     }
 
   if ((retval == eNOERROR) && (HAVE_STRING_TABLE))
@@ -265,6 +279,12 @@ static uint16 poffReadAllSectionData(poffHandle_t handle, FILE *poffFile)
       retval = poffReadSectionData(&poffInfo->relocSection,
 				   (ubyte**)&poffInfo->relocTable,
 				   poffFile);
+#ifdef CONFIG_POFF_SWAPNEEDED
+      if (retval == eNOERROR)
+        {
+           poffSwapRelocationData(poffInfo);
+        }
+#endif
     }
 
   if ((retval == eNOERROR) && (HAVE_FILE_TABLE))
@@ -272,6 +292,12 @@ static uint16 poffReadAllSectionData(poffHandle_t handle, FILE *poffFile)
       retval = poffReadSectionData(&poffInfo->fileNameTableSection,
 				   (ubyte**)&poffInfo->fileNameTable,
 				   poffFile);
+#ifdef CONFIG_POFF_SWAPNEEDED
+      if (retval == eNOERROR)
+        {
+          poffSwapFileTableData(poffInfo);
+        }
+#endif
     }
 
   if ((retval == eNOERROR) && (HAVE_LINE_NUMBER))
@@ -279,6 +305,12 @@ static uint16 poffReadAllSectionData(poffHandle_t handle, FILE *poffFile)
       retval = poffReadSectionData(&poffInfo->lineNumberSection,
 				   (ubyte**)&poffInfo->lineNumberTable,
 				   poffFile);
+#ifdef CONFIG_POFF_SWAPNEEDED
+      if (retval == eNOERROR)
+        {
+          poffSwapLineNumberData(poffInfo);
+        }
+#endif
     }
 
   if ((retval == eNOERROR) && (HAVE_DEBUG_SECTION))
@@ -286,6 +318,12 @@ static uint16 poffReadAllSectionData(poffHandle_t handle, FILE *poffFile)
       retval = poffReadSectionData(&poffInfo->debugFuncSection,
 				   (ubyte**)&poffInfo->debugFuncTable,
 				   poffFile);
+#ifdef CONFIG_POFF_SWAPNEEDED
+      if (retval == eNOERROR)
+        {
+          poffSwapDebugData(poffInfo);
+        }
+#endif
     }
 
   return retval;

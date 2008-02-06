@@ -26,7 +26,7 @@ LIBPOFFSRCS		= pfhandle.c pfproghandle.c pftprog.c \
 			  pfrelease.c pfdbgcontainer.c pfdbgdiscard.c \
 			  pfxprog.c pfxrodata.c pfiprog.c pfirodata.c \
 			  pfdhdr.c pfdsymbol.c pfdreloc.c pflabel.c \
-			  pflineno.c pfdbginfo.c
+			  pflineno.c pfdbginfo.c pfswap.c
 LIBPOFFOBJS		= $(LIBPOFFSRCS:.c=.o)
 
 all: libpoff.a

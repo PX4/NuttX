@@ -84,7 +84,7 @@ check_libs:
 	fi
 
 $(BINDIR)/popt: check_libs $(POPTOBJS)
-	$(CC) -o $@ $(LDFLAGS) $(POPTOBJS) -lpas -lpoff -linsn
+	$(CC) -o $@ $(LDFLAGS) $(POPTOBJS) -lpoff -linsn -lpas
 
 popt: $(BINDIR)/popt
 
