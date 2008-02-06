@@ -90,6 +90,11 @@
 #ifndef CONFIG_POFF_SWAPNEEDED
 # define poffSwapFileHeader(p)
 # define poffSwapSectionHeader(p)
+# define poffSwapSymbolTableData(p)
+# define poffSwapRelocationData(p)
+# define poffSwapFileTableData(p)
+# define poffSwapLineNumberData(p)
+# define poffSwapDebugData(p)
 #endif
 
 /***************************************************************************
