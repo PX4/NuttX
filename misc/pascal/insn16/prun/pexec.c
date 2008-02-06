@@ -146,7 +146,7 @@ typedef union fparg_u fparg_t;
  ****************************************************************************/
 
 static uint16   pexec_sysio(struct pexec_s *st, ubyte fileno, uint16 subfunc);
-static uint16   pexec_libcall(struct pexec_s *st, ubyte fileno, uint16 subfunc);
+static uint16   pexec_libcall(struct pexec_s *st, uint16 subfunc);
 static uint16   pexec_execfp(struct pexec_s *st, ubyte fpop);
 static void     pexec_getfparguments(struct pexec_s *st, ubyte fpop, fparg_t *arg1, fparg_t *arg2);
 static ustack_t pexec_readinteger(ubyte *ioptr);
@@ -265,7 +265,7 @@ static uint16 pexec_sysio(struct pexec_s *st, ubyte fileno, uint16 subfunc)
     case xWRITE_STRING :
       uparm1 = TOS(st, 0);
       for (ptr = (ubyte*)ATSTACK(st, TOS(st, 1)); uparm1; uparm1--, ptr++)
-	putchar(*ptr);
+        putchar(*ptr);
       break;
 
       /* xWRITE_REAL:
@@ -282,7 +282,7 @@ static uint16 pexec_sysio(struct pexec_s *st, ubyte fileno, uint16 subfunc)
     default :
       return eBADSYSIOFUNC;
 
-    } /* end switch */
+    }
 
   return eNOERROR;
 
@@ -296,7 +296,7 @@ static uint16 pexec_sysio(struct pexec_s *st, ubyte fileno, uint16 subfunc)
  *
  ****************************************************************************/
 
-static uint16 pexec_libcall(struct pexec_s *st, ubyte fileno, uint16 subfunc)
+static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
 {
   ustack_t  uparm1;
   ustack_t  uparm2;
@@ -325,14 +325,14 @@ static uint16 pexec_libcall(struct pexec_s *st, ubyte fileno, uint16 subfunc)
     case lbGETENV :
       len = TOS(st, 0);                    /* Number of bytes in string */
       src = (ubyte*)&GETSTACK(st, TOS(st, 1));  /* Pointer to string */
-		       
+                       
       /* Make a C string out of the pascal string */
 
       name = pexec_mkcstring(src, len);
       if (name == NULL)
-	{
-	  return eNOMEMORY;
-	}
+        {
+          return eNOMEMORY;
+        }
 
       /* Make the C-library call and free the string copy */
 
@@ -369,40 +369,40 @@ static uint16 pexec_libcall(struct pexec_s *st, ubyte fileno, uint16 subfunc)
        */
 
       if (addr1 != addr2)
-	{
-	  /* The source and destination strings are different.
-	   * Make sure that the string length will fit into the destination.
-	   */
+        {
+          /* The source and destination strings are different.
+           * Make sure that the string length will fit into the destination.
+           */
 
-	  if (uparm1 >= sSTRING_MAX_SIZE)
-	    {
-	      /* Clip to the maximum size */
+          if (uparm1 >= sSTRING_MAX_SIZE)
+            {
+              /* Clip to the maximum size */
 
-	      uparm1 = sSTRING_MAX_SIZE;
-	      len    = sSTRING_MAX_SIZE;
-	    }
-	  else
-	    {
-	      /* We have space */
+              uparm1 = sSTRING_MAX_SIZE;
+              len    = sSTRING_MAX_SIZE;
+            }
+          else
+            {
+              /* We have space */
 
-	      len = (int)uparm1;
-	    }
+              len = (int)uparm1;
+            }
 
-	  /* Get proper string pointers */
+          /* Get proper string pointers */
 
-	  dest = ATSTACK(st, addr1);
-	  src  = ATSTACK(st, addr2);
+          dest = ATSTACK(st, addr1);
+          src  = ATSTACK(st, addr2);
 
-	  /* Transfer the (16-bit) string length (must be aligned!) */
+          /* Transfer the (16-bit) string length (must be aligned!) */
 
-	  tmp    = (uint16*)dest;
-	  *tmp++ = uparm1;
-	  dest   = (ubyte*)tmp;
+          tmp    = (uint16*)dest;
+          *tmp++ = uparm1;
+          dest   = (ubyte*)tmp;
 
-	  /* Then transfer the string contents */
+          /* Then transfer the string contents */
 
-	  memcpy(dest, src, len);
-	}
+          memcpy(dest, src, len);
+        }
       break;
 
       /* Copy C string to a pascal string
@@ -428,42 +428,42 @@ static uint16 pexec_libcall(struct pexec_s *st, ubyte fileno, uint16 subfunc)
       /* Handle null src pointer */
 
       if (src == NULL)
-	{
-	  *dest = 0;
-	}
+        {
+          *dest = 0;
+        }
       else
-	{
-	  /* Get the length of the string */
+        {
+          /* Get the length of the string */
 
-	  uparm1 = strlen((char*)src);
+          uparm1 = strlen((char*)src);
 
-	  /* Make sure that the string length will fit into the
-	   * destination. */
+          /* Make sure that the string length will fit into the
+           * destination. */
 
-	  if (uparm1 >= sSTRING_MAX_SIZE)
-	    {
-	      /* Clip to the maximum size */
+          if (uparm1 >= sSTRING_MAX_SIZE)
+            {
+              /* Clip to the maximum size */
 
-	      uparm1 = sSTRING_MAX_SIZE;
-	      len    = sSTRING_MAX_SIZE;
-	    }
-	  else
-	    {
-	      /* We have space */
+              uparm1 = sSTRING_MAX_SIZE;
+              len    = sSTRING_MAX_SIZE;
+            }
+          else
+            {
+              /* We have space */
 
-	      len = (int)uparm1;
-	    }
+              len = (int)uparm1;
+            }
 
-	  /* Transfer the (16-bit) string length (must be aligned!) */
+          /* Transfer the (16-bit) string length (must be aligned!) */
 
-	  tmp    = (uint16*)dest;
-	  *tmp++ = uparm1;
-	  dest   = (ubyte*)tmp;
+          tmp    = (uint16*)dest;
+          *tmp++ = uparm1;
+          dest   = (ubyte*)tmp;
 
-	  /* Then transfer the string contents */
+          /* Then transfer the string contents */
 
-	  memcpy(dest, src, len);
-	}
+          memcpy(dest, src, len);
+        }
       break;
 
       /* Copy pascal string to a pascal string reference
@@ -485,9 +485,9 @@ static uint16 pexec_libcall(struct pexec_s *st, ubyte fileno, uint16 subfunc)
       /* Make sure that the string length will fit into the destination. */
 
       if (uparm1 >= sSTRING_MAX_SIZE)
-	{
-	  return eSTRSTKOVERFLOW;
-	}
+        {
+          return eSTRSTKOVERFLOW;
+        }
 
       /* Get a pointer to the destination reference */
 
@@ -538,34 +538,34 @@ static uint16 pexec_libcall(struct pexec_s *st, ubyte fileno, uint16 subfunc)
       /* Handle null src pointer */
 
       if (src == NULL)
-	{
-	  *dest = 0;
-	}
+        {
+          *dest = 0;
+        }
       else
-	{
-	  /* Get the length of the string */
+        {
+          /* Get the length of the string */
 
-	  uparm1 = strlen((char*)src);
+          uparm1 = strlen((char*)src);
 
-	  /* Make sure that the string length will fit into the
-	   * destination. */
+          /* Make sure that the string length will fit into the
+           * destination. */
 
-	  if (uparm1 >= sSTRING_MAX_SIZE)
-	    {
-	      return eSTRSTKOVERFLOW;
-	    }
+          if (uparm1 >= sSTRING_MAX_SIZE)
+            {
+              return eSTRSTKOVERFLOW;
+            }
 
-	  /* Transfer the (16-bit) string length (must be aligned!) */
+          /* Transfer the (16-bit) string length (must be aligned!) */
 
-	  tmp    = (uint16*)dest;
-	  *tmp++ = uparm1;
-	  dest   = (ubyte*)tmp;
+          tmp    = (uint16*)dest;
+          *tmp++ = uparm1;
+          dest   = (ubyte*)tmp;
 
-	  /* Then transfer the string contents */
+          /* Then transfer the string contents */
 
-	  memcpy(dest, src, uparm1);
-	  ref[1] = uparm1;
-	}
+          memcpy(dest, src, uparm1);
+          ref[1] = uparm1;
+        }
       break;
 
       /* Convert a string to a numeric value
@@ -599,22 +599,22 @@ static uint16 pexec_libcall(struct pexec_s *st, ubyte fileno, uint16 subfunc)
 
       len = TOS(st, 2);                    /* Number of bytes in string */
       src = (ubyte*)&GETSTACK(st, TOS(st, 3));  /* Pointer to string */
-		       
+                       
       /* Make a C string out of the pascal string */
 
       name = pexec_mkcstring(src, len);
       if (name == NULL)
-	{
-	  return eNOMEMORY;
-	}
+        {
+          return eNOMEMORY;
+        }
 
       /* Convert the string to an integer */
 
       value = atoi((char*)name);
       if ((value < MININT) || (value > MAXINT))
-	{
-	  return eINTEGEROVERFLOW;
-	}
+        {
+          return eINTEGEROVERFLOW;
+        }
       PUTSTACK(st, TOS(st, 0), 0);
       PUTSTACK(st, TOS(st, 1), value);
       DISCARD(st, 4);
@@ -673,9 +673,9 @@ static uint16 pexec_libcall(struct pexec_s *st, ubyte fileno, uint16 subfunc)
        */
 
       if (st->csp + sSTRING_SIZE >= st->spb)
-	{
-	  return eSTRSTKOVERFLOW;
-	}
+        {
+          return eSTRSTKOVERFLOW;
+        }
 
       /* Allocate space on the string stack for the new string */
 
@@ -714,9 +714,9 @@ static uint16 pexec_libcall(struct pexec_s *st, ubyte fileno, uint16 subfunc)
        */
 
       if (st->csp + sSTRING_SIZE >= st->spb)
-	{
-	  return eSTRSTKOVERFLOW;
-	}
+        {
+          return eSTRSTKOVERFLOW;
+        }
 
       /* Allocate space on the string stack for the new string */
 
@@ -766,24 +766,24 @@ static uint16 pexec_libcall(struct pexec_s *st, ubyte fileno, uint16 subfunc)
        */
 
       if (uparm1 + uparm2 > sSTRING_MAX_SIZE)
-	  return eSTRSTKOVERFLOW;
+          return eSTRSTKOVERFLOW;
       else
-	{
-	  /* Get a pointer to string1 data */
+        {
+          /* Get a pointer to string1 data */
 
-	  src    = ATSTACK(st, addr1);
+          src    = ATSTACK(st, addr1);
 
-	  /* Get a pointer to string2 header, set new size then, get
-	   * a pointer to string2 data.
-	   */
+          /* Get a pointer to string2 header, set new size then, get
+           * a pointer to string2 data.
+           */
 
-	  tmp    = ((uint16*)&GETSTACK(st, TOS(st, 1))) - 1;
-	  *tmp++ = uparm1 + uparm2;
-	  dest   = (ubyte*)tmp;
+          tmp    = ((uint16*)&GETSTACK(st, TOS(st, 1))) - 1;
+          *tmp++ = uparm1 + uparm2;
+          dest   = (ubyte*)tmp;
 
-	  memcpy(&dest[uparm2], src, uparm1); /* cat strings */
-	  TOS(st, 0) = uparm1 + uparm2;           /* Save new size */
-	}
+          memcpy(&dest[uparm2], src, uparm1); /* cat strings */
+          TOS(st, 0) = uparm1 + uparm2;           /* Save new size */
+        }
       break;
 
       /* Concatenate a character  to the end of a string.
@@ -811,25 +811,25 @@ static uint16 pexec_libcall(struct pexec_s *st, ubyte fileno, uint16 subfunc)
        */
 
       if (uparm2 >= sSTRING_MAX_SIZE)
-	  return eSTRSTKOVERFLOW;
+          return eSTRSTKOVERFLOW;
       else
-	{
-	  /* Get a pointer to string header, set size new size then, get
-	   * a pointer to string data.
-	   */
+        {
+          /* Get a pointer to string header, set size new size then, get
+           * a pointer to string data.
+           */
 
-	  tmp          = ((uint16*)&GETSTACK(st, TOS(st, 1))) - 1;
-	  *tmp++       = uparm2 + 1;
-	  dest         = (ubyte*)tmp;
+          tmp          = ((uint16*)&GETSTACK(st, TOS(st, 1))) - 1;
+          *tmp++       = uparm2 + 1;
+          dest         = (ubyte*)tmp;
 
-	  /* Add the new charcter */
+          /* Add the new charcter */
 
-	  dest[uparm2] = (ubyte)uparm1;
+          dest[uparm2] = (ubyte)uparm1;
 
-	  /* Save the new string size */
+          /* Save the new string size */
 
-	  TOS(st, 0)       = uparm2 + 1;
-	}
+          TOS(st, 0)       = uparm2 + 1;
+        }
       break;
 
       /* Compare two pascal strings
@@ -845,60 +845,60 @@ static uint16 pexec_libcall(struct pexec_s *st, ubyte fileno, uint16 subfunc)
 
     case lbSTRCMP :
       {
-	int result;
+        int result;
 
-	/* Get the parameters from the stack (leaving space for the
-	 * return value);
-	 */
+        /* Get the parameters from the stack (leaving space for the
+         * return value);
+         */
 
-	POP(st, uparm2);     /* length of string2 */
-	POP(st, addr2);      /* address of string2 data */
-	POP(st, uparm1);     /* length of string1 */
-	addr1 = TOS(st, 0);  /* address of string1 data */
+        POP(st, uparm2);     /* length of string2 */
+        POP(st, addr2);      /* address of string2 data */
+        POP(st, uparm1);     /* length of string1 */
+        addr1 = TOS(st, 0);  /* address of string1 data */
 
-	/* Get full address */
+        /* Get full address */
 
-	dest   = ATSTACK(st, addr1);
-	src    = ATSTACK(st, addr2);
+        dest   = ATSTACK(st, addr1);
+        src    = ATSTACK(st, addr2);
 
-	/* If name1 is shorter than name2, then we can only return
-	 * -1 (less than) or +1 greater than.  If the substrings
-	 * of length of name1 are equal, then we return less than.
-	 */
+        /* If name1 is shorter than name2, then we can only return
+         * -1 (less than) or +1 greater than.  If the substrings
+         * of length of name1 are equal, then we return less than.
+         */
 
-	if (uparm1 < uparm2)
-	  {
-	    result = memcmp(dest, src, uparm1);
-	    if (result == 0) result = -1;
-	  }
+        if (uparm1 < uparm2)
+          {
+            result = memcmp(dest, src, uparm1);
+            if (result == 0) result = -1;
+          }
 
-	/* If name1 is longer than name2, then we can only return
-	 * -1 (less than) or +1 greater than.  If the substrings
-	 * of length of name2 are equal, then we return greater than.
-	 */
+        /* If name1 is longer than name2, then we can only return
+         * -1 (less than) or +1 greater than.  If the substrings
+         * of length of name2 are equal, then we return greater than.
+         */
 
-	else if (uparm1 > uparm2)
-	  {
-	    result = memcmp(dest, src, uparm2);
-	    if (result == 0) result = 1;
-	  }
+        else if (uparm1 > uparm2)
+          {
+            result = memcmp(dest, src, uparm2);
+            if (result == 0) result = 1;
+          }
 
-	/* The strings are of equal length. Return the result of
-	 * the comparison.
-	 */
+        /* The strings are of equal length. Return the result of
+         * the comparison.
+         */
 
-	else
-	  {
-	    result = memcmp(dest, src, uparm1);
-	  }
-	TOS(st, 0) = result;
+        else
+          {
+            result = memcmp(dest, src, uparm1);
+          }
+        TOS(st, 0) = result;
       }
       break;
 
     default :
       return eBADSYSLIBCALL;
 
-    } /* end switch */
+    }
 
   return eNOERROR;
 
@@ -991,42 +991,42 @@ static uint16 pexec_execfp(struct pexec_s *st, ubyte fpop)
       pexec_getfparguments(st, fpop, &arg1, &arg2);
       intValue = PFALSE;
       if (arg1.f == arg2.f)
-	intValue = PTRUE;
+        intValue = PTRUE;
       PUSH(st, intValue);
       break;
     case fpNEQ :
       pexec_getfparguments(st, fpop, &arg1, &arg2);
       intValue = PFALSE;
       if (arg1.f != arg2.f)
-	intValue = PTRUE;
+        intValue = PTRUE;
       PUSH(st, intValue);
       break;
     case fpLT :
       pexec_getfparguments(st, fpop, &arg1, &arg2);
       intValue = PFALSE;
       if (arg1.f < arg2.f)
-	intValue = PTRUE;
+        intValue = PTRUE;
       PUSH(st, intValue);
       break;
     case fpGTE :
       pexec_getfparguments(st, fpop, &arg1, &arg2);
       intValue = PFALSE;
       if (arg1.f >= arg2.f)
-	intValue = PTRUE;
+        intValue = PTRUE;
       PUSH(st, intValue);
       break;
     case fpGT :
       pexec_getfparguments(st, fpop, &arg1, &arg2);
       intValue = PFALSE;
       if (arg1.f > arg2.f)
-	intValue = PTRUE;
+        intValue = PTRUE;
       PUSH(st, intValue);
       break;
     case fpLTE :
       pexec_getfparguments(st, fpop, &arg1, &arg2);
       intValue = PFALSE;
       if (arg1.f <= arg2.f)
-	intValue = PTRUE;
+        intValue = PTRUE;
       PUSH(st, intValue);
       break;
 
@@ -1112,7 +1112,7 @@ static uint16 pexec_execfp(struct pexec_s *st, ubyte fpop)
     default :
       return eBADFPOPCODE;
 
-    } /* end switch */
+    }
   return eNOERROR;
 
 } /* end pexec_execfp */
@@ -1137,18 +1137,18 @@ static void pexec_getfparguments(struct pexec_s *st, ubyte fpop, fparg_t *arg1, 
       /* Convert an integer argument to type REAL */
 
       if ((fpop & fpARG2) != 0)
-	{
-	  POP(st, sparm);
-	  arg2->f = (float64)sparm;
-	} /* end if */
+        {
+          POP(st, sparm);
+          arg2->f = (float64)sparm;
+        }
       else
-	{
-	  POP(st, arg2->hw[3]);
-	  POP(st, arg2->hw[2]);
-	  POP(st, arg2->hw[1]);
-	  POP(st, arg2->hw[0]);
-	} /* end else */
-    } /* end if */
+        {
+          POP(st, arg2->hw[3]);
+          POP(st, arg2->hw[2]);
+          POP(st, arg2->hw[1]);
+          POP(st, arg2->hw[0]);
+        }
+    }
 
   /* Extract arg1 from the stack */
 
@@ -1157,18 +1157,18 @@ static void pexec_getfparguments(struct pexec_s *st, ubyte fpop, fparg_t *arg1, 
       /* Convert an integer argument to type REAL */
 
       if ((fpop & fpARG1) != 0)
-	{
-	  POP(st, sparm);
-	  arg1->f = (float64)sparm;
-	} /* end if */
+        {
+          POP(st, sparm);
+          arg1->f = (float64)sparm;
+        }
       else
-	{
-	  POP(st, arg1->hw[3]);
-	  POP(st, arg1->hw[2]);
-	  POP(st, arg1->hw[1]);
-	  POP(st, arg1->hw[0]);
-	} /* end else */
-    } /* end if */
+        {
+          POP(st, arg1->hw[3]);
+          POP(st, arg1->hw[2]);
+          POP(st, arg1->hw[1]);
+          POP(st, arg1->hw[0]);
+        }
+    }
 
 } /* end pexec_getfparguments */
 
@@ -1187,10 +1187,10 @@ static ustack_t pexec_readinteger(ubyte *ioptr)
   while ((*ioptr >= '0') && (*ioptr <= '9'))
     {
       value = 10*value
-	+ (sstack_t)(*ioptr)
-	- (sstack_t)'0';
+        + (sstack_t)(*ioptr)
+        - (sstack_t)'0';
       ioptr++;
-    } /* end while */
+    }
 
   return (ustack_t)value;
 
@@ -1233,11 +1233,11 @@ static void pexec_readreal(uint16 *dest, ubyte *inPtr)
       inPtr++;
       fraction = 0.1;
       while ((*inPtr >= '0') && (*inPtr <= '9'))
-	{
-	  result.f += fraction * (float64)(((sint32)*inPtr++) - ((sint32)'0'));
-	  fraction /= 10.0;
-	} /* end while */
-    } /* end if */
+        {
+          result.f += fraction * (float64)(((sint32)*inPtr++) - ((sint32)'0'));
+          fraction /= 10.0;
+        }
+    }
 
   /* Correct the sign of the result */
 
@@ -1276,7 +1276,7 @@ static ustack_t pexec_getbaseaddress(struct pexec_s *st, level_t leveloffset)
      {
        baseAddress = st->dstack.i[BTOISTACK(baseAddress)];
        leveloffset--;
-     } /* end while */
+     }
 
    /* Offset that value by two words (one for the st->fp and one for the
     * return value
@@ -1301,6 +1301,900 @@ static ubyte *pexec_mkcstring(ubyte *buffer, int buflen)
       string[buflen] = '\0';
     }
   return string;
+}
+
+/****************************************************************************
+ * Name: pexec8
+ *
+ * Descripton:
+ *   Handle 8-bit instructions with no immediate data
+ *
+ ****************************************************************************/
+
+static inline int pexec8(FAR struct pexec_s *st, ubyte opcode)
+{
+  sstack_t sparm;
+  ustack_t uparm1;
+  ustack_t uparm2;
+  ustack_t uparm3;
+
+  switch (opcode)
+    {
+      /* Arithmetic & logical & and integer conversions (One stack argument) */
+    case oNEG  :
+      TOS(st, 0) = (ustack_t)(-(sstack_t)TOS(st, 0));
+      break;
+    case oABS  :
+      if (signExtend16(TOS(st, 0)) < 0)
+        {
+          TOS(st, 0) = (ustack_t)(-signExtend16(TOS(st, 0)));
+        }
+      break;
+    case oINC  :
+      TOS(st, 0)++;
+      break;
+    case oDEC  :
+      TOS(st, 0)--;
+      break;
+    case oNOT  :
+      TOS(st, 0) = ~TOS(st, 0);
+      break;
+
+      /* Arithmetic & logical (Two stack arguments) */
+
+    case oADD :
+      POP(st, sparm);
+      TOS(st, 0) = (ustack_t)(((sstack_t)TOS(st, 0)) + sparm);
+      break;
+    case oSUB :
+      POP(st, sparm);
+      TOS(st, 0) = (ustack_t)(((sstack_t)TOS(st, 0)) - sparm);
+      break;
+    case oMUL :
+      POP(st, sparm);
+      TOS(st, 0) = (ustack_t)(((sstack_t)TOS(st, 0)) * sparm);
+      break;
+    case oDIV :
+      POP(st, sparm);
+      TOS(st, 0) = (ustack_t)(((sstack_t)TOS(st, 0)) / sparm);
+      break;
+    case oMOD :
+      POP(st, sparm);
+      TOS(st, 0) = (ustack_t)(((sstack_t)TOS(st, 0)) % sparm);
+      break;
+    case oSLL :
+      POP(st, sparm);
+      TOS(st, 0) = (ustack_t)(((sstack_t)TOS(st, 0)) << sparm);
+      break;
+    case oSRL :
+      POP(st, sparm);
+      TOS(st, 0) = (TOS(st, 0) >> sparm);
+      break;
+    case oSRA :
+      POP(st, sparm);
+      TOS(st, 0) = (ustack_t)(((sstack_t)TOS(st, 0)) >> sparm);
+      break;
+    case oOR  :
+      POP(st, uparm1);
+      TOS(st, 0) = (TOS(st, 0) | uparm1);
+      break;
+    case oAND :
+      POP(st, uparm1);
+      TOS(st, 0) = (TOS(st, 0) & uparm1);
+      break;
+    case oBIT :
+      POP(st, uparm1);
+      uparm2 = TOS(st, 0);
+      if ((uparm1 & (1 << uparm2)) != 0)
+        {
+          TOS(st, 0) = PTRUE;
+        }
+      else
+        {
+          TOS(st, 0) = PFALSE;
+        }
+      break;
+
+      /* Comparisons (One stack argument) */
+
+     case oEQUZ :
+      POP(st, sparm);
+      uparm1 = PFALSE;
+      if (sparm == 0)
+        {
+          uparm1 = PTRUE;
+        }
+      PUSH(st, uparm1);
+      break;
+    case oNEQZ :
+      POP(st, sparm);
+      uparm1 = PFALSE;
+      if (sparm != 0)
+        {
+          uparm1 = PTRUE;
+        }
+      PUSH(st, uparm1);
+      break;
+    case oLTZ  :
+      POP(st, sparm);
+      uparm1 = PFALSE;
+      if (sparm < 0)
+        {
+          uparm1 = PTRUE;
+        }
+      PUSH(st, uparm1);
+      break;
+    case oGTEZ :
+      POP(st, sparm);
+      uparm1 = PFALSE;
+      if (sparm >= 0)
+        {
+          uparm1 = PTRUE;
+        }
+      PUSH(st, uparm1);
+      break;
+    case oGTZ  :
+      POP(st, sparm);
+      uparm1 = PFALSE;
+      if (sparm > 0)
+        {
+          uparm1 = PTRUE;
+        }
+      PUSH(st, uparm1);
+      break;
+    case oLTEZ :
+      POP(st, sparm);
+      uparm1 = PFALSE;
+      if (sparm <= 0)
+        {
+          uparm1 = PTRUE;
+        }
+      PUSH(st, uparm1);
+      break;
+
+      /* Comparisons (Two stack arguments) */
+
+    case oEQU  :
+      POP(st, sparm);
+      uparm1 = PFALSE;
+      if (sparm == (sstack_t)TOS(st, 0))
+        {
+          uparm1 = PTRUE;
+        }
+      TOS(st, 0) = uparm1;
+      break;
+    case oNEQ  :
+      POP(st, sparm);
+      uparm1 = PFALSE;
+      if (sparm != (sstack_t)TOS(st, 0))
+        {
+          uparm1 = PTRUE;
+        }
+      TOS(st, 0) = uparm1;
+      break;
+    case oLT   :
+      POP(st, sparm);
+      uparm1 = PFALSE;
+      if (sparm < (sstack_t)TOS(st, 0))
+        {
+          uparm1 = PTRUE;
+        }
+      TOS(st, 0) = uparm1;
+      break;
+    case oGTE  :
+      POP(st, sparm);
+      uparm1 = PFALSE;
+      if (sparm >= (sstack_t)TOS(st, 0))
+        {
+          uparm1 = PTRUE;
+        }
+      TOS(st, 0) = uparm1;
+      break;
+    case oGT   :
+      POP(st, sparm);
+      uparm1 = PFALSE;
+      if (sparm > (sstack_t)TOS(st, 0))
+        {
+          uparm1 = PTRUE;
+        }
+      TOS(st, 0) = uparm1;
+      break;
+    case oLTE  :
+      POP(st, sparm);
+      uparm1 = PFALSE;
+      if (sparm <= (sstack_t)TOS(st, 0))
+        {
+          uparm1 = PTRUE;
+        }
+      TOS(st, 0) = uparm1;
+      break;
+
+      /* Load (One stack argument) */
+
+    case oLDI  :
+      POP(st, uparm1);                   /* Address */
+      PUSH(st, GETSTACK(st, uparm1));
+      PUSH(st, GETSTACK(st, uparm1 + BPERI));
+      break;
+    case oLDIH  :
+      TOS(st, 0) = GETSTACK(st, TOS(st, 0));
+      break;
+    case oLDIB :
+      TOS(st, 0) = GETBSTACK(st, TOS(st, 0));
+      break;
+    case oLDIM :
+ /* FIX ME --> Need to handle the unaligned case */
+      POP(st, uparm1); /* Size */
+      POP(st, uparm2); /* Stack offset */
+      while (uparm1 > 0)
+        {
+          if (uparm1 >= BPERI)
+            {
+              PUSH(st, GETSTACK(st, uparm2));
+              uparm2 += BPERI;
+              uparm1 -= BPERI;
+            }
+          else
+            {
+              PUSH(st, GETBSTACK(st, uparm2));
+              uparm2++;
+              uparm1--;
+            }
+        }
+      break;
+    case oDUP :
+      uparm1 = TOS(st, 0);
+      uparm2 = TOS(st, 1);
+      PUSH(st, uparm2);
+      PUSH(st, uparm1);
+      break;
+    case oDUPH :
+      uparm1 = TOS(st, 0);
+      PUSH(st, uparm1);
+      break;
+    case oPUSHS :
+      PUSH(st, st->csp);
+      break;
+    case oPOPS :
+      POP(st, st->csp);
+      break;
+
+      /* Store (Two stack arguments) */
+
+    case oSTIH  :
+      POP(st, uparm1);
+      POP(st, uparm2);
+      PUTSTACK(st, uparm1,uparm2);
+      break;
+    case oSTIB :
+      POP(st, uparm1);
+      POP(st, uparm2);
+      PUTBSTACK(st, uparm1, uparm2);
+      break;
+    case oSTIM :
+ /* FIX ME --> Need to handle the unaligned case */
+      POP(st, uparm1);                /* Size in bytes */
+      uparm3 = uparm1;            /* Save for stack discard */
+      sparm = ROUNDBTOI(uparm1); /* Size in words */
+      uparm2 = TOS(st, sparm);       /* Stack offset */
+      sparm--;
+      while (uparm1 > 0)
+        {
+          if (uparm1 >= BPERI)
+            {
+              PUTSTACK(st, TOS(st, sparm), uparm2);
+              uparm2 += BPERI;
+              uparm1 -= BPERI;
+              sparm--;
+            }
+          else
+            {
+              PUTBSTACK(st, TOS(st, sparm), uparm2);
+              uparm2++;
+              uparm1--;
+            }
+        }
+
+      /* Discard the stored data + the stack offset */
+
+      DISCARD(st, (ROUNDBTOI(uparm3) + 1));
+      break;
+
+      /* Program control (No stack arguments) */
+
+    case oNOP   :
+      break;
+    case oRET   :
+      POP(st, st->pc);
+      POP(st, st->fp);
+      DISCARD(st, 1);
+      return eNOERROR;
+
+      /* System Functions (No stack arguments) */
+
+    case oEND   :
+      return eEXIT;
+
+    default :
+      return eILLEGALOPCODE;
+    }
+
+  st->pc += 1;
+  return eNOERROR;
+}
+
+/****************************************************************************
+ * Name: pexec16
+ *
+ * Descripton:
+ *   Handle 16-bit instructions with 8-bits of immediate data (imm8)
+ *
+ ****************************************************************************/
+
+static inline int pexec16(FAR struct pexec_s *st, ubyte opcode, ubyte imm8)
+{
+  int ret = eNOERROR;
+
+  st->pc += 2;
+  switch (opcode)
+    {
+      /* Data stack:  imm8 = 8 bit unsigned data (no stack arguments) */
+
+    case oPUSHB  :
+      PUSH(st, imm8);
+      break;
+
+      /* Floating Point:  imm8 = FP op-code (varying number of stack arguments) */
+    case oFLOAT  :
+      ret = pexec_execfp(st, imm8);
+      break;
+
+    default :
+      ret = eILLEGALOPCODE;
+      break;
+    }
+  return ret;
+}
+
+/****************************************************************************
+ * Name: pexec24
+ *
+ * Descripton:
+ *   Handle 24-bit instructions with 16-bits of immediate data (imm16)
+ *
+ ****************************************************************************/
+
+static inline int pexec24(FAR struct pexec_s *st, ubyte opcode, uint16 imm16)
+{
+  sstack_t sparm1;
+  sstack_t sparm2;
+  ustack_t uparm1;
+  ustack_t uparm2;
+  ustack_t uparm3;
+  int ret = eNOERROR;
+
+  switch (opcode)
+    {
+      /* Program control:  imm16 = unsigned label (no stack arguments) */
+
+    case oJMP   :
+      goto branch_out;
+
+      /* Program control:  imm16 = unsigned label (One stack argument) */
+
+    case oJEQUZ :
+      POP(st, sparm1);
+      if (sparm1 == 0)
+        {
+          goto branch_out;
+        }
+      break;
+    case oJNEQZ :
+      POP(st, sparm1);
+      if (sparm1 != 0)
+        {
+          goto branch_out;
+        }
+      break;
+    case oJLTZ  :
+      POP(st, sparm1);
+      if (sparm1 < 0)
+        {
+          goto branch_out;
+        }
+      break;
+    case oJGTEZ :
+      POP(st, sparm1);
+      if (sparm1 >= 0)
+        {
+          goto branch_out;
+        }
+      break;
+    case oJGTZ  :
+      POP(st, sparm1);
+      if (sparm1 > 0)
+        {
+          goto branch_out;
+        }
+      break;
+    case oJLTEZ :
+      POP(st, sparm1);
+      if (sparm1 <= 0)
+        {
+          goto branch_out;
+        }
+      break;
+
+      /* Program control:  imm16 = unsigned label (Two stack arguments) */
+
+    case oJEQU :
+      POP(st, sparm1);
+      POP(st, sparm2);
+      if (sparm2 == sparm1)
+        {
+          goto branch_out;
+        }
+      break;
+    case oJNEQ :
+      POP(st, sparm1);
+      POP(st, sparm2);
+      if (sparm2 != sparm1)
+        {
+          goto branch_out;
+        }
+      break;
+    case oJLT  :
+      POP(st, sparm1);
+      POP(st, sparm2);
+      if (sparm2 < sparm1)
+        {
+          goto branch_out;
+        }
+      break;
+    case oJGTE :
+      POP(st, sparm1);
+      POP(st, sparm2);
+      if (sparm2 >= sparm1)
+        {
+          goto branch_out;
+        }
+      break;
+    case oJGT  :
+      POP(st, sparm1);
+      POP(st, sparm2);
+      if (sparm2 > sparm1)
+        {
+          goto branch_out;
+        }
+      break;
+    case oJLTE :
+      POP(st, sparm1);
+      POP(st, sparm2);
+      if (sparm2 <= sparm1)
+        {
+          goto branch_out;
+        }
+      break;
+
+      /* Load:  imm16 = usigned offset (no stack arguments) */
+
+    case oLD :
+      uparm1 = st->spb + imm16;
+      PUSH(st, GETSTACK(st, uparm1));
+      PUSH(st, GETSTACK(st, uparm1 + BPERI));
+      break;
+    case oLDH :
+      uparm1 = st->spb + imm16;
+      PUSH(st, GETSTACK(st, uparm1));
+      break;
+    case oLDB :
+      uparm1 = st->spb + imm16;
+      PUSH(st, GETBSTACK(st, uparm1));
+      break;
+    case oLDM :
+ /* FIX ME --> Need to handle the unaligned case */
+      POP(st, uparm1);
+      uparm2 = st->spb + imm16;
+      while (uparm1 > 0)
+        {
+          if (uparm1 >= BPERI)
+            {
+              PUSH(st, GETSTACK(st, uparm2));
+              uparm2 += BPERI;
+              uparm1 -= BPERI;
+            }
+          else
+            {
+              PUSH(st, GETBSTACK(st, uparm2));
+              uparm2++;
+              uparm1--;
+            }
+        }
+      break;
+
+      /* Load & store: imm16 = unsigned base offset (One stack argument) */
+
+    case oST :
+      uparm1 = st->spb + imm16;
+      POP(st, uparm2);
+      PUTSTACK(st, uparm2, uparm1 + BPERI);
+      POP(st, uparm2);
+      PUTSTACK(st, uparm2, uparm1);
+      break;
+    case oSTH   :
+      uparm1  = st->spb + imm16;
+      POP(st, uparm2);
+      PUTSTACK(st, uparm2, uparm1);
+      break;
+    case oSTB  :
+      uparm1  = st->spb + imm16;
+      POP(st, uparm2);
+      PUTBSTACK(st, uparm2, uparm1);
+      break;
+    case oSTM :
+ /* FIX ME --> Need to handle the unaligned case */
+      POP(st, uparm1);                /* Size */
+      uparm3 = uparm1;            /* Save for stack discard */
+      uparm2 = st->spb + imm16;
+      sparm1 = ROUNDBTOI(uparm1) - 1;
+      while (uparm1 > 0)
+        {
+          if (uparm1 >= BPERI)
+            {
+              PUTSTACK(st, TOS(st, sparm1), uparm2);
+              uparm2 += BPERI;
+              uparm1 -= BPERI;
+              sparm1--;
+            }
+          else
+            {
+              PUTBSTACK(st, TOS(st, sparm1), uparm2);
+              uparm2++;
+              uparm1--;
+            }
+        }
+
+      /* Discard the stored data */
+
+      DISCARD(st, ROUNDBTOI(uparm3));
+      break;
+    case oLDX  :
+      uparm1 = st->spb + imm16 + TOS(st, 0);
+      TOS(st, 0) = GETSTACK(st, uparm1);
+      PUSH(st, GETSTACK(st, uparm1 + BPERI));
+      break;
+    case oLDXH  :
+      uparm1 = st->spb + imm16 + TOS(st, 0);
+      TOS(st, 0) = GETSTACK(st, uparm1);
+      break;
+    case oLDXB :
+      uparm1 = st->spb + imm16 + TOS(st, 0);
+      TOS(st, 0) = GETBSTACK(st, uparm1);
+      break;
+    case oLDXM  :
+ /* FIX ME --> Need to handle the unaligned case */
+      POP(st, uparm1);
+      POP(st, uparm2);
+      uparm2 += st->spb + imm16;
+      while (uparm1 > 0)
+        {
+          if (uparm1 >= BPERI)
+            {
+              PUSH(st, GETSTACK(st, uparm2));
+              uparm2 += BPERI;
+              uparm1 -= BPERI;
+            }
+          else
+            {
+              PUSH(st, GETBSTACK(st, uparm2));
+              uparm2++;
+              uparm1--;
+            }
+        }
+      break;
+
+      /* Store: imm16 = unsigned base offset (Two stack arguments) */
+
+    case oSTXH  :
+      POP(st, uparm1);
+      POP(st, uparm2);
+      uparm2 += st->spb + imm16;
+      PUTSTACK(st, uparm1,uparm2);
+      break;
+    case oSTXB :
+      POP(st, uparm1);
+      POP(st, uparm2);
+      uparm2 += st->spb + imm16;
+      PUTBSTACK(st, uparm1, uparm2);
+      break;
+    case oSTXM :
+/* FIX ME --> Need to handle the unaligned case */
+      POP(st, uparm1);                /* Size */
+      uparm3 = uparm1;            /* Save for stack discard */
+      sparm1 = ROUNDBTOI(uparm1); /* Size in 16-bit words */
+      uparm2 = TOS(st, sparm1);       /* index */
+      sparm1--;
+      uparm2 += st->spb + imm16;
+      while (uparm1 > 0)
+        {
+          if (uparm1 >= BPERI)
+            {
+              PUTSTACK(st, TOS(st, sparm1), uparm2);
+              uparm2 += BPERI;
+              uparm1 -= BPERI;
+              sparm1--;
+            }
+          else
+            {
+              PUTBSTACK(st, TOS(st, sparm1), uparm2);
+              uparm2++;
+              uparm1--;
+            }
+        }
+
+      /* Discard the stored data + the index */
+
+      DISCARD(st, (ROUNDBTOI(uparm3) + 1));
+      break;
+
+    case oLA  :
+      uparm1 = st->spb + imm16;
+      PUSH(st, uparm1);
+      break;
+    case oLAX :
+      TOS(st, 0) = st->spb + imm16 + TOS(st, 0);
+      break;
+
+      /* Data stack:  imm16 = 16 bit signed data (no stack arguments) */
+
+    case oPUSH  :
+      PUSH(st, imm16);
+      break;
+    case oINDS  :
+      st->sp += signExtend16(imm16);
+      break;
+
+      /* System Functions:
+       * For LIB:        imm16 = sub-function code
+       */
+
+    case oLIB  :
+      ret = pexec_libcall(st, imm16);
+      break;
+
+      /* Program control:  imm16 = unsigned label (no stack arguments) */
+
+    case oLAC :
+      uparm1 = imm16 + st->rop;
+      PUSH(st, uparm1);
+      break;
+
+    case oLABEL :
+    default:
+      ret = eILLEGALOPCODE;
+      break;
+    }
+
+  st->pc += 3;
+  return ret;
+
+branch_out:
+  st->pc = (addr_t)imm16;
+  return ret;
+}
+
+/****************************************************************************
+ * Name: pexec32
+ *
+ * Descripton:
+ *   Handle 32-bit instructions with 24-bits of immediate data (imm8+imm16)
+ *
+ ****************************************************************************/
+
+static int pexec32(FAR struct pexec_s *st, ubyte opcode, ubyte imm8, uint16 imm16)
+{
+  sstack_t sparm;
+  ustack_t uparm1;
+  ustack_t uparm2;
+  ustack_t uparm3;
+  int ret = eNOERROR;
+
+  switch (opcode)
+    {
+      /* Load:  imm8 = level; imm16 = signed frame offset (no stack arguments) */
+    case oLDS :
+      uparm1 = pexec_getbaseaddress(st, imm8) + signExtend16(imm16);
+      PUSH(st, GETSTACK(st, uparm1));
+      PUSH(st, GETSTACK(st, uparm1 + BPERI));
+      break;
+    case oLDSH :
+      uparm1 = pexec_getbaseaddress(st, imm8) + signExtend16(imm16);
+      PUSH(st, GETSTACK(st, uparm1));
+      break;
+    case oLDSB :
+      uparm1 = pexec_getbaseaddress(st, imm8) + signExtend16(imm16);
+      PUSH(st, GETBSTACK(st, uparm1));
+      break;
+    case oLDSM :
+ /* FIX ME --> Need to handle the unaligned case */
+      POP(st, uparm1);
+      uparm2 = pexec_getbaseaddress(st, imm8) + signExtend16(imm16);
+      while (uparm1 > 0)
+        {
+          if (uparm1 >= BPERI)
+            {
+              PUSH(st, GETSTACK(st, uparm2));
+              uparm2 += BPERI;
+              uparm1 -= BPERI;
+            }
+          else
+            {
+              PUSH(st, GETBSTACK(st, uparm2));
+              uparm2++;
+              uparm1--;
+            }
+        }
+      break;
+
+      /* Load & store: imm8 = level; imm16 = signed frame offset (One stack argument) */
+
+    case oSTSH   :
+      uparm1  = pexec_getbaseaddress(st, imm8) + signExtend16(imm16);
+      POP(st, uparm2);
+      PUTSTACK(st, uparm2, uparm1);
+      break;
+    case oSTSB  :
+      uparm1  = pexec_getbaseaddress(st, imm8) + signExtend16(imm16);
+      POP(st, uparm2);
+      PUTBSTACK(st, uparm2, uparm1);
+      break;
+    case oSTSM :
+ /* FIX ME --> Need to handle the unaligned case */
+      POP(st, uparm1);            /* Size */
+      uparm3 = uparm1;            /* Save for stack discard */
+      uparm2 = pexec_getbaseaddress(st, imm8) + signExtend16(imm16);
+      sparm = ROUNDBTOI(uparm1) - 1;
+      while (uparm1 > 0)
+        {
+          if (uparm1 >= BPERI)
+            {
+              PUTSTACK(st, TOS(st, sparm), uparm2);
+              uparm2 += BPERI;
+              uparm1 -= BPERI;
+              sparm--;
+            }
+          else
+            {
+              PUTBSTACK(st, TOS(st, sparm), uparm2);
+              uparm2++;
+              uparm1--;
+            }
+        }
+
+      /* Discard the stored data */
+
+      DISCARD(st, ROUNDBTOI(uparm3));
+      break;
+    case oLDSX  :
+      uparm1 = pexec_getbaseaddress(st, imm8) + signExtend16(imm16) + TOS(st, 0);
+      TOS(st, 0) = GETSTACK(st, uparm1);
+      PUSH(st, GETSTACK(st, uparm1 + BPERI));
+      break;
+    case oLDSXH  :
+      uparm1 = pexec_getbaseaddress(st, imm8) + signExtend16(imm16) + TOS(st, 0);
+      TOS(st, 0) = GETSTACK(st, uparm1);
+      break;
+    case oLDSXB :
+      uparm1 = pexec_getbaseaddress(st, imm8) + signExtend16(imm16) + TOS(st, 0);
+      TOS(st, 0) = GETBSTACK(st, uparm1);
+      break;
+    case oLDSXM  :
+ /* FIX ME --> Need to handle the unaligned case */
+      POP(st, uparm1);
+      POP(st, uparm2);
+      uparm2 += pexec_getbaseaddress(st, imm8) + signExtend16(imm16);
+      while (uparm1 > 0)
+        {
+          if (uparm1 >= BPERI)
+            {
+              PUSH(st, GETSTACK(st, uparm2));
+              uparm2 += BPERI;
+              uparm1 -= BPERI;
+            }
+          else
+            {
+              PUSH(st, GETBSTACK(st, uparm2));
+              uparm2++;
+              uparm1--;
+            }
+        }
+      break;
+
+      /* Store: imm8 = level; imm16 = signed frame offset (Two stack arguments) */
+
+    case oSTSXH  :
+      POP(st, uparm1);
+      POP(st, uparm2);
+      uparm2 += pexec_getbaseaddress(st, imm8) + signExtend16(imm16);
+      PUTSTACK(st, uparm1,uparm2);
+      break;
+    case oSTSXB :
+      POP(st, uparm1);
+      POP(st, uparm2);
+      uparm2 += pexec_getbaseaddress(st, imm8) + signExtend16(imm16);
+      PUTBSTACK(st, uparm1, uparm2);
+      break;
+    case oSTSXM :
+/* FIX ME --> Need to handle the unaligned case */
+      POP(st, uparm1);                /* Size */
+      uparm3 = uparm1;            /* Save for stack discard */
+      sparm = ROUNDBTOI(uparm1); /* Size in 16-bit words */
+      uparm2 = TOS(st, sparm);       /* index */
+      sparm--;
+      uparm2 += pexec_getbaseaddress(st, imm8) + signExtend16(imm16);
+      while (uparm1 > 0)
+        {
+          if (uparm1 >= BPERI)
+            {
+              PUTSTACK(st, TOS(st, sparm), uparm2);
+              uparm2 += BPERI;
+              uparm1 -= BPERI;
+              sparm--;
+            }
+          else
+            {
+              PUTBSTACK(st, TOS(st, sparm), uparm2);
+              uparm2++;
+              uparm1--;
+            }
+        }
+
+      /* Discard the stored data + the index */
+
+      DISCARD(st, (ROUNDBTOI(uparm3) + 1));
+      break;
+
+    case oLAS  :
+      uparm1 = pexec_getbaseaddress(st, imm8) + signExtend16(imm16);
+      PUSH(st, uparm1);
+      break;
+    case oLASX :
+      TOS(st, 0) = pexec_getbaseaddress(st, imm8) + signExtend16(imm16) + TOS(st, 0);
+      break;
+
+      /* Program Control:  imm8 = level; imm16 = unsigned label (No
+       * stack arguments)
+       */
+
+    case oPCAL  :
+      PUSH(st, pexec_getbaseaddress(st, imm8));
+      PUSH(st, st->fp);
+      uparm1 = st->sp;
+      PUSH(st, st->pc + 4);
+      st->fp = uparm1;
+      st->pc = (addr_t)imm16;
+      return eNOERROR;
+
+      /* System Functions:
+       * For SYSIO:   imm8 = file number; imm16 = sub-function code
+       */
+
+    case oSYSIO  :
+      ret = pexec_sysio(st, imm8, imm16);
+      break;
+
+      /* Psuedo-operations:  (No stack arguments)
+       * For LINE:    imm8 = file number; imm16 = line number
+       */
+
+    case oLINE   :
+    default :
+      ret = eILLEGALOPCODE;
+      break;
+    }
+
+  st->pc += 4;
+  return ret;
 }
 
 /****************************************************************************
@@ -1372,901 +2266,60 @@ FAR struct pexec_s *pexec_init(struct pexec_attr_s *attr)
 
 int pexec(FAR struct pexec_s *st)
 {
-  ubyte    opcode;
-  ubyte    arg8;
-  uint16   arg16;
-  ubyte    opsize;
-  sstack_t sparm1;
-  sstack_t sparm2;
-  ustack_t uparm1;
-  ustack_t uparm2;
-  ustack_t uparm3;
+  ubyte opcode;
+  int ret;
 
   /* Make sure that the program counter is within range */
 
   if (st->pc >= st->maxpc)
-    return eBADPC;
-
+    {
+      ret = eBADPC;
+    }
   else
     {
       /* Get the instruction to execute */
 
       opcode = st->ispace[st->pc];
-      arg8   = 0;
-      arg16  = 0;
-      opsize = 1;
       if ((opcode & o8) != 0)
-	{
-	  arg8 = st->ispace[st->pc + opsize];
-	  opsize++;
-	} /* end if */
-      if ((opcode & o16) != 0)
-	{
-	  arg16  = ((st->ispace[st->pc + opsize]) << 8);
-	  arg16 |= st->ispace[st->pc + opsize + 1];
-	  opsize += 2;
-	} /* end if */
+        {
+          /* Get the immediate, 8-bit value */
 
-      switch (opcode)
-	{
+          ubyte imm8 = st->ispace[st->pc + 1];
+          if ((opcode & o16) != 0)
+            {
+              /* Get the immediate, big-endian 16-bit value */
 
-/**---------------------------------------------------------------------
- OPCODES WITH NO ARGUMENTS
- ---------------------------------------------------------------------**/
-          /* Arithmetic & logical & and integer conversions (One stack argument) */
-	case oNEG  :
-	  TOS(st, 0) = (ustack_t)(-(sstack_t)TOS(st, 0));
-	  st->pc += opsize;
-	  break;
-	case oABS  :
-	  if (signExtend16(TOS(st, 0)) < 0)
-	    TOS(st, 0) = (ustack_t)(-signExtend16(TOS(st, 0)));
-	  st->pc += opsize;
-	  break;
-	case oINC  :
-	  TOS(st, 0)++;
-	  st->pc += opsize;
-	  break;
-	case oDEC  :
-	  TOS(st, 0)--;
-	  st->pc += opsize;
-	  break;
-	case oNOT  :
-	  TOS(st, 0) = ~TOS(st, 0);
-	  st->pc += opsize;
-	  break;
+              uint16 imm16  = ((st->ispace[st->pc + 2]) << 8) | st->ispace[st->pc + 3];
 
-          /* Arithmetic & logical (Two stack arguments) */
+              /* Handle 32 bit instructions */
 
-	case oADD :
-	  POP(st, sparm1);
-	  TOS(st, 0) = (ustack_t)(((sstack_t)TOS(st, 0)) + sparm1);
-	  st->pc += opsize;
-	  break;
-	case oSUB :
-	  POP(st, sparm1);
-	  TOS(st, 0) = (ustack_t)(((sstack_t)TOS(st, 0)) - sparm1);
-	  st->pc += opsize;
-	  break;
-	case oMUL :
-	  POP(st, sparm1);
-	  TOS(st, 0) = (ustack_t)(((sstack_t)TOS(st, 0)) * sparm1);
-	  st->pc += opsize;
-	  break;
-	case oDIV :
-	  POP(st, sparm1);
-	  TOS(st, 0) = (ustack_t)(((sstack_t)TOS(st, 0)) / sparm1);
-	  st->pc += opsize;
-	  break;
-	case oMOD :
-	  POP(st, sparm1);
-	  TOS(st, 0) = (ustack_t)(((sstack_t)TOS(st, 0)) % sparm1);
-	  st->pc += opsize;
-	  break;
-	case oSLL :
-	  POP(st, sparm1);
-	  TOS(st, 0) = (ustack_t)(((sstack_t)TOS(st, 0)) << sparm1);
-	  st->pc += opsize;
-	  break;
-	case oSRL :
-	  POP(st, sparm1);
-	  TOS(st, 0) = (TOS(st, 0) >> sparm1);
-	  st->pc += opsize;
-	  break;
-	case oSRA :
-	  POP(st, sparm1);
-	  TOS(st, 0) = (ustack_t)(((sstack_t)TOS(st, 0)) >> sparm1);
-	  st->pc += opsize;
-	  break;
-	case oOR  :
-	  POP(st, uparm1);
-	  TOS(st, 0) = (TOS(st, 0) | uparm1);
-	  st->pc += opsize;
-	  break;
-	case oAND :
-	  POP(st, uparm1);
-	  TOS(st, 0) = (TOS(st, 0) & uparm1);
-	  st->pc += opsize;
-	  break;
-	case oBIT :
-	  POP(st, uparm1);
-	  uparm2 = TOS(st, 0);
-	  if ((uparm1 & (1 << uparm2)) != 0)
-	    TOS(st, 0) = PTRUE;
-	  else
-	    TOS(st, 0) = PFALSE;
-	  st->pc += opsize;
-	  break;
+              ret = pexec32(st, opcode, imm8, imm16);
+            }
+          else
+            {
+              /* Handle 16-bit instructions */
 
-	  /* Comparisons (One stack argument) */
+              ret = pexec16(st, opcode, imm8);
+            }
+        }
+      else if ((opcode & o16) != 0)
+        {
+          /* Get the immediate, big-endian 16-bit value */
 
-	case oEQUZ :
-	  POP(st, sparm1);
-	  uparm1 = PFALSE;
-	  if (sparm1 == 0)
-	    uparm1 = PTRUE;
-	  PUSH(st, uparm1);
-	  st->pc += opsize;
-	  break;
-	case oNEQZ :
-	  POP(st, sparm1);
-	  uparm1 = PFALSE;
-	  if (sparm1 != 0)
-	    uparm1 = PTRUE;
-	  PUSH(st, uparm1);
-	  st->pc += opsize;
-	  break;
-	case oLTZ  :
-	  POP(st, sparm1);
-	  uparm1 = PFALSE;
-	  if (sparm1 < 0)
-	    uparm1 = PTRUE;
-	  PUSH(st, uparm1);
-	  st->pc += opsize;
-	  break;
-	case oGTEZ :
-	  POP(st, sparm1);
-	  uparm1 = PFALSE;
-	  if (sparm1 >= 0)
-	    uparm1 = PTRUE;
-	  PUSH(st, uparm1);
-	  st->pc += opsize;
-	  break;
-	case oGTZ  :
-	  POP(st, sparm1);
-	  uparm1 = PFALSE;
-	  if (sparm1 > 0)
-	    uparm1 = PTRUE;
-	  PUSH(st, uparm1);
-	  st->pc += opsize;
-	  break;
-	case oLTEZ :
-	  POP(st, sparm1);
-	  uparm1 = PFALSE;
-	  if (sparm1 <= 0)
-	    uparm1 = PTRUE;
-	  PUSH(st, uparm1);
-	  st->pc += opsize;
-	  break;
+          uint16 imm16  = ((st->ispace[st->pc + 1]) << 8) | st->ispace[st->pc + 2];
 
-	  /* Comparisons (Two stack arguments) */
+          /* Handle 24-bit instructions */
 
-	case oEQU  :
-	  POP(st, sparm1);
-	  uparm1 = PFALSE;
-	  if (sparm1 == (sstack_t)TOS(st, 0))
-	    uparm1 = PTRUE;
-	  TOS(st, 0) = uparm1;
-	  st->pc += opsize;
-	  break;
-	case oNEQ  :
-	  POP(st, sparm1);
-	  uparm1 = PFALSE;
-	  if (sparm1 != (sstack_t)TOS(st, 0))
-	    uparm1 = PTRUE;
-	  TOS(st, 0) = uparm1;
-	  st->pc += opsize;
-	  break;
-	case oLT   :
-	  POP(st, sparm1);
-	  uparm1 = PFALSE;
-	  if (sparm1 < (sstack_t)TOS(st, 0))
-	    uparm1 = PTRUE;
-	  TOS(st, 0) = uparm1;
-	  st->pc += opsize;
-	  break;
-	case oGTE  :
-	  POP(st, sparm1);
-	  uparm1 = PFALSE;
-	  if (sparm1 >= (sstack_t)TOS(st, 0))
-	    uparm1 = PTRUE;
-	  TOS(st, 0) = uparm1;
-	  st->pc += opsize;
-	  break;
-	case oGT   :
-	  POP(st, sparm1);
-	  uparm1 = PFALSE;
-	  if (sparm1 > (sstack_t)TOS(st, 0))
-	    uparm1 = PTRUE;
-	  TOS(st, 0) = uparm1;
-	  st->pc += opsize;
-	  break;
-	case oLTE  :
-	  POP(st, sparm1);
-	  uparm1 = PFALSE;
-	  if (sparm1 <= (sstack_t)TOS(st, 0))
-	    uparm1 = PTRUE;
-	  TOS(st, 0) = uparm1;
-	  st->pc += opsize;
-	  break;
+          ret = pexec24(st, opcode, imm16);
+        }
+      else
+        {
+          /* Handle 8-bit instructions */
 
-	  /* Load (One stack argument) */
-
-	case oLDI  :
-	  POP(st, uparm1);                   /* Address */
-	  PUSH(st, GETSTACK(st, uparm1));
-	  PUSH(st, GETSTACK(st, uparm1 + BPERI));
-	  st->pc += opsize;
-	  break;
-	case oLDIH  :
-	  TOS(st, 0) = GETSTACK(st, TOS(st, 0));
-	  st->pc += opsize;
-	  break;
-	case oLDIB :
-	  TOS(st, 0) = GETBSTACK(st, TOS(st, 0));
-	  st->pc += opsize;
-	  break;
-	case oLDIM :
- /* FIX ME --> Need to handle the unaligned case */
-	  POP(st, uparm1); /* Size */
-	  POP(st, uparm2); /* Stack offset */
-	  while (uparm1 > 0)
-	    {
-	      if (uparm1 >= BPERI)
-		{
-		  PUSH(st, GETSTACK(st, uparm2));
-		  uparm2 += BPERI;
-		  uparm1 -= BPERI;
-		} /* end if */
-	      else
-		{
-		  PUSH(st, GETBSTACK(st, uparm2));
-		  uparm2++;
-		  uparm1--;
-		} /* end else */
-            } /* end while */
-	  st->pc += opsize;
-	  break;
-	case oDUP :
-	  uparm1 = TOS(st, 0);
-	  uparm2 = TOS(st, 1);
-	  PUSH(st, uparm2);
-	  PUSH(st, uparm1);
-	  st->pc += opsize;
-	  break;
-	case oDUPH :
-	  uparm1 = TOS(st, 0);
-	  PUSH(st, uparm1);
-	  st->pc += opsize;
-	  break;
-	case oPUSHS :
-	  PUSH(st, st->csp);
-	  st->pc += opsize;
-	  break;
-	case oPOPS :
-	  POP(st, st->csp);
-	  st->pc += opsize;
-	  break;
-
-	  /* Store (Two stack arguments) */
-
-	case oSTIH  :
-	  POP(st, uparm1);
-	  POP(st, uparm2);
-	  PUTSTACK(st, uparm1,uparm2);
-	  st->pc += opsize;
-	  break;
-	case oSTIB :
-	  POP(st, uparm1);
-	  POP(st, uparm2);
-	  PUTBSTACK(st, uparm1, uparm2);
-	  st->pc += opsize;
-	  break;
-	case oSTIM :
- /* FIX ME --> Need to handle the unaligned case */
-	  POP(st, uparm1);                /* Size in bytes */
-          uparm3 = uparm1;            /* Save for stack discard */
-	  sparm1 = ROUNDBTOI(uparm1); /* Size in words */
-	  uparm2 = TOS(st, sparm1);       /* Stack offset */
-	  sparm1--;
-	  while (uparm1 > 0)
-	    {
-	      if (uparm1 >= BPERI)
-		{
-		  PUTSTACK(st, TOS(st, sparm1), uparm2);
-		  uparm2 += BPERI;
-		  uparm1 -= BPERI;
-		  sparm1--;
-		} /* end if */
-	      else
-		{
-		  PUTBSTACK(st, TOS(st, sparm1), uparm2);
-		  uparm2++;
-		  uparm1--;
-		} /* end else */
-	    } /* end while */
-
-	  /* Discard the stored data + the stack offset */
-
-	  DISCARD(st, (ROUNDBTOI(uparm3) + 1));
-	  st->pc += opsize;
-	  break;
-
-	  /* Program control (No stack arguments) */
-
-	case oNOP   :
-	  st->pc += opsize;
-	  break;
-	case oRET   :
-	  POP(st, st->pc);
-	  POP(st, st->fp);
-	  DISCARD(st, 1);
-	  break;
-
-	  /* System Functions (No stack arguments) */
-
-	case oEND   :
-	  return eEXIT;
-
-/**---------------------------------------------------------------------
- OPCODES WITH SINGLE BYTE ARGUMENT (arg8)
- ---------------------------------------------------------------------**/
-	  /* Data stack:  arg8 = 8 bit unsigned data (no stack arguments) */
-
-	case oPUSHB  :
-	  PUSH(st, arg8);
-	  st->pc += opsize;
-	  break;
-
-	  /* Floating Point:  arg8 = FP op-code (varying number of stack arguments) */
-	case oFLOAT  :
-	  st->pc += opsize;
-	  return pexec_execfp(st, arg8);
-
-/**---------------------------------------------------------------------
- OPCODES WITH SINGLE 16-BIT ARGUMENT (arg16)
- ---------------------------------------------------------------------**/
-	  /* Program control:  arg16 = unsigned label (no stack arguments) */
-
-	case oJMP   :
-	  st->pc = (addr_t)arg16;
-	  break;
-
-	  /* Program control:  arg16 = unsigned label (One stack argument) */
-
-	case oJEQUZ :
-	  POP(st, sparm1);
-	  if (sparm1 == 0)
-	    st->pc = (addr_t)arg16;
-	  else
-	    st->pc += opsize;
-	  break;
-	case oJNEQZ :
-	  POP(st, sparm1);
-	  if (sparm1 != 0)
-	    st->pc = (addr_t)arg16;
-	  else
-	    st->pc += opsize;
-	  break;
-	case oJLTZ  :
-	  POP(st, sparm1);
-	  if (sparm1 < 0)
-	    st->pc = (addr_t)arg16;
-	  else
-	    st->pc += opsize;
-	  break;
-	case oJGTEZ :
-	  POP(st, sparm1);
-	  if (sparm1 >= 0)
-	    st->pc = (addr_t)arg16;
-	  else
-	    st->pc += opsize;
-	  break;
-	case oJGTZ  :
-	  POP(st, sparm1);
-	  if (sparm1 > 0)
-	    st->pc = (addr_t)arg16;
-	  else
-	    st->pc += opsize;
-	  break;
-	case oJLTEZ :
-	  POP(st, sparm1);
-	  if (sparm1 <= 0)
-	    st->pc = (addr_t)arg16;
-	  else
-	    st->pc += opsize;
-	  break;
-
-	  /* Program control:  arg16 = unsigned label (Two stack arguments) */
-
-	case oJEQU :
-	  POP(st, sparm1);
-	  POP(st, sparm2);
-	  if (sparm2 == sparm1)
-	    st->pc = (addr_t)arg16;
-	  else
-	    st->pc += opsize;
-	  break;
-	case oJNEQ :
-	  POP(st, sparm1);
-	  POP(st, sparm2);
-	  if (sparm2 != sparm1)
-	    st->pc = (addr_t)arg16;
-	  else
-	    st->pc += opsize;
-	  break;
-	case oJLT  :
-	  POP(st, sparm1);
-	  POP(st, sparm2);
-	  if (sparm2 < sparm1)
-	    st->pc = (addr_t)arg16;
-	  else
-	    st->pc += opsize;
-	  break;
-	case oJGTE :
-	  POP(st, sparm1);
-	  POP(st, sparm2);
-	  if (sparm2 >= sparm1)
-	    st->pc = (addr_t)arg16;
-	  else
-	    st->pc += opsize;
-	  break;
-	case oJGT  :
-	  POP(st, sparm1);
-	  POP(st, sparm2);
-	  if (sparm2 > sparm1)
-	    st->pc = (addr_t)arg16;
-	  else
-	    st->pc += opsize;
-	  break;
-	case oJLTE :
-	  POP(st, sparm1);
-	  POP(st, sparm2);
-	  if (sparm2 <= sparm1)
-	    st->pc = (addr_t)arg16;
-	  else
-	    st->pc += opsize;
-	  break;
-
-	  /* Load:  arg16 = usigned offset (no stack arguments) */
-
-	case oLD :
-	  uparm1 = st->spb + arg16;
-	  PUSH(st, GETSTACK(st, uparm1));
-	  PUSH(st, GETSTACK(st, uparm1 + BPERI));
-	  st->pc += opsize;
-	  break;
-	case oLDH :
-	  uparm1 = st->spb + arg16;
-	  PUSH(st, GETSTACK(st, uparm1));
-	  st->pc += opsize;
-	  break;
-	case oLDB :
-	  uparm1 = st->spb + arg16;
-	  PUSH(st, GETBSTACK(st, uparm1));
-	  st->pc += opsize;
-	  break;
-	case oLDM :
- /* FIX ME --> Need to handle the unaligned case */
-	  POP(st, uparm1);
-	  uparm2 = st->spb + arg16;
-	  while (uparm1 > 0)
-	    {
-	      if (uparm1 >= BPERI)
-		{
-		  PUSH(st, GETSTACK(st, uparm2));
-		  uparm2 += BPERI;
-		  uparm1 -= BPERI;
-		} /* end if */
-	      else
-		{
-		  PUSH(st, GETBSTACK(st, uparm2));
-		  uparm2++;
-		  uparm1--;
-		} /* end else */
-            } /* end while */
-	  st->pc += opsize;
-	  break;
-
-	  /* Load & store: arg16 = unsigned base offset (One stack argument) */
-
-	case oST :
-	  uparm1 = st->spb + arg16;
-	  POP(st, uparm2);
-	  PUTSTACK(st, uparm2, uparm1 + BPERI);
-	  POP(st, uparm2);
-	  PUTSTACK(st, uparm2, uparm1);
-	  st->pc += opsize;
-	  break;
-	case oSTH   :
-	  uparm1  = st->spb + arg16;
-	  POP(st, uparm2);
-	  PUTSTACK(st, uparm2, uparm1);
-	  st->pc += opsize;
-	  break;
-	case oSTB  :
-	  uparm1  = st->spb + arg16;
-	  POP(st, uparm2);
-	  PUTBSTACK(st, uparm2, uparm1);
-	  st->pc += opsize;
-	  break;
-	case oSTM :
- /* FIX ME --> Need to handle the unaligned case */
-	  POP(st, uparm1);                /* Size */
-          uparm3 = uparm1;            /* Save for stack discard */
-	  uparm2  = st->spb + arg16;
-	  sparm1 = ROUNDBTOI(uparm1) - 1;
-	  while (uparm1 > 0)
-	    {
-	      if (uparm1 >= BPERI)
-		{
-		  PUTSTACK(st, TOS(st, sparm1), uparm2);
-		  uparm2 += BPERI;
-		  uparm1 -= BPERI;
-		  sparm1--;
-		} /* end if */
-	      else
-		{
-		  PUTBSTACK(st, TOS(st, sparm1), uparm2);
-		  uparm2++;
-		  uparm1--;
-		} /* end else */
-	    } /* end while */
-
-	  /* Discard the stored data */
-
-	  DISCARD(st, ROUNDBTOI(uparm3));
-	  st->pc += opsize;
-	  break;
-	case oLDX  :
-	  uparm1 = st->spb + arg16 + TOS(st, 0);
-	  TOS(st, 0) = GETSTACK(st, uparm1);
-	  PUSH(st, GETSTACK(st, uparm1 + BPERI));
-	  st->pc += opsize;
-	  break;
-	case oLDXH  :
-	  uparm1 = st->spb + arg16 + TOS(st, 0);
-	  TOS(st, 0) = GETSTACK(st, uparm1);
-	  st->pc += opsize;
-	  break;
-	case oLDXB :
-	  uparm1 = st->spb + arg16 + TOS(st, 0);
-	  TOS(st, 0) = GETBSTACK(st, uparm1);
-	  st->pc += opsize;
-	  break;
-	case oLDXM  :
- /* FIX ME --> Need to handle the unaligned case */
-	  POP(st, uparm1);
-	  POP(st, uparm2);
-	  uparm2 += st->spb + arg16;
-	  while (uparm1 > 0)
-	    {
-	      if (uparm1 >= BPERI)
-		{
-		  PUSH(st, GETSTACK(st, uparm2));
-		  uparm2 += BPERI;
-		  uparm1 -= BPERI;
-		} /* end if */
-	      else
-		{
-		  PUSH(st, GETBSTACK(st, uparm2));
-		  uparm2++;
-		  uparm1--;
-		} /* end else */
-            } /* end while */
-	  st->pc += opsize;
-	  break;
-
-	  /* Store: arg16 = unsigned base offset (Two stack arguments) */
-
-	case oSTXH  :
-	  POP(st, uparm1);
-	  POP(st, uparm2);
-	  uparm2 += st->spb + arg16;
-	  PUTSTACK(st, uparm1,uparm2);
-	  st->pc += opsize;
-	  break;
-	case oSTXB :
-	  POP(st, uparm1);
-	  POP(st, uparm2);
-	  uparm2 += st->spb + arg16;
-	  PUTBSTACK(st, uparm1, uparm2);
-	  st->pc += opsize;
-	  break;
-	case oSTXM :
-/* FIX ME --> Need to handle the unaligned case */
-	  POP(st, uparm1);                /* Size */
-          uparm3 = uparm1;            /* Save for stack discard */
-	  sparm1 = ROUNDBTOI(uparm1); /* Size in 16-bit words */
-	  uparm2 = TOS(st, sparm1);       /* index */
-	  sparm1--;
-	  uparm2 += st->spb + arg16;
-	  while (uparm1 > 0)
-	    {
-	      if (uparm1 >= BPERI)
-		{
-		  PUTSTACK(st, TOS(st, sparm1), uparm2);
-		  uparm2 += BPERI;
-		  uparm1 -= BPERI;
-		  sparm1--;
-		} /* end if */
-	      else
-		{
-		  PUTBSTACK(st, TOS(st, sparm1), uparm2);
-		  uparm2++;
-		  uparm1--;
-		} /* end else */
-	    } /* end while */
-
-	  /* Discard the stored data + the index */
-
-	  DISCARD(st, (ROUNDBTOI(uparm3) + 1));
-	  st->pc += opsize;
-	  break;
-
-	case oLA  :
-	  uparm1 = st->spb + arg16;
-	  PUSH(st, uparm1);
-	  st->pc += opsize;
-	  break;
-	case oLAX :
-	  TOS(st, 0) = st->spb + arg16 + TOS(st, 0);
-	  st->pc += opsize;
-	  break;
-
-	  /* Data stack:  arg16 = 16 bit signed data (no stack arguments) */
-
-	case oPUSH  :
-	  PUSH(st, arg16);
-	  st->pc += opsize;
-	  break;
-	case oINDS  :
-	  st->sp += signExtend16(arg16);
-	  st->pc += opsize;
-	  break;
-
-	  /* System Functions:
-	   * For LIB:        arg16 = sub-function code
-	   */
-
-	case oLIB  :
-	  st->pc += opsize;
-	  return pexec_libcall(st, arg8, arg16);
-
-	  /* Program control:  arg16 = unsigned label (no stack arguments) */
-
-	case oLAC :
-	  uparm1 = arg16 + st->rop;
-	  PUSH(st, uparm1);
-	  st->pc += opsize;
-	  break;
-
-	case oLABEL :
-	  return eILLEGALOPCODE;
-
-/**---------------------------------------------------------------------
- OPCODES WITH BYTE ARGUMENT (arg8) AND 16-BIT ARGUMENT (arg16)
- ---------------------------------------------------------------------**/
-	  /* Load:  arg8 = level; arg16 = signed frame offset (no stack arguments) */
-	case oLDS :
-	  uparm1 = pexec_getbaseaddress(st, arg8) + signExtend16(arg16);
-	  PUSH(st, GETSTACK(st, uparm1));
-	  PUSH(st, GETSTACK(st, uparm1 + BPERI));
-	  st->pc += opsize;
-	  break;
-	case oLDSH :
-	  uparm1 = pexec_getbaseaddress(st, arg8) + signExtend16(arg16);
-	  PUSH(st, GETSTACK(st, uparm1));
-	  st->pc += opsize;
-	  break;
-	case oLDSB :
-	  uparm1 = pexec_getbaseaddress(st, arg8) + signExtend16(arg16);
-	  PUSH(st, GETBSTACK(st, uparm1));
-	  st->pc += opsize;
-	  break;
-	case oLDSM :
- /* FIX ME --> Need to handle the unaligned case */
-	  POP(st, uparm1);
-	  uparm2 = pexec_getbaseaddress(st, arg8) + signExtend16(arg16);
-	  while (uparm1 > 0)
-	    {
-	      if (uparm1 >= BPERI)
-		{
-		  PUSH(st, GETSTACK(st, uparm2));
-		  uparm2 += BPERI;
-		  uparm1 -= BPERI;
-		} /* end if */
-	      else
-		{
-		  PUSH(st, GETBSTACK(st, uparm2));
-		  uparm2++;
-		  uparm1--;
-		} /* end else */
-            } /* end while */
-	  st->pc += opsize;
-	  break;
-
-	  /* Load & store: arg8 = level; arg16 = signed frame offset (One stack argument) */
-
-	case oSTSH   :
-	  uparm1  = pexec_getbaseaddress(st, arg8) + signExtend16(arg16);
-	  POP(st, uparm2);
-	  PUTSTACK(st, uparm2, uparm1);
-	  st->pc += opsize;
-	  break;
-	case oSTSB  :
-	  uparm1  = pexec_getbaseaddress(st, arg8) + signExtend16(arg16);
-	  POP(st, uparm2);
-	  PUTBSTACK(st, uparm2, uparm1);
-	  st->pc += opsize;
-	  break;
-	case oSTSM :
- /* FIX ME --> Need to handle the unaligned case */
-	  POP(st, uparm1);                /* Size */
-          uparm3 = uparm1;            /* Save for stack discard */
-	  uparm2  = pexec_getbaseaddress(st, arg8) + signExtend16(arg16);
-	  sparm1 = ROUNDBTOI(uparm1) - 1;
-	  while (uparm1 > 0)
-	    {
-	      if (uparm1 >= BPERI)
-		{
-		  PUTSTACK(st, TOS(st, sparm1), uparm2);
-		  uparm2 += BPERI;
-		  uparm1 -= BPERI;
-		  sparm1--;
-		} /* end if */
-	      else
-		{
-		  PUTBSTACK(st, TOS(st, sparm1), uparm2);
-		  uparm2++;
-		  uparm1--;
-		} /* end else */
-	    } /* end while */
-
-	  /* Discard the stored data */
-
-	  DISCARD(st, ROUNDBTOI(uparm3));
-	  st->pc += opsize;
-	  break;
-	case oLDSX  :
-	  uparm1 = pexec_getbaseaddress(st, arg8) + signExtend16(arg16) + TOS(st, 0);
-	  TOS(st, 0) = GETSTACK(st, uparm1);
-	  PUSH(st, GETSTACK(st, uparm1 + BPERI));
-	  st->pc += opsize;
-	  break;
-	case oLDSXH  :
-	  uparm1 = pexec_getbaseaddress(st, arg8) + signExtend16(arg16) + TOS(st, 0);
-	  TOS(st, 0) = GETSTACK(st, uparm1);
-	  st->pc += opsize;
-	  break;
-	case oLDSXB :
-	  uparm1 = pexec_getbaseaddress(st, arg8) + signExtend16(arg16) + TOS(st, 0);
-	  TOS(st, 0) = GETBSTACK(st, uparm1);
-	  st->pc += opsize;
-	  break;
-	case oLDSXM  :
- /* FIX ME --> Need to handle the unaligned case */
-	  POP(st, uparm1);
-	  POP(st, uparm2);
-	  uparm2 += pexec_getbaseaddress(st, arg8) + signExtend16(arg16);
-	  while (uparm1 > 0)
-	    {
-	      if (uparm1 >= BPERI)
-		{
-		  PUSH(st, GETSTACK(st, uparm2));
-		  uparm2 += BPERI;
-		  uparm1 -= BPERI;
-		} /* end if */
-	      else
-		{
-		  PUSH(st, GETBSTACK(st, uparm2));
-		  uparm2++;
-		  uparm1--;
-		} /* end else */
-            } /* end while */
-	  st->pc += opsize;
-	  break;
-
-	  /* Store: arg8 = level; arg16 = signed frame offset (Two stack arguments) */
-
-	case oSTSXH  :
-	  POP(st, uparm1);
-	  POP(st, uparm2);
-	  uparm2 += pexec_getbaseaddress(st, arg8) + signExtend16(arg16);
-	  PUTSTACK(st, uparm1,uparm2);
-	  st->pc += opsize;
-	  break;
-	case oSTSXB :
-	  POP(st, uparm1);
-	  POP(st, uparm2);
-	  uparm2 += pexec_getbaseaddress(st, arg8) + signExtend16(arg16);
-	  PUTBSTACK(st, uparm1, uparm2);
-	  st->pc += opsize;
-	  break;
-	case oSTSXM :
-/* FIX ME --> Need to handle the unaligned case */
-	  POP(st, uparm1);                /* Size */
-          uparm3 = uparm1;            /* Save for stack discard */
-	  sparm1 = ROUNDBTOI(uparm1); /* Size in 16-bit words */
-	  uparm2 = TOS(st, sparm1);       /* index */
-	  sparm1--;
-	  uparm2 += pexec_getbaseaddress(st, arg8) + signExtend16(arg16);
-	  while (uparm1 > 0)
-	    {
-	      if (uparm1 >= BPERI)
-		{
-		  PUTSTACK(st, TOS(st, sparm1), uparm2);
-		  uparm2 += BPERI;
-		  uparm1 -= BPERI;
-		  sparm1--;
-		} /* end if */
-	      else
-		{
-		  PUTBSTACK(st, TOS(st, sparm1), uparm2);
-		  uparm2++;
-		  uparm1--;
-		} /* end else */
-	    } /* end while */
-
-	  /* Discard the stored data + the index */
-
-	  DISCARD(st, (ROUNDBTOI(uparm3) + 1));
-	  st->pc += opsize;
-	  break;
-
-	case oLAS  :
-	  uparm1 = pexec_getbaseaddress(st, arg8) + signExtend16(arg16);
-	  PUSH(st, uparm1);
-	  st->pc += opsize;
-	  break;
-	case oLASX :
-	  TOS(st, 0) = pexec_getbaseaddress(st, arg8) + signExtend16(arg16) + TOS(st, 0);
-	  st->pc += opsize;
-	  break;
-
-	  /* Program Control:  arg8 = level; arg16 = unsigned label (No
-	   * stack arguments)
-	   */
-
-	case oPCAL  :
-	  PUSH(st, pexec_getbaseaddress(st, arg8));
-	  PUSH(st, st->fp);
-	  uparm1 = st->sp;
-	  PUSH(st, st->pc + opsize);
-	  st->fp = uparm1;
-	  st->pc = (addr_t)arg16;
-	  break;
-
-	  /* System Functions:
-	   * For SYSIO:   arg8 = file number; arg16 = sub-function code
-	   */
-
-	case oSYSIO  :
-	  st->pc += opsize;
-	  return pexec_sysio(st, arg8, arg16);
-
-	  /* Psuedo-operations:  (No stack arguments)
-	   * For LINE:    arg8 = file number; arg16 = line number
-	   */
-
-	case oLINE   :
-	default :
-	  return eILLEGALOPCODE;
-
-	} /* end switch */
-    } /* end else */
-
-  return eNOERROR;
+          ret = pexec8(st, opcode);
+        }
+    }
+  return ret;
 }
 
 /****************************************************************************

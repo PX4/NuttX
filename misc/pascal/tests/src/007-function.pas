@@ -8,7 +8,7 @@ function addmul(term1a, term1b, term2a, term2b: integer ) : integer;
       factor := terma + termb;
    end;
 begin
-   addmul := factor(term1a, term1b) + factor(term2a, term2b);
+   addmul := factor(term1a, term1b) * factor(term2a, term2b);
 end;
 
 begin
