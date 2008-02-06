@@ -51,7 +51,7 @@
 
 /* POFF file is always big-endian */
 
-#ifdef CONFIG_BIG_ENDIAN
+#ifdef CONFIG_ENDIAN_BIG
 # undef  CONFIG_POFF_SWAPNEEDED
 # define poff16(val) (val)
 # define poff32(val) (val)
