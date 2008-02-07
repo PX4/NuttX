@@ -400,7 +400,6 @@ static void poffWriteSectionData(poffHandle_t handle, FILE *poffFile)
       /* Restore host data order */
 
       poffSwapSymbolTableData(poffInfo);
-
     }
 
   /* Write the relocation table section data  (if we have one) */
