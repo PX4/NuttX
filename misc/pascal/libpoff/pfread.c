@@ -125,6 +125,7 @@ static uint16 poffReadSectionHeaders(poffHandle_t handle, FILE *poffFile)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
   poffSectionHeader_t sectionHeader;
+  poffSectionHeader_t *dest;
   long offset;
   size_t entriesRead;
   int i;
@@ -159,38 +160,39 @@ static uint16 poffReadSectionHeaders(poffHandle_t handle, FILE *poffFile)
 	{
 	case SHT_PROGDATA : /* Program data */
 	  if ((sectionHeader.sh_flags & SHF_EXEC) != 0)
-	    poffInfo->progSection = sectionHeader;
+	    dest = &poffInfo->progSection;
 	  else
-	    poffInfo->roDataSection = sectionHeader;
+	    dest = &poffInfo->roDataSection;
 	  break;
 
 	case SHT_SYMTAB : /* Symbol table */
-	  poffInfo->symbolTableSection = sectionHeader;
+          dest = &poffInfo->symbolTableSection;
 	  break;
 
 	case SHT_STRTAB :  /* String table */
-	  poffInfo->stringTableSection = sectionHeader;
+	  dest = &poffInfo->stringTableSection;
 	  break;
 
 	case SHT_REL : /* Relocation data */
-	  poffInfo->relocSection = sectionHeader;
+	  dest = &poffInfo->relocSection;
 	  break;
 
 	case SHT_FILETAB : /* File table */
-	  poffInfo->fileNameTableSection = sectionHeader;
+	  dest = &poffInfo->fileNameTableSection;
 	  break;
 
 	case SHT_LINENO :  /* Line number data */
-	  poffInfo->lineNumberSection = sectionHeader;
+	  dest = &poffInfo->lineNumberSection;
 	  break;
 
 	case SHT_DEBUG :  /* Debug function info data */
-	  poffInfo->debugFuncSection = sectionHeader;
+	  dest = &poffInfo->debugFuncSection;
 	  break;
 
 	default:
 	  return ePOFFREADERROR;
 	}
+      memcpy(dest, &sectionHeader, sizeof(poffSectionHeader_t));
 
       /* Get the offset to the next section */
 

@@ -308,7 +308,7 @@ static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
   ubyte    *dest;
   ubyte    *name;
   int       len;
-  int       value;
+  sint32    value;
 
   switch (subfunc)
     {
@@ -599,7 +599,7 @@ static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
 
       len = TOS(st, 2);                    /* Number of bytes in string */
       src = (ubyte*)&GETSTACK(st, TOS(st, 3));  /* Pointer to string */
-                       
+
       /* Make a C string out of the pascal string */
 
       name = pexec_mkcstring(src, len);

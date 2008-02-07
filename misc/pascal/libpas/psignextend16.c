@@ -51,7 +51,7 @@
 
 sint32 signExtend16(uint16 arg16)
 {
-  sint32 arg32 = arg16 << 16;
+  sint32 arg32 = (sint32)arg16 << 16;
   return arg32 >> 16;
 }
 

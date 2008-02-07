@@ -95,7 +95,7 @@ sint32 poffGetRawRelocation(poffHandle_t handle, poffRelocation_t *lineno)
     {
       /* Copy the raw line number information to the user */
 
-      *lineno = *(poffRelocation_t*)&poffInfo->relocTable[relocIndex];
+      memcpy(lineno, &poffInfo->relocTable[relocIndex], sizeof(poffRelocation_t));
 
       /* Set up for the next read */
 
