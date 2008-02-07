@@ -12,4 +12,7 @@ pascal-0.1.2 2008-xx-xx Gregory Nutt <spudmonkey@racsa.co.cr>
 	  use with the z16f.
 	* Make sure that POFF header structures are aligned
 	* Standardized POFF file format to big-endian
+	* Break up large switch statements to lower complexity
+	  and eliminate a compiler bug
+	* Changes so that runtime compiles with SDCC.
 
