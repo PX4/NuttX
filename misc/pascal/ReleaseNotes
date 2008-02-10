@@ -1,16 +1,10 @@
-Pascal-0.1.0 Release Notes
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+pascal-0.1.2
+^^^^^^^^^^^^
 
-This is the initial release of a small Pascal compiler.  This
-is a compiler that I have worked tinkered with for many years.
-It is being released now to provide an interpreted language of
-the NuttX RTOS.
+This is the 3rd release of the Pascal P-Code add-on to NuttX. This
+release adds support for some additional toolchains and standardizes
+the binary format to big-endian for portability of the P-Code across
+different platforms.  This release is synchronized with the release
+of NuttX-0.3.8.
 
-The state of this compiler is uncertain at this time and so
-must be at a pre-alpha level.  It contains some partially
-implemented features.  For this realease, only 16-bit p-code
-output has been tests (and only superficially).
-
-The compiler includes the NuttX runtime that can be used to
-execute compiled Pascal P-code files from NuttX.
-
+This tarball contains a complete CVS snapshot from February 10, 2008.
