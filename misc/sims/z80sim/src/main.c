@@ -325,9 +325,15 @@ int load_file(const char *filename)
 
 void sighandler(int signo)
 {
+	sigset_t set;
 	char command[80];
 	int i;
 	int j;
+
+	sigemptyset(&set);
+	sigaddset(&set, SIGINT);
+	sigprocmask(SIG_UNBLOCK, &set, NULL);
+	signal(SIGINT, SIG_DFL);
 
 	printf("AF:%04X HL:%04X DE:%04X BC:%04X PC:%04X SP:%04X IX:%04X IY:%04X I:%02X\n",
 		gR.AF.W, gR.HL.W, gR.DE.W, gR.BC.W, gR.PC.W, gR.SP.W, gR.IX.W, gR.IY.W, gR.I);
