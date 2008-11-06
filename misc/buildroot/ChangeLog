@@ -1,7 +1,9 @@
-v0.1.0, March 9, 2007
-^^^^^^^^^^^^^^^^^^^^^
+buildroot-0.1.0 2007-03-09 <spudmonkey@racsa.co.cr>
+
 	Support for arm-elf toolchain
 
-v0.1.1
-^^^^^^
-	Support for m68k-elf and m68hc11 toolchains
+buildroot-0.1.1 2008-xx-xx <spudmonkey@racsa.co.cr>
+
+	* Add support for m68k-elf and m68hc11 toolchain
+	* Add patch to build older binutils with newer Texinfo version
+	* Add support for SH-1 toolchain
