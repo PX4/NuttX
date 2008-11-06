@@ -6,12 +6,17 @@ http://buildroot.uclibc.org/ . It has been hacked so
 that it can be used to build the following NuttX-compatible
 toolchains:
 
-o arm-elf toolchain needed for use with the C5471 (ARM7) and
-  DM320 (ARM9) ports provided with the NuttX releases.
+o arm-elf toolchain needed for use with the TI C5471 (ARM7),
+  NXP LPC214x (ARM7), STMicro STR71x (ARM7), and TI DM320
+  (ARM9) ports provided with the NuttX releases.
 
-o m68k-elf toolchain
+o m68k-elf toolchain (not currently used in any NuttX
+  configuration).
 
-o m68hc11-elf toolchain
+o m68hc11-elf toolchain (not currently used in any NuttX
+  configuration).
+
+o sh-elf toolchain needed for the SH-1 Nuttx port.
 
 This is NOT a part of the NuttX project and is provided only
 for convenience. This package is licensed as GPL (see
@@ -22,9 +27,11 @@ Instructions:
   -You must have already configured Nuttx in <some-dir>nuttx
   -download into <some-dir>
   -unpack -cd <some-dir>/buildroot
-  -cp configs/c5471-defconfig .config
+  -cp configs/arm-defconfig .config
   - make oldconfig
   - make
 
-Other configuration files: m68k-defconfig, m68hc11-defconfig
+Other configuration files: m68k-defconfig, m68hc11-defconfig,
+and sh-defconfig.
+
 
