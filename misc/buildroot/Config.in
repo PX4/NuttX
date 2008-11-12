@@ -42,6 +42,8 @@ config BR2_sh
 	bool "superh"
 config BR2_sh64
 	bool "superh64"
+config BR2_h8300
+	bool "H8/300"
 config BR2_sparc
 	bool "sparc"
 config BR2_x86_64
@@ -197,6 +199,7 @@ config BR2_ARCH
 	default "sh4"		if BR2_sh4
 	default "sh4eb"		if BR2_sh4eb
 	default "sh64"		if BR2_sh64
+	default "h8300"		if BR2_h8300
 	default "sparc"		if BR2_sparc
 	default "x86_64"	if BR2_x86_64
 
@@ -204,7 +207,7 @@ config BR2_ENDIAN
 	string
 	default "LITTLE" if BR2_arm || BR2_cris || BR2_i386 || BR2_mipsel || \
 	                    BR2_sh3 || BR2_sh4 || BR2_x86_64 || BR2_nios2 || \
-			    BR2_sh64
+			    BR2_sh64 || BR2_h8300
 	default "BIG"    if BR2_alpha || BR2_armeb || BR2_avr32 || BR2_m68k || \
 			    BR2_m68hc11 || BR2_m68hc12 || BR2_mips || \
 	                    BR2_powerpc || BR2_sh1 || BR2_sh2a_nofpueb || BR2_sh2eb || \
