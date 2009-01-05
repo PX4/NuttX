@@ -17,11 +17,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-# Without sysroot support. Sysroot toolchain is gcc-uclibc-4.x.mk
-ifneq ($(BR2_TOOLCHAIN_SYSROOT),y)
+# sysroot support works with gcc >= 4.2.0 only
+ifeq ($(BR2_TOOLCHAIN_SYSROOT),y)
 
 GCC_OFFICIAL_VER:=$(GCC_VERSION)
 GCC_SITE:=http://ftp.gnu.org/gnu/gcc/gcc-$(GCC_VERSION)
+#GCC_SITE:=ftp://ftp.ibiblio.org/pub/mirrors/gnu/ftp/gnu/gcc/gcc-$(GCC_OFFICIAL_VER)
 
 GCC_SOURCE:=gcc-$(GCC_OFFICIAL_VER).tar.bz2
 GCC_DIR:=$(TOOL_BUILD_DIR)/gcc-$(GCC_OFFICIAL_VER)
@@ -133,7 +134,7 @@ endif
 
 $(GCC_BUILD_DIR1)/.configured: $(GCC_DIR)/.patched
 	mkdir -p $(GCC_BUILD_DIR1)
-	(cd $(GCC_BUILD_DIR1); PATH=$(TARGET_PATH) \
+	(cd $(GCC_BUILD_DIR1); rm -rf config.cache; PATH=$(TARGET_PATH)\
 		CC="$(HOSTCC)" \
 		$(GCC_DIR)/configure \
 		--prefix=$(STAGING_DIR) \
@@ -161,8 +162,6 @@ $(GCC_BUILD_DIR1)/.compiled: $(GCC_BUILD_DIR1)/.configured
 
 $(STAGING_DIR)/bin/$(REAL_GNU_TARGET_NAME)-gcc: $(GCC_BUILD_DIR1)/.compiled
 	PATH=$(TARGET_PATH) $(MAKE) -C $(GCC_BUILD_DIR1) install-gcc
-	#rm -f $(STAGING_DIR)/bin/gccbug $(STAGING_DIR)/bin/gcov
-	#rm -rf $(STAGING_DIR)/info $(STAGING_DIR)/man $(STAGING_DIR)/share/doc $(STAGING_DIR)/share/locale
 
 gcc_initial: binutils $(STAGING_DIR)/bin/$(REAL_GNU_TARGET_NAME)-gcc
 
@@ -189,8 +188,8 @@ GCC_BUILD_DIR2:=$(TOOL_BUILD_DIR)/gcc-$(GCC_VERSION)-final
 $(GCC_BUILD_DIR2)/.configured: $(GCC_DIR)/.patched $(GCC_STAGING_PREREQ)
 	mkdir -p $(GCC_BUILD_DIR2)
 	# Important!  Required for limits.h to be fixed.
-	ln -snf ../include $(STAGING_DIR)/$(REAL_GNU_TARGET_NAME)/sys-include
-	(cd $(GCC_BUILD_DIR2); PATH=$(TARGET_PATH) \
+	ln -snf ../include/ $(STAGING_DIR)/$(REAL_GNU_TARGET_NAME)/sys-include
+	(cd $(GCC_BUILD_DIR2); rm -rf config.cache; PATH=$(TARGET_PATH) \
 		CC="$(HOSTCC)" \
 		$(GCC_DIR)/configure \
 		--prefix=$(STAGING_DIR) \

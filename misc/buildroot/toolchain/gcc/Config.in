@@ -1,10 +1,11 @@
 # Choose gcc version.
 
-comment "Gcc Options"
+comment "GCC Options"
 
 choice
 	prompt "GCC compiler Version"
-	default BR2_GCC_VERSION_3_4_6
+	default BR2_GCC_VERSION_4_2_4 if !BR2_avr32
+	default BR2_GCC_VERSION_3_4_6 if BR2_avr32
 	help
 	  Select the version of gcc you wish to use.
 
@@ -52,7 +53,7 @@ choice
 		bool "gcc 4.0.3"
 
 	config BR2_GCC_VERSION_4_0_4
-		depends !BR2_nios2
+		depends !BR2_nios2 && BR2_DEPRECATED
 		bool "gcc 4.0.4"
 
 	config BR2_GCC_VERSION_4_1_0
@@ -64,27 +65,23 @@ choice
 		bool "gcc 4.1.1"
 
 	config BR2_GCC_VERSION_4_1_2
-		depends !BR2_nios2
+		depends !BR2_nios2 && BR2_DEPRECATED
 		bool "gcc 4.1.2"
 
 	config BR2_GCC_VERSION_4_2
-		depends !BR2_nios2
-		select BR2_GCC_IS_SNAP
+		depends !BR2_nios2 && BR2_DEPRECATED
 		bool "gcc 4.2"
+
+	config BR2_GCC_VERSION_4_2_4
+		depends on !BR2_avr32 && !BR2_nios2
+		select BR2_GCC_SUPPORTS_SYSROOT
+		bool "gcc 4.2.4"
 
 endchoice
 
-config BR2_GCC_IS_SNAP
+config BR2_GCC_SUPPORTS_SYSROOT
 	bool
 	default n
-
-config BR2_GCC_SNAP_DATE
-	string "GCC snapshot date"
-	default "20061121"
-	depends BR2_GCC_IS_SNAP
-	help
-	  Enter snapshot date to use for gcc.  Format is:
-	  YYYYMMDD
 
 config BR2_GCC_VERSION
 	string
@@ -104,7 +101,21 @@ config BR2_GCC_VERSION
 	default "4.1.1"     if BR2_GCC_VERSION_4_1_1
 	default "4.1.2"     if BR2_GCC_VERSION_4_1_2
 	default "4.2"       if BR2_GCC_VERSION_4_2
+	default "4.2.4"     if BR2_GCC_VERSION_4_2_4
 
+config BR2_TOOLCHAIN_SYSROOT
+	bool "Enable toolchain with --sysroot support"
+	depends on BR2_GCC_SUPPORTS_SYSROOT
+	default y
+	help
+	  Enables --sysroot=dir for binutils and gcc.
+	  Use dir as the logical root directory for headers and libraries.
+	  For example, if the compiler would normally search for headers in
+	  /usr/include and libraries in /usr/lib, it will instead search
+	  dir/usr/include and dir/usr/lib.
+
+	  This does not work with gcc < 4.2.0 (4.1.2 gets
+	  ORIGINAL_AS_FOR_TARGET wrong)
 
 config BR2_GCC_USE_SJLJ_EXCEPTIONS
 	bool "Enable setjmp/longjmp exceptions?"
@@ -124,27 +135,30 @@ config BR2_EXTRA_GCC_CONFIG_OPTIONS
 config BR2_INSTALL_LIBSTDCPP
 	bool "Build/install c++ compiler and libstdc++?"
 	default n
-	# huh? why so? select BR2_LARGEFILE
-	select BR2_LARGEFILE if !BR2_GCC_VERSION_4_2
+	# >= 4.2.0 work fine without LARGEFILE
+	select BR2_LARGEFILE if !BR2_GCC_SUPPORTS_SYSROOT
+	select BR2_GCC_CROSS_CXX
 	help
 	  Build/install c++ compiler and libstdc++?
 
 config BR2_INSTALL_LIBGCJ
 	bool "Build/install java compiler and libgcj?"
 	default n
-	depends on BR2_INSTALL_LIBSTDCPP
+	depends on !BR2_avr32 && BR2_INSTALL_LIBSTDCPP
 	help
 	  Build/install java compiler and libgcj?
 
 config BR2_INSTALL_OBJC
 	bool "Build/install Objective-C compiler and runtime?"
 	default n
+	depends on !BR2_avr32
 	help
 	  Build/install Objective-C compiler and runtime?
 
 config BR2_INSTALL_FORTRAN
 	bool "Build/install Fortran compiler and runtime?"
 	default n
+	depends on !BR2_avr32
 	select BR2_PACKAGE_LIBMPFR
 	help
 	  Build/install Fortran compiler and runtime?
