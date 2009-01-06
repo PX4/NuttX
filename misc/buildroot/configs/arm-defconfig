@@ -9,12 +9,15 @@ BR2_arm=y
 # BR2_cris is not set
 # BR2_i386 is not set
 # BR2_m68k is not set
+# BR2_m68hc11 is not set
+# BR2_m68hc12 is not set
 # BR2_mips is not set
 # BR2_mipsel is not set
 # BR2_nios2 is not set
 # BR2_powerpc is not set
 # BR2_sh is not set
 # BR2_sh64 is not set
+# BR2_h8300 is not set
 # BR2_sparc is not set
 # BR2_x86_64 is not set
 BR2_generic_arm=y
@@ -81,11 +84,12 @@ BR2_BINUTILS_VERSION_2_17=y
 # BR2_BINUTILS_VERSION_2_17_50_0_8 is not set
 # BR2_BINUTILS_VERSION_2_17_50_0_9 is not set
 # BR2_BINUTILS_VERSION_2_17_50_0_10 is not set
+# BR2_BINUTILS_VERSION_2_19 is not set
 BR2_BINUTILS_VERSION="2.17"
 BR2_EXTRA_BINUTILS_CONFIG_OPTIONS=""
 
 #
-# Gcc Options
+# GCC Options
 #
 # BR2_GCC_VERSION_3_3_5 is not set
 # BR2_GCC_VERSION_3_3_6 is not set
@@ -103,12 +107,12 @@ BR2_GCC_VERSION_3_4_6=y
 # BR2_GCC_VERSION_4_1_1 is not set
 # BR2_GCC_VERSION_4_1_2 is not set
 # BR2_GCC_VERSION_4_2 is not set
-# BR2_GCC_IS_SNAP is not set
+# BR2_GCC_VERSION_4_2_4 is not set
+# BR2_GCC_SUPPORTS_SYSROOT is not set
 BR2_GCC_VERSION="3.4.6"
 # BR2_GCC_USE_SJLJ_EXCEPTIONS is not set
 BR2_EXTRA_GCC_CONFIG_OPTIONS=""
-BR2_INSTALL_LIBSTDCPP=y
-BR2_INSTALL_LIBGCJ=y
+# BR2_INSTALL_LIBSTDCPP is not set
 # BR2_INSTALL_OBJC is not set
 # BR2_INSTALL_FORTRAN is not set
 

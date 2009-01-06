@@ -137,7 +137,6 @@ config BR2_INSTALL_LIBSTDCPP
 	default n
 	# >= 4.2.0 work fine without LARGEFILE
 	select BR2_LARGEFILE if !BR2_GCC_SUPPORTS_SYSROOT
-	select BR2_GCC_CROSS_CXX
 	help
 	  Build/install c++ compiler and libstdc++?
 
@@ -159,7 +158,6 @@ config BR2_INSTALL_FORTRAN
 	bool "Build/install Fortran compiler and runtime?"
 	default n
 	depends on !BR2_avr32
-	select BR2_PACKAGE_LIBMPFR
 	help
 	  Build/install Fortran compiler and runtime?
 	  Note that it is highly recommended NOT to use gfortran
