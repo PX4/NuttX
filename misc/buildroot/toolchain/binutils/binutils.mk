@@ -9,57 +9,36 @@ BINUTILS_VERSION:=$(strip $(subst ",, $(BR2_BINUTILS_VERSION)))
 EXTRA_BINUTILS_CONFIG_OPTIONS=$(strip $(subst ",, $(BR2_EXTRA_BINUTILS_CONFIG_OPTIONS)))
 #"))
 BINUTILS_SITE:=ftp://ftp.kernel.org/pub/linux/devel/binutils
+ifeq ($(BINUTILS_VERSION),2.19)
+BINUTILS_SITE:=ftp://ftp.gnu.org/gnu/binutils/
+endif
 ifeq ($(BINUTILS_VERSION),2.17)
 BINUTILS_SITE:=ftp://ftp.gnu.org/gnu/binutils/
 endif
 ifeq ($(BINUTILS_VERSION),2.16)
 BINUTILS_SITE:=ftp://ftp.gnu.org/gnu/binutils/
-BINUTILS_NO_MPFR:=y
 endif
 ifeq ($(BINUTILS_VERSION),2.16.1)
 BINUTILS_SITE:=ftp://ftp.gnu.org/gnu/binutils/
-BINUTILS_NO_MPFR:=y
 endif
 ifeq ($(BINUTILS_VERSION),2.15)
 BINUTILS_SITE:=ftp://ftp.gnu.org/gnu/binutils/
-BINUTILS_NO_MPFR:=y
 endif
 ifeq ($(BINUTILS_VERSION),2.14)
 BINUTILS_SITE:=ftp://ftp.gnu.org/gnu/binutils/
-BINUTILS_NO_MPFR:=y
 endif
 ifeq ($(BINUTILS_VERSION),2.13)
 BINUTILS_SITE:=ftp://ftp.gnu.org/gnu/binutils/
-BINUTILS_NO_MPFR:=y
 endif
 ifeq ($(BINUTILS_VERSION),2.15.97)
 BINUTILS_SITE:=ftp://sources.redhat.com/pub/binutils/snapshots/
-BINUTILS_NO_MPFR:=y
 endif
 
-# We do not rely on the host's gmp/mpfr but use a known working one
+# NOTE: Unlike the original buildroot binutils.mk, this version always relies on
+# the system libgmp and libmpfr which must be installed for certain binutils versions.
+
 BINUTILS_HOST_PREREQ:=
 BINUTILS_TARGET_PREREQ:=
-
-ifeq ($(findstring 3.,$(GCC_VERSION)),3.)
-BINUTILS_NO_MPFR:=y
-endif
-ifeq ($(findstring 4.0,$(GCC_VERSION)),4.0)
-BINUTILS_NO_MPFR:=y
-endif
-
-ifndef BINUTILS_NO_MPFR
-BINUTILS_HOST_PREREQ:=$(TOOL_BUILD_DIR)/gmp/lib/libgmp.so \
-	$(TOOL_BUILD_DIR)/mpfr/lib/libmpfr.so
-
-BINUTILS_TARGET_PREREQ:=$(TARGET_DIR)/lib/libgmp.so \
-	$(TARGET_DIR)/lib/libmpfr.so
-EXTRA_BINUTILS_CONFIG_OPTIONS+=--with-gmp="$(GMP_HOST_DIR)"
-EXTRA_BINUTILS_CONFIG_OPTIONS+=--with-mpfr="$(MPFR_HOST_DIR)"
-
-BINUTILS_TARGET_CONFIG_OPTIONS=--with-gmp="$(GMP_TARGET_DIR)"
-BINUTILS_TARGET_CONFIG_OPTIONS+=--with-mpfr="$(MPFR_TARGET_DIR)"
-endif
 
 BINUTILS_SOURCE:=binutils-$(BINUTILS_VERSION).tar.bz2
 BINUTILS_DIR:=$(TOOL_BUILD_DIR)/binutils-$(BINUTILS_VERSION)
@@ -92,8 +71,6 @@ $(BINUTILS_DIR1)/.configured: $(BINUTILS_DIR)/.patched
 		--build=$(GNU_HOST_NAME) \
 		--host=$(GNU_HOST_NAME) \
 		--target=$(REAL_GNU_TARGET_NAME) \
-		--with-build-sysroot="$(TOOL_BUILD_DIR)/nuttx_dev/" \
-		--with-sysroot="$(TOOL_BUILD_DIR)/nuttx_dev/" \
 		$(DISABLE_NLS) \
 		$(MULTILIB) \
 		--disable-werror \

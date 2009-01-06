@@ -18,7 +18,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 # Without sysroot support. Sysroot toolchain is gcc-uclibc-4.x.mk
-ifneq ($(BR2_TOOLCHAIN_SYSROOT),y)
+ifneq ($(BR2_GCC_SUPPORTS_SYSROOT),y)
 
 GCC_OFFICIAL_VER:=$(GCC_VERSION)
 GCC_SITE:=http://ftp.gnu.org/gnu/gcc/gcc-$(GCC_VERSION)
@@ -28,20 +28,6 @@ GCC_DIR:=$(TOOL_BUILD_DIR)/gcc-$(GCC_OFFICIAL_VER)
 GCC_CAT:=$(BZCAT)
 GCC_STRIP_HOST_BINARIES:=true
 
-ifeq ($(findstring x3.,x$(GCC_VERSION)),x3.)
-GCC_NO_MPFR:=y
-else
-ifneq ($(BR2_INSTALL_FORTRAN),y)
-# fortran needs gmp and mpfr
-ifeq ($(findstring 4.0.,$(GCC_VERSION)),4.0.)
-GCC_NO_MPFR:=y
-endif
-ifeq ($(findstring 4.1.,$(GCC_VERSION)),4.1.)
-GCC_NO_MPFR:=y
-endif
-endif
-endif
-
 #############################################################
 #
 # Setup some initial stuff
@@ -49,6 +35,8 @@ endif
 #############################################################
 
 GCC_TARGET_LANGUAGES:=c
+GCC_TARGET_PREREQ=
+GCC_STAGING_PREREQ=
 
 ifeq ($(BR2_INSTALL_LIBSTDCPP),y)
 GCC_TARGET_LANGUAGES:=$(GCC_TARGET_LANGUAGES),c++
@@ -62,21 +50,9 @@ ifeq ($(BR2_INSTALL_OBJC),y)
 GCC_TARGET_LANGUAGES:=$(GCC_TARGET_LANGUAGES),objc
 endif
 
-GCC_TARGET_PREREQ=
-GCC_STAGING_PREREQ=
-
-ifndef GCC_NO_MPFR
-GCC_WITH_HOST_GMP=--with-gmp=$(GMP_HOST_DIR)
-GCC_WITH_HOST_MPFR=--with-mpfr=$(MPFR_HOST_DIR)
-
 ifeq ($(BR2_INSTALL_FORTRAN),y)
 GCC_TARGET_LANGUAGES:=$(GCC_TARGET_LANGUAGES),fortran
-#GCC_TARGET_PREREQ += $(TARGET_DIR)/lib/libmpfr.so $(TARGET_DIR)/lib/libgmp.so
-#GCC_STAGING_PREREQ+= $(TOOL_BUILD_DIR)/mpfr/lib/libmpfr.so
-GCC_WITH_TARGET_GMP=--with-gmp="$(GMP_TARGET_DIR)"
-GCC_WITH_TARGET_MPFR=--with-mpfr="$(MPFR_TARGET_DIR)"
 endif
-endif # ifndef GCC_NO_MPFR
 
 GCC_SHARED_LIBGCC:=--disable-shared
 
@@ -145,8 +121,6 @@ $(GCC_BUILD_DIR1)/.configured: $(GCC_DIR)/.patched
 		--enable-target-optspace \
 		--with-gnu-ld \
 		--disable-shared \
-		$(GCC_WITH_HOST_GMP) \
-		$(GCC_WITH_HOST_MPFR) \
 		$(DISABLE_NLS) \
 		$(THREADS) \
 		$(MULTILIB) \
@@ -201,8 +175,6 @@ $(GCC_BUILD_DIR2)/.configured: $(GCC_DIR)/.patched $(GCC_STAGING_PREREQ)
 		--disable-__cxa_atexit \
 		--enable-target-optspace \
 		--with-gnu-ld \
-		$(GCC_WITH_HOST_GMP) \
-		$(GCC_WITH_HOST_MPFR) \
 		$(GCC_SHARED_LIBGCC) \
 		$(DISABLE_NLS) \
 		$(THREADS) \
@@ -331,8 +303,6 @@ $(GCC_BUILD_DIR3)/.configured: $(GCC_BUILD_DIR3)/.prepared
 		--disable-__cxa_atexit \
 		--with-gnu-ld \
 		$(GCC_SHARED_LIBGCC) \
-		$(GCC_WITH_TARGET_GMP) \
-		$(GCC_WITH_TARGET_MPFR) \
 		$(DISABLE_NLS) \
 		$(THREADS) \
 		$(MULTILIB) \

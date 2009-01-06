@@ -103,19 +103,19 @@ config BR2_GCC_VERSION
 	default "4.2"       if BR2_GCC_VERSION_4_2
 	default "4.2.4"     if BR2_GCC_VERSION_4_2_4
 
-config BR2_TOOLCHAIN_SYSROOT
-	bool "Enable toolchain with --sysroot support"
-	depends on BR2_GCC_SUPPORTS_SYSROOT
-	default y
-	help
-	  Enables --sysroot=dir for binutils and gcc.
-	  Use dir as the logical root directory for headers and libraries.
-	  For example, if the compiler would normally search for headers in
-	  /usr/include and libraries in /usr/lib, it will instead search
-	  dir/usr/include and dir/usr/lib.
-
-	  This does not work with gcc < 4.2.0 (4.1.2 gets
-	  ORIGINAL_AS_FOR_TARGET wrong)
+#config BR2_TOOLCHAIN_SYSROOT
+#	bool "Enable toolchain with --sysroot support"
+#	depends on BR2_GCC_SUPPORTS_SYSROOT
+#	default y
+#	help
+#	  Enables --sysroot=dir for binutils and gcc.
+#	  Use dir as the logical root directory for headers and libraries.
+#	  For example, if the compiler would normally search for headers in
+#	  /usr/include and libraries in /usr/lib, it will instead search
+#	  dir/usr/include and dir/usr/lib.
+#
+#	  This does not work with gcc < 4.2.0 (4.1.2 gets
+#	  ORIGINAL_AS_FOR_TARGET wrong)
 
 config BR2_GCC_USE_SJLJ_EXCEPTIONS
 	bool "Enable setjmp/longjmp exceptions?"

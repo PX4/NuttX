@@ -18,7 +18,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
 # sysroot support works with gcc >= 4.2.0 only
-ifeq ($(BR2_TOOLCHAIN_SYSROOT),y)
+ifeq ($(BR2_GCC_SUPPORTS_SYSROOT),y)
 
 GCC_OFFICIAL_VER:=$(GCC_VERSION)
 GCC_SITE:=http://ftp.gnu.org/gnu/gcc/gcc-$(GCC_VERSION)
@@ -29,20 +29,6 @@ GCC_DIR:=$(TOOL_BUILD_DIR)/gcc-$(GCC_OFFICIAL_VER)
 GCC_CAT:=$(BZCAT)
 GCC_STRIP_HOST_BINARIES:=true
 
-ifeq ($(findstring x3.,x$(GCC_VERSION)),x3.)
-GCC_NO_MPFR:=y
-else
-ifneq ($(BR2_INSTALL_FORTRAN),y)
-# fortran needs gmp and mpfr
-ifeq ($(findstring 4.0.,$(GCC_VERSION)),4.0.)
-GCC_NO_MPFR:=y
-endif
-ifeq ($(findstring 4.1.,$(GCC_VERSION)),4.1.)
-GCC_NO_MPFR:=y
-endif
-endif
-endif
-
 #############################################################
 #
 # Setup some initial stuff
@@ -50,6 +36,8 @@ endif
 #############################################################
 
 GCC_TARGET_LANGUAGES:=c
+GCC_TARGET_PREREQ=
+GCC_STAGING_PREREQ=
 
 ifeq ($(BR2_INSTALL_LIBSTDCPP),y)
 GCC_TARGET_LANGUAGES:=$(GCC_TARGET_LANGUAGES),c++
@@ -63,21 +51,9 @@ ifeq ($(BR2_INSTALL_OBJC),y)
 GCC_TARGET_LANGUAGES:=$(GCC_TARGET_LANGUAGES),objc
 endif
 
-GCC_TARGET_PREREQ=
-GCC_STAGING_PREREQ=
-
-ifndef GCC_NO_MPFR
-GCC_WITH_HOST_GMP=--with-gmp=$(GMP_HOST_DIR)
-GCC_WITH_HOST_MPFR=--with-mpfr=$(MPFR_HOST_DIR)
-
 ifeq ($(BR2_INSTALL_FORTRAN),y)
 GCC_TARGET_LANGUAGES:=$(GCC_TARGET_LANGUAGES),fortran
-#GCC_TARGET_PREREQ += $(TARGET_DIR)/lib/libmpfr.so $(TARGET_DIR)/lib/libgmp.so
-#GCC_STAGING_PREREQ+= $(TOOL_BUILD_DIR)/mpfr/lib/libmpfr.so
-GCC_WITH_TARGET_GMP=--with-gmp="$(GMP_TARGET_DIR)"
-GCC_WITH_TARGET_MPFR=--with-mpfr="$(MPFR_TARGET_DIR)"
 endif
-endif # ifndef GCC_NO_MPFR
 
 GCC_SHARED_LIBGCC:=--disable-shared
 
@@ -143,11 +119,10 @@ $(GCC_BUILD_DIR1)/.configured: $(GCC_DIR)/.patched
 		--target=$(REAL_GNU_TARGET_NAME) \
 		--enable-languages=c \
 		--disable-__cxa_atexit \
+		--disable-libssp \
 		--enable-target-optspace \
 		--with-gnu-ld \
 		--disable-shared \
-		$(GCC_WITH_HOST_GMP) \
-		$(GCC_WITH_HOST_MPFR) \
 		$(DISABLE_NLS) \
 		$(THREADS) \
 		$(MULTILIB) \
@@ -198,10 +173,9 @@ $(GCC_BUILD_DIR2)/.configured: $(GCC_DIR)/.patched $(GCC_STAGING_PREREQ)
 		--target=$(REAL_GNU_TARGET_NAME) \
 		--enable-languages=$(GCC_TARGET_LANGUAGES) \
 		--disable-__cxa_atexit \
+		--disable-libssp \
 		--enable-target-optspace \
 		--with-gnu-ld \
-		$(GCC_WITH_HOST_GMP) \
-		$(GCC_WITH_HOST_MPFR) \
 		$(GCC_SHARED_LIBGCC) \
 		$(DISABLE_NLS) \
 		$(THREADS) \
@@ -329,9 +303,9 @@ $(GCC_BUILD_DIR3)/.configured: $(GCC_BUILD_DIR3)/.prepared
 		--with-gxx-include-dir=/usr/include/c++ \
 		--disable-__cxa_atexit \
 		--with-gnu-ld \
+		--with-gnu-as \
+		--disable-libssp \
 		$(GCC_SHARED_LIBGCC) \
-		$(GCC_WITH_TARGET_GMP) \
-		$(GCC_WITH_TARGET_MPFR) \
 		$(DISABLE_NLS) \
 		$(THREADS) \
 		$(MULTILIB) \
@@ -370,15 +344,11 @@ GCC_LIB_SUBDIR=lib/gcc/$(REAL_GNU_TARGET_NAME)/$(REAL_GCC_VERSION)
 else
 GCC_LIB_SUBDIR=lib/gcc/$(REAL_GNU_TARGET_NAME)/$(GCC_VERSION)
 endif
-#XXX: FIXME: cleanup BR2_ARCH selection and establish BR2_CPU
-#GCC_WITH_ARCH=--with-arch=$(BR2_ARCH)
-#GCC_WITH_TUNE=--with-tune=$(BR2_ARCH)
-#GCC_WITH_CPU=--with-cpu=$(BR2_ARCH)
 endif
 
 $(TARGET_DIR)/usr/bin/gcc: $(GCC_BUILD_DIR3)/.compiled
-	PATH=$(TARGET_PATH) \
-	$(MAKE) DESTDIR=$(TARGET_DIR) -C $(GCC_BUILD_DIR3) install
+	PATH=$(TARGET_PATH) DESTDIR=$(TARGET_DIR) \
+		$(MAKE) -C $(GCC_BUILD_DIR3) install
 	# Remove broken specs file (cross compile flag is set).
 	rm -f $(TARGET_DIR)/usr/$(GCC_LIB_SUBDIR)/specs
 	#
@@ -395,15 +365,14 @@ endif
 	#
 	# Ok... that's enough of that.
 	#
-	-(cd $(TARGET_DIR)/bin; find -type f | xargs $(STRIP) > /dev/null 2>&1)
-	-(cd $(TARGET_DIR)/usr/bin; find -type f | xargs $(STRIP) > /dev/null 2>&1)
-	-(cd $(TARGET_DIR)/usr/$(GCC_LIB_SUBDIR); $(STRIP) cc1 cc1plus collect2 > /dev/null 2>&1)
-	-(cd $(TARGET_DIR)/usr/lib; $(STRIP) libstdc++.so.*.*.* > /dev/null 2>&1)
-	-(cd $(TARGET_DIR)/lib; $(STRIP) libgcc_s*.so.*.*.* > /dev/null 2>&1)
+	-(cd $(TARGET_DIR)/bin && find -type f | xargs $(STRIPCMD) > /dev/null 2>&1)
+	-(cd $(TARGET_DIR)/usr/bin && find -type f | xargs $(STRIPCMD) > /dev/null 2>&1)
+	-(cd $(TARGET_DIR)/usr/$(GCC_LIB_SUBDIR) && $(STRIPCMD) cc1 cc1plus collect2 > /dev/null 2>&1)
+	-(cd $(TARGET_DIR)/usr/lib && $(STRIPCMD) libstdc++.so.*.*.* > /dev/null 2>&1)
+	-(cd $(TARGET_DIR)/lib && $(STRIPCMD) libgcc_s*.so.*.*.* > /dev/null 2>&1)
+
 	#
 	rm -f $(TARGET_DIR)/usr/lib/*.la*
-	#rm -rf $(TARGET_DIR)/share/locale $(TARGET_DIR)/usr/info \
-	#	$(TARGET_DIR)/usr/man $(TARGET_DIR)/usr/share/doc
 	# Work around problem of missing syslimits.h
 	if [ ! -f $(TARGET_DIR)/usr/$(GCC_LIB_SUBDIR)/include/syslimits.h ] ; then \
 		echo "warning: working around missing syslimits.h" ; \
@@ -414,9 +383,7 @@ endif
 	if [ ! -e $(TARGET_DIR)/usr/bin/cc ] ; then \
 		ln -snf gcc $(TARGET_DIR)/usr/bin/cc ; \
 	fi;
-	# These are in /lib, so...
-	#rm -rf $(TARGET_DIR)/usr/lib/libgcc_s*.so*
-	#touch -c $(TARGET_DIR)/usr/bin/gcc
+	touch -c $@
 
 gcc_target: binutils_target $(TARGET_DIR)/usr/bin/gcc
 
