@@ -10,6 +10,9 @@ arm-defconfig-4.2.4
 	programes (arm-elf-objcopy in particular) that cause Floating
 	point exceptions when trying to build NuttX
 
+bfin-defconfig-4.2.4
+	Builds an Blackfin toolchain using gcc 4.2.4
+
 h8300_config
 	Builds an H8/300 toolchain using gcc 3.4.5
 
