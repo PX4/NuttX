@@ -21,4 +21,9 @@ buildroot-0.1.3 2008-02-28 <spudmonkey@racsa.co.cr>
 buildroot-0.1.4 2008-xx-xx <spudmonkey@racsa.co.cr>
 
 	* Add support for a blackfin toolchain using GCC 4.2.4 and binutils 2.19
+	* GCC 4.2.4 no longer attempts to build libstdc++.  Now we can build g++!
+	* The ARM GCC-4.2.4 configuration was changed so that it now builds g++.
+	* Removed building of initial and final GCC.  that is not necessary because
+	  we do not build a libc.  Now it builds almost twice as fast.
+	* Removed logic to build the target GCC.  That is never used.
 

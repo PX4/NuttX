@@ -64,10 +64,10 @@ endif
 
 #############################################################
 #
-# build the first pass gcc compiler
+# build the gcc compiler
 #
 #############################################################
-GCC_BUILD_DIR1:=$(TOOL_BUILD_DIR)/gcc-$(GCC_VERSION)-initial
+GCC_BUILD_DIR:=$(TOOL_BUILD_DIR)/gcc-$(GCC_VERSION)-build
 
 $(DL_DIR)/$(GCC_SOURCE):
 	mkdir -p $(DL_DIR)
@@ -104,67 +104,11 @@ endif
 endif
 	touch $@
 
-# The --without-headers option stopped working with gcc 3.0 and has never been
-# fixed, so we need to actually have working C library header files prior to
-# the step or libgcc will not build...
-
-$(GCC_BUILD_DIR1)/.configured: $(GCC_DIR)/.patched
-	mkdir -p $(GCC_BUILD_DIR1)
-	(cd $(GCC_BUILD_DIR1); rm -rf config.cache; PATH=$(TARGET_PATH)\
-		CC="$(HOSTCC)" \
-		$(GCC_DIR)/configure \
-		--prefix=$(STAGING_DIR) \
-		--build=$(GNU_HOST_NAME) \
-		--host=$(GNU_HOST_NAME) \
-		--target=$(REAL_GNU_TARGET_NAME) \
-		--enable-languages=c \
-		--disable-__cxa_atexit \
-		--disable-libssp \
-		--enable-target-optspace \
-		--with-gnu-ld \
-		--disable-shared \
-		$(DISABLE_NLS) \
-		$(THREADS) \
-		$(MULTILIB) \
-		$(SOFT_FLOAT_CONFIG_OPTION) \
-		$(GCC_WITH_CPU) $(GCC_WITH_ARCH) $(GCC_WITH_TUNE) \
-		$(EXTRA_GCC_CONFIG_OPTIONS));
-	touch $@
-
-$(GCC_BUILD_DIR1)/.compiled: $(GCC_BUILD_DIR1)/.configured
-	PATH=$(TARGET_PATH) $(MAKE) -C $(GCC_BUILD_DIR1) all-gcc
-	touch $@
-
-$(STAGING_DIR)/bin/$(REAL_GNU_TARGET_NAME)-gcc: $(GCC_BUILD_DIR1)/.compiled
-	PATH=$(TARGET_PATH) $(MAKE) -C $(GCC_BUILD_DIR1) install-gcc
-
-gcc_initial: binutils $(STAGING_DIR)/bin/$(REAL_GNU_TARGET_NAME)-gcc
-
-gcc_initial-clean:
-	rm -rf $(GCC_BUILD_DIR1)
-
-gcc_initial-dirclean:
-	rm -rf $(GCC_BUILD_DIR1) $(GCC_DIR)
-
-#############################################################
-#
-# second pass compiler build.  Build the compiler targeting
-# the newly built shared library.
-#
-#############################################################
-#
-# Sigh... I had to rework things because using --with-gxx-include-dir
-# causes issues with include dir search order for g++.  This seems to
-# have something to do with "path translations" and possibly doesn't
-# affect gcc-target.  However, I haven't tested gcc-target yet so no
-# guarantees.  mjn3
-
-GCC_BUILD_DIR2:=$(TOOL_BUILD_DIR)/gcc-$(GCC_VERSION)-final
-$(GCC_BUILD_DIR2)/.configured: $(GCC_DIR)/.patched $(GCC_STAGING_PREREQ)
-	mkdir -p $(GCC_BUILD_DIR2)
+$(GCC_BUILD_DIR)/.configured: $(GCC_DIR)/.patched $(GCC_STAGING_PREREQ)
+	mkdir -p $(GCC_BUILD_DIR)
 	# Important!  Required for limits.h to be fixed.
 	ln -snf ../include/ $(STAGING_DIR)/$(REAL_GNU_TARGET_NAME)/sys-include
-	(cd $(GCC_BUILD_DIR2); rm -rf config.cache; PATH=$(TARGET_PATH) \
+	(cd $(GCC_BUILD_DIR); rm -rf config.cache; PATH=$(TARGET_PATH) \
 		CC="$(HOSTCC)" \
 		$(GCC_DIR)/configure \
 		--prefix=$(STAGING_DIR) \
@@ -187,12 +131,12 @@ $(GCC_BUILD_DIR2)/.configured: $(GCC_DIR)/.patched $(GCC_STAGING_PREREQ)
 		$(EXTRA_GCC_CONFIG_OPTIONS));
 	touch $@
 
-$(GCC_BUILD_DIR2)/.compiled: $(GCC_BUILD_DIR2)/.configured
-	PATH=$(TARGET_PATH) $(MAKE) -C $(GCC_BUILD_DIR2) all
+$(GCC_BUILD_DIR)/.compiled: $(GCC_BUILD_DIR)/.configured
+	PATH=$(TARGET_PATH) $(MAKE) -C $(GCC_BUILD_DIR) all
 	touch $@
 
-$(GCC_BUILD_DIR2)/.installed: $(GCC_BUILD_DIR2)/.compiled
-	PATH=$(TARGET_PATH) $(MAKE) -C $(GCC_BUILD_DIR2) install
+$(GCC_BUILD_DIR)/.installed: $(GCC_BUILD_DIR)/.compiled
+	PATH=$(TARGET_PATH) $(MAKE) -C $(GCC_BUILD_DIR) install
 	if [ -d "$(STAGING_DIR)/lib64" ] ; then \
 		if [ ! -e "$(STAGING_DIR)/lib" ] ; then \
 			mkdir "$(STAGING_DIR)/lib" ; \
@@ -247,9 +191,10 @@ endif
 	#
 	touch $@
 
-$(GCC_BUILD_DIR2)/.libs_installed: $(GCC_BUILD_DIR2)/.installed
+$(GCC_BUILD_DIR)/.libs_installed: $(GCC_BUILD_DIR)/.installed
 ifeq ($(BR2_INSTALL_LIBSTDCPP),y)
-	-cp -dpf $(STAGING_DIR)/lib/libstdc++.so* $(TARGET_DIR)/lib/
+	# We have disabled building of libstdc++ for NuttX
+	#-cp -dpf $(STAGING_DIR)/lib/libstdc++.so* $(TARGET_DIR)/lib/
 endif
 ifeq ($(BR2_INSTALL_LIBGCJ),y)
 	-cp -dpf $(STAGING_DIR)/lib/libgcj.so* $(TARGET_DIR)/lib/
@@ -261,136 +206,20 @@ ifeq ($(BR2_INSTALL_LIBGCJ),y)
 endif
 	touch $@
 
-gcc: binutils gcc_initial $(LIBFLOAT_TARGET) \
-	$(GCC_BUILD_DIR2)/.installed $(GCC_BUILD_DIR2)/.libs_installed \
+gcc: binutils $(LIBFLOAT_TARGET) \
+	$(GCC_BUILD_DIR)/.installed $(GCC_BUILD_DIR)/.libs_installed \
 	$(GCC_TARGETS)
 
 gcc-source: $(DL_DIR)/$(GCC_SOURCE)
 
 gcc-clean:
-	rm -rf $(GCC_BUILD_DIR2)
+	rm -rf $(GCC_BUILD_DIR)
 	for prog in cpp gcc gcc-[0-9]* protoize unprotoize gcov gccbug cc; do \
 	    rm -f $(STAGING_DIR)/bin/$(REAL_GNU_TARGET_NAME)-$$prog \
 	    rm -f $(STAGING_DIR)/bin/$(GNU_TARGET_NAME)-$$prog; \
 	done
 
-gcc-dirclean: gcc_initial-dirclean
-	rm -rf $(GCC_BUILD_DIR2)
+gcc-dirclean:
+	rm -rf $(GCC_BUILD_DIR)
 
-#############################################################
-#
-# Next build target gcc compiler
-#
-#############################################################
-GCC_BUILD_DIR3:=$(BUILD_DIR)/gcc-$(GCC_VERSION)-target
-
-$(GCC_BUILD_DIR3)/.prepared: $(GCC_BUILD_DIR2)/.libs_installed $(GCC_TARGET_PREREQ)
-	mkdir -p $(GCC_BUILD_DIR3)
-	touch $@
-
-$(GCC_BUILD_DIR3)/.configured: $(GCC_BUILD_DIR3)/.prepared
-	(cd $(GCC_BUILD_DIR3); rm -rf config.cache ; \
-		PATH=$(TARGET_PATH) \
-		CC_FOR_BUILD="$(HOSTCC)" \
-		CFLAGS_FOR_BUILD="-g -O2" \
-		$(TARGET_GCC_FLAGS) \
-		$(GCC_DIR)/configure \
-		--prefix=/usr \
-		--build=$(GNU_HOST_NAME) \
-		--host=$(REAL_GNU_TARGET_NAME) \
-		--target=$(REAL_GNU_TARGET_NAME) \
-		--enable-languages=$(GCC_TARGET_LANGUAGES) \
-		--with-gxx-include-dir=/usr/include/c++ \
-		--disable-__cxa_atexit \
-		--with-gnu-ld \
-		--with-gnu-as \
-		--disable-libssp \
-		$(GCC_SHARED_LIBGCC) \
-		$(DISABLE_NLS) \
-		$(THREADS) \
-		$(MULTILIB) \
-		$(SOFT_FLOAT_CONFIG_OPTION) \
-		$(GCC_WITH_CPU) $(GCC_WITH_ARCH) $(GCC_WITH_TUNE) \
-		$(GCC_USE_SJLJ_EXCEPTIONS) \
-		$(DISABLE_LARGEFILE) \
-		$(EXTRA_GCC_CONFIG_OPTIONS) \
-		$(EXTRA_TARGET_GCC_CONFIG_OPTIONS));
-	touch $@
-
-$(GCC_BUILD_DIR3)/.compiled: $(GCC_BUILD_DIR3)/.configured
-	PATH=$(TARGET_PATH) \
-	$(MAKE) -C $(GCC_BUILD_DIR3) all
-	touch $@
-
-#
-# gcc-lib dir changes names to gcc with 3.4.mumble
-#
-ifeq ($(findstring 3.4.,$(GCC_VERSION)),3.4.)
-GCC_LIB_SUBDIR=lib/gcc/$(REAL_GNU_TARGET_NAME)/$(GCC_VERSION)
-else
-GCC_LIB_SUBDIR=lib/gcc-lib/$(REAL_GNU_TARGET_NAME)/$(GCC_VERSION)
-endif
-# sigh... we need to find a better way
-ifeq ($(findstring 4.0.,$(GCC_VERSION)),4.0.)
-GCC_LIB_SUBDIR=lib/gcc/$(REAL_GNU_TARGET_NAME)/$(GCC_VERSION)
-endif
-ifeq ($(findstring 4.1.,$(GCC_VERSION)),4.1.)
-GCC_LIB_SUBDIR=lib/gcc/$(REAL_GNU_TARGET_NAME)/$(GCC_VERSION)
-endif
-ifeq ($(findstring 4.2,$(GCC_VERSION)),4.2)
-ifneq ($(findstring 4.2.,$(GCC_VERSION)),4.2.)
-REAL_GCC_VERSION=$(shell cat $(GCC_DIR)/gcc/BASE-VER)
-GCC_LIB_SUBDIR=lib/gcc/$(REAL_GNU_TARGET_NAME)/$(REAL_GCC_VERSION)
-else
-GCC_LIB_SUBDIR=lib/gcc/$(REAL_GNU_TARGET_NAME)/$(GCC_VERSION)
-endif
-endif
-
-$(TARGET_DIR)/usr/bin/gcc: $(GCC_BUILD_DIR3)/.compiled
-	PATH=$(TARGET_PATH) DESTDIR=$(TARGET_DIR) \
-		$(MAKE) -C $(GCC_BUILD_DIR3) install
-	# Remove broken specs file (cross compile flag is set).
-	rm -f $(TARGET_DIR)/usr/$(GCC_LIB_SUBDIR)/specs
-	#
-	# Now for the ugly 3.3.x soft float hack...
-	#
-ifeq ($(BR2_SOFT_FLOAT),y)
-ifeq ($(findstring 3.3.,$(GCC_VERSION)),3.3.)
-	# Add a specs file that defaults to soft float mode.
-	cp toolchain/gcc/$(GCC_VERSION)/specs-$(ARCH)-soft-float $(TARGET_DIR)/usr/lib/gcc-lib/$(REAL_GNU_TARGET_NAME)/$(GCC_VERSION)/specs
-	# Make sure gcc does not think we are cross compiling
-	$(SED) "s/^1/0/;" $(TARGET_DIR)/usr/lib/gcc-lib/$(REAL_GNU_TARGET_NAME)/$(GCC_VERSION)/specs
-endif
-endif
-	#
-	# Ok... that's enough of that.
-	#
-	-(cd $(TARGET_DIR)/bin && find -type f | xargs $(STRIPCMD) > /dev/null 2>&1)
-	-(cd $(TARGET_DIR)/usr/bin && find -type f | xargs $(STRIPCMD) > /dev/null 2>&1)
-	-(cd $(TARGET_DIR)/usr/$(GCC_LIB_SUBDIR) && $(STRIPCMD) cc1 cc1plus collect2 > /dev/null 2>&1)
-	-(cd $(TARGET_DIR)/usr/lib && $(STRIPCMD) libstdc++.so.*.*.* > /dev/null 2>&1)
-	-(cd $(TARGET_DIR)/lib && $(STRIPCMD) libgcc_s*.so.*.*.* > /dev/null 2>&1)
-
-	#
-	rm -f $(TARGET_DIR)/usr/lib/*.la*
-	# Work around problem of missing syslimits.h
-	if [ ! -f $(TARGET_DIR)/usr/$(GCC_LIB_SUBDIR)/include/syslimits.h ] ; then \
-		echo "warning: working around missing syslimits.h" ; \
-		cp -f $(STAGING_DIR)/$(GCC_LIB_SUBDIR)/include/syslimits.h \
-			$(TARGET_DIR)/usr/$(GCC_LIB_SUBDIR)/include/ ; \
-	fi
-	# Make sure we have 'cc'.
-	if [ ! -e $(TARGET_DIR)/usr/bin/cc ] ; then \
-		ln -snf gcc $(TARGET_DIR)/usr/bin/cc ; \
-	fi;
-	touch -c $@
-
-gcc_target: binutils_target $(TARGET_DIR)/usr/bin/gcc
-
-gcc_target-clean:
-	rm -rf $(GCC_BUILD_DIR3)
-	rm -f $(TARGET_DIR)/usr/bin/$(REAL_GNU_TARGET_NAME)*
-
-gcc_target-dirclean:
-	rm -rf $(GCC_BUILD_DIR3)
 endif

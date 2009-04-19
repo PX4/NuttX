@@ -1,4 +1,4 @@
-ReleaseNotes v0.1.3:
+ReleaseNotes v0.1.4:
 ^^^^^^^^^^^^^^^^^^^
 
 This is a highly hacked up version of the buildroot (see
@@ -20,7 +20,10 @@ o sh-elf toolchain needed for the SH-1 NuttX port.
 
 o m32c-elf toolchain needed for the Renesas M16C NuttX port.
 
-0 H8/300 toolchain (not currently used in any NuttX
+o H8/300 toolchain (not currently used in any NuttX
+  configuration).
+
+o bfin-elf toolchain not currently used in any NuttX
   configuration).
 
 Instructions:

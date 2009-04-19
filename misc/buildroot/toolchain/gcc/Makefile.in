@@ -55,5 +55,4 @@ EXTRA_TARGET_GCC_CONFIG_OPTIONS+=--enable-intermodule
 endif
 endif # BR2_PREFER_IMA=y
 
-TARGETS+=gcc_target
 endif

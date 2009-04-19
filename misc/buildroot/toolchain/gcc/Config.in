@@ -134,12 +134,12 @@ config BR2_EXTRA_GCC_CONFIG_OPTIONS
 	  Any additional gcc configure options you may want to include....
 
 config BR2_INSTALL_LIBSTDCPP
-	bool "Build/install c++ compiler and libstdc++?"
+	bool "Build C++ compiler?"
 	default n
 	# >= 4.2.0 work fine without LARGEFILE
 	select BR2_LARGEFILE if !BR2_GCC_SUPPORTS_SYSROOT
 	help
-	  Build/install c++ compiler and libstdc++?
+	  Build/install c++ compiler?  NOTE: libstdc++ is not built for NuttX?
 
 config BR2_INSTALL_LIBGCJ
 	bool "Build/install java compiler and libgcj?"

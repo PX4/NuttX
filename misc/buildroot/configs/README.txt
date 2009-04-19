@@ -5,10 +5,14 @@ arm-defconfig
 	Builds an ARM toolchain using gcc 3.4.5
 
 arm-defconfig-4.2.4
-	Builds an ARM toolchain using gcc 4.2.4
+	Builds an ARM toolchain using gcc 4.2.4.  This configuration
+	builds both gcc and g++.
+
 	NOTE: At present, there are issues with some of the binutils
-	programes (arm-elf-objcopy in particular) that cause Floating
-	point exceptions when trying to build NuttX
+	programs (arm-elf-objcopy in particular) that cause Floating
+	point exceptions when trying to build NuttX.  This is probably
+	due to improperly positioned sections and can probably fixed
+	by changing the architectures .ldscript file.
 
 bfin-defconfig-4.2.4
 	Builds an Blackfin toolchain using gcc 4.2.4
@@ -93,7 +97,7 @@ Cygwin GCC BUILD NOTES
    and, apparently, the make variable "exeext" is set incorrectly.  A work around after the
    above occurs is:
 
-      cd toolchain_build_<arch>/gcc-4.2.4-initial/gcc	# Go to the directory where error occurred
+      cd toolchain_build_<arch>/gcc-4.2.4-build/gcc	# Go to the directory where error occurred
       mv cc1-dummy.exe cc1-dummy			# Rename the executable without .exe
       rm cc1-checksum.c					# Get rid of the bad generated file
 
@@ -102,9 +106,21 @@ Cygwin GCC BUILD NOTES
       cd -						# Back to the buildroot make directory
       make						# Restart the build
 
-   GCC is built twice.  First a initial, "bootstap" GCC is produced in
-   toolchain_build_<arch>/gcc-4.2.4-initial, then the final GCC is produced in
-   toolchain_build_<arch>/gcc-4.2.4-final.  The above error will occur twice:  Once for
-   the intial GCC build (see above) and once for the final GCC build. For the final GCC
-   build, the workaround is the same except that the directory will be
-   toolchain_build_<arch>/gcc-4.2.4-final/gcc.
+   If you build g++, you will see another similar error:
+
+   ...
+      build/genchecksum cc1plus-dummy > cc1plus-checksum.c
+      opening cc1plus-dummy: No such file or directory
+   ...
+
+   The fix is similar:
+
+      cd toolchain_build_<arch>/gcc-4.2.4-build/gcc	# Go to the directory where error occurred
+      mv cc1plus-dummy.exe cc1plus-dummy		# Rename the executable without .exe
+      rm cc1plus-checksum.c				# Get rid of the bad generated file
+
+   Then resume the buildroot make:
+
+      cd -						# Back to the buildroot make directory
+      make						# Restart the build
+   
