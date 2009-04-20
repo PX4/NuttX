@@ -14,19 +14,25 @@ endif
 
 ifeq ($(BR2_SOFT_FLOAT),y)
 # gcc 3.4.x soft float configuration is different than previous versions.
-ifeq ($(findstring 3.4.,$(GCC_VERSION)),3.4.)
+ifeq ($(findstring x3.4.,x$(GCC_VERSION)),x3.4.)
+ifneq ($(BR2_nios2),y)
 SOFT_FLOAT_CONFIG_OPTION:=--with-float=soft
+endif
 else
 SOFT_FLOAT_CONFIG_OPTION:=--without-float
 endif
 
 # again... there must be a better way
-ifeq ($(findstring 4.,$(GCC_VERSION)),4.)
+ifeq ($(findstring x4.,x$(GCC_VERSION)),x4.)
 SOFT_FLOAT_CONFIG_OPTION:=--with-float=soft
 ifeq ($(BR2_SOFT_FLOAT_FP),y)
 TARGET_SOFT_FLOAT:=-mfloat-abi=softfp
 else # no fp at all
+ifeq ($(BR2_arm),y) # only set float-abi for arm
 TARGET_SOFT_FLOAT:=-mfloat-abi=soft
+else
+TARGET_SOFT_FLOAT:=-msoft-float
+endif
 endif
 else # not gcc-4.x
 TARGET_SOFT_FLOAT:=-msoft-float
