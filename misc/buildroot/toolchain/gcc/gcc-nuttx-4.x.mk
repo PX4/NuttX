@@ -97,10 +97,6 @@ endif
 ifeq ("$(strip $(ARCH))","armeb")
 	toolchain/patch-kernel.sh $(GCC_DIR) toolchain/gcc/$(GCC_VERSION) arm-softfloat.patch.conditional
 endif
-	# Not yet updated to 3.4.1.
-	#ifeq ("$(strip $(ARCH))","i386")
-	#toolchain/patch-kernel.sh $(GCC_DIR) toolchain/gcc i386-gcc-soft-float.patch
-	#endif
 endif
 	touch $@
 
@@ -168,24 +164,6 @@ endif
 			done; \
 		fi; \
 	);
-	#
-	# Now for the ugly 3.3.x soft float hack...
-	#
-ifeq ($(BR2_SOFT_FLOAT),y)
-ifeq ($(findstring 3.3.,$(GCC_VERSION)),3.3.)
-	# Make sure we have a soft float specs file for this arch
-	if [ ! -f toolchain/gcc/$(GCC_VERSION)/specs-$(ARCH)-soft-float ] ; then \
-		echo soft float configured but no specs file for this arch ; \
-		/bin/false ; \
-	fi;
-	# Replace specs file with one that defaults to soft float mode.
-	if [ ! -f $(STAGING_DIR)/lib/gcc-lib/$(REAL_GNU_TARGET_NAME)/$(GCC_VERSION)/specs ] ; then \
-		echo staging dir specs file is missing ; \
-		/bin/false ; \
-	fi;
-	cp toolchain/gcc/$(GCC_VERSION)/specs-$(ARCH)-soft-float $(STAGING_DIR)/lib/gcc-lib/$(REAL_GNU_TARGET_NAME)/$(GCC_VERSION)/specs
-endif
-endif
 	#
 	# Ok... that's enough of that.
 	#
