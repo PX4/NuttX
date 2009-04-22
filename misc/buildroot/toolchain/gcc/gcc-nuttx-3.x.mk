@@ -66,6 +66,7 @@ endif
 # build the gcc compiler
 #
 #############################################################
+GCC_BUILD_DIR:=$(TOOL_BUILD_DIR)/gcc-$(GCC_VERSION)-build
 
 $(DL_DIR)/$(GCC_SOURCE):
 	mkdir -p $(DL_DIR)
@@ -102,12 +103,11 @@ endif
 endif
 	touch $@
 
-GCC_BUILD_DIR:=$(TOOL_BUILD_DIR)/gcc-$(GCC_VERSION)-final
 $(GCC_BUILD_DIR)/.configured: $(GCC_DIR)/.patched $(GCC_STAGING_PREREQ)
 	mkdir -p $(GCC_BUILD_DIR)
 	# Important!  Required for limits.h to be fixed.
 	ln -snf ../include $(STAGING_DIR)/$(REAL_GNU_TARGET_NAME)/sys-include
-	(cd $(GCC_BUILD_DIR); PATH=$(TARGET_PATH) \
+	(cd $(GCC_BUILD_DIR);  rm -rf config.cache; PATH=$(TARGET_PATH) \
 		CC="$(HOSTCC)" \
 		$(GCC_DIR)/configure \
 		--prefix=$(STAGING_DIR) \
