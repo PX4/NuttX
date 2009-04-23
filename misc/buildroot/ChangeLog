@@ -33,3 +33,5 @@ buildroot-0.1.5 2009-xx-xx <spudmonkey@racsa.co.cr>
 	  and config/arm926t-defconfig-4.2.4 because of differences in the
 	  way that soft floating point is handled between these two
 	  architectures.
+	* Add support for gcc-4.3.3 and the ARM Cortex-M3 processor (not yet
+	  verified)

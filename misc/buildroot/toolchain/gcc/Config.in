@@ -4,79 +4,25 @@ comment "GCC Options"
 
 choice
 	prompt "GCC compiler Version"
-	default BR2_GCC_VERSION_4_2_4 if !BR2_avr32
-	default BR2_GCC_VERSION_3_4_6 if BR2_avr32
+	default BR2_GCC_VERSION_4_3_3 if BR2_cortex_m3
+	default BR2_GCC_VERSION_4_2_4 if !BR2_avr32 && !BR2_cortex_m3
+	default BR2_GCC_VERSION_3_4_6 if BR2_avr32 && !BR2_cortex_m3
 	help
 	  Select the version of gcc you wish to use.
 
-#	config BR2_GCC_VERSION_3_3_5
-#		depends !BR2_nios2 && BR2_DEPRECATED
-#		bool "gcc 3.3.5"
-
-#	config BR2_GCC_VERSION_3_3_6
-#		depends !BR2_nios2 && BR2_DEPRECATED
-#		bool "gcc 3.3.6"
-
-#	config BR2_GCC_VERSION_3_4_2
-#		depends BR2_DEPRECATED
-#		bool "gcc 3.4.2"
-
-#	config BR2_GCC_VERSION_3_4_3
-#		depends BR2_DEPRECATED
-#		bool "gcc 3.4.3"
-
-#	config BR2_GCC_VERSION_3_4_4
-#		depends BR2_DEPRECATED
-#		bool "gcc 3.4.4"
-
-#	config BR2_GCC_VERSION_3_4_5
-#		depends BR2_DEPRECATED
-#		bool "gcc 3.4.5"
-
 	config BR2_GCC_VERSION_3_4_6
-		depends on !BR2_m32c
+		depends on !BR2_m32c && !BR2_cortex_m3
 		bool "gcc 3.4.6"
 
-#	config BR2_GCC_VERSION_4_0_0
-#		depends !BR2_nios2 && BR2_DEPRECATED
-#		bool "gcc 4.0.0"
-
-#	config BR2_GCC_VERSION_4_0_1
-#		depends !BR2_nios2 && BR2_DEPRECATED
-#		bool "gcc 4.0.1"
-
-#	config BR2_GCC_VERSION_4_0_2
-#		depends !BR2_nios2 && BR2_DEPRECATED
-#		bool "gcc 4.0.2"
-
-#	config BR2_GCC_VERSION_4_0_3
-#		depends !BR2_nios2 && BR2_DEPRECATED
-#		bool "gcc 4.0.3"
-
-#	config BR2_GCC_VERSION_4_0_4
-#		depends !BR2_nios2 && BR2_DEPRECATED
-#		bool "gcc 4.0.4"
-
-#	config BR2_GCC_VERSION_4_1_0
-#		depends !BR2_nios2 && BR2_DEPRECATED
-#		bool "gcc 4.1.0"
-
-#	config BR2_GCC_VERSION_4_1_1
-#		depends !BR2_nios2 && BR2_DEPRECATED
-#		bool "gcc 4.1.1"
-
-#	config BR2_GCC_VERSION_4_1_2
-#		depends !BR2_nios2 && BR2_DEPRECATED
-#		bool "gcc 4.1.2"
-
-#	config BR2_GCC_VERSION_4_2
-#		depends !BR2_nios2 && BR2_DEPRECATED
-#		bool "gcc 4.2"
-
 	config BR2_GCC_VERSION_4_2_4
-		depends on !BR2_avr32 && !BR2_nios2
+		depends on !BR2_avr32 && !BR2_nios2 && !BR2_cortex_m3
 		select BR2_GCC_SUPPORTS_SYSROOT
 		bool "gcc 4.2.4"
+
+	config BR2_GCC_VERSION_4_3_3
+		depends on !BR2_avr32 && !BR2_nios2
+		select BR2_GCC_SUPPORTS_SYSROOT
+		bool "gcc 4.3.3"
 
 endchoice
 
@@ -86,37 +32,9 @@ config BR2_GCC_SUPPORTS_SYSROOT
 
 config BR2_GCC_VERSION
 	string
-#	default "3.3.5"     if BR2_GCC_VERSION_3_3_5
-#	default "3.3.6"     if BR2_GCC_VERSION_3_3_6
-#	default "3.4.2"     if BR2_GCC_VERSION_3_4_2
-#	default "3.4.3"     if BR2_GCC_VERSION_3_4_3
-#	default "3.4.4"     if BR2_GCC_VERSION_3_4_4
-#	default "3.4.5"     if BR2_GCC_VERSION_3_4_5
 	default "3.4.6"     if BR2_GCC_VERSION_3_4_6
-#	default "4.0.0"     if BR2_GCC_VERSION_4_0_0
-#	default "4.0.1"     if BR2_GCC_VERSION_4_0_1
-#	default "4.0.2"     if BR2_GCC_VERSION_4_0_2
-#	default "4.0.3"     if BR2_GCC_VERSION_4_0_3
-#	default "4.0.4"     if BR2_GCC_VERSION_4_0_4
-#	default "4.1.0"     if BR2_GCC_VERSION_4_1_0
-#	default "4.1.1"     if BR2_GCC_VERSION_4_1_1
-#	default "4.1.2"     if BR2_GCC_VERSION_4_1_2
-#	default "4.2"       if BR2_GCC_VERSION_4_2
 	default "4.2.4"     if BR2_GCC_VERSION_4_2_4
-
-#config BR2_TOOLCHAIN_SYSROOT
-#	bool "Enable toolchain with --sysroot support"
-#	depends on BR2_GCC_SUPPORTS_SYSROOT
-#	default y
-#	help
-#	  Enables --sysroot=dir for binutils and gcc.
-#	  Use dir as the logical root directory for headers and libraries.
-#	  For example, if the compiler would normally search for headers in
-#	  /usr/include and libraries in /usr/lib, it will instead search
-#	  dir/usr/include and dir/usr/lib.
-#
-#	  This does not work with gcc < 4.2.0 (4.1.2 gets
-#	  ORIGINAL_AS_FOR_TARGET wrong)
+	default "4.3.3"     if BR2_GCC_VERSION_4_3_3
 
 config BR2_GCC_USE_SJLJ_EXCEPTIONS
 	bool "Enable setjmp/longjmp exceptions?"

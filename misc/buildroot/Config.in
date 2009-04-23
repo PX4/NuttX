@@ -209,6 +209,7 @@ config BR2_GCC_TARGET_TUNE
 	default arm922t		if BR2_arm922t
 	default arm9tdmi	if BR2_arm926t
 	default arm1136jf-s	if BR2_arm1136jf_s
+	default cortex-M3	if BR2_cortex_m3
 	default strongarm110	if BR2_sa110
 	default strongarm1100	if BR2_sa1100
 	default xscale		if BR2_xscale
@@ -224,9 +225,9 @@ config BR2_GCC_TARGET_ARCH
 	default armv4		if BR2_sa110 || BR2_sa1100
 	default armv4t		if BR2_arm7tdmi
 	default armv4t		if BR2_arm720t || BR2_arm920t || BR2_arm922t
-	default armv5t		if BR2_cortex_m3 # Use armv7-m if available
 	default armv5te		if BR2_arm926t || BR2_arm10t || BR2_xscale
 	default armv6j		if BR2_arm1136jf_s
+	default armv7-m		if BR2_cortex_m3
 	default iwmmxt		if BR2_iwmmxt
 
 config BR2_GCC_TARGET_ABI
