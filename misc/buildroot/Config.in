@@ -68,48 +68,34 @@ choice
 	  Specific CPU variant to use
 
 config BR2_generic_arm
-	bool "generic_arm"
+	bool "generic ARM"
 config BR2_arm610
-	bool "arm610"
+	bool "ARM610"
 config BR2_arm710
-	bool "arm710"
+	bool "ARM710"
 config BR2_arm720t
-	bool "arm720t"
+	bool "ARM720T"
 config BR2_arm740t
-	bool "arm740t"
+	bool "ARM740T"
 config BR2_arm920t
-	bool "arm920t"
+	bool "ARM920T"
 config BR2_arm922t
-	bool "arm922t"
+	bool "ARM922T"
 config BR2_arm926t
-	bool "arm926t"
+	bool "ARM926T"
 config BR2_arm1136jf_s
-	bool "arm1136jf_s"
+	bool "ARM1136JF-S"
+config BR2_cortex_m3
+	bool "Cortex-M3"
 config BR2_sa110
-	bool "sa110"
+	bool "SA110"
 config BR2_sa1100
-	bool "sa1100"
+	bool "SA1100"
 config BR2_xscale
-	bool "xscale"
+	bool "X-Scale"
 config BR2_iwmmxt
 	bool "iwmmxt"
 endchoice
-
-config BR2_ARM_TYPE
-	string
-	default ARM610		if BR2_arm610
-	default ARM710		if BR2_arm710
-	default ARM720T		if BR2_arm720t
-	default ARM740T		if BR2_arm740t
-	default ARM920T		if BR2_arm920t
-	default ARM922T		if BR2_arm922t
-	default ARM926T		if BR2_arm926t
-	default ARM1136JF_S 	if BR2_arm1136jf_s
-	default ARM_SA110	if BR2_sa110
-	default ARM_SA1100	if BR2_sa1100
-	default ARM_XSCALE	if BR2_xscale
-	default ARM_IWMMXT	if BR2_iwmmxt
-	default GENERIC_ARM	if BR2_generic_arm
 
 choice
 	prompt "Target ABI"
@@ -238,6 +224,7 @@ config BR2_GCC_TARGET_ARCH
 	default armv4		if BR2_sa110 || BR2_sa1100
 	default armv4t		if BR2_arm7tdmi
 	default armv4t		if BR2_arm720t || BR2_arm920t || BR2_arm922t
+	default armv5t		if BR2_cortex_m3 # Use armv7-m if available
 	default armv5te		if BR2_arm926t || BR2_arm10t || BR2_xscale
 	default armv6j		if BR2_arm1136jf_s
 	default iwmmxt		if BR2_iwmmxt
