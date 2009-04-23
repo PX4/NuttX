@@ -22,11 +22,12 @@ BR2_arm=y
 # BR2_h8300 is not set
 # BR2_sparc is not set
 # BR2_x86_64 is not set
-BR2_generic_arm=y
+# BR2_generic_arm is not set
 # BR2_arm610 is not set
 # BR2_arm710 is not set
 # BR2_arm720t is not set
-# BR2_arm920t is not set
+# BR2_arm740t is not set
+BR2_arm920t=y
 # BR2_arm922t is not set
 # BR2_arm926t is not set
 # BR2_arm1136jf_s is not set
@@ -34,10 +35,13 @@ BR2_generic_arm=y
 # BR2_sa1100 is not set
 # BR2_xscale is not set
 # BR2_iwmmxt is not set
-BR2_ARM_TYPE="GENERIC_ARM"
+BR2_ARM_TYPE="ARM920T"
 BR2_ARM_OABI=y
 # BR2_ARM_EABI is not set
 BR2_ARCH="arm"
+BR2_GCC_TARGET_TUNE="arm920t"
+BR2_GCC_TARGET_ARCH="armv4t"
+BR2_GCC_TARGET_ABI="apcs-gnu"
 BR2_ENDIAN="LITTLE"
 
 #

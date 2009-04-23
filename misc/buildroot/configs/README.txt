@@ -4,9 +4,12 @@ AVAILABLE CONFIGURATIONS
 arm-defconfig
 	Builds an ARM toolchain using gcc 3.4.5
 
-arm-defconfig-4.2.4
+arm920t-defconfig-4.2.4
+arm926t-defconfig-4.2.4
 	Builds an ARM toolchain using gcc 4.2.4.  This configuration
-	builds both gcc and g++.
+	builds both gcc and g++.  There are two versions: one for 
+	arm920t (armv4t) and arm926t (arv5t) because of differences
+	in the way that soft floating is handled in these two architectures.
 
 	NOTE: At present, there are issues with some of the binutils
 	programs (arm-elf-objcopy in particular) that cause Floating

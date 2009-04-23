@@ -75,6 +75,8 @@ config BR2_arm710
 	bool "arm710"
 config BR2_arm720t
 	bool "arm720t"
+config BR2_arm740t
+	bool "arm740t"
 config BR2_arm920t
 	bool "arm920t"
 config BR2_arm922t
@@ -98,6 +100,7 @@ config BR2_ARM_TYPE
 	default ARM610		if BR2_arm610
 	default ARM710		if BR2_arm710
 	default ARM720T		if BR2_arm720t
+	default ARM740T		if BR2_arm740t
 	default ARM920T		if BR2_arm920t
 	default ARM922T		if BR2_arm922t
 	default ARM926T		if BR2_arm926t
@@ -207,7 +210,42 @@ config BR2_ARCH
 	default "sh64"		if BR2_sh64
 	default "h8300"		if BR2_h8300
 	default "sparc"		if BR2_sparc
-	default "x86_64"	if BR2_x86_64
+
+config BR2_GCC_TARGET_TUNE
+	string
+	default i386		if BR2_x86_i386
+	default i486		if BR2_x86_i486
+	default i586		if BR2_x86_i586
+	default i686		if BR2_x86_i686
+	default arm610		if BR2_arm610
+	default arm7tdmi	if BR2_arm7tdmi || BR2_arm720t || BR2_arm740t
+	default arm920t		if BR2_arm920t
+	default arm922t		if BR2_arm922t
+	default arm9tdmi	if BR2_arm926t
+	default arm1136jf-s	if BR2_arm1136jf_s
+	default strongarm110	if BR2_sa110
+	default strongarm1100	if BR2_sa1100
+	default xscale		if BR2_xscale
+	default iwmmxt		if BR2_iwmmxt
+
+config BR2_GCC_TARGET_ARCH
+	string
+	default i386		if BR2_x86_i386
+	default i486		if BR2_x86_i486
+	default i586		if BR2_x86_i586
+	default i686		if BR2_x86_i686
+	default armv3		if BR2_arm610 || BR2_arm710
+	default armv4		if BR2_sa110 || BR2_sa1100
+	default armv4t		if BR2_arm7tdmi
+	default armv4t		if BR2_arm720t || BR2_arm920t || BR2_arm922t
+	default armv5te		if BR2_arm926t || BR2_arm10t || BR2_xscale
+	default armv6j		if BR2_arm1136jf_s
+	default iwmmxt		if BR2_iwmmxt
+
+config BR2_GCC_TARGET_ABI
+	string
+	default apcs-gnu	if BR2_ARM_OABI
+	default aapcs-linux	if BR2_ARM_EABI
 
 config BR2_ENDIAN
 	string
