@@ -9,29 +9,14 @@ BINUTILS_VERSION:=$(strip $(subst ",, $(BR2_BINUTILS_VERSION)))
 EXTRA_BINUTILS_CONFIG_OPTIONS=$(strip $(subst ",, $(BR2_EXTRA_BINUTILS_CONFIG_OPTIONS)))
 #"))
 BINUTILS_SITE:=ftp://ftp.kernel.org/pub/linux/devel/binutils
+ifeq ($(BINUTILS_VERSION),2.19.1)
+BINUTILS_SITE:=ftp://ftp.gnu.org/gnu/binutils/
+endif
 ifeq ($(BINUTILS_VERSION),2.19)
 BINUTILS_SITE:=ftp://ftp.gnu.org/gnu/binutils/
 endif
 ifeq ($(BINUTILS_VERSION),2.17)
 BINUTILS_SITE:=ftp://ftp.gnu.org/gnu/binutils/
-endif
-ifeq ($(BINUTILS_VERSION),2.16)
-BINUTILS_SITE:=ftp://ftp.gnu.org/gnu/binutils/
-endif
-ifeq ($(BINUTILS_VERSION),2.16.1)
-BINUTILS_SITE:=ftp://ftp.gnu.org/gnu/binutils/
-endif
-ifeq ($(BINUTILS_VERSION),2.15)
-BINUTILS_SITE:=ftp://ftp.gnu.org/gnu/binutils/
-endif
-ifeq ($(BINUTILS_VERSION),2.14)
-BINUTILS_SITE:=ftp://ftp.gnu.org/gnu/binutils/
-endif
-ifeq ($(BINUTILS_VERSION),2.13)
-BINUTILS_SITE:=ftp://ftp.gnu.org/gnu/binutils/
-endif
-ifeq ($(BINUTILS_VERSION),2.15.97)
-BINUTILS_SITE:=ftp://sources.redhat.com/pub/binutils/snapshots/
 endif
 
 # NOTE: Unlike the original buildroot binutils.mk, this version always relies on
