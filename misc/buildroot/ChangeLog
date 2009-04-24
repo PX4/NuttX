@@ -35,3 +35,4 @@ buildroot-0.1.5 2009-xx-xx <spudmonkey@racsa.co.cr>
 	  architectures.
 	* Add support for gcc-4.3.3 and the ARM Cortex-M3 processor (not yet
 	  verified)
+	* Add support for binutils 2.19.1
