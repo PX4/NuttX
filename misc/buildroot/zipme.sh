@@ -106,13 +106,13 @@ done
 # Remove any previous tarballs
 
 if [ -f ${TAR_NAME} ] ; then
-   echo "Removing ${PARENT}/${TAR_NAME}"
+   echo "Removing ${TAR_NAME}"
    rm -f ${TAR_NAME} || \
       { echo "rm ${TAR_NAME} failed!" ; exit 1 ; }
 fi
 
 if [ -f ${ZIP_NAME} ] ; then
-   echo "Removing ${PARENT}/${ZIP_NAME}"
+   echo "Removing ${ZIP_NAME}"
    rm -f ${ZIP_NAME} || \
       { echo "rm ${ZIP_NAME} failed!" ; exit 1 ; }
 fi
