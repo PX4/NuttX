@@ -44,7 +44,7 @@ TARGET_SOFT_FLOAT:=
 ARCH_FPU_SUFFIX:=
 endif
 
-# some additional defaults
+# some additional tuning values
 ifneq ($(strip $(subst ",,$(BR2_GCC_TARGET_ARCH))),)
 # ")))
 GCC_WITH_ARCH:=--with-arch=$(BR2_GCC_TARGET_ARCH)
@@ -56,4 +56,7 @@ endif
 ifneq ($(strip $(subst ",,$(BR2_GCC_TARGET_ABI))),)
 # ")))
 GCC_WITH_ABI:=--with-abi=$(BR2_GCC_TARGET_ABI)
+endif
+ifdef BR2_cortex_m3
+GCC_WITH_MODE:=--with-mode=thumb
 endif

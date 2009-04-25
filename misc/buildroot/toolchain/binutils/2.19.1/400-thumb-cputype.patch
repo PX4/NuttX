@@ -1,3 +1,7 @@
+// This patch is bogus.  It does let you create a a version of binutils with the cross
+// name of thumb-elf, but it is insufficient to build a whole thumb-elf toolchain because
+// of issues with gcc.  Rather, build arm-elf, but configure --with-mode=thumb
+//
 diff -u binutils-2.19.1/gas/configure.tgt.orig binutils-2.19.1/gas/configure.tgt
 --- binutils-2.19.1/gas/configure.tgt.orig	2009-04-25 11:00:15.593750000 -0400
 +++ binutils-2.19.1/gas/configure.tgt	2009-04-25 11:00:45.593750000 -0400

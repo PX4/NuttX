@@ -27,7 +27,7 @@ config BR2_cris
 config BR2_i386
 	bool "i386"
 config BR2_m32c
-	bool "r8c/m16c/m32c/"
+	bool "r8c/m16c/m32c"
 config BR2_m68k
 	bool "m68k"
 config BR2_m68hc11

@@ -27,11 +27,14 @@ buildroot-0.1.4 2009-04-19 <spudmonkey@racsa.co.cr>
 	  we do not build a libc.  Now it builds almost twice as fast.
 	* Removed logic to build the target GCC.  That is never used.
 
-buildroot-0.1.5 2009-xx-xx <spudmonkey@racsa.co.cr>
+buildroot-0.1.5 2009-04-25 <spudmonkey@racsa.co.cr>
 
 	* Replaced config/arm-defconfig-4.2.4 with config/arm920t-defconfig-4.2.4
 	  and config/arm926t-defconfig-4.2.4 because of differences in the
 	  way that soft floating point is handled between these two
 	  architectures.
-	* Add support for gcc-4.3.3 and the ARM Cortex-M3 processor
+	* Add support for gcc-4.3.3 and the ARM Cortex-M3 processor (thumb2)
 	* Add support for binutils 2.19.1
+
+buildroot-0.1.6 2009-xx-xx <spudmonkey@racsa.co.cr>
+
