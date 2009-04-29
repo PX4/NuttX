@@ -38,3 +38,6 @@ buildroot-0.1.5 2009-04-25 <spudmonkey@racsa.co.cr>
 
 buildroot-0.1.6 2009-xx-xx <spudmonkey@racsa.co.cr>
 
+	* Added config/arm7tdmi-defconfig-4.2.4
+
+

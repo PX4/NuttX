@@ -4,18 +4,22 @@ AVAILABLE CONFIGURATIONS
 arm-defconfig
 	Builds an ARM toolchain using gcc 3.4.5
 
+arm7tdmi-defconfig-4.2.4
 arm920t-defconfig-4.2.4
 arm926t-defconfig-4.2.4
 	Builds an ARM toolchain using gcc 4.2.4.  This configuration
-	builds both gcc and g++.  There are two versions: one for 
-	arm920t (armv4t) and arm926t (arv5t) because of differences
-	in the way that soft floating is handled in these two architectures.
+	builds both gcc and g++.  There are thred versions: one for 
+	arm7tdmi (armv4t) , arm920t (armv4t) and arm926t (arv5t) because
+	of differences in the way that soft floating is handled in between
+	the armv4t and arm5t architectures.
 
 	NOTE: At present, there are issues with some of the binutils
 	programs (arm-elf-objcopy in particular) that cause Floating
-	point exceptions when trying to build NuttX.  This is probably
+	point exceptions when trying to build NuttX on certain platforms,
+	specifically, those that execute from FLASH and use arm-elf-objcopy
+	to relocate the .data section into flash.  This bug is probably
 	due to improperly positioned sections and can probably fixed
-	by changing the architectures .ldscript file.
+	by changing the architecture's ld.script file.
 
 cortexm3-defconfig-4.3.3
 	Builds an ARM toolchain for the Cortex-M3 using gcc 4.3.3.

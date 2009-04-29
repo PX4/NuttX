@@ -71,6 +71,8 @@ config BR2_generic_arm
 	bool "generic ARM"
 config BR2_arm610
 	bool "ARM610"
+config BR2_arm7tdmi
+	bool "ARM7TDMI"
 config BR2_arm710
 	bool "ARM710"
 config BR2_arm720t
