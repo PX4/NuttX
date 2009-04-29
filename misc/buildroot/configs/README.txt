@@ -13,13 +13,26 @@ arm926t-defconfig-4.2.4
 	of differences in the way that soft floating is handled in between
 	the armv4t and arm5t architectures.
 
-	NOTE: At present, there are issues with some of the binutils
-	programs (arm-elf-objcopy in particular) that cause Floating
-	point exceptions when trying to build NuttX on certain platforms,
-	specifically, those that execute from FLASH and use arm-elf-objcopy
-	to relocate the .data section into flash.  This bug is probably
-	due to improperly positioned sections and can probably fixed
-	by changing the architecture's ld.script file.
+	NOTE: The newer versions of GCC generate new sections and can
+	cause some problems for NuttX configurations developed under older
+	toolchains.  In particular, arm-elf-objcopy may fail with strange
+	errors.  If this occurs, try adding the following arguments to the
+	arm-elf-objcopy command "-R .note -R .note.gnu.build-id -R .comment"
+
+	This logic is several configuration Make.defs files:
+
+	HOSTOS			=  ${shell uname -o}
+
+	ARCHCCVERSION		= ${shell $(CC) -v 2>&1 | sed -n '/^gcc version/p' | sed -e 's/^gcc version \([0-9\.]\)/\1/g' -e 's/[-\ ].*//g' -e '1q'}
+	ARCHCCMAJOR		= ${shell echo $(ARCHCCVERSION) | cut -d'.' -f1}
+
+	ifeq ($(ARCHCCMAJOR),4)
+	ifneq ($(HOSTOS),Cygwin)
+	OBJCOPYARGS		= -R .note -R .note.gnu.build-id -R .comment
+	endif
+	endif
+
+	This change probably applies to other architectures as well (?)
 
 cortexm3-defconfig-4.3.3
 	Builds an ARM toolchain for the Cortex-M3 using gcc 4.3.3.
