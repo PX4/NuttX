@@ -8,8 +8,8 @@ arm7tdmi-defconfig-4.2.4
 arm920t-defconfig-4.2.4
 arm926t-defconfig-4.2.4
 	Builds an ARM toolchain using gcc 4.2.4.  This configuration
-	builds both gcc and g++.  There are thred versions: one for 
-	arm7tdmi (armv4t) , arm920t (armv4t) and arm926t (arv5t) because
+	builds both gcc and g++.  There are three versions: one for 
+	arm7tdmi (armv4t), arm920t (armv4t) and arm926t (arv5t) because
 	of differences in the way that soft floating is handled in between
 	the armv4t and arm5t architectures.
 
@@ -33,6 +33,11 @@ arm926t-defconfig-4.2.4
 	endif
 
 	This change probably applies to other architectures as well (?)
+
+arm920t-defconfig-4.3.3
+        Builds an ARM toolchain using gcc 4.3.3.  This configuration
+        builds both gcc and g++ for the arm920t (armv4t).  It is an
+	update to arm920t-defconfig-4.2.4 (see notes above).
 
 cortexm3-defconfig-4.3.3
 	Builds an ARM toolchain for the Cortex-M3 using gcc 4.3.3.
@@ -58,12 +63,29 @@ sh-defconfig
 GENERAL BUILD STEPS
 ^^^^^^^^^^^^^^^^^^^
 
-1. CD to the correct directory.
+1. Configure your host machine.  You host PC should have a relatively complete
+   C development environment.  I don't have a full list of the package requirements.
+   The later tool chains also require GMP and MPRF development packages or the
+   build will fail with errors like:
+
+    "configure: error: Building GCC requires GMP 4.1+ and MPFR 2.3.0+. ...
+     Copies of these libraries' source code can be found at their respective
+     hosting sites as well as at ftp://gcc.gnu.org/pub/gcc/infrastructure/.
+     See also http://gcc.gnu.org/install/prerequisites.html for additional info.
+     If you obtained GMP and/or MPFR from a vendor distribution package, make
+     sure that you have installed both the libraries and the header files.
+     They may be located in separate packages."
+
+   You should try your package manager for whatever Linux version you are using
+   first.  The header files are normally included in versions of the packages that
+   have "-devel" in the package name.
+
+2. CD to the correct directory.
 
    Change to the directory just above the NuttX installation.  If <nuttx-dir> is
    where NuttX is installed, then cd to <nuttx-dir>/..
 
-2. Get and Install the buildroot Module
+3. Get and Install the buildroot Module
 
    a. Using a release tarball:
 
@@ -73,7 +95,7 @@ GENERAL BUILD STEPS
      rename the directory to buildroot
 
    b. Using CVS
-   
+
      Check out the misc/buildroot module. CVS checkout instructions:
 
         cvs -d:pserver:anonymous@nuttx.cvs.sourceforge.net:/cvsroot/nuttx login
@@ -84,18 +106,18 @@ GENERAL BUILD STEPS
         mv misc/buildroot .
 
    Make the archive directory:
-  
+
      mkdir archive
 
    The <nuttx-dir>/../buildroot is where the toolchain is built;
    The <nuttx-dir>/../archive directory is where toolchain sources will be downloaded.
 
-3. Make sure that NuttX is configured
+4. Make sure that NuttX is configured
 
      cd <nuttx-dir>/tools
      ./configure.sh <nuttx-configuration>
-     
-4. Configure and Make the buildroot
+
+5. Configure and Make the buildroot
 
      cd buildroot
      cp configs/<config-file> .config
