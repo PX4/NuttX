@@ -6,8 +6,10 @@ BR2_HAVE_DOT_CONFIG=y
 BR2_arm=y
 # BR2_armeb is not set
 # BR2_avr32 is not set
+# BR2_bfin is not set
 # BR2_cris is not set
 # BR2_i386 is not set
+# BR2_m32c is not set
 # BR2_m68k is not set
 # BR2_m68hc11 is not set
 # BR2_m68hc12 is not set
@@ -22,12 +24,15 @@ BR2_arm=y
 # BR2_x86_64 is not set
 BR2_generic_arm=y
 # BR2_arm610 is not set
+# BR2_arm7tdmi is not set
 # BR2_arm710 is not set
 # BR2_arm720t is not set
+# BR2_arm740t is not set
 # BR2_arm920t is not set
 # BR2_arm922t is not set
 # BR2_arm926t is not set
 # BR2_arm1136jf_s is not set
+# BR2_cortex_m3 is not set
 # BR2_sa110 is not set
 # BR2_sa1100 is not set
 # BR2_xscale is not set
@@ -35,6 +40,7 @@ BR2_generic_arm=y
 BR2_ARM_OABI=y
 # BR2_ARM_EABI is not set
 BR2_ARCH="arm"
+BR2_GCC_TARGET_ABI="apcs-gnu"
 BR2_ENDIAN="LITTLE"
 
 #
@@ -65,48 +71,18 @@ BR2_GNU_TARGET_SUFFIX="elf"
 #
 # Binutils Options
 #
-# BR2_BINUTILS_VERSION_2_14_90_0_8 is not set
-# BR2_BINUTILS_VERSION_2_15 is not set
-# BR2_BINUTILS_VERSION_2_15_94_0_2_2 is not set
-# BR2_BINUTILS_VERSION_2_16_1 is not set
-# BR2_BINUTILS_VERSION_2_16_90_0_3 is not set
-# BR2_BINUTILS_VERSION_2_16_91_0_5 is not set
-# BR2_BINUTILS_VERSION_2_16_91_0_6 is not set
-# BR2_BINUTILS_VERSION_2_16_91_0_7 is not set
 BR2_BINUTILS_VERSION_2_17=y
-# BR2_BINUTILS_VERSION_2_17_50_0_2 is not set
-# BR2_BINUTILS_VERSION_2_17_50_0_3 is not set
-# BR2_BINUTILS_VERSION_2_17_50_0_4 is not set
-# BR2_BINUTILS_VERSION_2_17_50_0_5 is not set
-# BR2_BINUTILS_VERSION_2_17_50_0_6 is not set
-# BR2_BINUTILS_VERSION_2_17_50_0_7 is not set
-# BR2_BINUTILS_VERSION_2_17_50_0_8 is not set
-# BR2_BINUTILS_VERSION_2_17_50_0_9 is not set
-# BR2_BINUTILS_VERSION_2_17_50_0_10 is not set
 # BR2_BINUTILS_VERSION_2_19 is not set
+# BR2_BINUTILS_VERSION_2_19_1 is not set
 BR2_BINUTILS_VERSION="2.17"
 BR2_EXTRA_BINUTILS_CONFIG_OPTIONS=""
 
 #
 # GCC Options
 #
-# BR2_GCC_VERSION_3_3_5 is not set
-# BR2_GCC_VERSION_3_3_6 is not set
-# BR2_GCC_VERSION_3_4_2 is not set
-# BR2_GCC_VERSION_3_4_3 is not set
-# BR2_GCC_VERSION_3_4_4 is not set
-# BR2_GCC_VERSION_3_4_5 is not set
 BR2_GCC_VERSION_3_4_6=y
-# BR2_GCC_VERSION_4_0_0 is not set
-# BR2_GCC_VERSION_4_0_1 is not set
-# BR2_GCC_VERSION_4_0_2 is not set
-# BR2_GCC_VERSION_4_0_3 is not set
-# BR2_GCC_VERSION_4_0_4 is not set
-# BR2_GCC_VERSION_4_1_0 is not set
-# BR2_GCC_VERSION_4_1_1 is not set
-# BR2_GCC_VERSION_4_1_2 is not set
-# BR2_GCC_VERSION_4_2 is not set
 # BR2_GCC_VERSION_4_2_4 is not set
+# BR2_GCC_VERSION_4_3_3 is not set
 # BR2_GCC_SUPPORTS_SYSROOT is not set
 BR2_GCC_VERSION="3.4.6"
 # BR2_GCC_USE_SJLJ_EXCEPTIONS is not set

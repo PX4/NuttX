@@ -40,5 +40,7 @@ buildroot-0.1.6 2009-xx-xx <spudmonkey@racsa.co.cr>
 
 	* Added config/arm7tdmi-defconfig-4.2.4
 	* Added config/arm920t-defconfig-4.3.3
+	* Correct error in arm-defconfig gcc-3.4.6 build. The gcc-3.4.6 configuration
+	  does not not take --with-abi
 
 
