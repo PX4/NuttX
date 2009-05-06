@@ -42,5 +42,7 @@ buildroot-0.1.6 2009-xx-xx <spudmonkey@racsa.co.cr>
 	* Added config/arm920t-defconfig-4.3.3
 	* Correct error in arm-defconfig gcc-3.4.6 build. The gcc-3.4.6 configuration
 	  does not not take --with-abi
+	* Correct error in gcc-3.4.6/gcc/collect.c.  Calls open with O_CREAT but
+	  does not specify mode.  Newer host compilers can error out on this.
 
 
