@@ -1,4 +1,4 @@
-ReleaseNotes v0.1.5:
+ReleaseNotes v0.1.6:
 ^^^^^^^^^^^^^^^^^^^
 
 This is a highly hacked up version of the buildroot (see
@@ -10,8 +10,8 @@ can be used to build the following NuttX-compatible toolchains:
     i.MX1 (ARM920T), and TI DM320 (ARM926EJ-S) provided with the
     NuttX releases.
 
-  o arm-elf thumb2 toolchain needed for use with the ARM Cortex-M3
-    ports provided with the NuttX releases.
+  o arm-elf (thumb2) toolchain needed for use with the Luminary
+    LM3S6918 (ARM Cortex-M3) port provided with the NuttX releases.
 
   o m68k-elf toolchain (not currently used in any NuttX
     configuration).
