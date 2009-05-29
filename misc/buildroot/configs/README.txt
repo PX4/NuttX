@@ -35,9 +35,14 @@ arm926t-defconfig-4.2.4
 	This change probably applies to other architectures as well (?)
 
 arm920t-defconfig-4.3.3
-        Builds an ARM toolchain using gcc 4.3.3.  This configuration
-        builds both gcc and g++ for the arm920t (armv4t).  It is an
+	Builds an ARM toolchain using gcc 4.3.3.  This configuration
+	builds both gcc and g++ for the arm920t (armv4t).  It is an
 	update to arm920t-defconfig-4.2.4 (see notes above).
+
+avr-defconfig-4.3.3
+	Builds an AVR toolchain using gcc 4.3.3.  This configuration
+	builds both gcc and g++ for the AVR (armv4t). This toolchain
+	is intended to support the NuttX ATmega128 port.
 
 cortexm3-defconfig-4.3.3
 	Builds an ARM toolchain for the Cortex-M3 using gcc 4.3.3.

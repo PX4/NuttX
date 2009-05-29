@@ -1,4 +1,4 @@
-ReleaseNotes v0.1.6:
+ReleaseNotes v0.1.7:
 ^^^^^^^^^^^^^^^^^^^
 
 This is a highly hacked up version of the buildroot (see
@@ -12,6 +12,9 @@ can be used to build the following NuttX-compatible toolchains:
 
   o arm-elf (thumb2) toolchain needed for use with the Luminary
     LM3S6918 (ARM Cortex-M3) port provided with the NuttX releases.
+
+  o avr-elf toolchain needed for use with the ATmega128 ports
+    provided with the NuttX releases.
 
   o m68k-elf toolchain (not currently used in any NuttX
     configuration).
