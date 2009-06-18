@@ -1724,7 +1724,6 @@ static void show_usage(void)
   fprintf(stderr, "     Entry point to module [%s for executable]\n",
           default_exe_entry_name);
   fprintf(stderr, "     NULL for shared library\n");
-  fprintf(stderr, "  -l Build a shared library binary [executable]\n");
   fprintf(stderr, "  -o <out-filename>\n");
   fprintf(stderr, "     Output to <out-filename> [<bfd-filename>.xflt]\n");
   fprintf(stderr, "  -s <stack-size>\n");

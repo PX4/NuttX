@@ -153,7 +153,7 @@ static const char dyncall_format[] =
   "%s:\n"
   "\tstmdb\tsp!,{r4, lr}\n"
   "\tldr\tr4, =__dyninfo%04d\n"
-  "\tbl\t[r4]\n"
+  "\tblx\tr4\n"
   "\tldmia\tsp!,{r4, pc}\n"
   "\t.size\t%s, .-%s\n";
 
@@ -163,7 +163,7 @@ static const char nonreturning_dyncall_format[] =
   "\t.type\t%s, function\n\n"
   "%s:\n"
   "\tldr\tr4, =__dyninfo%04d\n"
-  "\tb\t[r4]\n"
+  "\tbx\tr4\n"
   "\t.size\t%s, .-%s\n";
 
 /*******************************************************************

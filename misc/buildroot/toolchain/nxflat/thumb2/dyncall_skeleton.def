@@ -151,21 +151,23 @@ static const char dyncall_decl_prologue[] =
 static const char dyncall_format[] =
   "\n/* Dynamic call logic for imported symbol %s */\n\n"
   "\t.global\t%s\n"
-  "\t.type\t%s, function\n\n"
+  "\t.type\t%s, function\n"
+  "\t.thumb_func\n\n"
   "%s:\n"
   "\tstmdb\tsp!,{r4, lr}\n"
   "\tldr\tr4, =__dyninfo%04d\n"
-  "\tbl\t[r4]\n"
+  "\tblx\tr4\n"
   "\tldmia\tsp!,{r4, pc}\n"
   "\t.size\t%s, .-%s\n";
 
 static const char nonreturning_dyncall_format[] =
   "\n/* Dynamic call logic for imported, non-returning symbol %s */\n\n"
   "\t.global\t%s\n"
-  "\t.type\t%s, function\n\n"
+  "\t.type\t%s, function\n"
+  "\t.thumb_func\n\n"
   "%s:\n"
   "\tldr\tr4, =__dyninfo%04d\n"
-  "\tb\t[r4]\n"
+  "\tbx\tr4\n"
   "\t.size\t%s, .-%s\n";
 
 /*******************************************************************
