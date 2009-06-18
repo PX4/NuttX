@@ -67,6 +67,7 @@ BR2_EXTRA_BINUTILS_CONFIG_OPTIONS=""
 #
 # GCC Options
 #
+BR2_PACKAGE_GCC=y
 BR2_GCC_VERSION_3_4_6=y
 # BR2_GCC_VERSION_4_2_4 is not set
 # BR2_GCC_VERSION_4_3_3 is not set
@@ -84,6 +85,10 @@ BR2_EXTRA_GCC_CONFIG_OPTIONS=""
 # BR2_PACKAGE_GDB is not set
 # BR2_PACKAGE_GDB_SERVER is not set
 # BR2_PACKAGE_GDB_HOST is not set
+
+#
+# NuttX Binary Support
+#
 
 #
 # Common Toolchain Options

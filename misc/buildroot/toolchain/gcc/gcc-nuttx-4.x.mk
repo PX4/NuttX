@@ -200,4 +200,7 @@ gcc-clean:
 gcc-dirclean:
 	rm -rf $(GCC_BUILD_DIR)
 
+ifeq ($(strip $(BR2_PACKAGE_GCC)),y)
+TARGETS += gcc
+endif
 endif

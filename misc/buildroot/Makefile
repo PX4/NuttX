@@ -51,7 +51,7 @@ cc-option = $(shell if $(TARGET_CC) $(TARGET_CFLAGS) $(1) -S -o /dev/null -xc /d
 # along with the packages to build for the target.
 #
 ##############################################################
-TARGETS:=uclibc-configured binutils gcc uclibc-target-utils
+TARGETS:=binutils
 include toolchain/Makefile.in
 include package/Makefile.in
 

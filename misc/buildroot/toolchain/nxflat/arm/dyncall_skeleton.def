@@ -1,0 +1,728 @@
+/***********************************************************************
+ * toolchain/nxflat/arm/dyncall_skeleton.def
+ *
+ *   Copyright (C) 2009 Gregory Nutt. All rights reserved.
+ *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ * 3. Neither the name NuttX nor the names of its contributors may be
+ *    used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ * COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+ * OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ ***********************************************************************/
+
+/*******************************************************************
+ * File Prologue
+ *******************************************************************/
+
+static const char file_prologue[] =
+  "/*******************************************************************\n"
+  " *\n"
+  " * This file contains the dynamic call logic that performs the thunk\n"
+  " * for outound calls from one module to another.\n"
+  " *\n"
+  " * ARM register quick reference:\n"
+  " *\n"
+  " *    Name    Number ARM Procedure Calling Standard Role\n"
+  " *\n"
+  " *    a1      r0     argument 1/integer result/scratch register/argc\n"
+  " *    a2      r1     argument 2/scratch register/argv\n"
+  " *    a3      r2     argument 3/scratch register/envp\n"
+  " *    a4      r3     argument 4/scratch register\n"
+  " *    v1      r4     register variable\n"
+  " *    v2      r5     register variable\n"
+  " *    v3      r6     register variable\n"
+  " *    v4      r7     register variable\n"
+  " *    v5      r8     register variable\n"
+  " *    sb/v6   r9     static base/register variable\n"
+  " *    sl/v7   r10    stack limit/stack chunk handle/reg. variable\n"
+  " *    fp      r11    frame pointer\n"
+  " *    ip      r12    scratch register/new-sb in inter-link-unit calls\n"
+  " *    sp      r13    lower end of current stack frame\n"
+  " *    lr      r14    link address/scratch register\n"
+  " *    pc      r15    program counter\n"
+  " *******************************************************************/\n\n"
+  "/*******************************************************************\n"
+  " * Included Files\n"
+  " *******************************************************************/\n\n"
+  "/*******************************************************************\n"
+  " * Definitions\n"
+  " *******************************************************************/\n\n"
+  "/* Register definitions */\n\n"
+  "#define PIC_REG              r10\t/* The PIC base register */\n"
+  "#define RINFO                 r4\t/* Pointer to dyninfo structure */\n"
+  "#define MYPIC                 r5\t/* Saved PIC base register value */\n"
+  "#define FRAME                 r6\t/* Current state save frame */\n"
+  "#define SAVEREG1              r4\t/* First pushed register */\n"
+  "#define SAVEREG2              r7\t/* Last pushed register */\n"
+  "#define TMP3                  r5\t/* Careful, overlaps MYPIC */\n"
+  "#define WORK                  r7\t/* Safe to used */\n"
+  "#define TMP1                  ip\n"
+  "#define TMP2                  lr\n\n"
+  "/* This is the EXIT software interrupt code. */\n\n"
+  "#define DFR_EXIT_SWINO        0x900001\n";
+
+#ifdef CONFIG_ARCH_DSC25
+static const char dyntrace_enable[] =
+  "\n/* Conditional Compilation */\n\n"
+  "#define __DYNTRACE 1\n"
+  "#define __DYNTRACE_USE_HARDWARE 1\n"
+  "#define __DYNTRACE_CONFIG_DSC25 1\n";
+#else
+static const char dyntrace_enable[] =
+  "\n/* Conditional Compilation */\n\n"
+  "#define __DYNTRACE 1\n";
+#endif
+
+static const char import_prologue[] =
+  "\n/* This is an assembly language representation of the\n"
+  " * struct nxflat_import_s structure:\n"
+  " */\n\n"
+  "#define RINFO_FCNNAME         0\t/* Offset to the function name */\n"
+  "#define RINFO_FCNADDR         4\t/* Offset to the function address */\n"
+  "#define RINFO_PICBASE         8\t/* Offset to the PIC base value */\n\n"
+  "/* The common dynamic call logic receives the following C stack frame.\n"
+  " * NOTE:  The number of registers should be SAVEREG2-SAVEREG1+2.\n"
+  " */\n\n"
+  "#define SP_OFFSET_CREG1       0\n"
+  "#define SP_OFFSET_CREG2       4\n"
+  "#define SP_OFFSET_CREG3       8\n"
+  "#define SP_OFFSET_CREG4      12\n"
+  "#define SP_OFFSET_CREG5      16\n"
+  "#define SP_FRAME_SIZE        20\n\n"
+  "/* The common dynamic call logic will create the following dynamic\n"
+  " * frame:\n"
+  " */\n\n"
+  "#define DFR_OFFSET_ALLOCATED  0\n"
+  "#define DFR_OFFSET_REFCOUNT   1\n"
+  "#define DFR_OFFSET_UNUSED1    2\n"
+  "#define DFR_OFFSET_UNUSED2    3\n"
+  "#define DFR_OFFSET_CREG1      4\n"
+  "#define DFR_OFFSET_CREG2      8\n"
+  "#define DFR_OFFSET_CREG3     12\n"
+  "#define DFR_OFFSET_CREG4     16\n"
+  "#define DFR_OFFSET_CREG5     20\n\n"
+  "#define DFR_FRAME_SIZE_BYTES 24\n"
+  "#define DFR_FRAME_SIZE_WORDS (DFR_FRAME_SIZE_BYTES >> 2)\n\n"
+  "/* These definitions determine that memory that will be set aside\n"
+  " * for frame storage:\n"
+  " */\n";
+
+static const char import_frame_size[] =
+  "\n#define DFR_NUM_FRAMES        %d\n"
+  "#define DFR_FRAME_ALLOC_BYTES (DFR_FRAME_SIZE_BYTES*DFR_NUM_FRAMES)\n"
+  "#define DFR_FRAME_ALLOC_WORDS (DFR_FRAME_ALLOC_BYTES >> 2)\n";
+
+static const char dynamic_frames[] =
+  "\n/*******************************************************************\n"
+  " * The Dynamic Frame Storage\n"
+  " *******************************************************************/\n\n"
+  "/* This defines an array of state save frames the will used by the\n"
+  " * dynamic call logic to hold information needed to manage a \"thunk.\"\n"
+  " */\n\n"
+  "\t.bss\n"
+  "\t.align\t2\n"
+  "\t.local\t__dynframes\n"
+  "\t.type\t__dynframes, object\n"
+  "__dynframes:\n"
+  "\t.fill\tDFR_FRAME_ALLOC_WORDS, 4, 0\n"
+  "\t.size\t__dynframes, .-__dynframes\n";
+
+static const char nonreturning_dynamic_frame[] =
+  "\n/* This defines a special storage location for functions that don't\n"
+  " * (normally) return.  It is kept separate from other frames to prevent\n"
+  " * overwriting; this storage only exists in case the function does\n"
+  " * return (which can happen on an error condition).\n"
+  " */\n\n"
+  "\t.bss\n"
+  "\t.align\t2\n"
+  "\t.local\t__dynnrframe\n"
+  "\t.type\t__dynnrframe, object\n"
+  "__dynnrframe:\n"
+  "\t.fill\tDFR_FRAME_SIZE_WORDS, 4, 0\n"
+  "\t.size\t__dynnrframe, .-__dynnrframe\n";
+
+/*******************************************************************
+ * Import Function Name String Table
+ *******************************************************************/
+
+static const char import_name_strtab_prologue[] = 
+  "\n/*******************************************************************\n"
+  " * Import Function Names\n"
+  " *******************************************************************/\n\n"
+  "/* These are the names of all of the functions that are imported.\n"
+  " * Notice that all data associated with the library names is retained\n"
+  " * in the .text section."
+  " */\n\n"
+  "\t.text\n"
+  "\t.align\t0\n";
+
+#define MKIMPSTRTABARG(fn,i) (i), (i), (i), (fn), (i), (i)
+
+static const char import_name_strtab_format[] =
+  "\n\t.local\t__dynimport%04d\n"
+  "\t.type\t__dynimport%04d, object\n\n"
+  "__dynimport%04d:\n"
+  "\t.asciz\t\"%s\"\n"
+  "\t.size\t__dynimport%04d, .-__dynimport%04d\n";
+
+/*******************************************************************
+ * Per Import Dyanamic Call Information
+ *******************************************************************/
+
+static const char dynimport_decl_prologue[] =
+  "\n/*******************************************************************\n"
+  " * Imported Symbol Table (an array of type struct flat_import)\n"
+  " *******************************************************************/\n\n"
+  "/* Notice that, unlike most other arrays in this file, this array\n"
+  " * is declared to reside in .data.  Because of this, there will be\n"
+  " * per-process instances of this table.\n"
+  " */\n\n"
+  "\t.data\n"
+  "\t.align\t2\n\n"
+  "\t.global\t__dynimport_begin\n"
+  "\t.type\t__dynimport_begin, object\n"
+  "\t.global\t__dynimport_end\n"
+  "\t.type\t__dynimport_end, object\n\n";
+
+#define MKINFODECLARGS(fn, i) (i), (fn), (i)
+
+static const char dynimport_decl_format[] =
+  "\t.local\t__dyninfo%04d\t/* Dynamic info for imported symbol %s */\n"
+  "\t.type\t__dyninfo%04d, object\n";
+
+static const char dynimport_array_prologue[] =
+  "\n__dynimport_begin:\n";
+
+#define MKINFOARGS(fn, i) (i), (fn), (i), (i), (i)
+
+static const char dynimport_array_format[] =
+  "__dyninfo%04d:\t\t\t/* Dynamic info for imported symbol %s */\n"
+  "\t.word\t__dynimport%04d\t/* Offset to name of imported function */\n"
+  "\t.word\t0\t\t/* Resolved address of imported function */\n"
+  "\t.word\t0\t\t/* Data segment address for imported func */\n"
+  "\t.size\t__dyninfo%04d, .-__dyninfo%04d\n";
+
+static const char dynimport_array_epilogue[] =
+  "__dynimport_end:\n"
+  "\t.size\t__dynimport_begin, __dynimport_end-__dynimport_begin\n";
+
+static const char dyncall_decl_prologue[] =
+  "\n/*******************************************************************\n"
+  " * Per Import Dynamic Call Logic\n"
+  " *******************************************************************/\n\n"
+  "\t.text\n"
+  "\t.align\t2\n";
+
+#define MKCALLARGS(fn, i) (fn), (fn), (fn), (fn), (i), (fn), (fn)
+
+static const char dyncall_format[] =
+  "\n/* Dynamic call logic for imported symbol %s */\n\n"
+  "\t.global\t%s\n"
+  "\t.type\t%s, function\n\n"
+  "%s:\n"
+  "\tldr\tTMP1, =__dyninfo%04d\n"
+  "\tb\t__dyncall1\n"
+  "\t.size\t%s, .-%s\n";
+
+static const char dyncall_format2[] =
+  "\n/* Dynamic call logic for special imported symbol %s */\n\n"
+  "\t.global\t%s\n"
+  "\t.type\t%s, function\n\n"
+  "%s:\n"
+  "\tldr\tTMP1, =__dyninfo%04d\n"
+  "\tb\t__dyncall2\n"
+  "\t.size\t%s, .-%s\n";
+
+static const char nonreturning_dyncall_format[] =
+  "\n/* Dynamic call logic for imported, non-returning symbol %s */\n\n"
+  "\t.global\t%s\n"
+  "\t.type\t%s, function\n\n"
+  "%s:\n"
+  "\tldr\tTMP1, =__dyninfo%04d\n"
+  "\tb\t__dynnoreturn\n"
+  "\t.size\t%s, .-%s\n";
+
+/*******************************************************************
+ * Dynamic Call Trace Logic
+ *******************************************************************/
+
+static const char dyntrace_function[] =
+  "\n/* This is constant data used to by the __dyntrace function */\n\n"
+  "#ifdef __DYNTRACE\n\n"
+  "\t.section\t.rodata\n\n"
+  "# ifdef __DYNTRACE_USE_HARDWARE\n"
+  "#  define __DYNTRACE_LBRACE_SIZE 3\n"
+  "#  define __DYNTRACE_RBRACE_SIZE 3\n\n"
+  "\t.local\t.LC_lbrace\n"
+  "\t.type\t.LC_lbrace, object\n"
+  "\t.size\t.LC_lbrace, __DYNTRACE_LBRACE_SIZE\n"
+  ".LC_lbrace:\n"
+  "\t.ascii\t\"\\r\\n[\"\n\n"
+  "\t.local\t.LC_rbrace\n"
+  "\t.type\t.LC_rbrace, object\n"
+  "\t.size\t.LC_rbrace, __DYNTRACE_RBRACE_SIZE\n"
+  ".LC_rbrace:\n"
+  "\t.ascii\t\"]\\r\\n\"\n\n"
+  "# else\n\n"
+  "#  define __DYNTRACE_LBRACE_SIZE 2\n"
+  "#  define __DYNTRACE_RBRACE_SIZE 2\n\n"
+  "\t.local\t.LC_lbrace\n"
+  "\t.type\t.LC_lbrace, object\n"
+  "\t.size\t.LC_lbrace, __DYNTRACE_LBRACE_SIZE\n"
+  ".LC_lbrace:\n"
+  "\t.ascii\t\"\\n[\"\n\n"
+  "\t.local\t.LC_rbrace\n"
+  "\t.type\t.LC_rbrace, object\n"
+  "\t.size\t.LC_rbrace, __DYNTRACE_RBRACE_SIZE\n"
+  ".LC_rbrace:\n"
+  "\t.ascii\t\"]\\n\"\n\n"
+  "#endif /* __DYNTRACE_USE_HARDWARE */\n\n"
+  "#define __DYNTRACE_EXITTING_SIZE 8\n"
+  "\t.local\t.LC_exitting\n"
+  "\t.type\t.LC_exitting, object\n"
+  "\t.size\t.LC_exitting, __DYNTRACE_EXITTING_SIZE\n"
+  ".LC_exitting:\n"
+  "\t.ascii\t\"ABORTING\"\n\n"
+  "/* Macros to write trace information to the console/stderr\n"
+  " *\n"
+  " *   r1 = write buffer address\n"
+  " *   r2 = write buffer size\n"
+  " *\n"
+  " * Will use all registers normally altered on a C subroutine call:\n"
+  " *   r0-r3, ip (r12), and lr (r14).\n"
+  " */\n\n"
+  "#ifdef __DYNTRACE_USE_HARDWARE\n"
+  "\t/* These are the same macros that can be found in\n"
+  "\t * linux/arch/armnommu/kernel/debug-armv.S for the 2.4 kernel\n"
+  "\t */\n\n"
+  "#ifdef __DYNTRACE_CONFIG_DSC25\n"
+  "\t.macro\taddruart,rx\n"
+  "\tldr\t\\rx, =0x00030300\t@ UART0 base\n"
+  "\t.endm\n\n"
+  "\t.macro\tsenduart,rd,rx\n"
+  "\tstrh\t\\rd, [\\rx, #0x00]\t@ UARTx_DTRR Offset\n"
+  "\t.endm\n\n"
+  "\t.macro\twaituart,rd,rx\n"
+  "1001:\tldrh\t\\rd, [\\rx, #0x0c]\t@ UARTx_SR Offset\n"
+  "\ttst\t\\rd, #0x0400\t\t@ Check TX fifo ind.\n"
+  "\tbeq\t1001b\t\t\t@ loop til 1=room in TX fifo\n"
+  "\t.endm\n\n"
+  "\t.macro\tbusyuart,rd,rx\n"
+  "1002:\tldrh\t\\rd, [\\rx, #0x0c]\t@ UARTx_SR Offset\n"
+  "\ttst\t\\rd, #0x0001\t\t@ Check TX empty bit\n"
+  "\tbne\t1002b\t\t\t@ loop til 0=TX fifo empty\n"
+  "\t.endm\n"
+  "#else\n"
+  "# error Unsupported architecture\n"
+  "#endif\n"
+  "\t.macro __dyntrace_write\n"
+  "\tbl\t__dynwrite\n"
+  "\t.endm\n\n"
+  "/* Write directly to the uart hardware:\n"
+  " * r1 = addr, r2 = number of bytes.\n"
+  " */\n\n"
+  "\t.text\n"
+  "\t.align\t2\n"
+  "\t.local\t__dynwrite\n"
+  "\t.type\t__dynwrite, function\n"
+  "__dynwrite:\n\n"
+  "\taddruart r3\t\t\t@ Get the UART address\n"
+  "1:\twaituart r0, r3\t\t\t@ Wait for UART available\n"
+  "\tldrb\tr0, [r1], #1\t\t@ Fetch the next byte\n"
+  "\tsenduart r0, r3\t\t\t@ Send the byte\n"
+  "\tbusyuart r0, r3\t\t\t@ Wait for the byte to go\n"
+  "\tsubs\tr2, r2, #1\t\t@ Decr # bytes sent\n"
+  "\tbne\t1b\t\t\t@ Done?\n"
+  "\tmov\tpc, lr\t\t\t@ Yes, Return\n"
+  "#else\n"
+  "/* This macro uses the write syscall to output trace information: */\n\n"
+  "\t.macro __dyntrace_write\n"
+  "\tmov\tr0, #1\n"
+  "\tswi\t0x900004\n"
+  "\t.endm\n"
+  "#endif\n\n"
+  "/* If enabled, the __dyntrace function will be called just before\n"
+  " * each call into a shared library is performed.  The __dyntrace\n"
+  " * function will print the name of the called function on stderr\n"
+  " * in the follow format: \\n[name]\\n.  WARNING: This function uses\n"
+  " * the write syscall directly!\n"
+  " *\n"
+  " * The following register state is assume on entry:\n"
+  " * o WORK is available for use\n"
+  " * o [PIC_REG] points to our data segment\n"
+  " * o [RINFO] holds the offset to the info structure\n"
+  " *   [RINFO]+RINFO_FCNAME points to the symbol name.\n"
+  " */\n\n"
+  "\t.text\n"
+  "\t.align\t2\n"
+  "\t.local\t__dyntrace\n"
+  "\t.type\t__dyntrace, function\n"
+  "__dyntrace:\n\n"
+  "\t/* Save all registers normally altered on a C subroutine call:\n"
+  "\t *   r0-r3, ip (r12), and lr (r14).\n"
+  "\t */\n\n"
+  "\tstmfd\tsp!, {r0-r3, ip, lr}\n\n"
+  "\t/* Write the leading \"\\n[\" */\n\n"
+  "\tldr\tr1, .Llbrace_addr\n"
+  "\tadd\tr1, PIC_REG, r1\n"
+  "\tmov\tr2, #__DYNTRACE_LBRACE_SIZE\n"
+  "\t__dyntrace_write\n\n"
+  "\t/* Determine the length of the name string */\n\n"
+  "\tadd\tr3, PIC_REG, RINFO\n"
+  "\tldr\tr1, [r3, #RINFO_FCNNAME]\n"
+  "\tmov\tr2, #0\n"
+  ".Lstrlen_loop:\n"
+  "\tldrb\tr0, [r1], #1\n"
+  "\tcmp\tr0, #0\n"
+  "\taddne\tr2, r2, #1\n"
+  "\tbne\t.Lstrlen_loop\n\n"
+  "\t/* Then write the name string */\n\n"
+  "\tldr\tr1, [r3, #RINFO_FCNNAME]\n"
+  "\t__dyntrace_write\n\n"
+  "\t/* Write the trailing \"\\n[\" */\n\n"
+  "\tldr\tr1, .Lrbrace_addr\n"
+  "\tadd\tr1, PIC_REG, r1\n"
+  "\tmov\tr2, #__DYNTRACE_LBRACE_SIZE\n"
+  "\t__dyntrace_write\n\n"
+  "\tldmfd\tsp!, {r0-r3, ip, pc}\n\n"
+  "\t.align\t2\n"
+  ".Llbrace_addr:\n"
+  "\t.word\t.LC_lbrace\n"
+  ".Lrbrace_addr:\n"
+  "\t.word\t.LC_rbrace\n"
+  "\t.size\t __dyntrace, .-__dyntrace\n"
+  "#endif /* __DYNTRACE */\n";
+
+/*******************************************************************
+ * Common Dyanamic Call Information
+ *******************************************************************/
+
+static const char frame_macros[] =
+  "\n/*******************************************************************\n"
+  " * Frame Management Macros\n"
+  " *******************************************************************/\n\n"
+  "\t.macro\tget_frame, frame, refcount, tmp1, tmp2\n\n"
+  "\t/* Get frame = first frame in the __dynframes list, and\n"
+  "\t * tmp2 = the first address past the __dynframe list.\n"
+  "\t */\n\n"
+  "\tldr\t\\tmp2, =DFR_FRAME_ALLOC_BYTES\n"
+  "\tldr\t\\tmp1, =__dynframes\n"
+  "\tadd\t\\frame, PIC_REG, \\tmp1\n"
+  "\tadd\t\\tmp2, \\tmp2, \\frame\n\n"
+  "\t/* Loop until an unsused frame is found our until the\n"
+  "\t * end of the __dynframes list is encountered.  Normally,\n"
+  "\t * this will be very fast -- because the first frame should\n"
+  "\t * be available.\n"
+  "\t */\n\n"
+  "1:\n"
+  "\tmov\t\\tmp1, #1\n"
+  "\tswpb\t\\tmp1, \\tmp1, [\\frame]\n"
+  "\tcmp\t\\tmp1, #0\n"
+  "\tbeq\t2f\n\n"
+  "\t/* Increment to the next frame in the list and check if this\n"
+  "\t * next frame lies beyond the __dynframes list.\n"
+  "\t */\n\n"
+  "\tadd\t\\frame, \\frame, #DFR_FRAME_SIZE_BYTES\n"
+  "\tcmp\t\\frame, \\tmp2\n"
+  "\tbcc\t1b\n\n"
+  "\t/* Failure!  The list is full!  We don't have many options\n"
+  "\t * here so we will just exit with error number = 1.\n"
+  "\t */\n\n"
+  "#ifdef __DYNTRACE\n"
+  "\tldr\tr1, =.LC_exitting\n"
+  "\tmov\tr2, #__DYNTRACE_EXITTING_SIZE\n"
+  "\t__dyntrace_write\n"
+  "#endif\n\n"
+  "\tmov\tr0, #1\n"
+  "\tswi\tDFR_EXIT_SWINO\n\n"
+  "\t/* Set the reference count on the frame and continue with\n"
+  "\t * frame = the available frame */\n"
+  "2:\n"
+  "\tstrb\t\\refcount, [\\frame, #DFR_OFFSET_REFCOUNT]\n"
+  "\t.endm\n\n"
+  "\t.macro release_frame, frame, tmp1\n"
+  "\tldrb\t\\tmp1, [\\frame, #DFR_OFFSET_REFCOUNT]\n"
+  "\tcmp\t\\tmp1, #0\n"
+  "\tsub\t\\tmp1, \\tmp1, #1\n"
+  "\tble\t3f\n"
+  "\tcmp\t\\tmp1, #0\n"
+  "\tstrb\t\\tmp1, [\\frame, #DFR_OFFSET_REFCOUNT]\n"
+  "\tstreqb\t\\tmp1, [\\frame, #DFR_OFFSET_ALLOCATED]\n"
+  "3:\n"
+  "\t.endm\n";
+
+static const char nonreturning_frame_macros[] =
+  "\t.macro\tget_nrframe, frame, refcount, tmp1, tmp2\n\n"
+  "\tldr\t\\frame, =__dynnrframe\n"
+  "\tadd\t\\frame, PIC_REG, \\frame\n"
+  "\t.endm\n\n"
+  "\t.macro release_nrframe, frame, tmp1\n"
+  "\t.endm\n";
+
+static const char dyncall_prologue[] =
+  "\n/*******************************************************************\n"
+  " *\n"
+  " * This the dynamic call logic.\n"
+  " *\n"
+  " *\t1. SAVEREG1-SAVEREG2, and lr stored on the C stack\n"
+  " *\t2. [PIC_REG] = Points to our data segment\n"
+  " *\t3. [RINFO] = Offset to info structure in data segment\n"
+  " *\t4. [WORK] = Reference count to be applied to the frame\n"
+  " *\t5. TMP1, TMP2 and TMP3 are available for use.\n"
+  " *******************************************************************/\n\n"
+  "\t.text\n"
+  "\t.align\t2\n"
+  "\t.local\t__dyncall\n"
+  "\t.type\t__dyncall, function\n"
+  "\t.local\t__dyncall1\n"
+  "\t.type\t__dyncall1, function\n"
+  "\t.local\t__dyncall2\n"
+  "\t.type\t__dyncall2, function\n\n"
+  "__dyncall1:\n"
+  "\tstmdb\tsp!, {SAVEREG1-SAVEREG2, lr}\n"
+  "\tmov\tRINFO, TMP1\n"
+  "\tmov\tWORK, #1\n"
+  "\tb\t__dyncall\n"
+  "\t.size\t__dyncall1, .-__dyncall1\n\n"
+  "__dyncall2:\n"
+  "\tstmdb\tsp!, {SAVEREG1-SAVEREG2, lr}\n"
+  "\tmov\tRINFO, TMP1\n"
+  "\tmov\tWORK, #2\n"
+  "\t.size\t__dyncall2, .-__dyncall2\n\n"
+  "__dyncall:\n";
+
+static const char dyntrace_call[] =
+  "\n#ifdef __DYNTRACE\n"
+  "\tbl\t__dyntrace\n"
+  "#endif /* __DYNTRACE */\n";
+
+static const char dyncall_epilogue[] =
+  "\n\t/***********************************************************\n"
+  "\t * Transfer all of the information saved on the C stack to\n"
+  "\t * a dynamic frame.\n"
+  "\t ***********************************************************/\n\n"
+  "\t/* Get FRAME = the dynamic frame. */\n\n"
+  "\tget_frame\tFRAME, WORK, TMP1, TMP2\n\n"
+  "\t/* Copy the current C stack frame in the dynamic frame */\n\n"
+  "\tldr\tTMP2, [sp, #SP_OFFSET_CREG1]\n"
+  "\tstr\tTMP2, [FRAME, #DFR_OFFSET_CREG1]\n"
+  "\tldr\tTMP2, [sp, #SP_OFFSET_CREG2]\n"
+  "\tstr\tTMP2, [FRAME, #DFR_OFFSET_CREG2]\n"
+  "\tldr\tTMP2, [sp, #SP_OFFSET_CREG3]\n"
+  "\tstr\tTMP2, [FRAME, #DFR_OFFSET_CREG3]\n"
+  "\tldr\tTMP2, [sp, #SP_OFFSET_CREG4]\n"
+  "\tstr\tTMP2, [FRAME, #DFR_OFFSET_CREG4]\n"
+  "\tldr\tTMP2, [sp, #SP_OFFSET_CREG5]\n"
+  "\tstr\tTMP2, [FRAME, #DFR_OFFSET_CREG5]\n\n"
+  "\t/***********************************************************\n"
+  "\t * And release the C stack frame.\n"
+  "\t * At this point, the entire call stack should be pristine.\n"
+  "\t ***********************************************************/\n\n"
+  "\tadd\tsp, sp, #SP_FRAME_SIZE\n\n"
+  "\t/***********************************************************\n"
+  "\t * Get the dyncall information.\n"
+  "\t * Before the following section:\n"
+  "\t *\t[PIC_REG]  = Points to our PIC base\n"
+  "\t *\t[FRAME]    = Reference to dynamic frame\n"
+  "\t *\t[RINFO]    = Offset to info structure in data segment\n"
+  "\t *\tRWORK, TMP1-3 are available\n"
+  "\t *\n"
+  "\t * After the following:\n"
+  "\t *\t[RINFO]    = Dyncall info pointer\n"
+  "\t *\t[MYPIC]    = Points to our PIC base\n"
+  "\t *\t[FRAME]    = Reference to dynamic frame\n"
+  "\t *\t[PIC_REG]  = Holds the new PIC base for the target\n"
+  "\t *\t[WORK]     = Target function entry point\n"
+  "\t *\tTMP1-3 are still available\n"
+  "\t ***********************************************************/\n\n"
+  "\tadd\tRINFO, PIC_REG, RINFO\n"
+  "\tmov\tMYPIC, PIC_REG\n"
+  "\tldr\tPIC_REG, [RINFO, #RINFO_PICBASE]\n"
+  "\tldr\tWORK, [RINFO, #RINFO_FCNADDR]\n\n"
+  "\t/***********************************************************\n"
+  "\t * Call the function entry point.\n"
+  "\t *\n"
+  "\t * This logic performs a 32-bit, register version of the\n"
+  "\t * the bl instruction. \n"
+  "\t ***********************************************************/\n\n"
+  "\tmov\tlr, pc\n"
+  "\tmov\tpc, WORK\n\n"
+  "\t/***********************************************************\n"
+  "\t * Return from the thunked function\n"
+  "\t *\n"
+  "\t * At this point:\n"
+  "\t *\t1. We should have our PIC base in MYPIC.\n"
+  "\t *\t2. We should have the reference to the dynamic frame in FRAME\n"
+  "\t *\t3. We are free to use: r0-r3, RINFO, PIC_REG, FRAME-2, TMP1-2\n"
+  "\t *\n"
+  "\t ***********************************************************/\n\n"
+  "\t/* First, recover our PIC base into from a register that will\n"
+  "\t * have been restored.\n"
+  "\t */\n\n"
+  "\tmov\tPIC_REG, MYPIC\n\n"
+  "\t/***********************************************************\n"
+  "\t * Restore the C stack frame and release the dynamic frame\n"
+  "\t ***********************************************************/\n\n"
+  "\t/* Re-allocate the stack frame */\n\n"
+  "\tsub\tsp, sp, #SP_FRAME_SIZE\n\n"
+  "\t/* Then transfer the information into the C stack frame\n"
+  "\t * that was saved in the dynamic frame\n"
+  "\t */\n\n"
+  "\tldr\tTMP2, [FRAME, #DFR_OFFSET_CREG1]\n"
+  "\tstr\tTMP2, [sp, #SP_OFFSET_CREG1]\n"
+  "\tldr\tTMP2, [FRAME, #DFR_OFFSET_CREG2]\n"
+  "\tstr\tTMP2, [sp, #SP_OFFSET_CREG2]\n"
+  "\tldr\tTMP2, [FRAME, #DFR_OFFSET_CREG3]\n"
+  "\tstr\tTMP2, [sp, #SP_OFFSET_CREG3]\n"
+  "\tldr\tTMP2, [FRAME, #DFR_OFFSET_CREG4]\n"
+  "\tstr\tTMP2, [sp, #SP_OFFSET_CREG4]\n"
+  "\tldr\tTMP2, [FRAME, #DFR_OFFSET_CREG5]\n"
+  "\tstr\tTMP2, [sp, #SP_OFFSET_CREG5]\n\n"
+  "\t/* Release the dynamic frame */\n\n"
+  "\trelease_frame\tFRAME, TMP1\n\n"
+  "\t/***********************************************************\n"
+  "\t * And return to the caller\n"
+  "\t ***********************************************************/\n\n"
+  "\tldmia\tsp!, {SAVEREG1-SAVEREG2, pc}\n"
+  "\t.size\t__dyncall, .-__dyncall\n";
+
+static const char nonreturning_dyncall_prologue[] =
+  "\n/*******************************************************************\n"
+  " *\n"
+  " * This is special dynamic call logic for functions that do not\n"
+  " * (normally) return.\n"
+  " *\n"
+  " *\t1. SAVEREG1-SAVEREG2, and lr stored on the C stack\n"
+  " *\t2. [PIC_REG] = Points to our data segment\n"
+  " *\t3. [RINFO] = Offset to info structure in data segment\n"
+  " *\t3. [WORK] = Reference count to be applied to the frame\n"
+  " *\t4. TMP1 and TMP2 are available for use.\n"
+  " *******************************************************************/\n\n"
+  "\t.text\n"
+  "\t.align\t2\n"
+  "\t.local\t__dynnoreturn\n"
+  "\t.type\t__dynnoreturn, function\n\n"
+  "__dynnoreturn:\n"
+  "\tstmdb\tsp!, {SAVEREG1-SAVEREG2, lr}\n"
+  "\tmov\tRINFO, TMP1\n"
+  "\tmov\tWORK, #0\n";
+
+static const char nonreturning_dyncall_epilogue[] =
+  "\n\t/***********************************************************\n"
+  "\t * Transfer all of the information saved on the C stack to\n"
+  "\t * a dynamic frame.\n"
+  "\t ***********************************************************/\n\n"
+  "\t/* Get FRAME = the dynamic frame. */\n\n"
+  "\tget_nrframe\tFRAME, WORK, TMP1, TMP2\n\n"
+  "\t/* Copy the current C stack frame in the dynamic frame */\n\n"
+  "\tldr\tTMP2, [sp, #SP_OFFSET_CREG1]\n"
+  "\tstr\tTMP2, [FRAME, #DFR_OFFSET_CREG1]\n"
+  "\tldr\tTMP2, [sp, #SP_OFFSET_CREG2]\n"
+  "\tstr\tTMP2, [FRAME, #DFR_OFFSET_CREG2]\n"
+  "\tldr\tTMP2, [sp, #SP_OFFSET_CREG3]\n"
+  "\tstr\tTMP2, [FRAME, #DFR_OFFSET_CREG3]\n"
+  "\tldr\tTMP2, [sp, #SP_OFFSET_CREG4]\n"
+  "\tstr\tTMP2, [FRAME, #DFR_OFFSET_CREG4]\n"
+  "\tldr\tTMP2, [sp, #SP_OFFSET_CREG5]\n"
+  "\tstr\tTMP2, [FRAME, #DFR_OFFSET_CREG5]\n\n"
+  "\t/***********************************************************\n"
+  "\t * And release the C stack frame.\n"
+  "\t * At this point, the entire call stack should be pristine.\n"
+  "\t ***********************************************************/\n\n"
+  "\tadd\tsp, sp, #SP_FRAME_SIZE\n\n"
+  "\t/***********************************************************\n"
+  "\t * Get the dyncall information.\n"
+  "\t * Before the following section:\n"
+  "\t *\t[PIC_REG]  = Points to our PIC base\n"
+  "\t *\t[FRAME]    = Reference to dynamic frame\n"
+  "\t *\t[RINFO]    = Offset to info structure in data segment\n"
+  "\t *\tRWORK, TMP1-3 are available\n"
+  "\t *\n"
+  "\t * After the following:\n"
+  "\t *\t[RINFO]    = Dyncall info pointer\n"
+  "\t *\t[MYPIC]    = Points to our PIC base\n"
+  "\t *\t[FRAME]    = Reference to dynamic frame\n"
+  "\t *\t[PIC_REG]  = Holds the new PIC base for the target\n"
+  "\t *\t[WORK]     = Target function entry point\n"
+  "\t *\tTMP1-3 are still available\n"
+  "\t ***********************************************************/\n\n"
+  "\tadd\tRINFO, PIC_REG, RINFO\n"
+  "\tmov\tMYPIC, PIC_REG\n"
+  "\tldr\tPIC_REG, [RINFO, #RINFO_PICBASE]\n"
+  "\tldr\tWORK, [RINFO, #RINFO_FCNADDR]\n\n"
+  "\t/***********************************************************\n"
+  "\t * Call the function entry point.\n"
+  "\t *\n"
+  "\t * This logic performs a 32-bit, register version of the\n"
+  "\t * the bl instruction. \n"
+  "\t ***********************************************************/\n\n"
+  "\tmov\tlr, pc\n"
+  "\tmov\tpc, WORK\n\n"
+  "\t/***********************************************************\n"
+  "\t * Return from the thunked function\n"
+  "\t *\n"
+  "\t * At this point:\n"
+  "\t *\t1. We should have our PIC base in MYPIC.\n"
+  "\t *\t2. We should have a reference to the dynamic frame in FRAME\n"
+  "\t *\t3. We are free to use: r0-r3, RINFO, PIC_REG, FRAME-2, TMP1-2\n"
+  "\t *\n"
+  "\t ***********************************************************/\n\n"
+  "\t/* First, recover our PIC base from a register the will have\n"
+  "\t * been restored.\n"
+  "\t */\n\n"
+  "\tmov\tPIC_REG, MYPIC\n\n"
+  "\t/***********************************************************\n"
+  "\t * Restore the C stack frame\n"
+  "\t ***********************************************************/\n\n"
+  "\t/* Re-allocate the stack frame */\n\n"
+  "\tsub\tsp, sp, #SP_FRAME_SIZE\n\n"
+  "\t/* Then transfer the information into the C stack frame\n"
+  "\t * that was saved in the dynamic frame.\n"
+  "\t */\n\n"
+  "\tldr\tTMP2, [FRAME, #DFR_OFFSET_CREG1]\n"
+  "\tstr\tTMP2, [sp, #SP_OFFSET_CREG1]\n"
+  "\tldr\tTMP2, [FRAME, #DFR_OFFSET_CREG2]\n"
+  "\tstr\tTMP2, [sp, #SP_OFFSET_CREG2]\n"
+  "\tldr\tTMP2, [FRAME, #DFR_OFFSET_CREG3]\n"
+  "\tstr\tTMP2, [sp, #SP_OFFSET_CREG3]\n"
+  "\tldr\tTMP2, [FRAME, #DFR_OFFSET_CREG4]\n"
+  "\tstr\tTMP2, [sp, #SP_OFFSET_CREG4]\n"
+  "\tldr\tTMP2, [FRAME, #DFR_OFFSET_CREG5]\n"
+  "\tstr\tTMP2, [sp, #SP_OFFSET_CREG5]\n\n"
+  "\t/* Release the dynamic frame */\n\n"
+  "\trelease_nrframe\tFRAME, TMP1\n\n"
+  "\t/***********************************************************\n"
+  "\t * And return to the caller\n"
+  "\t ***********************************************************/\n\n"
+  "\tldmia\tsp!, {SAVEREG1-SAVEREG2, pc}\n"
+  "\t.size\t__dynnoreturn, .-__dynnoreturn\n";
+
+static const char file_epilogue[] =
+  "\t.end\n";
+
+
+
+

@@ -2,11 +2,18 @@
 
 comment "GCC Options"
 
+config BR2_PACKAGE_GCC
+        bool "Build GCC cross-compiler"
+        default n
+        help
+            Build the GCC cross-compiler for the target architecture.
+
 choice
 	prompt "GCC compiler Version"
 	default BR2_GCC_VERSION_4_3_3 if BR2_cortex_m3
 	default BR2_GCC_VERSION_4_2_4 if !BR2_avr32 && !BR2_cortex_m3
 	default BR2_GCC_VERSION_3_4_6 if BR2_avr32 && !BR2_cortex_m3
+	depends on BR2_PACKAGE_GCC
 	help
 	  Select the version of gcc you wish to use.
 
@@ -39,6 +46,7 @@ config BR2_GCC_VERSION
 config BR2_GCC_USE_SJLJ_EXCEPTIONS
 	bool "Enable setjmp/longjmp exceptions?"
 	default n
+	depends on BR2_PACKAGE_GCC
 	help
 	  For some platforms, proper stack unwinding works perfectly,
 	  while other platforms must use setjmp/longjmp exceptions for
@@ -47,12 +55,14 @@ config BR2_GCC_USE_SJLJ_EXCEPTIONS
 
 config BR2_EXTRA_GCC_CONFIG_OPTIONS
 	string "Additional gcc options"
+	depends on BR2_PACKAGE_GCC
 	default ""
 	help
 	  Any additional gcc configure options you may want to include....
 
 config BR2_INSTALL_LIBSTDCPP
 	bool "Build C++ compiler?"
+	depends on BR2_PACKAGE_GCC
 	default n
 	# >= 4.2.0 work fine without LARGEFILE
 	select BR2_LARGEFILE if !BR2_GCC_SUPPORTS_SYSROOT
@@ -62,21 +72,21 @@ config BR2_INSTALL_LIBSTDCPP
 config BR2_INSTALL_LIBGCJ
 	bool "Build/install java compiler and libgcj?"
 	default n
-	depends on !BR2_avr32 && BR2_INSTALL_LIBSTDCPP
+	depends on BR2_PACKAGE_GCC &&  !BR2_avr32 && BR2_INSTALL_LIBSTDCPP
 	help
 	  Build/install java compiler and libgcj?
 
 config BR2_INSTALL_OBJC
 	bool "Build/install Objective-C compiler and runtime?"
 	default n
-	depends on !BR2_avr32
+	depends on BR2_PACKAGE_GCC && !BR2_avr32
 	help
 	  Build/install Objective-C compiler and runtime?
 
 config BR2_INSTALL_FORTRAN
 	bool "Build/install Fortran compiler and runtime?"
 	default n
-	depends on !BR2_avr32
+	depends on BR2_PACKAGE_GCC && !BR2_avr32
 	help
 	  Build/install Fortran compiler and runtime?
 	  Note that it is highly recommended NOT to use gfortran

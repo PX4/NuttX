@@ -17,7 +17,6 @@ BZCAT:=$(strip $(subst ",, $(BR2_BZCAT)))
 TAR_OPTIONS=$(subst ",, $(BR2_TAR_OPTIONS)) -xf
 #")
 
-
 TARGET_CFLAGS=$(TARGET_OPTIMIZATION) $(TARGET_DEBUGGING)
 HOSTCC:=gcc
 HOSTCXX:=g++
