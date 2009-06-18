@@ -1,5 +1,5 @@
 ############################################################################
-# toolchain/nxflat/nxflat.mk
+# toolchain/nxflat/thumb2/Makefile
 #
 #   Copyright (C) 2009 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -33,37 +33,18 @@
 #
 ############################################################################
 
-NXFLAT_DIR	= $(TOPDIR)/toolchain/nxflat
+CFLAGS		+= -Wall
+BIN		= libarch.a
+OBJS		= disthumb2.o
 
-$(NXFLAT_DIR)/.compiled:
-ifeq ($(strip $(BR2_GCC_TARGET_ARCH)),"armv7-m")
-	echo "NUTTX_DIR: $(NUTTX_DIR)"
-	$(MAKE) -C $(NXFLAT_DIR) BINUTILS_DIR="$(BINUTILS_DIR1)" \
-		ARCH=thumb2 CC="$(HOSTCC)"
-else
-	echo "NUTTX_DIR: $(NUTTX_DIR)"
-	$(MAKE) -C $(NXFLAT_DIR) BINUTILS_DIR="$(BINUTILS_DIR1)" \
-		ARCH=$(BR2_ARCH) CC="$(HOSTCC)"
-endif
-	touch $@
+all:	$(BIN)
 
-$(NXFLAT_DIR)/.installed: $(NXFLAT_DIR)/.compiled
-	install -m 755 $(NXFLAT_DIR)/mknxflat $(STAGING_DIR)/bin/mknxflat
-	install -m 755 $(NXFLAT_DIR)/ldnxflat $(STAGING_DIR)/bin/ldnxflat
-	install -m 755 $(NXFLAT_DIR)/readnxflat $(STAGING_DIR)/bin/readnxflat
-	touch $@
+$(OBJS): %.o: %.c
+	$(CC) -c $(CFLAGS) -o $@ $<
 
-nxflat: binutils $(NXFLAT_DIR)/.installed
+$(BIN): $(OBJS)
+	$(AR) rcs $@ $<
 
-nxflat-clean:
-	$(MAKE) -C $(NXFLAT_DIR) clean
-	rm -f $(STAGING_DIR)/bin/mknxflat $(STAGING_DIR)/bin/ldnxflat $(STAGING_DIR)/bin/readnxflat
-	rm -f $(NXFLAT_DIR)/.compiled $(NXFLAT_DIR)/.installed
-
-nxflat-dirclean: nxflat-clean
-	true
-
-ifeq ($(strip $(BR2_PACKAGE_NXFLAT)),y)
-TARGETS += nxflat
-endif
+clean:
+	rm -f *.o *.a *~ .*.swp core
 

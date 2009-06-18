@@ -54,7 +54,7 @@
 #include <bfd.h>
 
 #include "nxflat.h"
-#include "arch/arm.h"
+#include "arch/arch.h"
 
 /***********************************************************************
  * Definitions
@@ -74,8 +74,6 @@
 #define IS_WEAK(x)       ((((x)->flags)&(BSF_WEAK))!=0)
 
 #define MAX_EXPORT_NAMES    1024
-#define DEFAULT_MAX_THREADS    6
-#define MIN_THREADS            3
 
 /***********************************************************************
  * Private Types
@@ -93,12 +91,9 @@ typedef int (*namefunc_type) (const char *name, void *arg);
 static int verbose = 0;
 static int weak_imports = 0;
 static int dsyms = 0;
-static int enable_trace = 0;
-static int max_threads = DEFAULT_MAX_THREADS;
 
 /* Characteristics of things */
 static int calls_nonreturning_functions = 0;
-static int calls_forkers = 0;
 
 /* Sizes of things */
 
@@ -141,41 +136,12 @@ static const char dyn_symbol_prefix[] = "__dyn";
 
 static const char *const nonreturners[] = {
   "abort",                      /* Never returns */
-  "err",                        /* Never returns */
-  "errx",                       /* Never returns */
-  "execl",                      /* Usually doesn't return */
-  "execle",                     /* Usually doesn't return */
-  "execlp",                     /* Usually doesn't return */
-  "execv",                      /* Usually doesn't return */
-  "execv",                      /* Usually doesn't return */
-  "execve",                     /* Usually doesn't return */
-  "execvp",                     /* Usually doesn't return */
-  "execvp",                     /* Usually doesn't return */
   "exit",                       /* Never returns */
   "_exit",                      /* Never returns */
-  "_Exit",                      /* Never returns */
   "longjmp",                    /* Never returns */
   "_longjmp",                   /* Never returns */
   "pthread_exit",               /* Never returns */
   "siglongjmp",                 /* Never returns */
-  "__uClibc_main",              /* Never returns */
-  "__uClibc_start_main",        /* Never returns */
-  "verr",                       /* Never returns */
-  "verrx",                      /* Never returns */
-  NULL                          /* End of list */
-};
-
-/* This is the list of names of libc functions that behave very
- * strangely:  They return twice.
- */
-
-static const char *const forkers[] = {
-  "clone",
-  "fork",
-  "setjmp",
-  "_setjmp",
-  "__sigsetjmp",
-  "vfork",
   NULL                          /* End of list */
 };
 
@@ -198,12 +164,6 @@ static void show_usage(void)
   fprintf(stderr, "      Take next commands from <cmd-filename> [cmd-line]\n");
   fprintf(stderr, "  -o <out-filename>\n");
   fprintf(stderr, "     Output to <out-filename> [stdout]\n");
-  fprintf(stderr, "  -p <max_threads>\n");
-  fprintf(stderr,
-          "     The maximum number of threads that can make simultaneous\n");
-  fprintf(stderr, "     make calls into a shared library [6]\n");
-  fprintf(stderr, "  -t Enable tracing of outbound shared library function\n");
-  fprintf(stderr, "     calls. [no tracing]\n");
   fprintf(stderr, "  -v Verbose output [no output]\n");
   fprintf(stderr, "  -w Import weakly declared functions, i.e., weakly\n");
   fprintf(stderr, "     declared functions are expected to be provided at\n");
@@ -357,51 +317,6 @@ static void check_for_nonreturning_functions(void)
 }
 
 /***********************************************************************
- * is_forker_name/sym
- ***********************************************************************/
-
-static int is_forker_name(const char *func_name)
-{
-  int i;
-
-  /* Check every name in the list of forkers */
-
-  for (i = 0; forkers[i] != NULL; i++)
-    {
-      /* Is this function name in the list */
-
-      if (strcmp(func_name, forkers[i]) == 0)
-        {
-          /* Yes, return true now. */
-
-          return 1;
-        }
-    }
-
-  /* Its not in the list, return false */
-
-  return 0;
-}
-
-static int is_forker_sym(asymbol * sym, void *arg)
-{
-  const char *func_name = sym->name;
-  if (func_name)
-    return does_not_return_name(func_name);
-  else
-    return 0;
-}
-
-/***********************************************************************
- * check_for_forkers
- ***********************************************************************/
-
-static void check_for_forkers(void)
-{
-  calls_forkers = traverse_undefined_functions(NULL, is_forker_sym);
-}
-
-/***********************************************************************
  * count_undefined
  ***********************************************************************/
 
@@ -472,14 +387,7 @@ static int put_nxflat_import(asymbol * sym, void *arg)
         {
           /* The special case for functions that may not return */
 
-          sprintf(thunk, nonreturning_dyncall_format,
-                  MKCALLARGS(func_name, counter));
-        }
-      else if (is_forker_name(func_name) != 0)
-        {
-          /* The special case for functions that fork */
-
-          sprintf(thunk, dyncall_format2, MKCALLARGS(func_name, counter));
+          sprintf(thunk, nonreturning_dyncall_format, MKCALLARGS(func_name, counter));
         }
       else
         {
@@ -565,68 +473,6 @@ static void inline put_import_name_strtab(int fd)
 
 static void inline put_file_epilogue(int fd)
 {
-  /* Is it necessary to generate any thunk logic? */
-
-  if (number_undefined > 0)
-    {
-      /* Yes, was tracing enabled? */
-
-      if (enable_trace > 0)
-        {
-          /* Yes, generate the function to output the trace */
-
-          put_string(fd, dyntrace_function);
-        }
-
-      /* Output macros for managing the frame storage */
-
-      put_string(fd, frame_macros);
-
-      if (calls_nonreturning_functions)
-        {
-          /* Output special macros for managing frames for noreturning
-           * functions */
-
-          put_string(fd, nonreturning_frame_macros);
-        }
-
-      /* Output the beginning of the dynamic call function. */
-
-      put_string(fd, dyncall_prologue);
-
-      /* If tracing is enabled, then insert a call to the the trace generation
-       * function. */
-
-      if (enable_trace > 0)
-        {
-          put_string(fd, dyntrace_call);
-        }
-
-      /* Output the rest of the dynamic call function. */
-
-      put_string(fd, dyncall_epilogue);
-
-      /* Does the module call any non-returning functions? */
-
-      if (calls_nonreturning_functions)
-        {
-          /* Yes, output the beginning of a special dynamic call function. */
-
-          put_string(fd, nonreturning_dyncall_prologue);
-
-          /* If tracing is enabled, then insert a call to the the trace
-           * generation function. */
-
-          if (enable_trace > 0)
-            {
-              put_string(fd, dyntrace_call);
-            }
-
-          /* Output the rest of the special dynamic call function. */
-
-          put_string(fd, nonreturning_dyncall_epilogue);
-        }
-    }
   put_string(fd, file_epilogue);
 }
 
@@ -637,23 +483,13 @@ static void inline put_file_epilogue(int fd)
 static void inline put_file_prologue(int fd)
 {
   put_string(fd, file_prologue);
-  if (enable_trace > 0)
-    {
-      put_string(fd, dyntrace_enable);
-    }
+
   if (number_undefined > 0)
     {
       char frame_size[1024];
 
       put_string(fd, import_prologue);
-      sprintf(frame_size, import_frame_size, max_threads);
       put_string(fd, frame_size);
-      put_string(fd, dynamic_frames);
-
-      if (calls_nonreturning_functions)
-        {
-          put_string(fd, nonreturning_dynamic_frame);
-        }
     }
 }
 
@@ -844,25 +680,6 @@ static void parse_args(int argc, char **argv)
           out_filename = get_arg(&argno, argc, argv);
           break;
 
-        case 'p':
-          {
-            int nthreads = atoi(get_arg(&argno, argc, argv));
-            if (nthreads < MIN_THREADS)
-              {
-                fprintf(stderr, "Invalid number of threads (%d) using %d\n",
-                        nthreads, max_threads);
-              }
-            else
-              {
-                max_threads = nthreads;
-              }
-          }
-          break;
-
-        case 't':
-          enable_trace++;
-          break;
-
         case 'v':
           verbose++;
           break;
@@ -924,7 +741,6 @@ int main(int argc, char **argv, char **envp)
    * will require some additional setup. */
 
   check_for_nonreturning_functions();
-  check_for_forkers();
 
   /* Make sure that we can open the output file if one is specified. If no
    * out_filename is specified, we'll use stdout. */

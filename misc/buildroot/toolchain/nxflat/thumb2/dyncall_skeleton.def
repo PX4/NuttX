@@ -1,5 +1,5 @@
 /***********************************************************************
- * toolchain/nxflat/arm/dyncall_skeleton.def
+ * toolchain/nxflat/thumb2/dyncall_skeleton.def
  *
  *   Copyright (C) 2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -64,6 +64,8 @@ static const char file_prologue[] =
   " *    lr      r14    link address/scratch register\n"
   " *    pc      r15    program counter\n"
   " *******************************************************************/\n\n"
+  "\t.syntax\tunified\n"
+  "\t.thumb\n\n"
   "/*******************************************************************\n"
   " * Included Files\n"
   " *******************************************************************/\n\n"

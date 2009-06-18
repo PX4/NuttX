@@ -1,5 +1,5 @@
 /***********************************************************************
- * xflat/tools/arm/arm.h
+ * xflat/tools/arm/arch.h
  * ARM ELF support for BFD.
  *
  *   Copyright (C) 2009 Gregory Nutt. All rights reserved.

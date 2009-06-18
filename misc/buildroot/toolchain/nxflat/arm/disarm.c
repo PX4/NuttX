@@ -1,5 +1,5 @@
 /***********************************************************************
- * toolchain/nxflat/disasm.c
+ * toolchain/nxflat/arm/disarm.c
  * ARM Disassembler
  *
  *   Copyright (C) 2009 Gregory Nutt. All rights reserved.

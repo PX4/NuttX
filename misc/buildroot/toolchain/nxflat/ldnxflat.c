@@ -76,7 +76,7 @@
 #include <netinet/in.h>
 
 #include "bfd.h"
-#include "arch/arm.h"
+#include "arch/arch.h"
 #include "nxflat.h"
 
 /***********************************************************************
