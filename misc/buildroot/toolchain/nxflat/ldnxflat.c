@@ -71,6 +71,7 @@
 #include <fcntl.h>
 #include <getopt.h>
 #include <stdarg.h>
+#include <errno.h>
 
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -86,6 +87,18 @@
 /* #define RELOCS_IN_NETWORK_ORDER 1 */
 
 #define LIBS_CAN_INCLUDE_LIBS 1
+
+/* Debug output */
+
+#if 0
+#  define message(fmt, arg...) printf("%s: " fmt, __func__, ##arg)
+#  define dbg(fmt, arg...)     if (verbose) printf("%s: " fmt, __func__, ##arg)
+#else
+#  define message(fmt, arg...) printf(fmt, ##arg)
+#  define dbg(fmt, arg...)     if (verbose) printf(fmt, ##arg)
+#endif
+#define err(fmt, arg...)       fprintf(stderr, "ERROR -- " fmt, ##arg)
+#define warn(fmt, arg...)      fprintf(stderr, "WARNING -- " fmt, ##arg)
 
 /***********************************************************************
  * Definitions
@@ -202,8 +215,6 @@ static asymbol **symbol_table = NULL;
 static int32_t number_of_symbols = 0;
 
 static asymbol *entry_symbol = NULL;
-static asymbol *dynname_begin_symbol = NULL;
-static asymbol *dynname_end_symbol = NULL;
 static asymbol *dynimport_begin_symbol = NULL;
 static asymbol *dynimport_end_symbol = NULL;
 
@@ -214,8 +225,6 @@ static asymbol *dynimport_end_symbol = NULL;
 static const char default_exe_entry_name[] = "_start";
 static const char dynpath_begin_name[] = "__dynpath_begin";
 static const char dynpath_end_name[] = "__dynpath_end";
-static const char dynname_begin_name[] = "__dynname_begin";
-static const char dynname_end_name[] = "__dynname_end";
 static const char dynexport_begin_name[] = "__dynexport_begin";
 static const char dynexport_end_name[] = "__dynexport_end";
 static const char dynimport_begin_name[] = "__dynimport_begin";
@@ -336,11 +345,7 @@ static asymbol **get_symbols(bfd * abfd, int32_t * num)
 
   *num = number_of_symbols;
 
-  if (verbose)
-    {
-      printf("Read %d symbols\n", number_of_symbols);
-    }
-
+  dbg("Read %d symbols\n", number_of_symbols);
   return symbol_table;
 }
 
@@ -376,14 +381,6 @@ static void check_special_symbol(asymbol * sym,
     {
       entry_symbol = sym;
     }
-  else if (strcmp(dynname_begin_name, sym->name) == 0)
-    {
-      dynname_begin_symbol = sym;
-    }
-  else if (strcmp(dynname_end_name, sym->name) == 0)
-    {
-      dynname_end_symbol = sym;
-    }
   else if (strcmp(dynimport_begin_name, sym->name) == 0)
     {
       dynimport_begin_symbol = sym;
@@ -406,57 +403,19 @@ static void inline find_special_symbols(void)
 
   if (entry_symbol == NULL)
     {
-      fprintf(stderr, "ERROR: Executable entry point \"%s\" not found\n",
-              entry_name);
+      err("Executable entry point \"%s\" not found\n", entry_name);
       exit(1);
-    }
-
-  if (dynname_begin_symbol == NULL)
-    {
-      fprintf(stderr, "WARNING: Special symbol \"%s\" not found\n",
-              dynname_begin_name);
-    }
-  else
-    {
-      if (dynname_end_symbol == NULL)
-        {
-          fprintf(stderr, "ERROR: Symbol \"%s\" found, but missing \"%s\"\n",
-                  dynname_begin_name, dynname_end_name);
-          exit(1);
-        }
-
-#ifndef LIBS_CAN_INCLUDE_LIBS
-      if (binary_type == NXFLAT_BINARY_TYPE_DYN)
-        {
-          fprintf(stderr,
-                  "WARNING: Shared library binary contains "
-                  "library names!\n");
-          fprintf(stderr,
-                  "         Library names cannot be used by a "
-                  "shared library object\n");
-          fprintf(stderr,
-                  "         You may want to rebuild rebuild the "
-                  "shared library intermediate file without\n");
-          fprintf(strderr,
-                  "         specifying Library names (-l option "
-                  "in ldelflib)\n");
-
-          dynname_begin_symbol = NULL;
-          dynname_end_symbol = NULL;
-        }
-#endif                                 /* LIBS_CAN_INCLUDE_LIBS */
     }
 
   if (dynimport_begin_symbol == NULL)
     {
-      fprintf(stderr, "WARNING: Special symbol \"%s\" not found\n",
-              dynimport_begin_name);
+      warn("Special symbol \"%s\" not found\n", dynimport_begin_name);
       dynimport_end_symbol = NULL;
     }
   else if (dynimport_end_symbol == NULL)
     {
-      fprintf(stderr, "ERROR: Symbol \"%s\" found, but missing \"%s\"\n",
-              dynimport_begin_name, dynimport_end_name);
+      err("Symbol \"%s\" found, but missing \"%s\"\n",
+          dynimport_begin_name, dynimport_end_name);
       exit(1);
     }
 }
@@ -486,7 +445,7 @@ put_special_symbol(asymbol * begin_sym, asymbol * end_sym,
       begin_sym_value = begin_sym->value;
       if (begin_sym->section == NULL)
         {
-          fprintf(stderr, "No section for symbol \"%s\"\n", begin_sym->name);
+          err("No section for symbol \"%s\"\n", begin_sym->name);
           exit(1);
         }
       else
@@ -509,16 +468,15 @@ put_special_symbol(asymbol * begin_sym, asymbol * end_sym,
             {
               /* No matching end symbol */
 
-              fprintf(stderr,
-                      "ERROR: Begin sym \"%s\" found, no corresponding end\n",
-                      begin_sym->name);
+              err("ERROR: Begin sym \"%s\" found, no corresponding end\n",
+                  begin_sym->name);
               exit(1);
             }
           else if (end_sym->section == NULL)
             {
               /* No section associated with the end symbol */
 
-              fprintf(stderr, "No section for symbol \"%s\"\n", end_sym->name);
+              err("No section for symbol \"%s\"\n", end_sym->name);
               exit(1);
             }
           else if (end_sym->section != begin_sym->section)
@@ -526,26 +484,20 @@ put_special_symbol(asymbol * begin_sym, asymbol * end_sym,
               /* Section associated with the end symbol is not the same as the
                * section associated with the begin symbol. */
 
-              fprintf(stderr,
-                      "ERROR: Begin sym \"%s\" is defined in section \"%s\"\n",
-                      begin_sym->name, begin_sym->section->name);
-              fprintf(stderr,
-                      "       but sym \"%s\" is defined in section \"%s\"\n",
-                      end_sym->name, end_sym->section->name);
+              err("Begin sym \"%s\" is defined in section \"%s\"\n",
+                  begin_sym->name, begin_sym->section->name);
+              err("  but sym \"%s\" is defined in section \"%s\"\n",
+                  end_sym->name, end_sym->section->name);
               exit(1);
             }
           else if (end_sym->value < begin_sym_value)
             {
               /* End symbol is before the begin symbol? */
 
-              fprintf(stderr,
-                      "ERROR: Begin sym \"%s\" lies at offset %d "
-                      "in section \"%s\"\n",
-                      begin_sym->name, begin_sym_value,
-                      begin_sym->section->name);
-              fprintf(stderr,
-                      "       but sym \"%s\" is before that at offset: %d\n",
-                      end_sym->name, (u_int32_t) end_sym->value);
+              err("Begin sym \"%s\" lies at offset %d in section \"%s\"\n",
+                  begin_sym->name, begin_sym_value, begin_sym->section->name);
+              err("  but sym \"%s\" is before that at offset: %d\n",
+                  end_sym->name, (int)end_sym->value);
               exit(1);
             }
           else
@@ -562,21 +514,15 @@ put_special_symbol(asymbol * begin_sym, asymbol * end_sym,
 
               if (elems * elem_size != array_size)
                 {
-                  fprintf(stderr,
-                          "ERROR: Array size (%d) is not a multiple "
-                          "of the element size (%d)\n", array_size, elem_size);
+                  err("Array size (%d) is not a multiple of the element size (%d)\n",
+                      array_size, elem_size);
                   exit(1);
                 }
             }
         }
 
-      if (verbose)
-        {
-          printf("Symbol %s: value: %08x section offset: %08x "
-                 "file offset: %08x count: %d\n",
-                 begin_sym->name, begin_sym_value, begin_sect_vma,
-                 file_offset, elems);
-        }
+      dbg("Symbol %s: value: %08x section offset: %08x file offset: %08x count: %d\n",
+          begin_sym->name, begin_sym_value, begin_sect_vma, file_offset, elems);
     }
 
   put_xflat32(addr, file_offset);
@@ -600,8 +546,7 @@ static void put_entry_point(struct nxflat_hdr_s *hdr)
       sect = entry_symbol->section;
       if (sect == NULL)
         {
-          fprintf(stderr, "No section for entry symbol \"%s\"\n",
-                  entry_symbol->name);
+          err("No section for entry symbol \"%s\"\n", entry_symbol->name);
           exit(1);
         }
 
@@ -612,14 +557,8 @@ static void put_entry_point(struct nxflat_hdr_s *hdr)
       printf("Entry symbol \"%s\": %08x in section \"%s\"\n",
              entry_symbol->name, entry_point, sect->name);
 
-      /* If verbose is selected, we'll show the details of the calculation. */
-
-      if (verbose)
-        {
-          printf("(HDR: %08lx + Section VMA: %08x + Symbol Value: %08x)\n",
-                 NXFLAT_HDR_SIZE, (u_int32_t) sect->vma,
-                 (u_int32_t) entry_symbol->value);
-        }
+      dbg("  HDR: %08lx + Section VMA: %08x + Symbol Value: %08x\n",
+          NXFLAT_HDR_SIZE, (int)sect->vma, (int)entry_symbol->value);
     }
 
   /* Does the entry point lie within the text region? */
@@ -636,17 +575,16 @@ static void put_entry_point(struct nxflat_hdr_s *hdr)
           /* Complain a little in this case... The used might have intended to
            * specify one. */
 
-          fprintf(stderr,
-                  "WARNING: Library has no initialization entry point\n");
+          warn("Library has no initialization entry point\n");
         }
       else
         {
           /* Otherwise, complain a lot.  We either have a program with no
            * entry_point or a bogus entry_point. */
 
-          fprintf(stderr, "ERROR: Invalid entry point: %08x\n", entry_point);
-          fprintf(stderr, "       Valid TEXT range: %08lx - %08lx\n",
-                  NXFLAT_HDR_SIZE, NXFLAT_HDR_SIZE + text_info.size);
+          err("Invalid entry point: %08x\n", entry_point);
+          err("  Valid TEXT range: %08lx - %08lx\n",
+              NXFLAT_HDR_SIZE, NXFLAT_HDR_SIZE + text_info.size);
           exit(1);
         }
     }
@@ -677,13 +615,12 @@ static int get_reloc_type(asection * sym_section, segment_info ** sym_segment)
         {
           /* Yes... */
 
-          if (verbose)
-            {
-              printf("Sym section %s is BSS\n", sym_section->name);
-            }
-
+          dbg("Sym section %s is BSS\n", sym_section->name);
+ 
           if (sym_segment)
-            *sym_segment = &bss_info;
+            {
+              *sym_segment = &bss_info;
+            }
           return NXFLAT_RELOC_TYPE_BSS;
         }
     }
@@ -696,13 +633,12 @@ static int get_reloc_type(asection * sym_section, segment_info ** sym_segment)
         {
           /* Yes... */
 
-          if (verbose)
-            {
-              printf("Sym section %s is CODE\n", sym_section->name);
-            }
+          dbg("Sym section %s is CODE\n", sym_section->name);
 
           if (sym_segment)
-            *sym_segment = &text_info;
+            {
+              *sym_segment = &text_info;
+            }
           return NXFLAT_RELOC_TYPE_TEXT;
         }
     }
@@ -715,10 +651,7 @@ static int get_reloc_type(asection * sym_section, segment_info ** sym_segment)
         {
           /* Yes... */
 
-          if (verbose)
-            {
-              printf("Sym section %s is DATA\n", sym_section->name);
-            }
+          dbg("Sym section %s is DATA\n", sym_section->name);
 
           if (sym_segment)
             *sym_segment = &data_info;
@@ -726,9 +659,8 @@ static int get_reloc_type(asection * sym_section, segment_info ** sym_segment)
         }
     }
 
-  fprintf(stderr,
-          "ERROR: Could not find region for sym_section \"%s\" (%p)\n",
-          sym_section->name, sym_section);
+  err("Could not find region for sym_section \"%s\" (%p)\n",
+      sym_section->name, sym_section);
   return NXFLAT_RELOC_TYPE_NONE;
 }
 
@@ -754,38 +686,31 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
   for (i = 0; i < inf->nsubsects; i++)
     {
       relcount = inf->subsect[i]->reloc_count;
-      if (verbose)
-        {
-          printf("Section %s has %08x relocs\n",
-                 inf->subsect[i]->name, relcount);
-        }
+      dbg("Section %s has %08x relocs\n", inf->subsect[i]->name, relcount);
+
       if (0 >= relcount)
-        continue;
+        {
+          continue;
+        }
 
       relsize = bfd_get_reloc_upper_bound(input_bfd, inf->subsect[i]);
-      if (verbose)
-        {
-          printf("Section %s reloc size: %08x\n",
-                 inf->subsect[i]->name, relsize);
-        }
+      dbg("Section %s reloc size: %08x\n", inf->subsect[i]->name, relsize);
+
       if (0 >= relsize)
-        continue;
+        {
+          continue;
+        }
 
       relpp = (arelent **) malloc((size_t) relsize);
-      relcount =
-        bfd_canonicalize_reloc(input_bfd, inf->subsect[i], relpp, syms);
+      relcount = bfd_canonicalize_reloc(input_bfd, inf->subsect[i], relpp, syms);
 
       if (relcount < 0)
         {
-          fprintf(stderr, "ERROR: bfd_canonicalize_reloc failed!\n");
+          err("bfd_canonicalize_reloc failed!\n");
           exit(1);
         }
 
-      if (verbose)
-        {
-          printf("Section %s can'd %08x relocs\n",
-                 inf->subsect[i]->name, relcount);
-        }
+      dbg("Section %s can'd %08x relocs\n", inf->subsect[i]->name, relcount);
 
       for (j = 0; j < relcount; j++)
         {
@@ -806,14 +731,9 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
             }
 #endif
 
-          if (verbose > 1)
-            {
-              printf("rel %d -> sym @ %p [%28s] s_addr @ %08x, "
-                     "rel %08x how %s\n",
-                     j, relpp[j]->sym_ptr_ptr, rel_sym->name,
-                     (u_int32_t) relpp[j]->address,
-                     (u_int32_t) relpp[j]->addend, how_to->name);
-            }
+          dbg("rel %d: sym @ %p [%20s] s_addr @ %08x rel %08x how %s\n",
+               j, relpp[j]->sym_ptr_ptr, rel_sym->name, (int) relpp[j]->address,
+               (int)relpp[j]->addend, how_to->name);
 
           switch (how_to->type)
             {
@@ -824,20 +744,14 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                 int32_t temp;
                 int32_t saved;
 
-                if (verbose)
-                  {
-                    printf("performing   PC24 link at addr %08x to "
-                           "sym [%20s] @ %08x\n",
-                           (u_int32_t) relpp[j]->address, rel_sym->name,
-                           (u_int32_t) sym_value);
-                  }
+                dbg("performing PC24 link at addr %08x to sym '%s' @ %08x\n",
+                    (int) relpp[j]->address, rel_sym->name, (int) sym_value);
 
                 /* Can't fix what we ain't got */
 
                 if (!(SEC_IN_MEMORY & rel_sym->section->flags))
                   {
-                    fprintf(stderr, "ERROR: section %s not loaded into mem!\n",
-                            rel_sym->section->name);
+                    err("Section %s not loaded into mem!\n", rel_sym->section->name);
                     exit(1);
                   }
 
@@ -845,22 +759,20 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
 
                 if (!(SEC_CODE & rel_sym->section->flags))
                   {
-                    fprintf(stderr, "ERROR: section %s not code!\n",
-                            rel_sym->section->name);
+                    err("Section %s not code!\n", rel_sym->section->name);
                     exit(1);
                   }
 
                 if (!(SEC_CODE & inf->subsect[i]->flags))
                   {
-                    fprintf(stderr, "ERROR: section %s not code!\n",
-                            rel_sym->section->name);
+                    err("Section %s not code!\n", rel_sym->section->name);
                     exit(1);
                   }
 
                 opcode = (int32_t *) (inf->contents + relpp[j]->address);
-                if (verbose > 1)
+                if (verbose)
                   {
-                    printf("original opcode @ %p is %08x ",
+                    message(" Original opcode @ %p is %08x ",
 #ifdef ARCH_BIG_ENDIAN
                            opcode, (int32_t) nxflat_swap32(*opcode));
 #else
@@ -870,8 +782,8 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                     printf(" sz %d ", how_to->size);
                     printf("bit %d ", how_to->bitsize);
                     printf("rel %d ", how_to->pc_relative);
-                    printf("smask %08x ", (u_int32_t) how_to->src_mask);
-                    printf("dmask %08x ", (u_int32_t) how_to->dst_mask);
+                    printf("smask %08x ", (int)how_to->src_mask);
+                    printf("dmask %08x ", (int)how_to->dst_mask);
                     printf("off %d ", how_to->pcrel_offset);
                     printf("\n");
                   }
@@ -906,14 +818,11 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                   }
                 else
                   {
-                    fprintf(stderr, "ERROR: Do not know how pcrel_offset\n");
+                    err("Do not know how pcrel_offset\n");
                     exit(1);
                   }
 
-                if (verbose > 1)
-                  {
-                    printf("result opcode: %08x\n", temp);
-                  }
+                dbg("  Modified opcode: %08x\n", temp);
 #ifdef ARCH_BIG_ENDIAN
                 *opcode = (int32_t) nxflat_swap32(temp);
 #else
@@ -928,23 +837,18 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                 int32_t temp;
                 int32_t saved;
 
-                if (verbose)
-                  {
-                    printf("performing ABS32 link at addr %08x to "
-                           "sym [%20s] @ %08x\n",
-                           (u_int32_t) relpp[j]->address, rel_sym->name,
-                           (u_int32_t) sym_value);
-                  }
+                dbg("Performing ABS32 link at addr %08x to sym '%s' @ %08x\n",
+                     (int)relpp[j]->address, rel_sym->name, (int)sym_value);
 
                 /* ABS32 links from .text are easy - since the fetches will */
                 /* always be base relative. the ABS32 refs from data will be */
                 /* handled the same, with an appropriate reloc record for */
                 /* the load_flat_binary() kernel routine to handle */
 
-                opcode = (int32_t *) (inf->contents + relpp[j]->address);
+                opcode = (int32_t*)(inf->contents + relpp[j]->address);
                 if (verbose)
                   {
-                    printf("original opcode @ %p is %08x ",
+                    message("  Original opcode @ %p is %08x ",
 #ifdef ARCH_BIG_ENDIAN
                            opcode, (int32_t) nxflat_swap32(*opcode));
 #else
@@ -954,8 +858,8 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                     printf(" sz %d ", how_to->size);
                     printf("bit %d ", how_to->bitsize);
                     printf("rel %d ", how_to->pc_relative);
-                    printf("smask %08x ", (u_int32_t) how_to->src_mask);
-                    printf("dmask %08x ", (u_int32_t) how_to->dst_mask);
+                    printf("smask %08x ", (int)how_to->src_mask);
+                    printf("dmask %08x ", (int)how_to->dst_mask);
                     printf("off %d ", how_to->pcrel_offset);
                     printf("\n");
                   }
@@ -990,10 +894,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
 
                 temp |= saved & (~how_to->dst_mask);
 
-                if (verbose)
-                  {
-                    printf("result opcode: %08x\n", temp);
-                  }
+                dbg("  Modified opcode: %08x\n", temp);
 #ifdef ARCH_BIG_ENDIAN
                 *opcode = (int32_t) nxflat_swap32(temp);
 #else
@@ -1004,10 +905,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                   {
                     int reltype;
 
-                    if (verbose)
-                      {
-                        printf("RELOCATION in DATA!\n");
-                      }
+                    dbg("ABS32 relocation in DATA -- generating NXFLAT relo info\n");
 
                     /* Locate the address referred to by section type. */
 
@@ -1021,52 +919,213 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
 
                     /* And tuck in the new relocation. */
 
-                    
                     nxflat_relocs[nxflat_reloc_count].r_info = NXFLAT_RELOC(reltype, relpp[j]->address);
                     nxflat_reloc_count++;
                   }
               }
               break;
 
-            case R_ARM_GOTOFF:
-              /* Relocation is relative to the start of the global offset
-               * table. */
+#ifdef NXFLAT_THUMB2
+            case R_ARM_THM_XPC22:
+            case R_ARM_THM_CALL:
+            case R_ARM_THM_JUMP24:
+              /* Thumb BL (branch long instruction).  */
+              {
+                u_int16_t *pinsn     = (u_int16_t*)(inf->contents + relpp[j]->address);
+                u_int16_t upper_insn = pinsn[0];
+                u_int16_t lower_insn = pinsn[1];
 
-              fprintf(stderr,
-                      "Attempted  GOTOFF reloc at addr %08x to "
-                      "sym [%20s] @ %08x\n",
-                      (u_int32_t) relpp[j]->address, rel_sym->name,
-                      (u_int32_t) sym_value);
-              goto got_not_supported;
+                /* Fetch the addend.  We use the Thumb-2 encoding (backwards
+                 * compatible with Thumb-1) involving the J1 and J2 bits
+                 */
+
+                int32_t s     = (upper_insn & (1 << 10)) >> 10;
+                int32_t upper = upper_insn & 0x3ff;
+                int32_t lower = lower_insn & 0x7ff;
+                int32_t j1    = (lower_insn & (1 << 13)) >> 13;
+                int32_t j2    = (lower_insn & (1 << 11)) >> 11;
+                int32_t i1    = j1 ^ s ? 0 : 1;
+                int32_t i2    = j2 ^ s ? 0 : 1;
+                int32_t temp;
+                int32_t signbit;
+
+                temp = (i1 << 23) | (i2 << 22) | (upper << 12) | (lower << 1);
+
+                /* Sign extend */
+
+                temp = (temp | ((s ? 0 : 1) << 24)) - (1 << 24);
+
+                if (verbose)
+                  {
+                    message("Performing THM link at addr %08x to sym '%s' @ %08x\n",
+                           (u_int32_t)relpp[j]->address, rel_sym->name, (int)sym_value);
+                    message("  Original INSN: %04x %04x temp: %08x\n", upper_insn, lower_insn, temp);
+                  }
+
+                 /* Offset */
+
+                temp += (sym_value + rel_sym->section->vma) >> how_to->rightshift;
+
+                if ((lower_insn & 0x5000) == 0x4000)
+                  {
+                    /* For a BLX instruction, make sure that the relocation is rounded up
+                     * to a word boundary.  This follows the semantics of the instruction
+                     * which specifies that bit 1 of the target address will come from bit
+                     * 1 of the base address.
+                     */
+
+                    temp = (temp + 2) & ~ 3;
+                  }
+
+                /* Put RELOCATION back into the insn.  Assumes two's complement.
+                 * We use the Thumb-2 encoding, which is safe even if dealing with
+                 * a Thumb-1 instruction by virtue of our overflow check above.
+                 */
+
+                signbit = (temp < 0) ? 1 : 0;
+                upper_insn = (upper_insn & ~0x7ff) | ((temp >> 12) & 0x3ff) | (signbit << 10);
+                lower_insn = (lower_insn & ~0x2fff)
+                           | (((!((temp >> 23) & 1)) ^ signbit) << 13)
+                           | (((!((temp >> 22) & 1)) ^ signbit) << 11)
+                           | ((temp >> 1) & 0x7ff);
+
+                dbg("  Modified INSN: %04x %04x temp: %08x Sec VMA: %08x\n",
+                    upper_insn, lower_insn, temp, (int)rel_sym->section->vma);
+
+                /* Put the relocated value back in the object file:  */
+
+                pinsn[0] = upper_insn;
+                pinsn[1] = lower_insn;
+              }
+              break;
+#endif
+
+            case R_ARM_GOTOFF:
+              {
+                /* Relocation is relative to the start of the global offset
+                 * table.  This is used for things link known offsets to
+                 * constant strings in D-Space.  I think we can just ignore
+                 * this relocation. The usual assembly language sequence
+                 * is like:
+                 * 
+                 *      ldr  r0, .L9       <- r0 holds GOT-relative offset to 'n'
+                 *      add  r0, sl, r0    <- Adding SL produces address of 'n'
+                 *      ...
+                 * .L9:
+                 *     .word  n(GOTOFF)
+                 */
+
+                dbg("Skipping GOTOFF reloc at addr %08x to sym '%s' @ %08x\n",
+                    (int)relpp[j]->address, rel_sym->name, (int)sym_value);
+              }
+              break;
 
             case R_ARM_GOT32:
-              /* Relocation is to the entry for this symbol in the global
-               * offset table. */
-              fprintf(stderr,
-                      "Attempted  GOT32 reloc at addr %08x to "
-                      "sym [%20s] @ %08x\n",
-                      (u_int32_t) relpp[j]->address, rel_sym->name,
-                      (u_int32_t) sym_value);
-              goto got_not_supported;
+              {
+                /* Relocation is to the entry for this symbol in the global
+                 * offset table. This relocation type is used to set the 32-bit
+                 * address of global variables.  The usual assembly language sequence
+                 * is like:
+                 * 
+                 *      ldr  r3, .L4       <- r3 holds GOT-relative offset to address of 'n'
+                 *      ldr  r1, [sl,r3]   <- r1 holds (relocated) address of 'n'
+                 *      ...
+                 * .L4:
+                 *     .word  n(GOT)
+                 */
+
+                dbg("Performing GOT32 reloc at addr %08x to sym '%s' @ %08x\n",
+                    (int)relpp[j]->address, rel_sym->name,
+                    (int)sym_value);
+ 
+                if (!(inf->subsect[i]->flags & SEC_DATA) ||
+                    !(inf->subsect[i]->flags & SEC_ALLOC))
+                  {
+                    err(" Attempted GOT32 relocation outside of .data\n");
+                    err("   At addr %08x to sym '%s' @ %08x\n",
+                        (int)relpp[j]->address, rel_sym->name, (int)sym_value);
+                  }
+                else
+                  {
+                    int reltype;
+
+                    dbg("  GOT32 relocation in DATA -- generating NXFLAT relo info\n");
+
+                    /* Locate the address referred to by section type. */
+
+                    reltype = get_reloc_type(rel_section, NULL);
+                    if (reltype != NXFLAT_RELOC_TYPE_DATA)
+                      {
+                        err("Symbol in GOT32 relocation is not .data\n");
+                        err(" At addr %08x to sym '%s' @ %08x\n",
+                            (int)relpp[j]->address, rel_sym->name, (int)sym_value);
+                      }
+
+                    /* Create space for one more relocation. */
+
+                    nxflat_relocs = realloc(nxflat_relocs,
+                                           (nxflat_reloc_count + 1)
+                                           * sizeof(struct nxflat_reloc_s));
+
+                    /* And tuck in the new relocation. */
+                   
+                    nxflat_relocs[nxflat_reloc_count].r_info = NXFLAT_RELOC(reltype, relpp[j]->address);
+                    nxflat_reloc_count++;
+                  }
+              }
+              break;
 
             case R_ARM_GOTPC:
-              /* Use global offset table as symbol value.  */
-              fprintf(stderr,
-                      "Attempted  GOTPC reloc at addr %08x to "
-                      "sym [%20s] @ %08x\n",
-                      (u_int32_t) relpp[j]->address, rel_sym->name,
-                      (u_int32_t) sym_value);
+              {
+                /* Relocation is to the entry for this symbol in the global
+                 * offset table. This relocation type is used to set the 32-bit
+                 * address of text references.  My belief is that GOTPC is the
+                 * same as GOT32 but the source is an address -- but what do I know.
+                 */
 
-            got_not_supported:
-              fprintf(stderr,
-                      "You must compile using the -mno-got or -membedded-pic "
-                      "compiler option\n");
+                dbg("Performing GOTPC reloc at addr %08x to sym '%s' @ %08x\n",
+                    (int)relpp[j]->address, rel_sym->name, (int)sym_value);
+ 
+                if (!(inf->subsect[i]->flags & SEC_DATA) ||
+                    !(inf->subsect[i]->flags & SEC_ALLOC))
+                  {
+                    err("Attempted GOTPC relocation outside of .data\n");
+                    err("  At addr %08x to sym '%s' @ %08x\n",
+                        (int)relpp[j]->address, rel_sym->name, (int)sym_value);
+                  }
+                else
+                  {
+                    int reltype;
+
+                    dbg("  GOTPC relocation in DATA -- generating NXFLAT relo info\n");
+
+                    /* Locate the address referred to by section type. */
+
+                    reltype = get_reloc_type(rel_section, NULL);
+                    if (reltype != NXFLAT_RELOC_TYPE_TEXT)
+                      {
+                        err("Symbol in GOTPC relocation is not .text\n");
+                        err("  At addr %08x to sym '%s' @ %08x\n",
+                            (int)relpp[j]->address, rel_sym->name, (int)sym_value);
+                      }
+
+                    /* Create space for one more relocation. */
+
+                    nxflat_relocs = realloc(nxflat_relocs,
+                                           (nxflat_reloc_count + 1)
+                                           * sizeof(struct nxflat_reloc_s));
+
+                    /* And tuck in the new relocation. */
+                   
+                    nxflat_relocs[nxflat_reloc_count].r_info = NXFLAT_RELOC(reltype, relpp[j]->address);
+                    nxflat_reloc_count++;
+                  }
+              }
               break;
 
             default:
-              fprintf(stderr,
-                      "Do not know how to handle reloc %d type %s @ %p!\n",
-                      how_to->type, how_to->name, how_to);
+              err("Do not know how to handle reloc %d type %s @ %p!\n",
+                  how_to->type, how_to->name, how_to);
               break;
             }
         }
@@ -1097,13 +1156,13 @@ static void dump_symbol(asymbol * psym)
       /* Common Global - unplaced */
 
       printf("Sym[%24s] @            sz %04x ",
-             psym->name, (u_int32_t) psym->value);
+             psym->name, (int)psym->value);
       printf("align %04x ", (u_int32_t)isym->st_value);
     }
   else
     {
       printf("Sym[%24s] @ %04x align            ",
-             psym->name, (u_int32_t) psym->value);
+             psym->name, (int)psym->value);
       printf("sz %04x ", (u_int32_t)isym->st_size);
     }
 
@@ -1170,9 +1229,8 @@ static void check_symbol_overlap(asymbol ** symbols, int number_of_symbols)
           if (sym_i->symbol.section->flags & SEC_CODE)
             {
               /* must be an internal branch - ignore */
-              if (verbose)
-                printf("Sym [%20s] is zero len, skipping!\n",
-                       sym_i->symbol.name);
+
+              dbg("Sym [%20s] is zero len, skipping!\n", sym_i->symbol.name);
               continue;
             }
           else
@@ -1184,11 +1242,7 @@ static void check_symbol_overlap(asymbol ** symbols, int number_of_symbols)
 
       top_i = base_i + size_i;
 
-      if (verbose)
-        {
-          printf("Sym->[%20s] base %08x, top %08x\n",
-                 sym_i->symbol.name, (u_int32_t) base_i, (u_int32_t) top_i);
-        }
+      dbg("Sym [%20s] base %08x, top %08x\n", sym_i->symbol.name, (int)base_i, (int)top_i);
 
       for (j = (i + 1); j < number_of_symbols; j++)
         {
@@ -1228,16 +1282,13 @@ static void check_symbol_overlap(asymbol ** symbols, int number_of_symbols)
 
               if (verbose)
                 {
-                  fprintf(stdout,
-                          "symbols [%20s][%6s] and [%20s][%6s] OVERLAP!\n",
-                          sym_i->symbol.name, sym_i->symbol.section->name,
-                          sym_j->symbol.name, sym_j->symbol.section->name);
-                  fprintf(stdout, "Sym->[%20s] base %08x, top %08x\n",
-                          sym_i->symbol.name, (u_int32_t) base_i,
-                          (u_int32_t) top_i);
-                  fprintf(stdout, "Sym->[%20s] base %08x, top %08x\n",
-                          sym_j->symbol.name, (u_int32_t) base_j,
-                          (u_int32_t) top_j);
+                  warn("Symbols '%s'[%6s] and '%s'[%6s] OVERLAP!\n",
+                      sym_i->symbol.name, sym_i->symbol.section->name,
+                      sym_j->symbol.name, sym_j->symbol.section->name);
+                  warn("  Sym '%s' base %08x, top %08x\n",
+                      sym_i->symbol.name, (int)base_i, (int)top_i);
+                  warn("  Sym '%s' base %08x, top %08x\n",
+                      sym_j->symbol.name, (int)base_j, (int)top_j);
                 }
             }
 
@@ -1265,30 +1316,27 @@ map_common_symbols(bfd * input_bfd, asymbol ** symbols, int number_of_symbols)
   bss_s = bss_info.subsect[0];
   baseaddr = 0;
 
-  printf("checking overlap before mapping\n");
+  dbg("Checking overlap before mapping\n");
 
   check_symbol_overlap(symbols, number_of_symbols);
 
-  printf("mapping COMMONS\n");
+  dbg("Mapping COMMONS\n");
 
   if (NULL == bss_s)
     {
-      fprintf(stderr, "WARNING: NULL section passed to map_common_symbols\n");
+      warn("NULL section passed to map_common_symbols\n");
       return;
     }
 
-  if (verbose)
-    {
-      printf("Assigning COMMON symbols to section %s\n", bss_s->name);
-    }
+  dbg("Assigning COMMON symbols to section %s\n", bss_s->name);
 
   for (i = 0; i < number_of_symbols; i++)
     {
       if (bfd_is_com_section(symbols[i]->section))
         {
-          if (verbose > 1)
+          if (verbose)
             {
-              printf("COMMON sym[%04d] -> ", i);
+              message("COMMON sym[%04d] ", i);
               dump_symbol(symbols[i]);
             }
 
@@ -1306,10 +1354,7 @@ map_common_symbols(bfd * input_bfd, asymbol ** symbols, int number_of_symbols)
 
           if (0 == size)
             {
-              if (verbose)
-                {
-                  printf("zero size symbol assumed to be a ptr size = 4\n");
-                }
+              dbg("Aero size symbol assumed to be a ptr size 4\n");
               size = 0x04;
             }
 
@@ -1327,12 +1372,8 @@ map_common_symbols(bfd * input_bfd, asymbol ** symbols, int number_of_symbols)
           symbase = ((baseaddr + align - 1) / align) * align;
           offset = (symbase + size) - baseaddr;
 
-          if (verbose > 1)
-            {
-              printf(" ba: %08x sb: %08x al: %04x sz: %04x of: %04x\n",
-                     (u_int32_t) baseaddr, (u_int32_t) symbase,
-                     (u_int32_t) align, (u_int32_t) size, (u_int32_t) offset);
-            }
+          dbg("  ba: %08x sb: %08x al: %04x sz: %04x of: %04x\n",
+              (int)baseaddr, (int)symbase, (int)align, (int)size, (int)offset);
 
           /* Add space to bss segment and section */
 
@@ -1347,10 +1388,9 @@ map_common_symbols(bfd * input_bfd, asymbol ** symbols, int number_of_symbols)
             {
               if (bss_s == symbols[j]->section)
                 {
-                  if (verbose > 1)
+                  if (verbose)
                     {
-                      printf("checking endsym? %08x sym[%04d] -> ",
-                             (u_int32_t) baseaddr, j);
+                      message("Checking endsym? %08x sym[%04d] ", (int)baseaddr, j);
                       dump_symbol(symbols[j]);
                     }
 
@@ -1361,8 +1401,7 @@ map_common_symbols(bfd * input_bfd, asymbol ** symbols, int number_of_symbols)
                         st_value += offset;
                       if (verbose > 1)
                         {
-                          printf("sym MOVED!!!\n");
-                          printf("to sym[%04d] -> ", j);
+                          message("Sym MOVED to sym[%04d] ", j);
                           dump_symbol(symbols[j]);
                         }
                     }
@@ -1376,9 +1415,9 @@ map_common_symbols(bfd * input_bfd, asymbol ** symbols, int number_of_symbols)
           symbols[i]->flags = BSF_OBJECT | BSF_GLOBAL;
           ((elf_symbol_type *) symbols[i])->internal_elf_sym.st_value = symbase;
 
-          if (verbose > 1)
+          if (verbose)
             {
-              printf("NEW sym[%04d] -> ", i);
+              message("NEW sym[%04d] ", i);
               dump_symbol(symbols[i]);
             }
         }
@@ -1405,31 +1444,23 @@ static struct nxflat_reloc_s *output_relocs(bfd * input_bfd, asymbol ** symbols,
   nxflat_reloc_count = 0;
   rc = 0;
 
-  if (verbose)
-    {
-      printf(" Before mapp high mark %08x cooked %08x raw %08x \n",
-             (u_int32_t) bss_info.high_mark,
-             (u_int32_t) bss_info.subsect[0]->COOKED_SIZE,
-             (u_int32_t) bss_info.subsect[0]->RAW_SIZE);
-    }
-
+  dbg("Before map high mark %08x cooked %08x raw %08x \n",
+      (int)bss_info.high_mark, (int)bss_info.subsect[0]->COOKED_SIZE,
+      (int)bss_info.subsect[0]->RAW_SIZE);
+ 
   /* Unmapped 'common' symbols need to be stuffed into bss */
 
   map_common_symbols(input_bfd, symbols, number_of_symbols);
 
-  if (verbose)
-    {
-      printf(" After map high mark %08x cooked %08x raw %08x \n",
-             (u_int32_t) bss_info.high_mark,
-             (u_int32_t) bss_info.subsect[0]->COOKED_SIZE,
-             (u_int32_t) bss_info.subsect[0]->RAW_SIZE);
-    }
+  dbg("After map high mark %08x cooked %08x raw %08x \n",
+      (int)bss_info.high_mark, (int)bss_info.subsect[0]->COOKED_SIZE,
+      (int)bss_info.subsect[0]->RAW_SIZE);
 
   if (verbose)
     {
       for (i = 0; i < number_of_symbols; i++)
         {
-          printf("sym[%04d] -> ", i);
+          message("sym[%04d] ", i);
           dump_symbol(symbols[i]);
         }
     }
@@ -1445,9 +1476,9 @@ static struct nxflat_reloc_s *output_relocs(bfd * input_bfd, asymbol ** symbols,
 
   *n_relocs = nxflat_reloc_count;
 
-  printf(" returning %d relocs\n", nxflat_reloc_count);
+  /* Need to emit relocs for data only */
 
-  /* need to emit relocs for data only */
+  dbg(" returning %d relocs\n", nxflat_reloc_count);
   return nxflat_relocs;
 }
 
@@ -1478,8 +1509,7 @@ static int is_unwanted_section(asection * s)
 /* Mark this section for inclusion in some segment.  */
 static void register_section(asection * s, segment_info * inf)
 {
-  if (verbose)
-    printf("registering section %s to %s segment\n", s->name, inf->name);
+  dbg("registering section %s to %s segment\n", s->name, inf->name);
   inf->subsect[inf->nsubsects++] = s;
 }
 
@@ -1493,7 +1523,9 @@ static void dump_sections(segment_info * inf)
   int i;
   printf("      [ ");
   for (i = 0; i < inf->nsubsects; i++)
-    printf("%s ", inf->subsect[i]->name);
+    {
+      printf("%s ", inf->subsect[i]->name);
+    }
   printf("]\n");
 }
 
@@ -1511,7 +1543,7 @@ static void load_sections(bfd * bfd, segment_info * inf)
   inf->contents = malloc(inf->size);
   if (!inf->contents)
     {
-      fprintf(stderr, "ERROR: Out of memory.\n");
+      err("Out of memory.\n");
       exit(1);
     }
   ptr = inf->contents;
@@ -1520,7 +1552,7 @@ static void load_sections(bfd * bfd, segment_info * inf)
       if (!bfd_get_section_contents(bfd, inf->subsect[i], ptr,
                                     0, inf->subsect[i]->COOKED_SIZE))
         {
-          fprintf(stderr, "ERROR: Failed to read section contents.\n");
+          err("Failed to read section contents.\n");
           exit(1);
         }
       ptr += inf->subsect[i]->COOKED_SIZE;
@@ -1600,7 +1632,7 @@ static void parse_args(int argc, char **argv)
 
   if (argc < 2)
     {
-      fprintf(stderr, "ERROR: Missing required arguments\n\n");
+      err("Missing required arguments\n\n");
       show_usage();
     }
 
@@ -1633,7 +1665,7 @@ static void parse_args(int argc, char **argv)
 
         case 'l':
         default:
-          fprintf(stderr, "ERROR: %s Unknown option\n\n", argv[0]);
+          err("%s Unknown option\n\n", argv[0]);
           show_usage();
           break;
         }
@@ -1690,7 +1722,7 @@ int main(int argc, char **argv, char **envp)
 
   if (!(bf = bfd_openr(argv[argc - 1], 0)))
     {
-      fprintf(stderr, "ERROR: Failed to open %s\n", argv[argc - 1]);
+      err("Failed to open %s\n", argv[argc - 1]);
       exit(1);
     }
 
@@ -1698,7 +1730,7 @@ int main(int argc, char **argv, char **envp)
 
   if (bfd_check_format(bf, bfd_object) == 0)
     {
-      printf("File is not an object file\n");
+      err("File is not an object file\n");
       exit(2);
     }
 
@@ -1725,8 +1757,7 @@ int main(int argc, char **argv, char **envp)
 
   for (s = bf->sections; s != NULL; s = s->next)
     {
-      if (verbose)
-        printf("reading section %s\n", s->name);
+      dbg("Reading section %s\n", s->name);
 
       /* ignore blatantly useless sections */
       if (is_unwanted_section(s))
@@ -1734,33 +1765,24 @@ int main(int argc, char **argv, char **envp)
 
       if (s->flags == SEC_ALLOC)
         {
-          if (verbose)
-            {
-              printf("Section %s is ALLOC only\n", s->name);
-            }
+          dbg("Section %s is ALLOC only\n", s->name);
           register_section(s, &bss_info);
           continue;
         }
       if ((s->flags & SEC_CODE) && (s->flags & SEC_ALLOC))
         {
-          if (verbose)
-            {
-              printf("Section %s is CODE\n", s->name);
-            }
+          dbg("Section %s is CODE\n", s->name);
           register_section(s, &text_info);
           continue;
         }
       if ((s->flags & SEC_DATA) && (s->flags & SEC_ALLOC))
         {
-          if (verbose)
-            {
-              printf("section %s is DATA\n", s->name);
-            }
+          dbg("section %s is DATA\n", s->name);
           register_section(s, &data_info);
           continue;
         }
-      if (verbose)
-        printf("WARNING: ignoring section %s\n", s->name);
+
+      dbg("WARNING: ignoring section %s\n", s->name);
     }
 
   /* Fixup high and low water VMA address */
@@ -1775,46 +1797,46 @@ int main(int argc, char **argv, char **envp)
   printf("SECT LOW MARK   HIGH MARK  (SIZE BYTES)\n");
   if (text_info.nsubsects == 0)
     {
-      printf("TEXT Not found  Not found ( Not found )\n");
+      warn("TEXT Not found  Not found ( Not found )\n");
     }
   else
     {
       printf("TEXT %08x %08x (%08lx)\n",
-             (u_int32_t) text_info.low_mark, (u_int32_t) text_info.high_mark,
+             (int)text_info.low_mark, (int)text_info.high_mark,
              text_info.size);
 
       if (text_info.low_mark != 0)
         {
-          fprintf(stderr, "ERROR: text section must be origined at zero");
+          err("Text section must be origined at zero");
           exit(1);
         }
     }
 
   if (data_info.nsubsects == 0)
     {
-      printf("DATA Not found  Not found ( Not found )\n");
+      warn("DATA Not found  Not found ( Not found )\n");
     }
   else
     {
       printf("DATA %08x %08x (%08lx)\n",
-             (u_int32_t) data_info.low_mark, (u_int32_t) data_info.high_mark,
+             (int)data_info.low_mark, (int)data_info.high_mark,
              data_info.size);
 
       if (data_info.low_mark != 0)
         {
-          fprintf(stderr, "ERROR: data section must be origined at zero");
+          err("data section must be origined at zero");
           exit(1);
         }
     }
 
   if (bss_info.nsubsects == 0)
     {
-      printf("BSS  Not found  Not found ( Not found )\n");
+      warn("BSS  Not found  Not found ( Not found )\n");
     }
   else
     {
       printf("BSS  %08x %08x (%08lx)\n",
-             (u_int32_t) bss_info.low_mark, (u_int32_t) bss_info.high_mark,
+             (int)bss_info.low_mark, (int)bss_info.high_mark,
              bss_info.size);
 
       /* If data is present, then BSS was be origined immediately after the
@@ -1830,9 +1852,7 @@ int main(int argc, char **argv, char **envp)
           if ((bss_info.low_mark < bss_start1) &&
               (bss_info.low_mark > bss_start2))
             {
-              fprintf(stderr,
-                      "ERROR: bss must be origined immediately after "
-                      "the data section\n");
+              err("BSS must be origined immediately after the data section\n");
               exit(1);
             }
         }
@@ -1841,19 +1861,18 @@ int main(int argc, char **argv, char **envp)
 
       else if (bss_info.low_mark != 0)
         {
-          fprintf(stderr, "ERROR: bss section (with no data section) must be");
-          fprintf(stderr, "       origined at zero\n");
+          err("BSS section (with no data section) must be origined at zero\n");
           exit(1);
         }
     }
 
   if (verbose)
     {
-      printf("TEXT:");
+      message("TEXT: ");
       dump_sections(&text_info);
-      printf("DATA:");
+      message("DATA: ");
       dump_sections(&data_info);
-      printf("BSS: ");
+      message("BSS: ");
       dump_sections(&bss_info);
     }
 
@@ -1897,9 +1916,9 @@ int main(int argc, char **argv, char **envp)
   }
 #endif
 
-  if (verbose && reloc)
+  if (reloc)
     {
-      printf("reloc size: %04x\n", reloc_len);
+      dbg("reloc size: %04x\n", reloc_len);
     }
 
   if (!out_filename)
@@ -1912,7 +1931,7 @@ int main(int argc, char **argv, char **envp)
   fd = open(out_filename, O_WRONLY | O_PLATFORM | O_CREAT | O_TRUNC, 0744);
   if (fd < 0)
     {
-      fprintf(stderr, "ERROR: Failed open output file %s\n", out_filename);
+      err("Failed open output file %s: %s\n", out_filename, strerror(errno));
       exit(4);
     }
 
