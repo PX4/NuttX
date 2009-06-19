@@ -1,8 +1,14 @@
 /***********************************************************************
- * toolchain/nxflat/reloc-macros.h
- *
+ * xflat/tools/arm/arch.h
  * Generic relocation support for BFD.
- * Copyright (C) 1998 Free Software Foundation, Inc.
+ *
+ *   Copyright (C) 2009 Gregory Nutt. All rights reserved.
+ *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
+ *
+ * Simply lifted with minimal change from the BFD, binutils 2.19.1:
+ *
+ *   Copyright 1998, 1999, 2000, 2003 Free Software Foundation, Inc.
+ *   Free Software Foundation, Inc.
  *
  * This file is part of BFD, the Binary File Descriptor library.
  *
@@ -18,106 +24,117 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
  *
- ***********************************************************************
- *
- * These macros are used by the various *.h target specific header
- * files to either generate an enum containing all the known relocations
- * for that target, or if RELOC_MACROS_GEN_FUNC is defined, a recognition
- * function is generated instead.  (This is used by binutils/readelf.c)
- *
- * Given a header file like this:
- *
- * 	START_RELOC_NUMBERS (foo)
- * 	    RELOC_NUMBER (R_foo_NONE,    0)
- * 	    RELOC_NUMBER (R_foo_32,      1)
- * 	    FAKE_RELOC   (R_foo_illegal, 2)
- * 	    EMPTY_RELOC  (R_foo_max)
- * 	END_RELOC_NUMBERS
- *
- * Then the following will be produced by default (ie if
- * RELOC_MACROS_GEN_FUNC is *not* defined).
- *
- * 	enum foo
- *      {
- *        foo = -1,
- * 	  R_foo_NONE = 0,
- * 	  R_foo_32 = 1,
- * 	  R_foo_illegal = 2,
- * 	  R_foo_max
- * 	};
- *
- * If RELOC_MACROS_GEN_FUNC *is* defined, then instead the
- * following function will be generated:
- *
- * 	static const char * foo PARAMS ((unsigned long rtype));
- * 	static const char *
- * 	foo (rtype)
- * 	    unsigned long rtype;
- * 	{
- * 	   switch (rtype)
- * 	   {
- * 	   case 0: return "R_foo_NONE";
- * 	   case 1: return "R_foo_32";
- * 	   default: return NULL;
- * 	   }
- * 	}
  ***********************************************************************/
 
-#ifndef _RELOC_MACROS_H
-#  define _RELOC_MACROS_H
+/* These macros are used by the various *.h target specific header
+   files to either generate an enum containing all the known relocations
+   for that target, or if RELOC_MACROS_GEN_FUNC is defined, a recognition
+   function is generated instead.  (This is used by binutils/readelf.c)
 
-#  ifdef RELOC_MACROS_GEN_FUNC
+   Given a header file like this:
+
+   	START_RELOC_NUMBERS (foo)
+   	    RELOC_NUMBER (R_foo_NONE,    0)
+   	    RELOC_NUMBER (R_foo_32,      1)
+   	    EMPTY_RELOC  (R_foo_good)
+   	    FAKE_RELOC   (R_foo_illegal, 9)
+   	END_RELOC_NUMBERS (R_foo_count)
+
+   Then the following will be produced by default (ie if
+   RELOC_MACROS_GEN_FUNC is *not* defined).
+
+   	enum foo
+	{
+   	  R_foo_NONE = 0,
+   	  R_foo_32 = 1,
+	  R_foo_good,
+   	  R_foo_illegal = 9,
+   	  R_foo_count
+   	};
+
+   Note: The value of the symbol defined in the END_RELOC_NUMBERS
+   macro (R_foo_count in the case of the example above) will be
+   set to the value of the whichever *_RELOC macro preceeds it plus
+   one.  Therefore if you intend to use the symbol as a sentinel for
+   the highest valid macro value you should make sure that the
+   preceeding *_RELOC macro is the highest valid number.  ie a
+   declaration like this:
+
+   	START_RELOC_NUMBERS (foo)
+   	    RELOC_NUMBER (R_foo_NONE,    0)
+   	    RELOC_NUMBER (R_foo_32,      1)
+   	    FAKE_RELOC   (R_foo_illegal, 9)
+   	    FAKE_RELOC   (R_foo_synonym, 0)
+   	END_RELOC_NUMBERS (R_foo_count)
+
+   will result in R_foo_count having a value of 1 (R_foo_synonym + 1)
+   rather than 10 or 2 as might be expected.
+
+   Alternatively you can assign a value to END_RELOC_NUMBERS symbol
+   explicitly, like this:
+
+   	START_RELOC_NUMBERS (foo)
+   	    RELOC_NUMBER (R_foo_NONE,    0)
+   	    RELOC_NUMBER (R_foo_32,      1)
+   	    FAKE_RELOC   (R_foo_illegal, 9)
+   	    FAKE_RELOC   (R_foo_synonym, 0)
+   	END_RELOC_NUMBERS (R_foo_count = 2)
+
+   If RELOC_MACROS_GEN_FUNC *is* defined, then instead the
+   following function will be generated:
+
+   	static const char *foo (unsigned long rtype);
+   	static const char *
+   	foo (unsigned long rtype)
+   	{
+   	   switch (rtype)
+   	   {
+   	   case 0: return "R_foo_NONE";
+   	   case 1: return "R_foo_32";
+   	   default: return NULL;
+   	   }
+   	}
+   */
+
+#ifndef __TOOLCHAIN_NXFLAT_RELOC_MACROS_H
+#define __TOOLCHAIN_NXFLAT_RELOC_MACROS_H
+
+#ifdef RELOC_MACROS_GEN_FUNC
 
 /* This function takes the relocation number and returns the
- * string version name of the name of that relocation.  If
- * the relocation is not recognised, NULL is returned.
- */
+   string version name of the name of that relocation.  If
+   the relocation is not recognised, NULL is returned.  */
 
-#    define START_RELOC_NUMBERS(name)   				\
-static const char * name    PARAMS ((unsigned long rtype)); 	\
+#define START_RELOC_NUMBERS(name)   				\
+static const char *name (unsigned long rtype);			\
 static const char *						\
-name (rtype)							\
-	unsigned long rtype;					\
+name (unsigned long rtype)					\
 {								\
   switch (rtype)						\
-  {
+    {
 
-#    ifdef __STDC__
-#      define RELOC_NUMBER(name, number)  case number : return #name ;
-#    else
-#      define RELOC_NUMBER(name, number)  case number : return "name" ;
-#    endif
+#define RELOC_NUMBER(name, number) \
+    case number: return #name;
 
-#    define FAKE_RELOC(name, number)
-#    define EMPTY_RELOC(name)
+#define FAKE_RELOC(name, number)
+#define EMPTY_RELOC(name)
 
-#    define END_RELOC_NUMBERS	\
+#define END_RELOC_NUMBERS(name)	\
     default: return NULL;	\
-  }				\
+    }				\
 }
 
-#  else                                /* Default to generating enum.  */
 
-/* Some compilers cannot cope with an enum that ends with a trailing
- * comma, so START_RELOC_NUMBERS creates a fake reloc entry, (initialised
- * to -1 so that the first real entry will still default to 0).  Further
- * entries then prepend a comma to their definitions, creating a list
- * of enumerator entries that will satisfy these compilers.
- */
+#else /* Default to generating enum.  */
 
-#    ifdef __STDC__
-#      define START_RELOC_NUMBERS(name)   enum name { _##name = -1
-#    else
-#      define START_RELOC_NUMBERS(name)   enum name { name = -1
-#    endif
+#define START_RELOC_NUMBERS(name)   enum name {
+#define RELOC_NUMBER(name, number)  name = number,
+#define FAKE_RELOC(name, number)    name = number,
+#define EMPTY_RELOC(name)           name,
+#define END_RELOC_NUMBERS(name)     name };
 
-#    define RELOC_NUMBER(name, number)  , name = number
-#    define FAKE_RELOC(name, number)    , name = number
-#    define EMPTY_RELOC(name)           , name
-#    define END_RELOC_NUMBERS           };
+#endif
 
-#  endif
-
-#endif                                 /* RELOC_MACROS_H */
+#endif /* __TOOLCHAIN_NXFLAT_RELOC_MACROS_H */

@@ -148,6 +148,8 @@ static const char dyncall_decl_prologue[] =
 
 #define MKCALLARGS(fn, i) (fn), (fn), (fn), (fn), (i), (i), (i), (fn), (fn)
 
+#ifdef __USE_GOT__
+
 static const char dyncall_format[] =
   "\n/* Dynamic call logic for imported symbol %s */\n\n"
   "\t.global\t%s\n"
@@ -157,7 +159,7 @@ static const char dyncall_format[] =
   "\tstmdb\tsp!,{r4, lr}\n"
   "\tldr\tr4,.Ldyn%04d\n"
   "\tldr\tr4,[sl,r4]\n"
-  "\tldr\tr4,[r4,#0]\n"
+  "\tldr\tr4,[r4,#4]\n"
   "\tblx\tr4\n"
   "\tldmia\tsp!,{r4, pc}\n"
   ".Ldyn%04d:\n"
@@ -172,11 +174,45 @@ static const char nonreturning_dyncall_format[] =
   "%s:\n"
   "\tldr\tr4,.Ldyn%04d\n"
   "\tldr\tr4,[sl,r4]\n"
-  "\tldr\tr4,[r4,#0]\n"
+  "\tldr\tr4,[r4,#4]\n"
   "\tbx\tr4\n"
   ".Ldyn%04d:\n"
   "\t.word\t__dyninfo%04d(GOT)\n"
   "\t.size\t%s, .-%s\n";
+
+#else
+
+static const char dyncall_format[] =
+  "\n/* Dynamic call logic for imported symbol %s */\n\n"
+  "\t.global\t%s\n"
+  "\t.type\t%s, function\n"
+  "\t.thumb_func\n\n"
+  "%s:\n"
+  "\tstmdb\tsp!,{r4, lr}\n"
+  "\tldr\tr4,.Ldyn%04d\n"
+  "\tadd\tr4,r4,sl\n"
+  "\tldr\tr4,[r4,#4]\n"
+  "\tblx\tr4\n"
+  "\tldmia\tsp!,{r4, pc}\n"
+  ".Ldyn%04d:\n"
+  "\t.word\t__dyninfo%04d\n"
+  "\t.size\t%s, .-%s\n";
+
+static const char nonreturning_dyncall_format[] =
+  "\n/* Dynamic call logic for imported, non-returning symbol %s */\n\n"
+  "\t.global\t%s\n"
+  "\t.type\t%s, function\n"
+  "\t.thumb_func\n\n"
+  "%s:\n"
+  "\tldr\tr4,.Ldyn%04d\n"
+  "\tadd\tr4,r4,sl\n"
+  "\tldr\tr4,[r4,#4]\n"
+  "\tbx\tr4\n"
+  ".Ldyn%04d:\n"
+  "\t.word\t__dyninfo%04d\n"
+  "\t.size\t%s, .-%s\n";
+
+#endif
 
 /*******************************************************************
  * File Epilogue

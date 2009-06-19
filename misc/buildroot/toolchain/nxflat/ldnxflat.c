@@ -127,14 +127,16 @@
  * Private Types
  ***********************************************************************/
 
+/* Needs to match definition in include/elf/internal.h.  This is from binutils-2.19.1 */
+
 struct elf_internal_sym
   {
-    bfd_vma st_value;           /* Value of the symbol */
-    bfd_vma st_size;            /* Associated symbol size */
-    u_int32_t st_name;          /* Symbol name, index in string tbl */
-    u_int8_t st_info;           /* Type and binding attributes */
-    u_int8_t st_other;          /* No defined meaning, 0 */
-    u_int16_t st_shndx;         /* Associated section index */
+    bfd_vma       st_value;            /* Value of the symbol */
+    bfd_vma       st_size;             /* Associated symbol size */
+    unsigned long st_name;             /* Symbol name, index in string tbl */
+    unsigned char st_info;             /* Type and binding attributes */
+    unsigned char st_other;            /* Visibilty, and target specific */
+    unsigned int  st_shndx;            /* Associated section index */
   };
 
 typedef struct
@@ -738,12 +740,13 @@ static void
 resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                        u_int32_t * n_relocs, struct nxflat_reloc_s **relocs)
 {
+  struct nxflat_reloc_s *nxflat_relocs;
+  arelent **relpp;
+  u_int32_t nxflat_reloc_count;
+  int relsize;
+  int relcount;
   int i;
   int j;
-  int relsize, relcount;
-  arelent **relpp;
-  struct nxflat_reloc_s *nxflat_relocs;
-  u_int32_t nxflat_reloc_count;
 
   nxflat_relocs = *relocs;
   nxflat_reloc_count = *n_relocs;
@@ -777,6 +780,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
           fprintf(stderr, "ERROR: bfd_canonicalize_reloc failed!\n");
           exit(1);
         }
+
       if (verbose)
         {
           printf("Section %s can'd %08x relocs\n",
@@ -785,9 +789,22 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
 
       for (j = 0; j < relcount; j++)
         {
-          reloc_howto_type *how_to = relpp[j]->howto;
-          asymbol *rel_sym = *relpp[j]->sym_ptr_ptr;
-          asection *rel_section = rel_sym->section;
+          /* Get information about this symbol */
+
+          reloc_howto_type *how_to      = relpp[j]->howto;
+          asymbol          *rel_sym     = *relpp[j]->sym_ptr_ptr;
+          asection         *rel_section = rel_sym->section;
+          symvalue          sym_value;
+
+          /* If the symbol is a thumb function, then set bit 1 of the value */
+
+         sym_value = rel_sym->value;
+#ifdef NXFLAT_ARM
+         if ((((elf_symbol_type *)rel_sym)->internal_elf_sym.st_info & 0x0f) == STT_ARM_TFUNC)
+            {
+              sym_value |= 1;
+            }
+#endif
 
           if (verbose > 1)
             {
@@ -812,7 +829,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                     printf("performing   PC24 link at addr %08x to "
                            "sym [%20s] @ %08x\n",
                            (u_int32_t) relpp[j]->address, rel_sym->name,
-                           (u_int32_t) rel_sym->value);
+                           (u_int32_t) sym_value);
                   }
 
                 /* Can't fix what we ain't got */
@@ -875,7 +892,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
 
                     /* offset */
                     temp +=
-                      ((rel_sym->value + rel_sym->section->vma)
+                      ((sym_value + rel_sym->section->vma)
                        - relpp[j]->address) >> how_to->rightshift;
 
                     /* demote */
@@ -916,7 +933,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                     printf("performing ABS32 link at addr %08x to "
                            "sym [%20s] @ %08x\n",
                            (u_int32_t) relpp[j]->address, rel_sym->name,
-                           (u_int32_t) rel_sym->value);
+                           (u_int32_t) sym_value);
                   }
 
                 /* ABS32 links from .text are easy - since the fetches will */
@@ -959,7 +976,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
 
                 /* offset */
 
-                temp += (rel_sym->value + rel_sym->section->vma) >>
+                temp += (sym_value + rel_sym->section->vma) >>
                   how_to->rightshift;
 
                 /* demote */
@@ -988,7 +1005,9 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                     int reltype;
 
                     if (verbose)
-                      printf("RELOCATION in DATA!\n");
+                      {
+                        printf("RELOCATION in DATA!\n");
+                      }
 
                     /* Locate the address referred to by section type. */
 
@@ -1017,7 +1036,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                       "Attempted  GOTOFF reloc at addr %08x to "
                       "sym [%20s] @ %08x\n",
                       (u_int32_t) relpp[j]->address, rel_sym->name,
-                      (u_int32_t) rel_sym->value);
+                      (u_int32_t) sym_value);
               goto got_not_supported;
 
             case R_ARM_GOT32:
@@ -1027,7 +1046,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                       "Attempted  GOT32 reloc at addr %08x to "
                       "sym [%20s] @ %08x\n",
                       (u_int32_t) relpp[j]->address, rel_sym->name,
-                      (u_int32_t) rel_sym->value);
+                      (u_int32_t) sym_value);
               goto got_not_supported;
 
             case R_ARM_GOTPC:
@@ -1036,7 +1055,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                       "Attempted  GOTPC reloc at addr %08x to "
                       "sym [%20s] @ %08x\n",
                       (u_int32_t) relpp[j]->address, rel_sym->name,
-                      (u_int32_t) rel_sym->value);
+                      (u_int32_t) sym_value);
 
             got_not_supported:
               fprintf(stderr,
@@ -1070,38 +1089,59 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
 
 static void dump_symbol(asymbol * psym)
 {
+  struct elf_internal_sym *isym =
+    (struct elf_internal_sym *)&((elf_symbol_type *)psym)->internal_elf_sym;
+
   if (bfd_is_com_section(psym->section))
     {
       /* Common Global - unplaced */
 
       printf("Sym[%24s] @            sz %04x ",
              psym->name, (u_int32_t) psym->value);
-      printf("align %04x ",
-             (u_int32_t) ((elf_symbol_type *) psym)->internal_elf_sym.st_value);
+      printf("align %04x ", (u_int32_t)isym->st_value);
     }
   else
     {
       printf("Sym[%24s] @ %04x align            ",
              psym->name, (u_int32_t) psym->value);
-      printf("sz %04x ",
-             (u_int32_t) ((elf_symbol_type *) psym)->internal_elf_sym.st_size);
+      printf("sz %04x ", (u_int32_t)isym->st_size);
     }
-  printf("%c", psym->flags & BSF_OBJECT ? 'O' : ' ');
-  printf("%c", psym->flags & BSF_DYNAMIC ? 'D' : ' ');
-  printf("%c", psym->flags & BSF_FILE ? 'F' : ' ');
-  printf("%c", psym->flags & BSF_INDIRECT ? 'I' : ' ');
-  printf("%c", psym->flags & BSF_WARNING ? 'W' : ' ');
-  printf("%c", psym->flags & BSF_CONSTRUCTOR ? 'C' : ' ');
-  printf("%c", psym->flags & BSF_NOT_AT_END ? 'N' : ' ');
-  printf("%c", psym->flags & BSF_OLD_COMMON ? 'c' : ' ');
-  printf("%c", psym->flags & BSF_SECTION_SYM ? 'S' : ' ');
-  printf("%c", psym->flags & BSF_WEAK ? 'w' : ' ');
-  printf("%c", psym->flags & BSF_KEEP_G ? 'G' : ' ');
-  printf("%c", psym->flags & BSF_KEEP ? 'K' : ' ');
-  printf("%c", psym->flags & BSF_FUNCTION ? 'f' : ' ');
-  printf("%c", psym->flags & BSF_DEBUGGING ? 'd' : ' ');
-  printf("%c", psym->flags & BSF_GLOBAL ? 'g' : ' ');
-  printf("%c", psym->flags & BSF_LOCAL ? 'l' : ' ');
+
+  /* Symbol type */
+
+  printf("tp %02x ", isym->st_info);
+
+  /* Tag thumb specific attributes */
+
+#ifdef NXFLAT_ARM
+  if ((isym->st_info & 0x0f) == STT_ARM_TFUNC || (isym->st_info & 0x0f) == STT_ARM_16BIT)
+    {
+      putchar('T');
+    }
+  else
+    {
+      putchar(' ');
+    }
+#endif
+
+  /* Common attributes */
+
+  printf("|%c", psym->flags & BSF_OBJECT ? 'O' : '.');
+  printf("%c",  psym->flags & BSF_DYNAMIC ? 'D' : '.');
+  printf("%c",  psym->flags & BSF_FILE ? 'F' : '.');
+  printf("%c",  psym->flags & BSF_INDIRECT ? 'I' : '.');
+  printf("%c",  psym->flags & BSF_WARNING ? 'W' : '.');
+  printf("%c",  psym->flags & BSF_CONSTRUCTOR ? 'C' : '.');
+  printf("%c",  psym->flags & BSF_NOT_AT_END ? 'N' : '.');
+  printf("%c",  psym->flags & BSF_OLD_COMMON ? 'c' : '.');
+  printf("%c",  psym->flags & BSF_SECTION_SYM ? 'S' : '.');
+  printf("%c",  psym->flags & BSF_WEAK ? 'w' : '.');
+  printf("%c",  psym->flags & BSF_KEEP_G ? 'G' : '.');
+  printf("%c",  psym->flags & BSF_KEEP ? 'K' : '.');
+  printf("%c",  psym->flags & BSF_FUNCTION ? 'f' : '.');
+  printf("%c",  psym->flags & BSF_DEBUGGING ? 'd' : '.');
+  printf("%c",  psym->flags & BSF_GLOBAL ? 'g' : '.');
+  printf("%c|", psym->flags & BSF_LOCAL ? 'l' : '.');
   printf("\n");
 }
 
@@ -1356,27 +1396,14 @@ static struct nxflat_reloc_s *output_relocs(bfd * input_bfd, asymbol ** symbols,
                                             u_int32_t * n_relocs)
 {
   struct nxflat_reloc_s *nxflat_relocs;
-  asection *sym_section;
-  arelent **relpp, **p, *q;
-  const char *sym_name, *section_name;
   u_int32_t nxflat_reloc_count;
-  int relsize, relcount;
-  int reltype;
   int rc;
-  bfd_vma v, addend;
-  segment_info *relseg, *sym_segment;
-  u_int32_t seg_offset;
-
   int i;
 
   *n_relocs = 0;
   nxflat_relocs = NULL;
   nxflat_reloc_count = 0;
   rc = 0;
-
-#if 1
-
-  /* new code */
 
   if (verbose)
     {
@@ -1421,188 +1448,6 @@ static struct nxflat_reloc_s *output_relocs(bfd * input_bfd, asymbol ** symbols,
   printf(" returning %d relocs\n", nxflat_reloc_count);
 
   /* need to emit relocs for data only */
-  return nxflat_relocs;
-
-#endif
-
-  relsize = bfd_get_dynamic_reloc_upper_bound(input_bfd);
-  if (relsize <= 0)
-    {
-      if (verbose)
-        printf("no relocation entries\n");
-      return 0;
-    }
-
-  relpp = (arelent **) malloc(relsize);
-  relcount = bfd_canonicalize_dynamic_reloc(input_bfd, relpp, symbols);
-  if (relcount <= 0)
-    {
-      if (verbose)
-        printf("no relocation entries\n");
-      *n_relocs = 0;
-      return NULL;
-    }
-
-  for (p = relpp; (relcount && (*p != NULL)); p++, relcount--)
-    {
-      q = *p;
-      if (q->sym_ptr_ptr && *q->sym_ptr_ptr)
-        {
-          sym_name = (*(q->sym_ptr_ptr))->name;
-          sym_section = (*(q->sym_ptr_ptr))->section;
-          section_name = (*(q->sym_ptr_ptr))->section->name;
-
-          if (verbose)
-            {
-              printf("Reloc address %08x type %s\n",
-                     (u_int32_t) q->address, q->howto->name);
-            }
-
-          switch (q->howto->type)
-            {
-            case R_ARM_RELATIVE:
-              /* This reloc describes an offset from the "program base". We
-               * need to figure out which segment it actually refers to, fiddle 
-               * the addend and output an appropriate FLAT reloc to be resolved 
-               * at run time.  */
-              /* XXX In an ideal world, the linker would output different
-               * relocs for the different sections, so we wouldn't need to grub 
-               * around in the memory map quite so much.  */
-
-              v = q->address;
-              reltype = -1;
-              relseg = sym_segment = NULL;
-              if (v >= text_info.low_mark && v <= text_info.high_mark)
-                {
-                  /* The existing FLAT binary format only allows relocs to be
-                   * in the .data segment.  Relocating in .text would be bad
-                   * practice anyway so this is no great loss. */
-
-                  printf("WARNING: Illegal RELATIVE reloc in text "
-                         "segment ignored.\n");
-                  continue;
-                }
-              else if (v >= data_info.low_mark && v <= data_info.high_mark)
-                relseg = &data_info;
-
-              if (!relseg)
-                {
-                  /* This reloc isn't in the text or data segment. Probably it
-                   * refers to debug information and we can just ignore it. */
-
-                  if (verbose)
-                    {
-                      fprintf(stderr,
-                              "WARNING: ignoring reloc at %08x\n",
-                              (u_int32_t) v);
-                    }
-                  continue;
-                }
-
-              /* Locate the reloc in the appropriate segment and extract the
-               * existing addend. */
-
-              seg_offset = v - relseg->low_mark;
-              addend = *((bfd_vma *) (relseg->contents + seg_offset));
-
-              if (verbose)
-                {
-                  printf("RELATIVE reloc at (%s+%08x) addend %08x\n",
-                         relseg->name, seg_offset, (u_int32_t) addend);
-                }
-
-              /* Locate the address referred to by section type. */
-
-              reltype = get_reloc_type(sym_section, &sym_segment);
-
-              if (!sym_segment)
-                {
-                  /* The addend isn't within any of the segments we know about. 
-                   * This might mean it was in a section we threw away.  In any 
-                   * case, there is nothing we can do about it now.  */
-
-                  printf("ERROR: reloc at (%s+%08x) has out of "
-                         " range addend %08x or unrecognized "
-                         " section \"%s\"\n",
-                         relseg->name, seg_offset,
-                         (u_int32_t) addend, sym_section->name);
-                  rc = -1;
-                  continue;
-                }
-
-              /* Verify that the addend offset lies within the address range we 
-               * have identified for the segment. */
-
-              if (addend < sym_segment->low_mark ||
-                  addend > sym_segment->high_mark)
-                {
-                  fprintf(stderr,
-                          "ERROR: Symbol addend %x does lie within "
-                          "segment address range (%x-%x)\n",
-                          (u_int32_t) addend, (u_int32_t) sym_segment->low_mark,
-                          (u_int32_t) sym_segment->high_mark);
-                  continue;
-                }
-
-              /* Factor out the starting VMA of the segment, adjust the addend
-               * in core and output a new reloc.  */
-
-              addend -= sym_segment->low_mark;
-
-              if (verbose)
-                {
-                  printf("(%s+%08x)\n",
-                         sym_segment->name, (u_int32_t) addend);
-                }
-
-              *((bfd_vma *) (relseg->contents + seg_offset)) = addend;
-
-              nxflat_relocs = realloc(nxflat_relocs,
-                                     (nxflat_reloc_count + 1)
-                                     * sizeof(struct nxflat_reloc_s));
-
-              nxflat_relocs[nxflat_reloc_count].r_info = NXFLAT_RELOC(reltype, seg_offset);
-              nxflat_reloc_count++;
-              break;
-
-            case R_ARM_PC24:
-            case R_ARM_GLOB_DAT:
-              /* Because we linked with -Bsymbolic, the linker will already
-               * have resolved all function calls apart from those to undefined 
-               * symbols.  So long as this is a weak reference, we do nothing
-               * and the reloc will be incomplete - it is up to the application 
-               * to avoid executing such branches.  Global data relocs are also 
-               * OK to leave unresolved since they will yield zero by default.
-               * If we encounter an unresolved strong reference we punt; the
-               * linker should have trapped this case already so this is a
-               * "can't happen" situation.  */
-
-              if (!((*q->sym_ptr_ptr)->flags & BSF_WEAK))
-                {
-                  printf("ERROR: undefined symbolic reference to %s\n",
-                         (*q->sym_ptr_ptr)->name);
-                  rc = -1;
-                }
-              break;
-
-            default:
-              printf("ERROR: unknown reloc type %s\n", q->howto->name);
-              rc = -1;
-              break;
-            }
-        }
-      else
-        {
-          printf("ERROR: undefined relocation entry\n");
-          rc = -1;
-          continue;
-        }
-    }
-
-  if (rc < 0)
-    return (NULL);
-
-  *n_relocs = nxflat_reloc_count;
   return nxflat_relocs;
 }
 
@@ -2018,8 +1863,7 @@ int main(int argc, char **argv, char **envp)
   load_sections(bf, &text_info);
   load_sections(bf, &data_info);
 
-  reloc = (u_int32_t *)
-    output_relocs(bf, symbol_table, number_of_symbols, &reloc_len);
+  reloc = (u_int32_t*)output_relocs(bf, symbol_table, number_of_symbols, &reloc_len);
 
   /* Fill in the xFLT file header */
 
