@@ -93,9 +93,11 @@
 #if 0
 #  define message(fmt, arg...) printf("%s: " fmt, __func__, ##arg)
 #  define dbg(fmt, arg...)     if (verbose) printf("%s: " fmt, __func__, ##arg)
+#  define vdbg(fmt, arg...)    if (verbose > 1) printf("%s: " fmt, __func__, ##arg)
 #else
 #  define message(fmt, arg...) printf(fmt, ##arg)
 #  define dbg(fmt, arg...)     if (verbose) printf(fmt, ##arg)
+#  define vdbg(fmt, arg...)     if (verbose > 1) printf(fmt, ##arg)
 #endif
 #define err(fmt, arg...)       fprintf(stderr, "ERROR -- " fmt, ##arg)
 #define warn(fmt, arg...)      fprintf(stderr, "WARNING -- " fmt, ##arg)
@@ -345,7 +347,7 @@ static asymbol **get_symbols(bfd * abfd, int32_t * num)
 
   *num = number_of_symbols;
 
-  dbg("Read %d symbols\n", number_of_symbols);
+  vdbg("Read %d symbols\n", number_of_symbols);
   return symbol_table;
 }
 
@@ -615,7 +617,7 @@ static int get_reloc_type(asection * sym_section, segment_info ** sym_segment)
         {
           /* Yes... */
 
-          dbg("Sym section %s is BSS\n", sym_section->name);
+          vdbg("Sym section %s is BSS\n", sym_section->name);
  
           if (sym_segment)
             {
@@ -633,7 +635,7 @@ static int get_reloc_type(asection * sym_section, segment_info ** sym_segment)
         {
           /* Yes... */
 
-          dbg("Sym section %s is CODE\n", sym_section->name);
+          vdbg("Sym section %s is CODE\n", sym_section->name);
 
           if (sym_segment)
             {
@@ -651,7 +653,7 @@ static int get_reloc_type(asection * sym_section, segment_info ** sym_segment)
         {
           /* Yes... */
 
-          dbg("Sym section %s is DATA\n", sym_section->name);
+          vdbg("Sym section %s is DATA\n", sym_section->name);
 
           if (sym_segment)
             *sym_segment = &data_info;
@@ -686,7 +688,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
   for (i = 0; i < inf->nsubsects; i++)
     {
       relcount = inf->subsect[i]->reloc_count;
-      dbg("Section %s has %08x relocs\n", inf->subsect[i]->name, relcount);
+      vdbg("Section %s has %08x relocs\n", inf->subsect[i]->name, relcount);
 
       if (0 >= relcount)
         {
@@ -694,7 +696,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
         }
 
       relsize = bfd_get_reloc_upper_bound(input_bfd, inf->subsect[i]);
-      dbg("Section %s reloc size: %08x\n", inf->subsect[i]->name, relsize);
+      vdbg("Section %s reloc size: %08x\n", inf->subsect[i]->name, relsize);
 
       if (0 >= relsize)
         {
@@ -710,7 +712,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
           exit(1);
         }
 
-      dbg("Section %s can'd %08x relocs\n", inf->subsect[i]->name, relcount);
+      vdbg("Section %s can'd %08x relocs\n", inf->subsect[i]->name, relcount);
 
       for (j = 0; j < relcount; j++)
         {
@@ -719,6 +721,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
           reloc_howto_type *how_to      = relpp[j]->howto;
           asymbol          *rel_sym     = *relpp[j]->sym_ptr_ptr;
           asection         *rel_section = rel_sym->section;
+          int32_t          *target      = (int32_t*)(inf->contents + relpp[j]->address);
           symvalue          sym_value;
 
           /* If the symbol is a thumb function, then set bit 1 of the value */
@@ -731,8 +734,8 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
             }
 #endif
 
-          dbg("rel %d: sym @ %p [%20s] s_addr @ %08x rel %08x how %s\n",
-               j, relpp[j]->sym_ptr_ptr, rel_sym->name, (int) relpp[j]->address,
+          dbg("rel %d: sym [%20s] s_addr @ %08x rel %08x how %s\n",
+               j, rel_sym->name, (int)relpp[j]->address,
                (int)relpp[j]->addend, how_to->name);
 
           switch (how_to->type)
@@ -740,12 +743,11 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
             case R_ARM_PLT32:
             case R_ARM_PC24:
               {
-                int32_t *opcode;
                 int32_t temp;
                 int32_t saved;
 
-                dbg("performing PC24 link at addr %08x to sym '%s' @ %08x\n",
-                    (int) relpp[j]->address, rel_sym->name, (int) sym_value);
+                dbg("performing PC24 link at addr %08x [%08x] to sym '%s' [%08x]\n",
+                    (int) relpp[j]->address, *target, rel_sym->name, (int) sym_value);
 
                 /* Can't fix what we ain't got */
 
@@ -769,31 +771,33 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                     exit(1);
                   }
 
-                opcode = (int32_t *) (inf->contents + relpp[j]->address);
-                if (verbose)
+                if (verbose > 1)
                   {
-                    message(" Original opcode @ %p is %08x ",
+                    vdbg(" Original opcode @ %p is %08x ",
 #ifdef ARCH_BIG_ENDIAN
-                           opcode, (int32_t) nxflat_swap32(*opcode));
+                         target, (int32_t)nxflat_swap32(*target));
 #else
-                           opcode, *opcode);
+                         target, *target);
 #endif
-                    printf("rsh %d ", how_to->rightshift);
-                    printf(" sz %d ", how_to->size);
-                    printf("bit %d ", how_to->bitsize);
-                    printf("rel %d ", how_to->pc_relative);
-                    printf("smask %08x ", (int)how_to->src_mask);
-                    printf("dmask %08x ", (int)how_to->dst_mask);
-                    printf("off %d ", how_to->pcrel_offset);
+                    if (verbose > 2)
+                      {
+                        printf("rsh %d ", how_to->rightshift);
+                        printf(" sz %d ", how_to->size);
+                        printf("bit %d ", how_to->bitsize);
+                        printf("rel %d ", how_to->pc_relative);
+                        printf("smask %08x ", (int)how_to->src_mask);
+                        printf("dmask %08x ", (int)how_to->dst_mask);
+                        printf("off %d ", how_to->pcrel_offset);
+                      }
                     printf("\n");
                   }
 
                 if (how_to->pcrel_offset)
                   {
 #ifdef ARCH_BIG_ENDIAN
-                    saved = temp = (int32_t) nxflat_swap32(*opcode);
+                    saved = temp = (int32_t)nxflat_swap32(*target);
 #else
-                    saved = temp = *opcode;
+                    saved = temp = *target;
 #endif
                     /* mask */
                     temp &= how_to->src_mask;
@@ -822,52 +826,53 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                     exit(1);
                   }
 
-                dbg("  Modified opcode: %08x\n", temp);
+                vdbg("  Modified opcode: %08x\n", temp);
 #ifdef ARCH_BIG_ENDIAN
-                *opcode = (int32_t) nxflat_swap32(temp);
+                *target = (int32_t) nxflat_swap32(temp);
 #else
-                *opcode = temp;
+                *target = temp;
 #endif
               }
               break;
 
             case R_ARM_ABS32:
               {
-                int32_t *opcode;
                 int32_t temp;
                 int32_t saved;
 
-                dbg("Performing ABS32 link at addr %08x to sym '%s' @ %08x\n",
-                     (int)relpp[j]->address, rel_sym->name, (int)sym_value);
+                dbg("Performing ABS32 link at addr %08x [%08x] to sym '%s' [%08x]\n",
+                     (int)relpp[j]->address, *target, rel_sym->name, (int)sym_value);
 
                 /* ABS32 links from .text are easy - since the fetches will */
                 /* always be base relative. the ABS32 refs from data will be */
                 /* handled the same, with an appropriate reloc record for */
                 /* the load_flat_binary() kernel routine to handle */
 
-                opcode = (int32_t*)(inf->contents + relpp[j]->address);
-                if (verbose)
+                if (verbose > 1)
                   {
-                    message("  Original opcode @ %p is %08x ",
+                    vdbg("  Original opcode @ %p is %08x ",
 #ifdef ARCH_BIG_ENDIAN
-                           opcode, (int32_t) nxflat_swap32(*opcode));
+                         target, (int32_t) nxflat_swap32(*target));
 #else
-                           opcode, *opcode);
+                        target, *target);
 #endif
-                    printf("rsh %d ", how_to->rightshift);
-                    printf(" sz %d ", how_to->size);
-                    printf("bit %d ", how_to->bitsize);
-                    printf("rel %d ", how_to->pc_relative);
-                    printf("smask %08x ", (int)how_to->src_mask);
-                    printf("dmask %08x ", (int)how_to->dst_mask);
-                    printf("off %d ", how_to->pcrel_offset);
+                    if (verbose > 2)
+                      {
+                        printf("rsh %d ", how_to->rightshift);
+                        printf(" sz %d ", how_to->size);
+                        printf("bit %d ", how_to->bitsize);
+                        printf("rel %d ", how_to->pc_relative);
+                        printf("smask %08x ", (int)how_to->src_mask);
+                        printf("dmask %08x ", (int)how_to->dst_mask);
+                        printf("off %d ", how_to->pcrel_offset);
+                      }
                     printf("\n");
                   }
 
 #ifdef ARCH_BIG_ENDIAN
-                saved = temp = (int32_t) nxflat_swap32(*opcode);
+                saved = temp = (int32_t) nxflat_swap32(*target);
 #else
-                saved = temp = *opcode;
+                saved = temp = *target;
 #endif
                 /* mask */
 
@@ -894,18 +899,18 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
 
                 temp |= saved & (~how_to->dst_mask);
 
-                dbg("  Modified opcode: %08x\n", temp);
+                vdbg("  Modified opcode: %08x\n", temp);
 #ifdef ARCH_BIG_ENDIAN
-                *opcode = (int32_t) nxflat_swap32(temp);
+                *target = (int32_t)nxflat_swap32(temp);
 #else
-                *opcode = temp;
+                *target = temp;
 #endif
                 if ((inf->subsect[i]->flags & SEC_DATA) &&
                     (inf->subsect[i]->flags & SEC_ALLOC))
                   {
                     int reltype;
 
-                    dbg("ABS32 relocation in DATA -- generating NXFLAT relo info\n");
+                    vdbg("ABS32 relocation in DATA -- generating NXFLAT relo info\n");
 
                     /* Locate the address referred to by section type. */
 
@@ -931,7 +936,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
             case R_ARM_THM_JUMP24:
               /* Thumb BL (branch long instruction).  */
               {
-                u_int16_t *pinsn     = (u_int16_t*)(inf->contents + relpp[j]->address);
+                u_int16_t *pinsn     = (u_int16_t*)target;
                 u_int16_t upper_insn = pinsn[0];
                 u_int16_t lower_insn = pinsn[1];
 
@@ -955,12 +960,11 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
 
                 temp = (temp | ((s ? 0 : 1) << 24)) - (1 << 24);
 
-                if (verbose)
-                  {
-                    message("Performing THM link at addr %08x to sym '%s' @ %08x\n",
-                           (u_int32_t)relpp[j]->address, rel_sym->name, (int)sym_value);
-                    message("  Original INSN: %04x %04x temp: %08x\n", upper_insn, lower_insn, temp);
-                  }
+                dbg("Performing THM link at addr %08x [%04x %04x] to sym '%s' [%08x]\n",
+                    (int)relpp[j]->address, upper_insn, lower_insn,
+                    rel_sym->name, (int)sym_value);
+                vdbg("  Original INSN: %04x %04x temp: %08x\n",
+                    upper_insn, lower_insn, temp);
 
                  /* Offset */
 
@@ -989,7 +993,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                            | (((!((temp >> 22) & 1)) ^ signbit) << 11)
                            | ((temp >> 1) & 0x7ff);
 
-                dbg("  Modified INSN: %04x %04x temp: %08x Sec VMA: %08x\n",
+                vdbg("  Modified INSN: %04x %04x temp: %08x Sec VMA: %08x\n",
                     upper_insn, lower_insn, temp, (int)rel_sym->section->vma);
 
                 /* Put the relocated value back in the object file:  */
@@ -1015,8 +1019,8 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                  *     .word  n(GOTOFF)
                  */
 
-                dbg("Skipping GOTOFF reloc at addr %08x to sym '%s' @ %08x\n",
-                    (int)relpp[j]->address, rel_sym->name, (int)sym_value);
+                dbg("Skipping GOTOFF reloc at addr %08x [%08x] to sym '%s' [%08x]\n",
+                    (int)relpp[j]->address, *target, rel_sym->name, (int)sym_value);
               }
               break;
 
@@ -1034,30 +1038,59 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                  *     .word  n(GOT)
                  */
 
-                dbg("Performing GOT32 reloc at addr %08x to sym '%s' @ %08x\n",
-                    (int)relpp[j]->address, rel_sym->name,
-                    (int)sym_value);
+                dbg("Performing GOT32 reloc at addr %08x [%08x] to sym '%s' [%08x]\n",
+                    (int)relpp[j]->address, *target, rel_sym->name, (int)sym_value);
+
+                /* Check if this is TEXT section relocation */
  
-                if (!(inf->subsect[i]->flags & SEC_DATA) ||
-                    !(inf->subsect[i]->flags & SEC_ALLOC))
-                  {
-                    err(" Attempted GOT32 relocation outside of .data\n");
-                    err("   At addr %08x to sym '%s' @ %08x\n",
-                        (int)relpp[j]->address, rel_sym->name, (int)sym_value);
-                  }
-                else
+                if ((inf->subsect[i]->flags & SEC_CODE) &&
+                     (inf->subsect[i]->flags & SEC_ALLOC))
                   {
                     int reltype;
 
-                    dbg("  GOT32 relocation in DATA -- generating NXFLAT relo info\n");
+                    vdbg("  GOT32 relocation in TEXT\n");
 
-                    /* Locate the address referred to by section type. */
+                    /* Locate the address referred to by the section type. */
+
+                    reltype = get_reloc_type(rel_section, NULL);
+                    if (reltype == NXFLAT_RELOC_TYPE_TEXT)
+                      {
+                        err("Symbol in GOT32 relocation is in TEXT\n");
+                        err("  At addr %08x to sym '%s' [%08x]\n",
+                            (int)relpp[j]->address, rel_sym->name, (int)sym_value);
+                      }
+                    else
+                      {
+                        vdbg("  Original value: %08x\n", *target);
+                        *target += sym_value;
+                        vdbg("  Modified value: %08x\n", *target);
+                      }
+                  }
+
+                /* Check for GOT32 relocation in .DATA  -- Actually, GOT32 relocations
+                 * should only be in text
+                 */
+
+                else if ((inf->subsect[i]->flags & SEC_DATA) &&
+                          (inf->subsect[i]->flags & SEC_ALLOC))
+                  {
+#if 1 /* Actually, GOT32 relocations will only be in text */
+                    err("Attempted GOT32 relocation in .data\n");
+                    err("  At addr %08x [%08x] to sym '%s' [%08x]\n",
+                        (int)relpp[j]->address, *target,
+                        rel_sym->name, (int)sym_value);
+#else
+                    int reltype;
+
+                    vdbg("  GOT32 relocation in DATA -- generating NXFLAT relo info\n");
+
+                    /* Locate the address referred to by the section type. */
 
                     reltype = get_reloc_type(rel_section, NULL);
                     if (reltype != NXFLAT_RELOC_TYPE_DATA)
                       {
                         err("Symbol in GOT32 relocation is not .data\n");
-                        err(" At addr %08x to sym '%s' @ %08x\n",
+                        err("  At addr %08x to sym '%s' [%08x]\n",
                             (int)relpp[j]->address, rel_sym->name, (int)sym_value);
                       }
 
@@ -1071,6 +1104,14 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                    
                     nxflat_relocs[nxflat_reloc_count].r_info = NXFLAT_RELOC(reltype, relpp[j]->address);
                     nxflat_reloc_count++;
+#endif
+                  }
+                else
+                  {
+                    err("Attempted GOT32 relocation outside of .data/.text\n");
+                    err("  At addr %08x [%08x] to sym '%s' [%08x]\n",
+                        (int)relpp[j]->address, *target,
+                        rel_sym->name, (int)sym_value);
                   }
               }
               break;
@@ -1083,21 +1124,21 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                  * same as GOT32 but the source is an address -- but what do I know.
                  */
 
-                dbg("Performing GOTPC reloc at addr %08x to sym '%s' @ %08x\n",
-                    (int)relpp[j]->address, rel_sym->name, (int)sym_value);
+                dbg("Performing GOTPC reloc at addr %08x [%08x] to sym '%s' [%08x]\n",
+                    (int)relpp[j]->address, *target, rel_sym->name, (int)sym_value);
  
                 if (!(inf->subsect[i]->flags & SEC_DATA) ||
                     !(inf->subsect[i]->flags & SEC_ALLOC))
                   {
                     err("Attempted GOTPC relocation outside of .data\n");
-                    err("  At addr %08x to sym '%s' @ %08x\n",
+                    err("  At addr %08x to sym '%s' [%08x]\n",
                         (int)relpp[j]->address, rel_sym->name, (int)sym_value);
                   }
                 else
                   {
                     int reltype;
 
-                    dbg("  GOTPC relocation in DATA -- generating NXFLAT relo info\n");
+                    vdbg("  GOTPC relocation in DATA -- generating NXFLAT relo info\n");
 
                     /* Locate the address referred to by section type. */
 
@@ -1105,7 +1146,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                     if (reltype != NXFLAT_RELOC_TYPE_TEXT)
                       {
                         err("Symbol in GOTPC relocation is not .text\n");
-                        err("  At addr %08x to sym '%s' @ %08x\n",
+                        err("  At addr %08x to sym '%s' [%08x]\n",
                             (int)relpp[j]->address, rel_sym->name, (int)sym_value);
                       }
 
@@ -1230,7 +1271,7 @@ static void check_symbol_overlap(asymbol ** symbols, int number_of_symbols)
             {
               /* must be an internal branch - ignore */
 
-              dbg("Sym [%20s] is zero len, skipping!\n", sym_i->symbol.name);
+              vdbg("Sym [%20s] is zero len, skipping!\n", sym_i->symbol.name);
               continue;
             }
           else
@@ -1316,11 +1357,11 @@ map_common_symbols(bfd * input_bfd, asymbol ** symbols, int number_of_symbols)
   bss_s = bss_info.subsect[0];
   baseaddr = 0;
 
-  dbg("Checking overlap before mapping\n");
+  vdbg("Checking overlap before mapping\n");
 
   check_symbol_overlap(symbols, number_of_symbols);
 
-  dbg("Mapping COMMONS\n");
+  vdbg("Mapping COMMONS\n");
 
   if (NULL == bss_s)
     {
@@ -1328,7 +1369,7 @@ map_common_symbols(bfd * input_bfd, asymbol ** symbols, int number_of_symbols)
       return;
     }
 
-  dbg("Assigning COMMON symbols to section %s\n", bss_s->name);
+  vdbg("Assigning COMMON symbols to section %s\n", bss_s->name);
 
   for (i = 0; i < number_of_symbols; i++)
     {
@@ -1360,7 +1401,7 @@ map_common_symbols(bfd * input_bfd, asymbol ** symbols, int number_of_symbols)
 
           if (size % 0x04)
             {
-              printf("non-mod4 symbol rounded up 4\n");
+              dbg("non-mod4 symbol rounded up 4\n");
               size = ((size >> 2) + 1) << 2;
             }
 
@@ -1372,7 +1413,7 @@ map_common_symbols(bfd * input_bfd, asymbol ** symbols, int number_of_symbols)
           symbase = ((baseaddr + align - 1) / align) * align;
           offset = (symbase + size) - baseaddr;
 
-          dbg("  ba: %08x sb: %08x al: %04x sz: %04x of: %04x\n",
+          vdbg("  ba: %08x sb: %08x al: %04x sz: %04x of: %04x\n",
               (int)baseaddr, (int)symbase, (int)align, (int)size, (int)offset);
 
           /* Add space to bss segment and section */
@@ -1444,7 +1485,7 @@ static struct nxflat_reloc_s *output_relocs(bfd * input_bfd, asymbol ** symbols,
   nxflat_reloc_count = 0;
   rc = 0;
 
-  dbg("Before map high mark %08x cooked %08x raw %08x \n",
+  vdbg("Before map high mark %08x cooked %08x raw %08x \n",
       (int)bss_info.high_mark, (int)bss_info.subsect[0]->COOKED_SIZE,
       (int)bss_info.subsect[0]->RAW_SIZE);
  
@@ -1452,7 +1493,7 @@ static struct nxflat_reloc_s *output_relocs(bfd * input_bfd, asymbol ** symbols,
 
   map_common_symbols(input_bfd, symbols, number_of_symbols);
 
-  dbg("After map high mark %08x cooked %08x raw %08x \n",
+  vdbg("After map high mark %08x cooked %08x raw %08x \n",
       (int)bss_info.high_mark, (int)bss_info.subsect[0]->COOKED_SIZE,
       (int)bss_info.subsect[0]->RAW_SIZE);
 
@@ -1478,7 +1519,7 @@ static struct nxflat_reloc_s *output_relocs(bfd * input_bfd, asymbol ** symbols,
 
   /* Need to emit relocs for data only */
 
-  dbg(" returning %d relocs\n", nxflat_reloc_count);
+  vdbg(" returning %d relocs\n", nxflat_reloc_count);
   return nxflat_relocs;
 }
 
@@ -1509,7 +1550,7 @@ static int is_unwanted_section(asection * s)
 /* Mark this section for inclusion in some segment.  */
 static void register_section(asection * s, segment_info * inf)
 {
-  dbg("registering section %s to %s segment\n", s->name, inf->name);
+  vdbg("registering section %s to %s segment\n", s->name, inf->name);
   inf->subsect[inf->nsubsects++] = s;
 }
 
@@ -1765,24 +1806,24 @@ int main(int argc, char **argv, char **envp)
 
       if (s->flags == SEC_ALLOC)
         {
-          dbg("Section %s is ALLOC only\n", s->name);
+          vdbg("  Section %s is ALLOC only\n", s->name);
           register_section(s, &bss_info);
           continue;
         }
       if ((s->flags & SEC_CODE) && (s->flags & SEC_ALLOC))
         {
-          dbg("Section %s is CODE\n", s->name);
+          vdbg("  Section %s is CODE\n", s->name);
           register_section(s, &text_info);
           continue;
         }
       if ((s->flags & SEC_DATA) && (s->flags & SEC_ALLOC))
         {
-          dbg("section %s is DATA\n", s->name);
+          vdbg("  Section %s is DATA\n", s->name);
           register_section(s, &data_info);
           continue;
         }
 
-      dbg("WARNING: ignoring section %s\n", s->name);
+      vdbg("WARNING: ignoring section %s\n", s->name);
     }
 
   /* Fixup high and low water VMA address */
@@ -1918,7 +1959,7 @@ int main(int argc, char **argv, char **envp)
 
   if (reloc)
     {
-      dbg("reloc size: %04x\n", reloc_len);
+      vdbg("reloc size: %04x\n", reloc_len);
     }
 
   if (!out_filename)
