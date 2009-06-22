@@ -94,16 +94,14 @@ static int big_endian = 0;      /* Assume little-endian */
 
 static const char unknown[] = "UNKNOWN";
 
-static const char header_reloc_none[] = "RELOC_NONE";
-static const char header_reloc_text[] = "RELOC_TEXT";
-static const char header_reloc_data[] = "RELOC_DATA";
-static const char header_reloc_bss[] = "RELOC_BSS";
+static const char hdr_reloc_rel32i[]  = "RELOC_REL32I";
+static const char hdr_reloc_rel32d[]  = "RELOC_REL32D";
+static const char hdr_reloc_abs32[]   = "RELOC_ABS32";
 
 static const char *reloc_type_string[] = {
-  header_reloc_none,
-  header_reloc_text,
-  header_reloc_data,
-  header_reloc_bss,
+  hdr_reloc_rel32i,
+  hdr_reloc_rel32d,
+  hdr_reloc_abs32,
   unknown
 };
 
@@ -287,31 +285,34 @@ static void disassemble_text(FILE * in_stream, struct nxflat_hdr_s *header)
  * dump_imported_symbols
  ***********************************************************************/
 
-static void dump_imported_symbols(FILE * in_stream, struct nxflat_hdr_s *header)
+static void dump_imported_symbols(FILE *in_stream, struct nxflat_hdr_s *header)
 {
   struct nxflat_import_s import;
   u_int32_t import_offset;
-  u_int32_t file_offset;
+  u_int32_t data_start;
+  u_int32_t struct_offset;
+  u_int32_t name_offset;
   char imported_symbol_name[NXFLAT_MAX_STRING_SIZE];
   int status;
   int i;
 
   printf("\nIMPORTED SYMBOLS:\n");
-  printf("      ADDRESS    DATA SEGM  SYMBOL NAME\n\n");
+  printf("      OFFSET   ADDRESS  SYMBOL NAME\n\n");
 
   import_offset = get_nxflat32(&header->h_importsymbols);
+  data_start    = get_nxflat32(&header->h_datastart);
 
   for (i = 0; i < get_nxflat16(&header->h_importcount); i++)
     {
       /* Seek to the next imported symbol */
 
-      file_offset = i * sizeof(struct nxflat_import_s) + import_offset;
+      struct_offset = i * sizeof(struct nxflat_import_s) + import_offset;
 
-      if (fseek(in_stream, file_offset, SEEK_SET) != 0)
+      if (fseek(in_stream, struct_offset, SEEK_SET) != 0)
         {
           fprintf(stderr, "ERROR: fseek to imported symbol %d struct failed\n",
                   i);
-          fprintf(stderr, "       file_offset: %d, errno: %d\n", file_offset,
+          fprintf(stderr, "       struct_offset: %d, errno: %d\n", struct_offset,
                   errno);
           exit(1);
         }
@@ -330,7 +331,7 @@ static void dump_imported_symbols(FILE * in_stream, struct nxflat_hdr_s *header)
 
       if (big_endian)
         {
-          import.i_funcname = nxflat_swap32(import.i_funcname);
+          import.i_funcname    = nxflat_swap32(import.i_funcname);
           import.i_funcaddress = nxflat_swap32(import.i_funcaddress);
         }
 
@@ -344,13 +345,13 @@ static void dump_imported_symbols(FILE * in_stream, struct nxflat_hdr_s *header)
 
       /* Seek to the function name in the file */
 
-      file_offset = import.i_funcname + NXFLAT_HDR_SIZE;
-      if (0 != fseek(in_stream, file_offset, SEEK_SET))
+      name_offset = import.i_funcname + NXFLAT_HDR_SIZE;
+      if (0 != fseek(in_stream, name_offset, SEEK_SET))
         {
           fprintf(stderr, "ERROR: fseek to imported symbol %d name failed\n",
                   i);
-          fprintf(stderr, "       file_offset: %d, errno: %d\n",
-                  file_offset, errno);
+          fprintf(stderr, "       name_offset: %d, errno: %d\n",
+                  name_offset, errno);
           exit(1);
         }
 
@@ -369,7 +370,7 @@ static void dump_imported_symbols(FILE * in_stream, struct nxflat_hdr_s *header)
 
       /* And print it */
 
-      printf("%5d ", i + 1);
+      printf("%5d %08x ", i + 1, (int)struct_offset - data_start);
 
       if (import.i_funcaddress)
         {
@@ -377,7 +378,7 @@ static void dump_imported_symbols(FILE * in_stream, struct nxflat_hdr_s *header)
         }
       else
         {
-          printf("UNKNOWN    ");
+          printf("UNKNOWN  ");
         }
 
       printf("%s\n", imported_symbol_name);
@@ -404,7 +405,7 @@ static void dump_relocation_entries(FILE * in_stream, struct nxflat_hdr_s *heade
     }
 
   printf("\nRELOCATION ENTRIES:\n");
-  printf("      DATA OFFS  RELOC TYPE\n\n");
+  printf("      OFFSET   RELOC TYPE\n\n");
 
   for (i = 0; i < get_nxflat32(&header->h_reloccount); i++)
     {
@@ -436,7 +437,7 @@ static void dump_relocation_entries(FILE * in_stream, struct nxflat_hdr_s *heade
         }
       else
         {
-          printf("%5d %08x %s\n",
+          printf("%5d %08x %-13s\n",
                  i + 1, NXFLAT_RELOC_OFFSET(reloc.r_info),
                  reloc_type_string[NXFLAT_RELOC_TYPE(reloc.r_info)]);
         }
@@ -452,25 +453,25 @@ static void dump_hdr(struct nxflat_hdr_s *header)
   /* Print the contents of the FLT header */
 
   printf("\nXFLAT HEADER:\n");
-  printf("\nMagic            %c%c%c%c\n",
+  printf("\nMagic           %c%c%c%c\n",
          header->h_magic[0], header->h_magic[1],
          header->h_magic[2], header->h_magic[3]);
 
   printf("\nMEMORY MAP:\n");
-  printf("  Text start     %08lx\n", NXFLAT_HDR_SIZE);
-  printf("  Entry point    %08x\n", get_nxflat32(&header->h_entry));
-  printf("  Data start     %08x\n", get_nxflat32(&header->h_datastart));
-  printf("  Data end       %08x\n", get_nxflat32(&header->h_dataend) - 1);
-  printf("  Bss start      %08x\n", get_nxflat32(&header->h_dataend));
-  printf("  Bss end        %08x\n", get_nxflat32(&header->h_bssend) - 1);
-  printf("TOTAL SIZE       %08x\n\n", get_nxflat32(&header->h_bssend));
-  printf("Stack size       %08x\n", get_nxflat32(&header->h_stacksize));
+  printf("  Text start    %08lx\n", NXFLAT_HDR_SIZE);
+  printf("  Entry point   %08x\n", get_nxflat32(&header->h_entry));
+  printf("  Data start    %08x\n", get_nxflat32(&header->h_datastart));
+  printf("  Data end      %08x\n", get_nxflat32(&header->h_dataend) - 1);
+  printf("  Bss start     %08x\n", get_nxflat32(&header->h_dataend));
+  printf("  Bss end       %08x\n", get_nxflat32(&header->h_bssend) - 1);
+  printf("TOTAL SIZE      %08x\n\n", get_nxflat32(&header->h_bssend));
+  printf("Stack size      %08x\n", get_nxflat32(&header->h_stacksize));
   printf("\nRELOCATIONS:\n");
-  printf("  Reloc start    %08x\n", get_nxflat32(&header->h_relocstart));
-  printf("  reloc count    %d\n", get_nxflat32(&header->h_reloccount));
+  printf("  Reloc start   %08x\n", get_nxflat32(&header->h_relocstart));
+  printf("  reloc count   %d\n", get_nxflat32(&header->h_reloccount));
   printf("\nIMPORTED SYMBOLS:\n");
-  printf("  Import start   %08x\n", get_nxflat32(&header->h_importsymbols));
-  printf("  Import count   %d\n\n", get_nxflat16(&header->h_importcount));
+  printf("  Import start  %08x\n", get_nxflat32(&header->h_importsymbols));
+  printf("  Import count  %d\n", get_nxflat16(&header->h_importcount));
 }
 
 /***********************************************************************

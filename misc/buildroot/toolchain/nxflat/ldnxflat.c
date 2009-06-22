@@ -138,6 +138,12 @@
 #  define RAW_SIZE    rawsize
 #endif
 
+#define NXFLAT_RELOC_TARGET_TEXT    0
+#define NXFLAT_RELOC_TARGET_DATA    1
+#define NXFLAT_RELOC_TARGET_RODATA  2
+#define NXFLAT_RELOC_TARGET_BSS     3
+#define NXFLAT_RELOC_TARGET_UNKNOWN 4
+
 /***********************************************************************
  * Private Types
  ***********************************************************************/
@@ -456,7 +462,7 @@ put_special_symbol(asymbol * begin_sym, asymbol * end_sym,
 
           begin_sect_vma = begin_sym->section->vma;
 
-          file_offset = NXFLAT_HDR_SIZE +       /* Size of the xFLT header */
+          file_offset = NXFLAT_HDR_SIZE +       /* Size of the NXFLAT header */
             begin_sect_vma +    /* Virtual address of section */
             begin_sym_value +   /* Value of the symbol */
             offset;             /* Additional file offset */
@@ -591,7 +597,7 @@ static void put_entry_point(struct nxflat_hdr_s *hdr)
         }
     }
 
-  /* Put the entry point into the xFLT header. */
+  /* Put the entry point into the NXFLAT header. */
 
   put_xflat32(&hdr->h_entry, entry_point);
 }
@@ -600,7 +606,7 @@ static void put_entry_point(struct nxflat_hdr_s *hdr)
  * get_reloc_type
  ***********************************************************************/
 
-static int get_reloc_type(asection * sym_section, segment_info ** sym_segment)
+static int get_reloc_type(asection *sym_section, segment_info **sym_segment)
 {
   int i;
 
@@ -623,7 +629,7 @@ static int get_reloc_type(asection * sym_section, segment_info ** sym_segment)
             {
               *sym_segment = &bss_info;
             }
-          return NXFLAT_RELOC_TYPE_BSS;
+          return NXFLAT_RELOC_TARGET_BSS;
         }
     }
 
@@ -641,7 +647,7 @@ static int get_reloc_type(asection * sym_section, segment_info ** sym_segment)
             {
               *sym_segment = &text_info;
             }
-          return NXFLAT_RELOC_TYPE_TEXT;
+          return NXFLAT_RELOC_TARGET_TEXT;
         }
     }
 
@@ -656,14 +662,17 @@ static int get_reloc_type(asection * sym_section, segment_info ** sym_segment)
           vdbg("Sym section %s is DATA\n", sym_section->name);
 
           if (sym_segment)
-            *sym_segment = &data_info;
-          return NXFLAT_RELOC_TYPE_DATA;
+            {
+              *sym_segment = &data_info;
+            }
+          return NXFLAT_RELOC_TARGET_DATA;
         }
     }
 
   err("Could not find region for sym_section \"%s\" (%p)\n",
       sym_section->name, sym_section);
-  return NXFLAT_RELOC_TYPE_NONE;
+
+  return NXFLAT_RELOC_TARGET_UNKNOWN;
 }
 
 /***********************************************************************
@@ -682,7 +691,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
   int i;
   int j;
 
-  nxflat_relocs = *relocs;
+  nxflat_relocs      = *relocs;
   nxflat_reloc_count = *n_relocs;
 
   for (i = 0; i < inf->nsubsects; i++)
@@ -924,7 +933,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
 
                     /* And tuck in the new relocation. */
 
-                    nxflat_relocs[nxflat_reloc_count].r_info = NXFLAT_RELOC(reltype, relpp[j]->address);
+                    nxflat_relocs[nxflat_reloc_count].r_info = NXFLAT_RELOC(NXFLAT_RELOC_TYPE_ABS32, relpp[j]->address);
                     nxflat_reloc_count++;
                   }
               }
@@ -1053,7 +1062,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                     /* Locate the address referred to by the section type. */
 
                     reltype = get_reloc_type(rel_section, NULL);
-                    if (reltype == NXFLAT_RELOC_TYPE_TEXT)
+                    if (reltype == NXFLAT_RELOC_TARGET_TEXT)
                       {
                         err("Symbol in GOT32 relocation is in TEXT\n");
                         err("  At addr %08x to sym '%s' [%08x]\n",
@@ -1087,7 +1096,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                     /* Locate the address referred to by the section type. */
 
                     reltype = get_reloc_type(rel_section, NULL);
-                    if (reltype != NXFLAT_RELOC_TYPE_DATA)
+                    if (reltype != NXFLAT_RELOC_TARGET_DATA)
                       {
                         err("Symbol in GOT32 relocation is not .data\n");
                         err("  At addr %08x to sym '%s' [%08x]\n",
@@ -1102,7 +1111,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
 
                     /* And tuck in the new relocation. */
                    
-                    nxflat_relocs[nxflat_reloc_count].r_info = NXFLAT_RELOC(reltype, relpp[j]->address);
+                    nxflat_relocs[nxflat_reloc_count].r_info = NXFLAT_RELOC(NXFLAT_RELOC_TYPE_REL32D, relpp[j]->address);
                     nxflat_reloc_count++;
 #endif
                   }
@@ -1143,7 +1152,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                     /* Locate the address referred to by section type. */
 
                     reltype = get_reloc_type(rel_section, NULL);
-                    if (reltype != NXFLAT_RELOC_TYPE_TEXT)
+                    if (reltype != NXFLAT_RELOC_TARGET_TEXT)
                       {
                         err("Symbol in GOTPC relocation is not .text\n");
                         err("  At addr %08x to sym '%s' [%08x]\n",
@@ -1158,7 +1167,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
 
                     /* And tuck in the new relocation. */
                    
-                    nxflat_relocs[nxflat_reloc_count].r_info = NXFLAT_RELOC(reltype, relpp[j]->address);
+                    nxflat_relocs[nxflat_reloc_count].r_info = NXFLAT_RELOC(NXFLAT_RELOC_TYPE_REL32I, relpp[j]->address);
                     nxflat_reloc_count++;
                   }
               }
@@ -1480,10 +1489,10 @@ static struct nxflat_reloc_s *output_relocs(bfd * input_bfd, asymbol ** symbols,
   int rc;
   int i;
 
-  *n_relocs = 0;
-  nxflat_relocs = NULL;
+  *n_relocs          = 0;
+  nxflat_relocs      = NULL;
   nxflat_reloc_count = 0;
-  rc = 0;
+  rc                 = 0;
 
   vdbg("Before map high mark %08x cooked %08x raw %08x \n",
       (int)bss_info.high_mark, (int)bss_info.subsect[0]->COOKED_SIZE,
@@ -1637,19 +1646,16 @@ static void show_usage(void)
   fprintf(stderr, "Where options are one or more of the following.  Note\n");
   fprintf(stderr, "that a space is always required between the option and\n");
   fprintf(stderr, "any following arguments.\n\n");
-  fprintf(stderr, "  -d Use dynamic symbol table [symtab]\n");
+  fprintf(stderr, "  -d Use dynamic symbol table [Default: symtab]\n");
   fprintf(stderr, "  -e <entry-point>\n");
-  fprintf(stderr, "     Entry point to module [%s for executable]\n",
+  fprintf(stderr, "     Entry point to module [Default: %s]\n",
           default_exe_entry_name);
-  fprintf(stderr, "     NULL for shared library\n");
   fprintf(stderr, "  -o <out-filename>\n");
-  fprintf(stderr, "     Output to <out-filename> [<bfd-filename>.xflt]\n");
+  fprintf(stderr, "     Output to <out-filename> [Default: <bfd-filename>.nxf]\n");
   fprintf(stderr, "  -s <stack-size>\n");
-  fprintf(stderr, "     Set stack size to <stack-size>.  Ignored if -l also\n");
-  fprintf(stderr, "     selected. [%d]\n", DEFAULT_STACK_SIZE);
-  fprintf(stderr, "  -v Verbose output [no verbose output]\n");
-  fprintf(stderr, "     If -v is applied twice, additional debug output\n");
-  fprintf(stderr, "     be enabled.\n");
+  fprintf(stderr, "     Set stack size to <stack-size> [Default: %d]\n", DEFAULT_STACK_SIZE);
+  fprintf(stderr, "  -v Verbose outpu.t If -v is applied twice, additional\n");
+  fprintf(stderr, "     debug output is enabled [Default: no verbose output].\n");
   fprintf(stderr, "\n");
   exit(2);
 }
@@ -1683,7 +1689,6 @@ static void parse_args(int argc, char **argv)
     {
       switch (opt)
         {
-
         case 'd':
           dsyms++;
           break;
@@ -1801,29 +1806,29 @@ int main(int argc, char **argv, char **envp)
       dbg("Reading section %s\n", s->name);
 
       /* ignore blatantly useless sections */
-      if (is_unwanted_section(s))
-        continue;
 
-      if (s->flags == SEC_ALLOC)
+      if (!is_unwanted_section(s))
         {
-          vdbg("  Section %s is ALLOC only\n", s->name);
-          register_section(s, &bss_info);
-          continue;
+          if (s->flags == SEC_ALLOC)
+            {
+              vdbg("  Section %s is ALLOC only\n", s->name);
+              register_section(s, &bss_info);
+            }
+          else if ((s->flags & SEC_CODE) != 0 && (s->flags & SEC_ALLOC) != 0)
+            {
+              vdbg("  Section %s is CODE\n", s->name);
+              register_section(s, &text_info);
+            }
+          else if ((s->flags & SEC_DATA) != 0 && (s->flags & SEC_ALLOC) != 0)
+            {
+              vdbg("  Section %s is DATA\n", s->name);
+              register_section(s, &data_info);
+            }
+          else
+            {
+              vdbg("WARNING: ignoring section %s\n", s->name);
+            }
         }
-      if ((s->flags & SEC_CODE) && (s->flags & SEC_ALLOC))
-        {
-          vdbg("  Section %s is CODE\n", s->name);
-          register_section(s, &text_info);
-          continue;
-        }
-      if ((s->flags & SEC_DATA) && (s->flags & SEC_ALLOC))
-        {
-          vdbg("  Section %s is DATA\n", s->name);
-          register_section(s, &data_info);
-          continue;
-        }
-
-      vdbg("WARNING: ignoring section %s\n", s->name);
     }
 
   /* Fixup high and low water VMA address */
@@ -1925,9 +1930,9 @@ int main(int argc, char **argv, char **envp)
 
   reloc = (u_int32_t*)output_relocs(bf, symbol_table, number_of_symbols, &reloc_len);
 
-  /* Fill in the xFLT file header */
+  /* Fill in the NXFLAT file header */
 
-  memcpy(hdr.h_magic, "xFLT", 4);
+  memcpy(hdr.h_magic, NXFLAT_MAGIC, 4);
 
   put_xflat32(&hdr.h_datastart, NXFLAT_HDR_SIZE + text_info.size);
   put_xflat32(&hdr.h_dataend, NXFLAT_HDR_SIZE + text_info.size + data_info.size);
@@ -1966,7 +1971,7 @@ int main(int argc, char **argv, char **envp)
     {
       out_filename = malloc(strlen(bfd_filename) + 5);  /* 5 to add suffix */
       strcpy(out_filename, bfd_filename);
-      strcat(out_filename, ".xflt");
+      strcat(out_filename, ".nxf");
     }
 
   fd = open(out_filename, O_WRONLY | O_PLATFORM | O_CREAT | O_TRUNC, 0744);

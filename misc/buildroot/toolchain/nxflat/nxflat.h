@@ -62,55 +62,73 @@
  ****************************************************************************/
 
 struct nxflat_hdr_s
-  {
-    /* The "magic number" identifying the file type.  This field should contain
-     * "NxFT". NOTE that there is no other versioning information other than
-     * this magic number. */
+{
+  /* The "magic number" identifying the file type.  This field should contain
+   * "NxFT". NOTE that there is no other versioning information other than
+   * this magic number.
+   */
 
-    char h_magic[4];
+  char h_magic[4];
 
-    /* The following fields provide the memory map for the nxflat binary.
-     * h_entry - Offset to the the first executable insruction from the
-     * beginning of the file. h_datastart - Offset to the beginning of the data 
-     * segment from the beginning of the file.  This field can also interpreted 
-     * as the size of the ISpace segment. h_dataend - Offset to the end of the
-     * data segment from the beginning of the file. h_bssend - Offset to the
-     * end of bss segment from the beginning of the file. The text segment can 
-     * be considered to be the contiguous (unrelocated) address space range
-     * from address zero through (but not including) h_datastart. The size of
-     * the data/bss segment includes (as a minimum) the data and bss regions
-     * (bss_end - data_start) as well as the size of the stack.  At run time,
-     * this region will also include program arguments and environement
-     * variables. The bss segment is data_end through bss_end. */
+  /* The following fields provide the memory map for the nxflat binary.
+   *
+   * h_entry      - Offset to the the first executable insruction from
+   *                the beginning of the file.
+   * h_datastart  - Offset to the beginning of the data segment from
+   *                the beginning of the file.  This field can also
+   *                interpreted as the size of the ISpace segment.
+   * h_dataend    - Offset to the end of the data segment from the
+   *                beginning of  the file.
+   * h_bssend     - Offset to the end of bss segment from the beginning
+   *                of the file.
+   *
+   * The text segment can be considered to be the contiguous (unrelocated)
+   * address space range from address zero through (but not including)
+   * h_datastart.
+   *
+   * The size of the data/bss segment includes (as a minimum) the data
+   * and bss regions (bss_end - data_start) as well as the size of the
+   * stack.  At run time, this region will also include program arguments
+   * and environement variables.
+   * 
+   * The bss segment is data_end through bss_end.
+   */
 
-    u_int32_t h_entry;
-    u_int32_t h_datastart;
-    u_int32_t h_dataend;
-    u_int32_t h_bssend;
+  u_int32_t h_entry;
+  u_int32_t h_datastart;
+  u_int32_t h_dataend;
+  u_int32_t h_bssend;
 
-    /* Size of stack, in bytes */
+  /* Size of stack, in bytes */
 
-    u_int32_t h_stacksize;
+  u_int32_t h_stacksize;
 
-    /* Relocation entries h_relocstart - Offset to the beginning of an array of 
-     * relocation records (struct nxflat_reloc).  The offset is relative to the 
-     * start of the file h_reloccount - The number of relocation records in the 
-     * arry */
+  /* Relocation entries:
+   *
+   * h_relocstart - Offset to the beginning of an array of relocation
+   *                records (struct nxflat_reloc).  The offset is
+   *                relative to the start of the file
+   * h_reloccount - The number of relocation records in the arry
+   */
 
-    u_int32_t h_relocstart;     /* Offset of relocation records */
-    u_int32_t h_reloccount;     /* Number of relocation records */
+  u_int32_t h_relocstart;     /* Offset of relocation records */
+  u_int32_t h_reloccount;     /* Number of relocation records */
 
-    /* Imported symbol table (NOTE no symbols are exported) h_importsymbols -
-     * Offset to the beginning of an array of imported symbol structures
-     * (struct nxflat_import).  The h_importsymbols offset is relative to the
-     * beginning of the file.  Each entry of the array contains an u_int32_t
-     * offset (again from the beginning of the file) to the name of a symbol
-     * string.  This string is null-terminated. h_importcount - The number of
-     * records in the h_exportsymbols array. */
+  /* Imported symbol table (NOTE no symbols are exported):
+   *
+   * h_importsymbols - Offset to the beginning of an array of imported
+   *                   symbol structures (struct nxflat_import).  The
+   *                   h_importsymbols offset is relative to the
+   *                   beginning of the file.  Each entry of the
+   *                   array contains an uint32 offset (again from
+   *                   the beginning of the file) to the name of
+   *                   a symbol string.  This string is null-terminated.
+   * h_importcount   - The number of records in the h_exportsymbols array.
+   */
 
-    u_int32_t h_importsymbols;  /* Offset to list of imported symbols */
-    u_int16_t h_importcount;    /* Number of imported symbols */
-  };
+  u_int32_t h_importsymbols;  /* Offset to list of imported symbols */
+  u_int16_t h_importcount;    /* Number of imported symbols */
+};
 
 /****************************************************************************
  * NXFLAT Relocation types.
@@ -119,33 +137,46 @@ struct nxflat_hdr_s
  ****************************************************************************/
 
 struct nxflat_reloc_s
-  {
-    u_int32_t r_info;           /* Bit-encoded relocation info */
-  };
+{
+  u_int32_t r_info;           /* Bit-encoded relocation info */
+};
 
 /* Pack the type and the offset into one 32-bit value */
 
-#define NXFLAT_RELOC(t,o)       (((u_int32_t)((t) & 3) << 28) | ((o) & 0x1fffffff))
+#define NXFLAT_RELOC(t,o)       (((u_int32_t)((t) & 3) << 30) | ((o) & 0x1fffffff))
 
 /* The top three bits of the relocation info is the relocation type (see the
  * NXFLAT_RELOC_TYPE_* definitions below.  This is an unsigned value.
  */
 
-#define NXFLAT_RELOC_TYPE(r)    ((u_int32_t)(r) >> 28)
+#define NXFLAT_RELOC_TYPE(r)    ((u_int32_t)(r) >> 30)
 
 /* The bottom 28 bits of the relocation info is the (non-negative) offset into
  * the D-Space that needs the fixup.
  */
 
-#define NXFLAT_RELOC_OFFSET(r)  ((u_int32_t)(r) & 0x1fffffff)
+#define NXFLAT_RELOC_OFFSET(r)  ((u_int32_t)(r) & 0x3fffffff)
 
-/* These are possible values for the relocation type */
+/* These are possible values for the relocation type:
+ *
+ * NXFLAT_RELOC_TYPE_REL32I  Meaning: Object file contains a 32-bit offset
+ *                                    into I-Space at the the offset.
+ *                           Fixup:   Add mapped I-Space address to the offset.
+ * NXFLAT_RELOC_TYPE_REL32D  Meaning: Object file contains a 32-bit offset
+ *                                    into D-Space at the the offset.
+ *                           Fixup:   Add allocated D-Space address to the
+ *                                    offset.
+ * NXFLAT_RELOC_TYPE_ABS32   Meaning: Offset refers to a struct nxflat_import_s
+ *                                    describing a function pointer to be
+ *                                    imported.
+ *                           Fixup:   Provide the absolute function address
+ *                                    in the struct nxflat_import_s instance.
+ */
 
-#define NXFLAT_RELOC_TYPE_NONE  0     /* Invalid relocation type */
-#define NXFLAT_RELOC_TYPE_TEXT  1     /* Symbol lies in .text region */
-#define NXFLAT_RELOC_TYPE_DATA  2     /* Symbol lies in .data region */
-#define NXFLAT_RELOC_TYPE_BSS   3     /* Symbol lies in .bss region */
-#define NXFLAT_RELOC_TYPE_NUM   4
+#define NXFLAT_RELOC_TYPE_REL32I  0
+#define NXFLAT_RELOC_TYPE_REL32D  1
+#define NXFLAT_RELOC_TYPE_ABS32   2
+#define NXFLAT_RELOC_TYPE_NUM     3 /* Number of relocation types */
 
 /****************************************************************************
  * NXFLAT Imported symbol type 
@@ -155,10 +186,10 @@ struct nxflat_reloc_s
  ****************************************************************************/
 
 struct nxflat_import_s
-  {
-    u_int32_t i_funcname;       /* Offset to name of imported function */
-    u_int32_t i_funcaddress;    /* Resolved address of imported function */
-  };
+{
+  u_int32_t i_funcname;       /* Offset to name of imported function */
+  u_int32_t i_funcaddress;    /* Resolved address of imported function */
+};
 
 #endif /* __TOOLCHAIN_NXFLAT_NXFLAT_H */
 

@@ -39,7 +39,7 @@ LIBS		= -lbfd -liberty -lz
 
 LDNXFLAT_OBJS	= ldnxflat.o
 MKNXFLAT_OBJS	= mknxflat.o
-READNXFLAT_OBJS	= readxflat.o
+READNXFLAT_OBJS	= readnxflat.o
 OBJS		= $(LDNXFLAT_OBJS) $(MKNXFLAT_OBJS) $(READNXFLAT_OBJS)
 
 BIN		= ldnxflat mknxflat readnxflat
