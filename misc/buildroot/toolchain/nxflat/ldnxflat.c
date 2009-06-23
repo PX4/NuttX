@@ -200,6 +200,14 @@ typedef struct _segment_info
 
 typedef void (*func_type) (asymbol * sym, void *arg1, void *arg2, void *arg3);
 
+/* This structure defines the got entry for one symbol */
+
+struct nxflat_got_s
+{
+  asymbol   *sym;                /* Symbol */
+  u_int32_t  offset;             /* GOT offset for this symbol */
+};
+
 /***********************************************************************
  * Private Variable Data
  ***********************************************************************/
@@ -225,6 +233,10 @@ static int32_t number_of_symbols = 0;
 static asymbol *entry_symbol = NULL;
 static asymbol *dynimport_begin_symbol = NULL;
 static asymbol *dynimport_end_symbol = NULL;
+
+static struct nxflat_got_s *got_offsets; /* realloc'ed array of GOT entry descriptions */
+static u_int32_t got_size;                /* The size of the GOT to be allocated */
+int    ngot_offsets;                      /* Number of GOT offsets in got_offsets[] */
 
 /***********************************************************************
  * Private Constant Data
@@ -309,6 +321,57 @@ static void inline put_xflat16(u_int16_t * addr16, u_int16_t val16)
 }
 
 /***********************************************************************
+ * nxflat_write
+ ***********************************************************************/
+
+static void nxflat_write(int fd, const char *buffer, int buflen)
+{
+  vdbg("Writing fd: %d buffer: %p buflen: %d\n", fd, buffer, buflen);
+
+  /* Dump the entire buffer if very strong debug is selected */
+
+  if (verbose > 2)
+    {
+      static int offset = 0;
+      const unsigned char *ptr = (const unsigned char *)buffer;
+      int i;
+      int j;
+
+      for (i = 0; i < buflen; i += 32)
+        {
+          printf("%08x:", offset + i);
+          for (j = 0; j < 32 && (i + j) < buflen; j++)
+            {
+              printf(" %02x", *ptr++);
+            }
+          printf("\n");
+        }
+      offset += buflen;
+    }
+
+  /* Write the data to file, handling errors and interruptions */
+
+  do
+    {
+      ssize_t nwritten = write(fd, buffer, buflen);
+      if (nwritten < 0)
+        {
+           if (errno != EINTR)
+             {
+               err("Write to output file failed: %s\n", strerror(errno));
+               exit(1);
+             }
+        }
+      else
+        {
+           buffer += nwritten;
+           buflen -= nwritten;
+        }
+    }
+  while (buflen > 0);
+}
+
+/***********************************************************************
  * get_symbols
  ***********************************************************************/
 
@@ -335,7 +398,7 @@ static asymbol **get_symbols(bfd * abfd, int32_t * num)
       return NULL;
     }
 
-  symbol_table = (asymbol **) malloc(storage_needed);
+  symbol_table = (asymbol**)malloc(storage_needed);
 
   if (dsyms)
     {
@@ -433,8 +496,8 @@ static void inline find_special_symbols(void)
  ***********************************************************************/
 
 static void
-put_special_symbol(asymbol * begin_sym, asymbol * end_sym,
-                   u_int32_t * addr, u_int16_t * count,
+put_special_symbol(asymbol *begin_sym, asymbol *end_sym,
+                   u_int32_t *addr, u_int16_t *count,
                    u_int32_t elem_size, u_int32_t offset)
 {
   u_int32_t file_offset = 0;
@@ -447,6 +510,8 @@ put_special_symbol(asymbol * begin_sym, asymbol * end_sym,
 
   if (begin_sym != NULL)
     {
+      vdbg("begin: '%s' end: '%s' offset: %08lx\n", begin_sym->name, end_sym->name, NXFLAT_HDR_SIZE+offset);
+
       /* Get the value of the beginning symbol and the section that it is
        * defined in. */
 
@@ -676,23 +741,75 @@ static int get_reloc_type(asection *sym_section, segment_info **sym_segment)
 }
 
 /***********************************************************************
+ * find_got_entry
+ ***********************************************************************/
+
+/* Find the GOT entry for a particular symbol index */
+
+static struct nxflat_got_s *find_got_entry(asymbol *sym)
+{
+  int i;
+  for (i = 0; i < ngot_offsets; i++)
+    {
+      if (got_offsets[i].sym == sym)
+        {
+           return &got_offsets[i];
+        }
+    }
+  return NULL;
+}
+
+/***********************************************************************
+ * alloc_got_entry
+ ***********************************************************************/
+
+/* Allocate a new got entry */
+
+static void alloc_got_entry(asymbol *sym)
+{
+  struct nxflat_got_s *newgot;
+  int noffsets;
+
+  /* First, make sure that we don't already have an entry for this symbol */
+
+  if (find_got_entry(sym) == 0)
+    {
+      /* Realloc the array of GOT offsets to hold one more */
+
+      noffsets = ngot_offsets + 1;
+      newgot = (struct nxflat_got_s *)realloc(got_offsets, sizeof(struct nxflat_got_s) * noffsets);
+      if (!newgot)
+        {
+           err("Failed to extend the GOT offset table. noffsets: %d\n", noffsets);
+        }
+      else
+        {
+          /* Add the new symbol offset to the end of the reallocated table */
+
+          newgot[ngot_offsets].sym    = sym;
+          newgot[ngot_offsets].offset = got_size;
+
+          /* Update counts and sizes */
+
+          got_offsets   = newgot;
+          ngot_offsets  = noffsets;
+          got_size      = sizeof(u_int32_t) * noffsets;
+        }
+    }
+}
+
+/***********************************************************************
  * resolve_segment_relocs
  ***********************************************************************/
 
 static void
-resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
-                       u_int32_t * n_relocs, struct nxflat_reloc_s **relocs)
+resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
 {
-  struct nxflat_reloc_s *nxflat_relocs;
   arelent **relpp;
-  u_int32_t nxflat_reloc_count;
   int relsize;
   int relcount;
   int i;
   int j;
-
-  nxflat_relocs      = *relocs;
-  nxflat_reloc_count = *n_relocs;
 
   for (i = 0; i < inf->nsubsects; i++)
     {
@@ -712,7 +829,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
           continue;
         }
 
-      relpp = (arelent **) malloc((size_t) relsize);
+      relpp = (arelent**)malloc((size_t) relsize);
       relcount = bfd_canonicalize_reloc(input_bfd, inf->subsect[i], relpp, syms);
 
       if (relcount < 0)
@@ -735,16 +852,26 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
 
           /* If the symbol is a thumb function, then set bit 1 of the value */
 
-         sym_value = rel_sym->value;
-#ifdef NXFLAT_ARM
-         if ((((elf_symbol_type *)rel_sym)->internal_elf_sym.st_info & 0x0f) == STT_ARM_TFUNC)
+          sym_value = rel_sym->value;
+#ifdef NXFLAT_THUMB2
+          if ((((elf_symbol_type *)rel_sym)->internal_elf_sym.st_info & 0x0f) == STT_ARM_TFUNC)
             {
-              sym_value |= 1;
+               sym_value |= 1;
             }
+          else
 #endif
 
-          dbg("rel %d: sym [%20s] s_addr @ %08x rel %08x how %s\n",
-               j, rel_sym->name, (int)relpp[j]->address,
+          /* If the symbol lies in D-Space, then we need to add the size of the GOT
+           * table to the symbol value
+           */
+
+          if ((rel_section->flags & SEC_CODE) == 0 && (rel_section->flags & SEC_ALLOC) != 0)
+            {
+              sym_value += got_size;
+            }
+
+          dbg("rel %-3d: sym [%20s] s_addr @ %08x val %08x-%08x rel %08x how %s\n",
+               j, rel_sym->name, (int)relpp[j]->address, (int)rel_sym->value, (int)sym_value,
                (int)relpp[j]->addend, how_to->name);
 
           switch (how_to->type)
@@ -760,7 +887,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
 
                 /* Can't fix what we ain't got */
 
-                if (!(SEC_IN_MEMORY & rel_sym->section->flags))
+                if ((SEC_IN_MEMORY & rel_sym->section->flags) == 0)
                   {
                     err("Section %s not loaded into mem!\n", rel_sym->section->name);
                     exit(1);
@@ -768,13 +895,13 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
 
                 /* PC24 -> can only fix text to text refs */
 
-                if (!(SEC_CODE & rel_sym->section->flags))
+                if ((SEC_CODE & rel_sym->section->flags) == 0)
                   {
                     err("Section %s not code!\n", rel_sym->section->name);
                     exit(1);
                   }
 
-                if (!(SEC_CODE & inf->subsect[i]->flags))
+                if ((SEC_CODE & inf->subsect[i]->flags) == 0)
                   {
                     err("Section %s not code!\n", rel_sym->section->name);
                     exit(1);
@@ -854,8 +981,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
 
                 /* ABS32 links from .text are easy - since the fetches will */
                 /* always be base relative. the ABS32 refs from data will be */
-                /* handled the same, with an appropriate reloc record for */
-                /* the load_flat_binary() kernel routine to handle */
+                /* handled the same */
 
                 if (verbose > 1)
                   {
@@ -883,28 +1009,24 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
 #else
                 saved = temp = *target;
 #endif
-                /* mask */
+                /* Mask */
 
                 temp &= how_to->src_mask;
 
-                /* sign extend */
+                /* Sign extend */
 
                 temp <<= (32 - how_to->bitsize);
                 temp >>= (32 - how_to->bitsize);
 
-                /* offset */
+                /* Offset */
 
-                temp += (sym_value + rel_sym->section->vma) >>
-                  how_to->rightshift;
+                temp += (sym_value + rel_sym->section->vma) >> how_to->rightshift;
 
-                /* demote */
-                /* temp >>= how_to->rightshift; */
-
-                /* mask upper bits from rollover */
+                /* Mask upper bits from rollover */
 
                 temp &= how_to->dst_mask;
 
-                /* replace data that was masked */
+                /* Replace data that was masked */
 
                 temp |= saved & (~how_to->dst_mask);
 
@@ -914,28 +1036,6 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
 #else
                 *target = temp;
 #endif
-                if ((inf->subsect[i]->flags & SEC_DATA) &&
-                    (inf->subsect[i]->flags & SEC_ALLOC))
-                  {
-                    int reltype;
-
-                    vdbg("ABS32 relocation in DATA -- generating NXFLAT relo info\n");
-
-                    /* Locate the address referred to by section type. */
-
-                    reltype = get_reloc_type(rel_section, NULL);
-
-                    /* Create space for one more relocation. */
-
-                    nxflat_relocs = realloc(nxflat_relocs,
-                                           (nxflat_reloc_count + 1)
-                                           * sizeof(struct nxflat_reloc_s));
-
-                    /* And tuck in the new relocation. */
-
-                    nxflat_relocs[nxflat_reloc_count].r_info = NXFLAT_RELOC(NXFLAT_RELOC_TYPE_ABS32, relpp[j]->address);
-                    nxflat_reloc_count++;
-                  }
               }
               break;
 
@@ -1034,6 +1134,7 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
               break;
 
             case R_ARM_GOT32:
+            case R_ARM_GOT_PREL:
               {
                 /* Relocation is to the entry for this symbol in the global
                  * offset table. This relocation type is used to set the 32-bit
@@ -1102,17 +1203,6 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                         err("  At addr %08x to sym '%s' [%08x]\n",
                             (int)relpp[j]->address, rel_sym->name, (int)sym_value);
                       }
-
-                    /* Create space for one more relocation. */
-
-                    nxflat_relocs = realloc(nxflat_relocs,
-                                           (nxflat_reloc_count + 1)
-                                           * sizeof(struct nxflat_reloc_s));
-
-                    /* And tuck in the new relocation. */
-                   
-                    nxflat_relocs[nxflat_reloc_count].r_info = NXFLAT_RELOC(NXFLAT_RELOC_TYPE_REL32D, relpp[j]->address);
-                    nxflat_reloc_count++;
 #endif
                   }
                 else
@@ -1158,17 +1248,6 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
                         err("  At addr %08x to sym '%s' [%08x]\n",
                             (int)relpp[j]->address, rel_sym->name, (int)sym_value);
                       }
-
-                    /* Create space for one more relocation. */
-
-                    nxflat_relocs = realloc(nxflat_relocs,
-                                           (nxflat_reloc_count + 1)
-                                           * sizeof(struct nxflat_reloc_s));
-
-                    /* And tuck in the new relocation. */
-                   
-                    nxflat_relocs[nxflat_reloc_count].r_info = NXFLAT_RELOC(NXFLAT_RELOC_TYPE_REL32I, relpp[j]->address);
-                    nxflat_reloc_count++;
                   }
               }
               break;
@@ -1184,12 +1263,90 @@ resolve_segment_relocs(bfd * input_bfd, segment_info * inf, asymbol ** syms,
 
       inf->subsect[i]->flags &= !(SEC_RELOC);
       inf->subsect[i]->reloc_count = 0;
+      free(relpp);
     }
+}
 
-  /* Write reloc record data back out */
+/***********************************************************************
+ * allocate_segment_got
+ ***********************************************************************/
 
-  *relocs = nxflat_relocs;
-  *n_relocs = nxflat_reloc_count;
+/* The GOT lies at the beginning of D-Space.  Before we can process
+ * any relocation data, we need to determine the size of the GOT.
+ */
+
+static void allocate_segment_got(bfd *input_bfd, segment_info *inf, asymbol **syms)
+{
+   arelent **relpp;
+  int relsize;
+  int relcount;
+  int i;
+  int j;
+
+  for (i = 0; i < inf->nsubsects; i++)
+    {
+      relcount = inf->subsect[i]->reloc_count;
+      vdbg("Section %s has %08x relocs\n", inf->subsect[i]->name, relcount);
+
+      if (0 >= relcount)
+        {
+          continue;
+        }
+
+      relsize = bfd_get_reloc_upper_bound(input_bfd, inf->subsect[i]);
+      vdbg("Section %s reloc size: %08x\n", inf->subsect[i]->name, relsize);
+
+      if (0 >= relsize)
+        {
+          continue;
+        }
+
+      relpp    = (arelent**)malloc((size_t) relsize);
+      relcount = bfd_canonicalize_reloc(input_bfd, inf->subsect[i], relpp, syms);
+
+      if (relcount < 0)
+        {
+          err("bfd_canonicalize_reloc failed!\n");
+          exit(1);
+        }
+
+      vdbg("Section %s can'd %08x relocs\n", inf->subsect[i]->name, relcount);
+
+      for (j = 0; j < relcount; j++)
+        {
+          /* Get information about this symbol */
+
+          reloc_howto_type *how_to  = relpp[j]->howto;
+          asymbol          *rel_sym = *relpp[j]->sym_ptr_ptr;
+
+          dbg("rel %-3d: sym [%20s] s_addr @ %08x rel %08x how %s\n",
+               j, rel_sym->name, (int)relpp[j]->address,
+               (int)relpp[j]->addend, how_to->name);
+
+          switch (how_to->type)
+            {
+              case R_ARM_GOT32:
+              case R_ARM_GOT_PREL:
+                /* This symbol requires a global offset table entry.  */
+                {
+                  alloc_got_entry(rel_sym);
+
+                  dbg("  Created GOT entry %d for sym %p (offset %d)\n",
+                      ngot_offsets-1, got_offsets[ngot_offsets-1].sym, got_offsets[ngot_offsets-1].offset);
+                }
+                break;
+
+              case R_ARM_GOTOFF32:
+              case R_ARM_GOTPC:
+                /* These are relative to the GOT, but do not require GOT entries */
+                break;
+
+              default:
+                break;
+            }
+        }
+      free(relpp);
+    }
 }
 
 /***********************************************************************
@@ -1222,7 +1379,7 @@ static void dump_symbol(asymbol * psym)
 
   /* Tag thumb specific attributes */
 
-#ifdef NXFLAT_ARM
+#ifdef NXFLAT_THUMB2
   if ((isym->st_info & 0x0f) == STT_ARM_TFUNC || (isym->st_info & 0x0f) == STT_ARM_16BIT)
     {
       putchar('T');
@@ -1366,6 +1523,9 @@ map_common_symbols(bfd * input_bfd, asymbol ** symbols, int number_of_symbols)
   bss_s = bss_info.subsect[0];
   baseaddr = 0;
 
+  vdbg("Before map high mark %08x cooked %08x raw %08x \n",
+      (int)bss_info.high_mark, (int)bss_info.subsect[0]->COOKED_SIZE,
+      (int)bss_info.subsect[0]->RAW_SIZE);
   vdbg("Checking overlap before mapping\n");
 
   check_symbol_overlap(symbols, number_of_symbols);
@@ -1474,62 +1634,161 @@ map_common_symbols(bfd * input_bfd, asymbol ** symbols, int number_of_symbols)
     }
 
   check_symbol_overlap(symbols, number_of_symbols);
-}
-
-/***********************************************************************
- * output_relocs
- ***********************************************************************/
-
-static struct nxflat_reloc_s *output_relocs(bfd * input_bfd, asymbol ** symbols,
-                                            int number_of_symbols,
-                                            u_int32_t * n_relocs)
-{
-  struct nxflat_reloc_s *nxflat_relocs;
-  u_int32_t nxflat_reloc_count;
-  int rc;
-  int i;
-
-  *n_relocs          = 0;
-  nxflat_relocs      = NULL;
-  nxflat_reloc_count = 0;
-  rc                 = 0;
-
-  vdbg("Before map high mark %08x cooked %08x raw %08x \n",
-      (int)bss_info.high_mark, (int)bss_info.subsect[0]->COOKED_SIZE,
-      (int)bss_info.subsect[0]->RAW_SIZE);
- 
-  /* Unmapped 'common' symbols need to be stuffed into bss */
-
-  map_common_symbols(input_bfd, symbols, number_of_symbols);
 
   vdbg("After map high mark %08x cooked %08x raw %08x \n",
       (int)bss_info.high_mark, (int)bss_info.subsect[0]->COOKED_SIZE,
       (int)bss_info.subsect[0]->RAW_SIZE);
+}
 
-  if (verbose)
+/***********************************************************************
+ * resolve_relocs
+ ***********************************************************************/
+
+static void resolve_relocs(bfd *input_bfd, asymbol **symbols)
+{
+  resolve_segment_relocs(input_bfd, &text_info, symbols);
+  resolve_segment_relocs(input_bfd, &data_info, symbols);
+  resolve_segment_relocs(input_bfd, &bss_info, symbols);
+}
+
+/***********************************************************************
+ * allocate_got
+ ***********************************************************************/
+
+/* The GOT lies at the beginning of D-Space.  Before we can process
+ * any relocation data, we need to determine the size of the GOT.
+ */
+
+static void allocate_got(bfd *input_bfd, asymbol **symbols)
+{
+  allocate_segment_got(input_bfd, &text_info, symbols);
+  allocate_segment_got(input_bfd, &data_info, symbols);
+  allocate_segment_got(input_bfd, &bss_info, symbols);
+}
+
+/***********************************************************************
+ * output_got
+ ***********************************************************************/
+
+/* Pull the sections that make up this segment in off disk */
+
+static void output_got(int fd, struct nxflat_reloc_s **pprelocs)
+{
+  struct nxflat_reloc_s *relocs;
+  u_int32_t *got;
+  int reloc_size;
+  int reloc_type;
+  int i;
+
+  if (ngot_offsets > 0)
     {
-      for (i = 0; i < number_of_symbols; i++)
+      /* Allocate memory for the GOT */
+
+      got = (u_int32_t*)malloc(got_size);
+      if (!got)
         {
-          message("sym[%04d] ", i);
-          dump_symbol(symbols[i]);
+           err("Failed to allocate memory for the GOT (%d bytes, %d offsets)\n",
+               got_size, ngot_offsets);
+           exit(1);
         }
+
+      /* Allocate memory for the relocations */
+
+      reloc_size = sizeof(struct nxflat_reloc_s) * ngot_offsets;
+      relocs = (struct nxflat_reloc_s*)malloc(reloc_size);
+      if (!relocs)
+        {
+           err("Failed to allocate memory for the GOT relocations (%d bytes, %d relocations)\n",
+               reloc_size, ngot_offsets);
+           exit(1);
+        }
+
+      /* Then initialize the GOT contents with the value associated with each symbol */
+
+      for (i = 0; i < ngot_offsets; i++)
+        {
+          asymbol  *rel_sym     = got_offsets[i].sym;
+          asection *rel_section = rel_sym->section;
+          symvalue  sym_value   = rel_sym->value;
+
+          /* If the symbol is a thumb function, then set bit 1 of the value */
+
+#ifdef NXFLAT_THUMB2
+          if ((((elf_symbol_type *)rel_sym)->internal_elf_sym.st_info & 0x0f) == STT_ARM_TFUNC)
+            {
+               sym_value |= 1;
+            }
+          else
+#endif
+            {
+              /* If the symbol lies in D-Space, then we need to add the size of the GOT
+               * table to the symbol value
+               */
+
+              switch (get_reloc_type(rel_section, NULL))
+                {
+                case NXFLAT_RELOC_TARGET_BSS:
+                case NXFLAT_RELOC_TARGET_DATA:
+                  {
+                    reloc_type = NXFLAT_RELOC_TYPE_REL32D;
+                    sym_value += got_size;
+                  }
+                  break;
+
+                case NXFLAT_RELOC_TARGET_TEXT:
+                  {
+                    reloc_type = NXFLAT_RELOC_TYPE_REL32I;
+                    sym_value += got_size;
+                  }
+                  break;
+
+                case NXFLAT_RELOC_TARGET_UNKNOWN:
+                default:
+                  {
+                    err("Relocation type is unknown\n");
+                    exit(1);
+                  }
+                }
+            }
+
+          /* Then save the symbol offset in the got */
+
+          got[i] = sym_value;
+          vdbg("GOT[%d]: sym '%s' value %08x->%08x\n",
+                i, rel_sym->name, (int)rel_sym->value, (int)sym_value);
+
+          /* And output the relocation information associate with the GOT entry */
+
+          relocs[i].r_info = NXFLAT_RELOC(reloc_type, sizeof(u_int32_t) * i);
+ 
+          vdbg("GOT[%d]: sym %s value %08x->%08x reloc type %d\n",
+                i, rel_sym->name, (int)rel_sym->value, (int)sym_value, reloc_type);
+        }
+
+      /* Write the GOT on the provided file descriptor */
+
+      if (verbose > 1)
+        {
+           printf("GOT:\n");
+           for (i = 0; i < ngot_offsets; i++)
+             {
+               printf("  Offset %-3ld: %08x\n", sizeof(u_int32_t) * i, got[i]);
+             }
+
+           printf("Got Relocations:\n");
+           for (i = 0; i < ngot_offsets; i++)
+             {
+               printf("  Offset %-3ld: %08x\n", sizeof(struct nxflat_reloc_s) * i, relocs[i].r_info);
+             }
+        }
+
+      nxflat_write(fd, (const char *)got, got_size);
+      free(got);
+
+      /* Return the relocation table */
+
+      *pprelocs = relocs;
     }
-
-  /* Stuff the addrs into the code (and data) */
-
-  resolve_segment_relocs(input_bfd, &text_info, symbols,
-                         &nxflat_reloc_count, &nxflat_relocs);
-  resolve_segment_relocs(input_bfd, &data_info, symbols,
-                         &nxflat_reloc_count, &nxflat_relocs);
-  resolve_segment_relocs(input_bfd, &bss_info, symbols,
-                         &nxflat_reloc_count, &nxflat_relocs);
-
-  *n_relocs = nxflat_reloc_count;
-
-  /* Need to emit relocs for data only */
-
-  vdbg(" returning %d relocs\n", nxflat_reloc_count);
-  return nxflat_relocs;
 }
 
 /***********************************************************************
@@ -1583,30 +1842,34 @@ static void dump_sections(segment_info * inf)
  * load_sections
  ***********************************************************************/
 
-/* Pull the sections that make up this segment in off disk.  */
-static void load_sections(bfd * bfd, segment_info * inf)
+/* Pull the sections that make up this segment in off disk */
+
+static void load_sections(bfd *bfd, segment_info *inf)
 {
-  int i;
   void *ptr;
-  if (!inf->size)
-    return;                     /* Nothing to do */
-  inf->contents = malloc(inf->size);
-  if (!inf->contents)
+  int i;
+
+  if (inf->size > 0)
     {
-      err("Out of memory.\n");
-      exit(1);
-    }
-  ptr = inf->contents;
-  for (i = 0; i < inf->nsubsects; i++)
-    {
-      if (!bfd_get_section_contents(bfd, inf->subsect[i], ptr,
-                                    0, inf->subsect[i]->COOKED_SIZE))
+      inf->contents = malloc(inf->size);
+      if (!inf->contents)
         {
-          err("Failed to read section contents.\n");
+          err("Failed to allocatte memory for section contents.\n");
           exit(1);
         }
-      ptr += inf->subsect[i]->COOKED_SIZE;
-      inf->subsect[i]->flags |= SEC_IN_MEMORY;
+
+      ptr = inf->contents;
+      for (i = 0; i < inf->nsubsects; i++)
+        {
+          if (!bfd_get_section_contents(bfd, inf->subsect[i], ptr,
+                                        0, inf->subsect[i]->COOKED_SIZE))
+            {
+              err("Failed to read section contents.\n");
+              exit(1);
+            }
+          ptr += inf->subsect[i]->COOKED_SIZE;
+          inf->subsect[i]->flags |= SEC_IN_MEMORY;
+        }
     }
 }
 
@@ -1748,17 +2011,15 @@ static void parse_args(int argc, char **argv)
 
 int main(int argc, char **argv, char **envp)
 {
-  int fd;
+  struct nxflat_hdr_s hdr;
+  struct nxflat_reloc_s *reloc;
   bfd *bf;
   asection *s;
-
   asymbol **symbol_table;
   int32_t number_of_symbols;
-
-  u_int32_t reloc_len;
-  u_int32_t *reloc;
-
-  struct nxflat_hdr_s hdr;
+  u_int32_t offset;
+  int fd;
+  int i;
 
   /* Parse the incoming command line */
 
@@ -1922,50 +2183,61 @@ int main(int argc, char **argv, char **envp)
       dump_sections(&bss_info);
     }
 
-  /* Slurp the section contents in.  No need to load BSS since we know * it
+  /* Slurp the section contents in.  No need to load BSS since we know it
    * isn't initialised. */
 
   load_sections(bf, &text_info);
   load_sections(bf, &data_info);
 
-  reloc = (u_int32_t*)output_relocs(bf, symbol_table, number_of_symbols, &reloc_len);
+  /* Unmapped 'common' symbols need to be stuffed into bss */
+
+  map_common_symbols(bf, symbol_table, number_of_symbols);
+
+  /* Dump symbol information */
+
+  if (verbose)
+    {
+      for (i = 0; i < number_of_symbols; i++)
+        {
+          message("sym[%04d] ", i);
+          dump_symbol(symbol_table[i]);
+        }
+    }
+
+  /* The GOT lies at the beginning of D-Space.  Before we can process
+   * any relocation data, we need to determine the size of the GOT.
+   */
+
+  allocate_got(bf, symbol_table);
+
+  /* Then process all of the relocations */
+
+  resolve_relocs(bf, symbol_table);
 
   /* Fill in the NXFLAT file header */
 
   memcpy(hdr.h_magic, NXFLAT_MAGIC, 4);
 
-  put_xflat32(&hdr.h_datastart, NXFLAT_HDR_SIZE + text_info.size);
-  put_xflat32(&hdr.h_dataend, NXFLAT_HDR_SIZE + text_info.size + data_info.size);
-  put_xflat32(&hdr.h_bssend,
-              NXFLAT_HDR_SIZE + text_info.size + data_info.size +
-              bss_info.size);
-  put_xflat32(&hdr.h_stacksize, stack_size);     /* FIXME */
-  put_xflat32(&hdr.h_relocstart,
-              NXFLAT_HDR_SIZE + text_info.size + data_info.size);
-  put_xflat32(&hdr.h_reloccount, reloc_len);
+  offset = NXFLAT_HDR_SIZE + text_info.size;
+  put_xflat32(&hdr.h_datastart, offset);
+
+  offset += got_size + data_info.size;
+  put_xflat32(&hdr.h_dataend, offset);
+  put_xflat32(&hdr.h_relocstart, offset);
+
+  offset += bss_info.size;
+  put_xflat32(&hdr.h_bssend, offset);
+
+  put_xflat32(&hdr.h_stacksize, stack_size);
+  put_xflat32(&hdr.h_reloccount, ngot_offsets);
 
   put_entry_point(&hdr);
 
-  put_special_symbol(dynimport_begin_symbol,
-                     dynimport_end_symbol,
-                     &hdr.h_importsymbols,
-                     &hdr.h_importcount,
-                     sizeof(struct nxflat_import_s), text_info.size);
+  put_special_symbol(dynimport_begin_symbol, dynimport_end_symbol,
+                     &hdr.h_importsymbols, &hdr.h_importcount,
+                     sizeof(struct nxflat_import_s), text_info.size + got_size);
 
- #ifdef RELOCS_IN_NETWORK_ORDER
-  {
-    int i;
-    for (i = 0; i < reloc_len; i++)
-      {
-        reloc[i] = htonl(reloc[i]);
-      }
-  }
-#endif
-
-  if (reloc)
-    {
-      vdbg("reloc size: %04x\n", reloc_len);
-    }
+  /* Open the output file */
 
   if (!out_filename)
     {
@@ -1981,16 +2253,36 @@ int main(int argc, char **argv, char **envp)
       exit(4);
     }
 
-  write(fd, &hdr, sizeof(hdr));
-  write(fd, text_info.contents, text_info.size);
-  write(fd, data_info.contents, data_info.size);
+  /* Write the data in the following order in order to match the NXFLAT header
+   * offsets:  HDR, ISPACE, GOT, DSPACE, RELOCS.
+   */
+
+  nxflat_write(fd, (const char *)&hdr, NXFLAT_HDR_SIZE);
+  nxflat_write(fd, (const char *)text_info.contents, text_info.size);
+
+  reloc = NULL;
+  if (ngot_offsets > 0)
+    {
+      output_got(fd, &reloc);
+    }
+
+  nxflat_write(fd, (const char *)data_info.contents, data_info.size);
 
   if (reloc)
     {
-      write(fd, reloc, reloc_len * 4);
+      vdbg("Number of GOT relocations: %d\n", ngot_offsets);
+
+#ifdef RELOCS_IN_NETWORK_ORDER
+      for (i = 0; i < ngot_offsets; i++)
+        {
+          reloc[i] = htonl(reloc[i]);
+        }
+#endif
+      nxflat_write(fd, (const char *)reloc, sizeof(struct nxflat_reloc_s) * ngot_offsets);
     }
 
-  close(fd);
+  /* Finished! */
 
+  close(fd);
   exit(0);
 }

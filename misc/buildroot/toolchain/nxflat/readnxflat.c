@@ -48,9 +48,11 @@
 /***********************************************************************
  * Included Files
  ***********************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include <ctype.h>
 #include <errno.h>
 #include <netinet/in.h>         /* ntohl and friends */
@@ -242,6 +244,7 @@ static void disassemble_text(FILE * in_stream, struct nxflat_hdr_s *header)
       printf("\nXFLAT TEXT:\n\n");
 
       /* Seek to the beginning of text in the file */
+
       if (fseek(in_stream, text_start, SEEK_SET) != 0)
         {
           fprintf(stderr,
@@ -312,8 +315,8 @@ static void dump_imported_symbols(FILE *in_stream, struct nxflat_hdr_s *header)
         {
           fprintf(stderr, "ERROR: fseek to imported symbol %d struct failed\n",
                   i);
-          fprintf(stderr, "       struct_offset: %d, errno: %d\n", struct_offset,
-                  errno);
+          fprintf(stderr, "       struct_offset: %d: %s\n",
+                  struct_offset, strerror(errno));
           exit(1);
         }
 
@@ -321,11 +324,19 @@ static void dump_imported_symbols(FILE *in_stream, struct nxflat_hdr_s *header)
 
       status = fread((void *)&import,
                      sizeof(struct nxflat_import_s), 1, in_stream);
-
       if (status != 1)
         {
-          fprintf(stderr, "ERROR: Read imported symbol %d struct failed, "
-                  "errno: %d\n", i + 1, errno);
+          if (ferror(in_stream))
+            {
+              fprintf(stderr, "ERROR: Read imported symbol %d struct failed: %s\n",
+                      i + 1, strerror(errno));
+            }
+          else
+            {
+              fprintf(stderr, "ERROR: Read imported symbol %d struct: End-of-file after %d\n",
+                      i + 1, struct_offset);
+            }
+
           exit(1);
         }
 
@@ -339,19 +350,20 @@ static void dump_imported_symbols(FILE *in_stream, struct nxflat_hdr_s *header)
         {
           /* Print the raw info */
 
-          printf("[%4d %08x %08x]\n",
-                 i + 1, import.i_funcaddress, import.i_funcname);
+          printf("[Import: %4d Offset: %08x Name: %08x Address: %08x]\n",
+                 i + 1, struct_offset, import.i_funcname, import.i_funcaddress);
         }
 
       /* Seek to the function name in the file */
 
       name_offset = import.i_funcname + NXFLAT_HDR_SIZE;
-      if (0 != fseek(in_stream, name_offset, SEEK_SET))
+
+      if (fseek(in_stream, name_offset, SEEK_SET) != 0)
         {
           fprintf(stderr, "ERROR: fseek to imported symbol %d name failed\n",
                   i);
-          fprintf(stderr, "       name_offset: %d, errno: %d\n",
-                  name_offset, errno);
+          fprintf(stderr, "       name_offset: %d %s\n",
+                  name_offset, strerror(errno));
           exit(1);
         }
 
@@ -360,12 +372,22 @@ static void dump_imported_symbols(FILE *in_stream, struct nxflat_hdr_s *header)
 
       status = fread((void *)imported_symbol_name, NXFLAT_MAX_STRING_SIZE,
                      1, in_stream);
+
       if (status != 1)
         {
-          fprintf(stderr, "ERROR: Read imported symbol %d name failed, "
-                  "errno: %d\n", i + 1, errno);
+          if (ferror(in_stream))
+            {
+              fprintf(stderr, "ERROR: Read imported symbol %d name failed: %s\n",
+                      i + 1, strerror(errno));
+            }
+          else
+            {
+              fprintf(stderr, "ERROR: Read imported symbol %d name: End-of-file after offset=%d\n",
+                      i + 1, name_offset);
+            }
           exit(1);
         }
+
       imported_symbol_name[NXFLAT_MAX_STRING_SIZE - 1] = '\0';
 
       /* And print it */
@@ -399,8 +421,8 @@ static void dump_relocation_entries(FILE * in_stream, struct nxflat_hdr_s *heade
 
   if (0 != fseek(in_stream, get_nxflat32(&header->h_relocstart), SEEK_SET))
     {
-      fprintf(stderr, "ERROR: fseek to reloc records failed, errno: %d\n",
-              errno);
+      fprintf(stderr, "ERROR: fseek to reloc records failed: %s\n",
+              strerror(errno));
       exit(1);
     }
 
@@ -414,11 +436,19 @@ static void dump_relocation_entries(FILE * in_stream, struct nxflat_hdr_s *heade
       status = fread((void *)&reloc, sizeof(struct nxflat_reloc_s), 1, in_stream);
       if (status != 1)
         {
-          fprintf(stderr, "Error reading reloc record %d, errno: %d\n",
-                  i + 1, errno);
+          if (ferror(in_stream))
+            {
+              fprintf(stderr, "ERROR: Read reloc record %d: %s\n",
+                      i + 1, strerror(errno));
+            }
+          else
+            {
+              fprintf(stderr, "ERROR: Read reloc record %d: End-of-file\n",
+                      i + 1);
+            }
           exit(1);
         }
-
+ 
 #ifdef RELOCS_IN_NETWORK_ORDER
       {
         u_int32_t *ptmp;
@@ -604,6 +634,7 @@ int main(int argc, char **argv, char **envp)
 {
   FILE *in_stream;
   struct nxflat_hdr_s header;
+  int status;
 
   /* Get the input parameters */
 
@@ -620,9 +651,17 @@ int main(int argc, char **argv, char **envp)
 
   /* Read the FLT header */
 
-  if (1 != fread((void *)&header, sizeof(struct nxflat_hdr_s), 1, in_stream))
+  status = fread((void *)&header, sizeof(struct nxflat_hdr_s), 1, in_stream);
+  if (status != 1)
     {
-      fprintf(stderr, "Error reading flat header\n");
+      if (ferror(in_stream))
+        {
+          fprintf(stderr, "ERROR: Read flat header: %s\n", strerror(errno));
+        }
+      else
+        {
+          fprintf(stderr, "ERROR: Read flat header: End-of-file\n");
+        }
       exit(1);
     }
 
