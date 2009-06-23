@@ -486,10 +486,7 @@ static void inline put_file_prologue(int fd)
 
   if (number_undefined > 0)
     {
-      char frame_size[1024];
-
       put_string(fd, import_prologue);
-      put_string(fd, frame_size);
     }
 }
 
