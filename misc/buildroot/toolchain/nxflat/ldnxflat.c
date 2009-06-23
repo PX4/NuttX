@@ -215,6 +215,7 @@ struct nxflat_got_s
 static int verbose = 0;
 static int dsyms = 0;
 static int stack_size = 0;
+static int nerrors = 0;
 
 static int32_t counter = 0;
 
@@ -1115,6 +1116,8 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
 
             case R_ARM_GOTOFF:
               {
+                int reltype;
+
                 /* Relocation is relative to the start of the global offset
                  * table.  This is used for things link known offsets to
                  * constant strings in D-Space.  I think we can just ignore
@@ -1128,14 +1131,38 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
                  *     .word  n(GOTOFF)
                  */
 
-                dbg("Skipping GOTOFF reloc at addr %08x [%08x] to sym '%s' [%08x]\n",
+                dbg("Perfoming GOTOFF reloc at addr %08x [%08x] to sym '%s' [%08x]\n",
                     (int)relpp[j]->address, *target, rel_sym->name, (int)sym_value);
+
+                /* For this location, we need to set the value to the value
+                 * of the symbol in D-Space.  (There is obviously a problem if
+                 * the symbol lies in I-Space because the offset is not relative
+                 * to the PIC address which points to the GOT).
+                 */
+
+                /* Check if symbols lies in I- or D-Space */
+ 
+                reltype = get_reloc_type(rel_section, NULL);
+                if (reltype == NXFLAT_RELOC_TARGET_TEXT)
+                  {
+                    err("Symbol in GOT32 relocation is in TEXT\n");
+                    err("  At addr %08x to sym '%s' [%08x]\n",
+                        (int)relpp[j]->address, rel_sym->name, (int)sym_value);
+                  }
+                else
+                  {
+                    vdbg("  Original value: %08x\n", *target);
+                    *target = sym_value;
+                    vdbg("  Modified value: %08x\n", *target);
+                 }
               }
               break;
 
             case R_ARM_GOT32:
             case R_ARM_GOT_PREL:
               {
+                struct nxflat_got_s *got_entry;
+
                 /* Relocation is to the entry for this symbol in the global
                  * offset table. This relocation type is used to set the 32-bit
                  * address of global variables.  The usual assembly language sequence
@@ -1151,103 +1178,50 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
                 dbg("Performing GOT32 reloc at addr %08x [%08x] to sym '%s' [%08x]\n",
                     (int)relpp[j]->address, *target, rel_sym->name, (int)sym_value);
 
-                /* Check if this is TEXT section relocation */
- 
-                if ((inf->subsect[i]->flags & SEC_CODE) &&
-                     (inf->subsect[i]->flags & SEC_ALLOC))
+                /* There should be an entry for the relocation allocated in the GOT */
+
+                got_entry = find_got_entry(rel_sym);
+                if (!got_entry)
                   {
-                    int reltype;
-
-                    vdbg("  GOT32 relocation in TEXT\n");
-
-                    /* Locate the address referred to by the section type. */
-
-                    reltype = get_reloc_type(rel_section, NULL);
-                    if (reltype == NXFLAT_RELOC_TARGET_TEXT)
-                      {
-                        err("Symbol in GOT32 relocation is in TEXT\n");
-                        err("  At addr %08x to sym '%s' [%08x]\n",
-                            (int)relpp[j]->address, rel_sym->name, (int)sym_value);
-                      }
-                    else
-                      {
-                        vdbg("  Original value: %08x\n", *target);
-                        *target += sym_value;
-                        vdbg("  Modified value: %08x\n", *target);
-                      }
-                  }
-
-                /* Check for GOT32 relocation in .DATA  -- Actually, GOT32 relocations
-                 * should only be in text
-                 */
-
-                else if ((inf->subsect[i]->flags & SEC_DATA) &&
-                          (inf->subsect[i]->flags & SEC_ALLOC))
-                  {
-#if 1 /* Actually, GOT32 relocations will only be in text */
-                    err("Attempted GOT32 relocation in .data\n");
-                    err("  At addr %08x [%08x] to sym '%s' [%08x]\n",
-                        (int)relpp[j]->address, *target,
-                        rel_sym->name, (int)sym_value);
-#else
-                    int reltype;
-
-                    vdbg("  GOT32 relocation in DATA -- generating NXFLAT relo info\n");
-
-                    /* Locate the address referred to by the section type. */
-
-                    reltype = get_reloc_type(rel_section, NULL);
-                    if (reltype != NXFLAT_RELOC_TARGET_DATA)
-                      {
-                        err("Symbol in GOT32 relocation is not .data\n");
-                        err("  At addr %08x to sym '%s' [%08x]\n",
-                            (int)relpp[j]->address, rel_sym->name, (int)sym_value);
-                      }
-#endif
+                     err("No GOT entry from for symobl '%s'\n", rel_sym->name);
+                     nerrors++;
                   }
                 else
                   {
-                    err("Attempted GOT32 relocation outside of .data/.text\n");
-                    err("  At addr %08x [%08x] to sym '%s' [%08x]\n",
-                        (int)relpp[j]->address, *target,
-                        rel_sym->name, (int)sym_value);
+                    /* The fixup is simply to provide the GOT offset as the relocation value */
+
+                    vdbg("  Original value: %08x\n", *target);
+                    *target = got_entry->offset;
+                    vdbg("  Modified value: %08x\n", *target);
                   }
               }
               break;
 
             case R_ARM_GOTPC:
               {
-                /* Relocation is to the entry for this symbol in the global
-                 * offset table. This relocation type is used to set the 32-bit
-                 * address of text references.  My belief is that GOTPC is the
-                 * same as GOT32 but the source is an address -- but what do I know.
-                 */
+                /* Use the global offset table as a symbol value */
 
                 dbg("Performing GOTPC reloc at addr %08x [%08x] to sym '%s' [%08x]\n",
                     (int)relpp[j]->address, *target, rel_sym->name, (int)sym_value);
  
-                if (!(inf->subsect[i]->flags & SEC_DATA) ||
-                    !(inf->subsect[i]->flags & SEC_ALLOC))
+                /* Check if this is TEXT section relocation */
+ 
+                if ((inf->subsect[i]->flags & SEC_CODE) != 0 &&
+                         (inf->subsect[i]->flags & SEC_ALLOC) != 0)
                   {
-                    err("Attempted GOTPC relocation outside of .data\n");
-                    err("  At addr %08x to sym '%s' [%08x]\n",
-                        (int)relpp[j]->address, rel_sym->name, (int)sym_value);
+                    /* The GOT always begins at offset 0 */
+
+                    vdbg("  Original value: %08x\n", *target);
+                    *target = 0;
+                    vdbg("  Modified value: %08x\n", *target);
                   }
                 else
                   {
-                    int reltype;
-
-                    vdbg("  GOTPC relocation in DATA -- generating NXFLAT relo info\n");
-
-                    /* Locate the address referred to by section type. */
-
-                    reltype = get_reloc_type(rel_section, NULL);
-                    if (reltype != NXFLAT_RELOC_TARGET_TEXT)
-                      {
-                        err("Symbol in GOTPC relocation is not .text\n");
-                        err("  At addr %08x to sym '%s' [%08x]\n",
-                            (int)relpp[j]->address, rel_sym->name, (int)sym_value);
-                      }
+                    err("Attempted GOTPC relocation in outside of I-Space section\n");
+                    err("  At addr %08x [%08x] to sym '%s' [%08x]\n",
+                        (int)relpp[j]->address, *target,
+                        rel_sym->name, (int)sym_value);
+                    nerrors++;
                   }
               }
               break;
@@ -1255,6 +1229,7 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
             default:
               err("Do not know how to handle reloc %d type %s @ %p!\n",
                   how_to->type, how_to->name, how_to);
+              nerrors++;
               break;
             }
         }
@@ -1718,51 +1693,54 @@ static void output_got(int fd, struct nxflat_reloc_s **pprelocs)
             {
                sym_value |= 1;
             }
-          else
 #endif
+          /* Determine where the symbol lies */
+
+          switch (get_reloc_type(rel_section, NULL))
             {
               /* If the symbol lies in D-Space, then we need to add the size of the GOT
                * table to the symbol value
                */
 
-              switch (get_reloc_type(rel_section, NULL))
-                {
-                case NXFLAT_RELOC_TARGET_BSS:
-                case NXFLAT_RELOC_TARGET_DATA:
-                  {
-                    reloc_type = NXFLAT_RELOC_TYPE_REL32D;
-                    sym_value += got_size;
-                  }
-                  break;
+            case NXFLAT_RELOC_TARGET_BSS:
+            case NXFLAT_RELOC_TARGET_DATA:
+              {
+                vdbg("Symbol '%s' lies in D-Space\n", rel_sym->name);
+                reloc_type = NXFLAT_RELOC_TYPE_REL32D;
+                sym_value += got_size;
+              }
+              break;
 
-                case NXFLAT_RELOC_TARGET_TEXT:
-                  {
-                    reloc_type = NXFLAT_RELOC_TYPE_REL32I;
-                    sym_value += got_size;
-                  }
-                  break;
+              /* If the symbol lies in I-Space */
 
-                case NXFLAT_RELOC_TARGET_UNKNOWN:
-                default:
-                  {
-                    err("Relocation type is unknown\n");
-                    exit(1);
-                  }
-                }
+            case NXFLAT_RELOC_TARGET_TEXT:
+              {
+                vdbg("Symbol '%s' lies in I-Space\n", rel_sym->name);
+                reloc_type = NXFLAT_RELOC_TYPE_REL32I;
+              }
+              break;
+
+            case NXFLAT_RELOC_TARGET_UNKNOWN:
+            default:
+              {
+                err("Relocation type is unknown\n");
+                nerrors++;
+                continue;
+              }
             }
 
           /* Then save the symbol offset in the got */
 
           got[i] = sym_value;
-          vdbg("GOT[%d]: sym '%s' value %08x->%08x\n",
+          vdbg("GOT[%d]: sym name: '%s' value: %08x->%08x\n",
                 i, rel_sym->name, (int)rel_sym->value, (int)sym_value);
 
           /* And output the relocation information associate with the GOT entry */
 
           relocs[i].r_info = NXFLAT_RELOC(reloc_type, sizeof(u_int32_t) * i);
  
-          vdbg("GOT[%d]: sym %s value %08x->%08x reloc type %d\n",
-                i, rel_sym->name, (int)rel_sym->value, (int)sym_value, reloc_type);
+          vdbg("relocs[%d]: type: %d offset: %08x\n",
+                i, NXFLAT_RELOC_TYPE(relocs[i].r_info), NXFLAT_RELOC_OFFSET(relocs[i].r_info));
         }
 
       /* Write the GOT on the provided file descriptor */
@@ -1854,7 +1832,7 @@ static void load_sections(bfd *bfd, segment_info *inf)
       inf->contents = malloc(inf->size);
       if (!inf->contents)
         {
-          err("Failed to allocatte memory for section contents.\n");
+          err("Failed to allocate memory for section contents.\n");
           exit(1);
         }
 
@@ -2284,5 +2262,11 @@ int main(int argc, char **argv, char **envp)
   /* Finished! */
 
   close(fd);
-  exit(0);
+
+  if (nerrors > 0)
+    {
+       fprintf(stderr, "%d Errors detected\n", nerrors);
+       return 1;
+    }
+  return 0;
 }

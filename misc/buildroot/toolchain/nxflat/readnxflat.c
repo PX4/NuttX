@@ -98,12 +98,18 @@ static const char unknown[] = "UNKNOWN";
 
 static const char hdr_reloc_rel32i[]  = "RELOC_REL32I";
 static const char hdr_reloc_rel32d[]  = "RELOC_REL32D";
-static const char hdr_reloc_abs32[]   = "RELOC_ABS32";
+#ifdef NXFLAT_RELOC_TYPE_REL32ID
+static const char hdr_reloc_rel32id[] = "RELOC_REL32ID";
+#endif
 
 static const char *reloc_type_string[] = {
   hdr_reloc_rel32i,
   hdr_reloc_rel32d,
-  hdr_reloc_abs32,
+#ifdef NXFLAT_RELOC_TYPE_REL32ID
+  hdr_reloc_rel32id,
+#else
+  unknown,
+#endif
   unknown
 };
 
