@@ -94,6 +94,7 @@ BR2_EXTRA_BINUTILS_CONFIG_OPTIONS=""
 # NuttX Binary Support
 #
 BR2_PACKAGE_NXFLAT=y
+BR2_PACKAGE_GENROMFS=y
 
 #
 # Common Toolchain Options

@@ -6,6 +6,7 @@ source "toolchain/binutils/Config.in"
 source "toolchain/gcc/Config.in"
 source "toolchain/gdb/Config.in"
 source "toolchain/nxflat/Config.in"
+source "toolchain/genromfs/Config.in"
 
 comment "Common Toolchain Options"
 
