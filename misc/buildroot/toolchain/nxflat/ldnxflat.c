@@ -244,13 +244,8 @@ int    ngot_offsets;                      /* Number of GOT offsets in got_offset
  ***********************************************************************/
 
 static const char default_exe_entry_name[] = "_start";
-static const char dynpath_begin_name[] = "__dynpath_begin";
-static const char dynpath_end_name[] = "__dynpath_end";
-static const char dynexport_begin_name[] = "__dynexport_begin";
-static const char dynexport_end_name[] = "__dynexport_end";
 static const char dynimport_begin_name[] = "__dynimport_begin";
 static const char dynimport_end_name[] = "__dynimport_end";
-static const char dynloader_name[] = "__dynloader";
 
 /***********************************************************************
  * Private Functions
@@ -1935,7 +1930,7 @@ static void parse_args(int argc, char **argv)
           break;
 
         case 'e':
-          entry_name = optarg;
+          entry_name = strdup(optarg);
           break;
 
         case 'o':
