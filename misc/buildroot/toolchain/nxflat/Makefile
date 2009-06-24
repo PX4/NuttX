@@ -34,8 +34,8 @@
 ############################################################################
 
 CFLAGS		+= -Wall -I. -I$(BINUTILS_DIR)/bfd
-LDFLAGS		+= -L$(BINUTILS_DIR)/bfd # -L$(BINUTILS_DIR)/libiberty
-LIBS		= -lbfd -liberty -lz
+LDFLAGS		+= -L$(BINUTILS_DIR)/bfd -L$(BINUTILS_DIR)/libiberty
+LIBS		= -lbfd -lc -liberty -lz
 
 LDNXFLAT_OBJS	= ldnxflat.o
 MKNXFLAT_OBJS	= mknxflat.o

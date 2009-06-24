@@ -494,7 +494,7 @@ static void dump_hdr(struct nxflat_hdr_s *header)
          header->h_magic[2], header->h_magic[3]);
 
   printf("\nMEMORY MAP:\n");
-  printf("  Text start    %08lx\n", NXFLAT_HDR_SIZE);
+  printf("  Text start    %08lx\n", (long)NXFLAT_HDR_SIZE);
   printf("  Entry point   %08x\n", get_nxflat32(&header->h_entry));
   printf("  Data start    %08x\n", get_nxflat32(&header->h_datastart));
   printf("  Data end      %08x\n", get_nxflat32(&header->h_dataend) - 1);

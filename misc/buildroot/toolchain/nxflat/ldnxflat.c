@@ -5,7 +5,8 @@
  * ldnxflat takes a fully resolvable elf binary which was linked with -r 
  * and resolves all references, then generates relocation table entries for
  * any relocation entries in data sections. This is designed to work with
- * the options -fpic -msingle-pic-base -mno-got (or -membedded-pic)
+ * the options -fpic -msingle-pic-base (and -mno-got or -membedded-pic, but
+ * will and GOT relocations as well).
  *
  *   Copyright (C) 2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -151,52 +152,52 @@
 /* Needs to match definition in include/elf/internal.h.  This is from binutils-2.19.1 */
 
 struct elf_internal_sym
-  {
-    bfd_vma       st_value;            /* Value of the symbol */
-    bfd_vma       st_size;             /* Associated symbol size */
-    unsigned long st_name;             /* Symbol name, index in string tbl */
-    unsigned char st_info;             /* Type and binding attributes */
-    unsigned char st_other;            /* Visibilty, and target specific */
-    unsigned int  st_shndx;            /* Associated section index */
-  };
+{
+  bfd_vma       st_value;            /* Value of the symbol */
+  bfd_vma       st_size;             /* Associated symbol size */
+  unsigned long st_name;             /* Symbol name, index in string tbl */
+  unsigned char st_info;             /* Type and binding attributes */
+  unsigned char st_other;            /* Visibilty, and target specific */
+  unsigned int  st_shndx;            /* Associated section index */
+};
 
 typedef struct
-  {
-    /* The BFD symbol. */
+{
+  /* The BFD symbol. */
 
-    asymbol symbol;
+  asymbol symbol;
 
-    /* ELF symbol information.  */
+  /* ELF symbol information.  */
 
-    struct elf_internal_sym internal_elf_sym;
+  struct elf_internal_sym internal_elf_sym;
 
-    /* Backend specific information.  */
+  /* Backend specific information.  */
 
-    union
-      {
-        unsigned int hppa_arg_reloc;
-        void *mips_extr;
-        void *any;
-      }
-    tc_data;
+  union
+    {
+      unsigned int hppa_arg_reloc;
+      void *mips_extr;
+      void *any;
+    }
+  tc_data;
 
-    /* Version information.  This is from an Elf_Internal_Versym structure in a 
-     * SHT_GNU_versym section.  It is zero if there is no version information. */
+  /* Version information.  This is from an Elf_Internal_Versym structure in a 
+   * SHT_GNU_versym section.  It is zero if there is no version information. */
 
-    u_int16_t version;
+  u_int16_t version;
 
-  } elf_symbol_type;
+} elf_symbol_type;
 
 typedef struct _segment_info
-  {
-    const char *name;
-    bfd_vma low_mark;
-    bfd_vma high_mark;
-    size_t size;
-    void *contents;
-    asection *subsect[MAX_SECTIONS];
-    int nsubsects;
-  } segment_info;
+{
+  const char *name;
+  bfd_vma low_mark;
+  bfd_vma high_mark;
+  size_t size;
+  void *contents;
+  asection *subsect[MAX_SECTIONS];
+  int nsubsects;
+} segment_info;
 
 typedef void (*func_type) (asymbol * sym, void *arg1, void *arg2, void *arg3);
 
@@ -371,7 +372,7 @@ static void nxflat_write(int fd, const char *buffer, int buflen)
  * get_symbols
  ***********************************************************************/
 
-static asymbol **get_symbols(bfd * abfd, int32_t * num)
+static asymbol **get_symbols(bfd *abfd, int32_t *num)
 {
   int32_t storage_needed;
 
@@ -412,7 +413,7 @@ static asymbol **get_symbols(bfd * abfd, int32_t * num)
 
   *num = number_of_symbols;
 
-  vdbg("Read %d symbols\n", number_of_symbols);
+  vdbg("Read %ld symbols\n", (long)number_of_symbols);
   return symbol_table;
 }
 
@@ -506,7 +507,8 @@ put_special_symbol(asymbol *begin_sym, asymbol *end_sym,
 
   if (begin_sym != NULL)
     {
-      vdbg("begin: '%s' end: '%s' offset: %08lx\n", begin_sym->name, end_sym->name, NXFLAT_HDR_SIZE+offset);
+      vdbg("begin: '%s' end: '%s' offset: %08lx\n",
+            begin_sym->name, end_sym->name, (long)(NXFLAT_HDR_SIZE+offset));
 
       /* Get the value of the beginning symbol and the section that it is
        * defined in. */
@@ -565,8 +567,8 @@ put_special_symbol(asymbol *begin_sym, asymbol *end_sym,
 
               err("Begin sym \"%s\" lies at offset %d in section \"%s\"\n",
                   begin_sym->name, begin_sym_value, begin_sym->section->name);
-              err("  but sym \"%s\" is before that at offset: %d\n",
-                  end_sym->name, (int)end_sym->value);
+              err("  but sym \"%s\" is before that at offset: %ld\n",
+                  end_sym->name, (long)end_sym->value);
               exit(1);
             }
           else
@@ -626,8 +628,8 @@ static void put_entry_point(struct nxflat_hdr_s *hdr)
       printf("Entry symbol \"%s\": %08x in section \"%s\"\n",
              entry_symbol->name, entry_point, sect->name);
 
-      dbg("  HDR: %08lx + Section VMA: %08x + Symbol Value: %08x\n",
-          NXFLAT_HDR_SIZE, (int)sect->vma, (int)entry_symbol->value);
+      dbg("  HDR: %08lx + Section VMA: %08lx + Symbol Value: %08lx\n",
+          (long)NXFLAT_HDR_SIZE, (long)sect->vma, (long)entry_symbol->value);
     }
 
   /* Does the entry point lie within the text region? */
@@ -653,7 +655,7 @@ static void put_entry_point(struct nxflat_hdr_s *hdr)
 
           err("Invalid entry point: %08x\n", entry_point);
           err("  Valid TEXT range: %08lx - %08lx\n",
-              NXFLAT_HDR_SIZE, NXFLAT_HDR_SIZE + text_info.size);
+              (long)NXFLAT_HDR_SIZE, (long)(NXFLAT_HDR_SIZE + text_info.size));
           exit(1);
         }
     }
@@ -866,9 +868,9 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
               sym_value += got_size;
             }
 
-          dbg("rel %-3d: sym [%20s] s_addr @ %08x val %08x-%08x rel %08x how %s\n",
-               j, rel_sym->name, (int)relpp[j]->address, (int)rel_sym->value, (int)sym_value,
-               (int)relpp[j]->addend, how_to->name);
+          dbg("rel %-3d: sym [%20s] s_addr @ %08lx val %08lx-%08lx rel %08lx how %s\n",
+               j, rel_sym->name, (long)relpp[j]->address, (long)rel_sym->value,
+               (long)sym_value, (long)relpp[j]->addend, how_to->name);
 
           switch (how_to->type)
             {
@@ -878,8 +880,8 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
                 int32_t temp;
                 int32_t saved;
 
-                dbg("performing PC24 link at addr %08x [%08x] to sym '%s' [%08x]\n",
-                    (int) relpp[j]->address, *target, rel_sym->name, (int) sym_value);
+                dbg("performing PC24 link at addr %08lx [%08lx] to sym '%s' [%08lx]\n",
+                    (long)relpp[j]->address, (long)*target, rel_sym->name, (long)sym_value);
 
                 /* Can't fix what we ain't got */
 
@@ -905,11 +907,11 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
 
                 if (verbose > 1)
                   {
-                    vdbg(" Original opcode @ %p is %08x ",
+                    vdbg(" Original opcode @ %p is %08lx ",
 #ifdef ARCH_BIG_ENDIAN
-                         target, (int32_t)nxflat_swap32(*target));
+                         target, (long)nxflat_swap32(*target));
 #else
-                         target, *target);
+                         target, (long)*target);
 #endif
                     if (verbose > 2)
                       {
@@ -917,8 +919,8 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
                         printf(" sz %d ", how_to->size);
                         printf("bit %d ", how_to->bitsize);
                         printf("rel %d ", how_to->pc_relative);
-                        printf("smask %08x ", (int)how_to->src_mask);
-                        printf("dmask %08x ", (int)how_to->dst_mask);
+                        printf("smask %08lx ", (long)how_to->src_mask);
+                        printf("dmask %08lx ", (long)how_to->dst_mask);
                         printf("off %d ", how_to->pcrel_offset);
                       }
                     printf("\n");
@@ -958,11 +960,11 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
                     exit(1);
                   }
 
-                vdbg("  Modified opcode: %08x\n", temp);
+                vdbg("  Modified opcode: %08lx\n", temp);
 #ifdef ARCH_BIG_ENDIAN
-                *target = (int32_t) nxflat_swap32(temp);
+                *target = (long)nxflat_swap32(temp);
 #else
-                *target = temp;
+                *target = (long)temp;
 #endif
               }
               break;
@@ -972,8 +974,8 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
                 int32_t temp;
                 int32_t saved;
 
-                dbg("Performing ABS32 link at addr %08x [%08x] to sym '%s' [%08x]\n",
-                     (int)relpp[j]->address, *target, rel_sym->name, (int)sym_value);
+                dbg("Performing ABS32 link at addr %08lx [%08lx] to sym '%s' [%08lx]\n",
+                     (long)relpp[j]->address, (long)*target, rel_sym->name, (long)sym_value);
 
                 /* ABS32 links from .text are easy - since the fetches will */
                 /* always be base relative. the ABS32 refs from data will be */
@@ -981,11 +983,11 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
 
                 if (verbose > 1)
                   {
-                    vdbg("  Original opcode @ %p is %08x ",
+                    vdbg("  Original opcode @ %p is %08lx ",
 #ifdef ARCH_BIG_ENDIAN
-                         target, (int32_t) nxflat_swap32(*target));
+                         target, (long)nxflat_swap32(*target));
 #else
-                        target, *target);
+                         target, (long)*target);
 #endif
                     if (verbose > 2)
                       {
@@ -993,8 +995,8 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
                         printf(" sz %d ", how_to->size);
                         printf("bit %d ", how_to->bitsize);
                         printf("rel %d ", how_to->pc_relative);
-                        printf("smask %08x ", (int)how_to->src_mask);
-                        printf("dmask %08x ", (int)how_to->dst_mask);
+                        printf("smask %08lx ", (long)how_to->src_mask);
+                        printf("dmask %08lx ", (long)how_to->dst_mask);
                         printf("off %d ", how_to->pcrel_offset);
                       }
                     printf("\n");
@@ -1026,11 +1028,11 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
 
                 temp |= saved & (~how_to->dst_mask);
 
-                vdbg("  Modified opcode: %08x\n", temp);
+                vdbg("  Modified opcode: %08lx\n", temp);
 #ifdef ARCH_BIG_ENDIAN
-                *target = (int32_t)nxflat_swap32(temp);
+                *target = (long)nxflat_swap32(temp);
 #else
-                *target = temp;
+                *target = (long)temp;
 #endif
               }
               break;
@@ -1065,11 +1067,11 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
 
                 temp = (temp | ((s ? 0 : 1) << 24)) - (1 << 24);
 
-                dbg("Performing THM link at addr %08x [%04x %04x] to sym '%s' [%08x]\n",
-                    (int)relpp[j]->address, upper_insn, lower_insn,
-                    rel_sym->name, (int)sym_value);
-                vdbg("  Original INSN: %04x %04x temp: %08x\n",
-                    upper_insn, lower_insn, temp);
+                dbg("Performing THM link at addr %08lx [%04x %04x] to sym '%s' [%08lx]\n",
+                    (long)relpp[j]->address, upper_insn, lower_insn,
+                    rel_sym->name, (long)sym_value);
+                vdbg("  Original INSN: %04x %04x temp: %08lx\n",
+                    upper_insn, lower_insn, (long)temp);
 
                  /* Offset */
 
@@ -1098,8 +1100,8 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
                            | (((!((temp >> 22) & 1)) ^ signbit) << 11)
                            | ((temp >> 1) & 0x7ff);
 
-                vdbg("  Modified INSN: %04x %04x temp: %08x Sec VMA: %08x\n",
-                    upper_insn, lower_insn, temp, (int)rel_sym->section->vma);
+                vdbg("  Modified INSN: %04x %04x temp: %08lx Sec VMA: %08lx\n",
+                    upper_insn, lower_insn, (long)temp, (long)rel_sym->section->vma);
 
                 /* Put the relocated value back in the object file:  */
 
@@ -1126,8 +1128,8 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
                  *     .word  n(GOTOFF)
                  */
 
-                dbg("Perfoming GOTOFF reloc at addr %08x [%08x] to sym '%s' [%08x]\n",
-                    (int)relpp[j]->address, *target, rel_sym->name, (int)sym_value);
+                dbg("Perfoming GOTOFF reloc at addr %08lx [%08lx] to sym '%s' [%08lx]\n",
+                    (long)relpp[j]->address, (long)*target, rel_sym->name, (long)sym_value);
 
                 /* For this location, we need to set the value to the value
                  * of the symbol in D-Space.  (There is obviously a problem if
@@ -1141,14 +1143,14 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
                 if (reltype == NXFLAT_RELOC_TARGET_TEXT)
                   {
                     err("Symbol in GOT32 relocation is in TEXT\n");
-                    err("  At addr %08x to sym '%s' [%08x]\n",
-                        (int)relpp[j]->address, rel_sym->name, (int)sym_value);
+                    err("  At addr %08lx to sym '%s' [%08lx]\n",
+                        (long)relpp[j]->address, rel_sym->name, (long)sym_value);
                   }
                 else
                   {
-                    vdbg("  Original value: %08x\n", *target);
+                    vdbg("  Original value: %08lx\n", (long)*target);
                     *target = sym_value;
-                    vdbg("  Modified value: %08x\n", *target);
+                    vdbg("  Modified value: %08lx\n", (long)*target);
                  }
               }
               break;
@@ -1170,8 +1172,8 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
                  *     .word  n(GOT)
                  */
 
-                dbg("Performing GOT32 reloc at addr %08x [%08x] to sym '%s' [%08x]\n",
-                    (int)relpp[j]->address, *target, rel_sym->name, (int)sym_value);
+                dbg("Performing GOT32 reloc at addr %08lx [%08lx] to sym '%s' [%08lx]\n",
+                    (long)relpp[j]->address, (long)*target, rel_sym->name, (long)sym_value);
 
                 /* There should be an entry for the relocation allocated in the GOT */
 
@@ -1185,9 +1187,9 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
                   {
                     /* The fixup is simply to provide the GOT offset as the relocation value */
 
-                    vdbg("  Original value: %08x\n", *target);
+                    vdbg("  Original value: %08lx\n", (long)*target);
                     *target = got_entry->offset;
-                    vdbg("  Modified value: %08x\n", *target);
+                    vdbg("  Modified value: %08lx\n", (long)*target);
                   }
               }
               break;
@@ -1196,8 +1198,8 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
               {
                 /* Use the global offset table as a symbol value */
 
-                dbg("Performing GOTPC reloc at addr %08x [%08x] to sym '%s' [%08x]\n",
-                    (int)relpp[j]->address, *target, rel_sym->name, (int)sym_value);
+                dbg("Performing GOTPC reloc at addr %08lx [%08lx] to sym '%s' [%08lx]\n",
+                    (long)relpp[j]->address, (long)*target, rel_sym->name, (long)sym_value);
  
                 /* Check if this is TEXT section relocation */
  
@@ -1206,16 +1208,16 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
                   {
                     /* The GOT always begins at offset 0 */
 
-                    vdbg("  Original value: %08x\n", *target);
+                    vdbg("  Original value: %08lx\n", (long)*target);
                     *target = 0;
-                    vdbg("  Modified value: %08x\n", *target);
+                    vdbg("  Modified value: %08lx\n", (long)*target);
                   }
                 else
                   {
                     err("Attempted GOTPC relocation in outside of I-Space section\n");
-                    err("  At addr %08x [%08x] to sym '%s' [%08x]\n",
-                        (int)relpp[j]->address, *target,
-                        rel_sym->name, (int)sym_value);
+                    err("  At addr %08lx [%08lx] to sym '%s' [%08lx]\n",
+                        (long)relpp[j]->address, (long)*target,
+                        rel_sym->name, (long)sym_value);
                     nerrors++;
                   }
               }
@@ -1289,9 +1291,9 @@ static void allocate_segment_got(bfd *input_bfd, segment_info *inf, asymbol **sy
           reloc_howto_type *how_to  = relpp[j]->howto;
           asymbol          *rel_sym = *relpp[j]->sym_ptr_ptr;
 
-          dbg("rel %-3d: sym [%20s] s_addr @ %08x rel %08x how %s\n",
-               j, rel_sym->name, (int)relpp[j]->address,
-               (int)relpp[j]->addend, how_to->name);
+          dbg("rel %-3d: sym [%20s] s_addr @ %08lx rel %08lx how %s\n",
+               j, rel_sym->name, (long)relpp[j]->address,
+               (long)relpp[j]->addend, how_to->name);
 
           switch (how_to->type)
             {
@@ -1332,14 +1334,14 @@ static void dump_symbol(asymbol * psym)
     {
       /* Common Global - unplaced */
 
-      printf("Sym[%24s] @            sz %04x ",
-             psym->name, (int)psym->value);
+      printf("Sym[%24s] @            sz %04lx ",
+             psym->name, (long)psym->value);
       printf("align %04x ", (u_int32_t)isym->st_value);
     }
   else
     {
-      printf("Sym[%24s] @ %04x align            ",
-             psym->name, (int)psym->value);
+      printf("Sym[%24s] @ %04lx align            ",
+             psym->name, (long)psym->value);
       printf("sz %04x ", (u_int32_t)isym->st_size);
     }
 
@@ -1419,7 +1421,8 @@ static void check_symbol_overlap(asymbol ** symbols, int number_of_symbols)
 
       top_i = base_i + size_i;
 
-      dbg("Sym [%20s] base %08x, top %08x\n", sym_i->symbol.name, (int)base_i, (int)top_i);
+      dbg("Sym [%20s] base %08lx, top %08lx\n",
+          sym_i->symbol.name, (long)base_i, (long)top_i);
 
       for (j = (i + 1); j < number_of_symbols; j++)
         {
@@ -1462,10 +1465,10 @@ static void check_symbol_overlap(asymbol ** symbols, int number_of_symbols)
                   warn("Symbols '%s'[%6s] and '%s'[%6s] OVERLAP!\n",
                       sym_i->symbol.name, sym_i->symbol.section->name,
                       sym_j->symbol.name, sym_j->symbol.section->name);
-                  warn("  Sym '%s' base %08x, top %08x\n",
-                      sym_i->symbol.name, (int)base_i, (int)top_i);
-                  warn("  Sym '%s' base %08x, top %08x\n",
-                      sym_j->symbol.name, (int)base_j, (int)top_j);
+                  warn("  Sym '%s' base %08lx, top %08lx\n",
+                      sym_i->symbol.name, (long)base_i, (long)top_i);
+                  warn("  Sym '%s' base %08lx, top %08lx\n",
+                      sym_j->symbol.name, (long)base_j, (long)top_j);
                 }
             }
 
@@ -1493,9 +1496,9 @@ map_common_symbols(bfd * input_bfd, asymbol ** symbols, int number_of_symbols)
   bss_s = bss_info.subsect[0];
   baseaddr = 0;
 
-  vdbg("Before map high mark %08x cooked %08x raw %08x \n",
-      (int)bss_info.high_mark, (int)bss_info.subsect[0]->COOKED_SIZE,
-      (int)bss_info.subsect[0]->RAW_SIZE);
+  vdbg("Before map high mark %08lx cooked %08lx raw %08lx \n",
+      (long)bss_info.high_mark, (long)bss_info.subsect[0]->COOKED_SIZE,
+      (long)bss_info.subsect[0]->RAW_SIZE);
   vdbg("Checking overlap before mapping\n");
 
   check_symbol_overlap(symbols, number_of_symbols);
@@ -1552,8 +1555,8 @@ map_common_symbols(bfd * input_bfd, asymbol ** symbols, int number_of_symbols)
           symbase = ((baseaddr + align - 1) / align) * align;
           offset = (symbase + size) - baseaddr;
 
-          vdbg("  ba: %08x sb: %08x al: %04x sz: %04x of: %04x\n",
-              (int)baseaddr, (int)symbase, (int)align, (int)size, (int)offset);
+          vdbg("  ba: %08lx sb: %08lx al: %04lx sz: %04lx of: %04lx\n",
+              (long)baseaddr, (long)symbase, (long)align, (long)size, (long)offset);
 
           /* Add space to bss segment and section */
 
@@ -1570,7 +1573,7 @@ map_common_symbols(bfd * input_bfd, asymbol ** symbols, int number_of_symbols)
                 {
                   if (verbose)
                     {
-                      message("Checking endsym? %08x sym[%04d] ", (int)baseaddr, j);
+                      message("Checking endsym? %08lx sym[%04d] ", (long)baseaddr, j);
                       dump_symbol(symbols[j]);
                     }
 
@@ -1605,9 +1608,9 @@ map_common_symbols(bfd * input_bfd, asymbol ** symbols, int number_of_symbols)
 
   check_symbol_overlap(symbols, number_of_symbols);
 
-  vdbg("After map high mark %08x cooked %08x raw %08x \n",
-      (int)bss_info.high_mark, (int)bss_info.subsect[0]->COOKED_SIZE,
-      (int)bss_info.subsect[0]->RAW_SIZE);
+  vdbg("After map high mark %08lx cooked %08lx raw %08lx \n",
+      (long)bss_info.high_mark, (long)bss_info.subsect[0]->COOKED_SIZE,
+      (long)bss_info.subsect[0]->RAW_SIZE);
 }
 
 /***********************************************************************
@@ -1727,8 +1730,8 @@ static void output_got(int fd, struct nxflat_reloc_s **pprelocs)
           /* Then save the symbol offset in the got */
 
           got[i] = sym_value;
-          vdbg("GOT[%d]: sym name: '%s' value: %08x->%08x\n",
-                i, rel_sym->name, (int)rel_sym->value, (int)sym_value);
+          vdbg("GOT[%d]: sym name: '%s' value: %08lx->%08lx\n",
+                i, rel_sym->name, (long)rel_sym->value, (long)sym_value);
 
           /* And output the relocation information associate with the GOT entry */
 
@@ -1745,13 +1748,15 @@ static void output_got(int fd, struct nxflat_reloc_s **pprelocs)
            printf("GOT:\n");
            for (i = 0; i < ngot_offsets; i++)
              {
-               printf("  Offset %-3ld: %08x\n", sizeof(u_int32_t) * i, got[i]);
+               printf("  Offset %-3ld: %08x\n",
+                     (long)(sizeof(u_int32_t) * i), got[i]);
              }
 
            printf("Got Relocations:\n");
            for (i = 0; i < ngot_offsets; i++)
              {
-               printf("  Offset %-3ld: %08x\n", sizeof(struct nxflat_reloc_s) * i, relocs[i].r_info);
+               printf("  Offset %-3ld: %08x\n",
+                     (long)(sizeof(struct nxflat_reloc_s) * i), relocs[i].r_info);
              }
         }
 
@@ -2074,16 +2079,16 @@ int main(int argc, char **argv, char **envp)
   /* Check for a data offset due to the presence of a GOT */
 
   printf("INPUT SECTIONS:\n");
-  printf("SECT LOW MARK   HIGH MARK  (SIZE BYTES)\n");
+  printf("SECT LOW      HIGH     SIZE\n");
   if (text_info.nsubsects == 0)
     {
       warn("TEXT Not found  Not found ( Not found )\n");
     }
   else
     {
-      printf("TEXT %08x %08x (%08lx)\n",
-             (int)text_info.low_mark, (int)text_info.high_mark,
-             text_info.size);
+      printf("TEXT %08lx %08lx %08lx\n",
+             (long)text_info.low_mark, (long)text_info.high_mark,
+             (long)text_info.size);
 
       if (text_info.low_mark != 0)
         {
@@ -2098,9 +2103,9 @@ int main(int argc, char **argv, char **envp)
     }
   else
     {
-      printf("DATA %08x %08x (%08lx)\n",
-             (int)data_info.low_mark, (int)data_info.high_mark,
-             data_info.size);
+      printf("DATA %08lx %08lx %08lx\n",
+             (long)data_info.low_mark, (long)data_info.high_mark,
+             (long)data_info.size);
 
       if (data_info.low_mark != 0)
         {
@@ -2115,9 +2120,9 @@ int main(int argc, char **argv, char **envp)
     }
   else
     {
-      printf("BSS  %08x %08x (%08lx)\n",
-             (int)bss_info.low_mark, (int)bss_info.high_mark,
-             bss_info.size);
+      printf("BSS  %08lx %08lx %08lx\n",
+             (long)bss_info.low_mark, (long)bss_info.high_mark,
+             (long)bss_info.size);
 
       /* If data is present, then BSS was be origined immediately after the
        * data. */
