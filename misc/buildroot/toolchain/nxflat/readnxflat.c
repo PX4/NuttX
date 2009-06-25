@@ -435,7 +435,7 @@ static void dump_relocation_entries(FILE * in_stream, struct nxflat_hdr_s *heade
   printf("\nRELOCATION ENTRIES:\n");
   printf("      OFFSET   RELOC TYPE\n\n");
 
-  for (i = 0; i < get_nxflat32(&header->h_reloccount); i++)
+  for (i = 0; i < get_nxflat16(&header->h_reloccount); i++)
     {
       /* Read the next reloction entry. */
 
@@ -504,7 +504,7 @@ static void dump_hdr(struct nxflat_hdr_s *header)
   printf("Stack size      %08x\n", get_nxflat32(&header->h_stacksize));
   printf("\nRELOCATIONS:\n");
   printf("  Reloc start   %08x\n", get_nxflat32(&header->h_relocstart));
-  printf("  reloc count   %d\n", get_nxflat32(&header->h_reloccount));
+  printf("  reloc count   %d\n", get_nxflat16(&header->h_reloccount));
   printf("\nIMPORTED SYMBOLS:\n");
   printf("  Import start  %08x\n", get_nxflat32(&header->h_importsymbols));
   printf("  Import count  %d\n", get_nxflat16(&header->h_importcount));
