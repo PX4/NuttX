@@ -960,7 +960,7 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
                     exit(1);
                   }
 
-                vdbg("  Modified opcode: %08lx\n", temp);
+                vdbg("  Modified opcode: %08lx\n", (long)temp);
 #ifdef ARCH_BIG_ENDIAN
                 *target = (long)nxflat_swap32(temp);
 #else
@@ -1028,7 +1028,7 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
 
                 temp |= saved & (~how_to->dst_mask);
 
-                vdbg("  Modified opcode: %08lx\n", temp);
+                vdbg("  Modified opcode: %08lx\n", (long)temp);
 #ifdef ARCH_BIG_ENDIAN
                 *target = (long)nxflat_swap32(temp);
 #else
