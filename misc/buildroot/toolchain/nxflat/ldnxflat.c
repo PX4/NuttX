@@ -2207,7 +2207,7 @@ int main(int argc, char **argv, char **envp)
   put_xflat32(&hdr.h_bssend, offset);
 
   put_xflat32(&hdr.h_stacksize, stack_size);
-  put_xflat32(&hdr.h_reloccount, ngot_offsets);
+  put_xflat16(&hdr.h_reloccount, ngot_offsets);
 
   put_entry_point(&hdr);
 
