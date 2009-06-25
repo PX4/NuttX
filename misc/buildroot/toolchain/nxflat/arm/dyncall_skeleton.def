@@ -146,7 +146,7 @@ static const char dyncall_decl_prologue[] =
 
 #define MKCALLARGS(fn, i) (fn), (fn), (fn), (fn), (i), (i), (i), (fn), (fn)
 
-#ifdef __USE_GOT__
+#ifndef __NO_GOT__
 
 static const char dyncall_format[] =
   "\n/* Dynamic call logic for imported symbol %s */\n\n"
@@ -154,11 +154,11 @@ static const char dyncall_format[] =
   "\t.type\t%s, function\n\n"
   "%s:\n"
   "\tldr\tip,.Ldyn%04d\n"
-  "\tldr\tip,[sl,ip]\n"
+  "\tadd\tip,ip,sl\n"
   "\tldr\tip,[ip,#4]\n"
   "\tbx\tip\n"
   ".Ldyn%04d:\n"
-  "\t.word\t__dyninfo%04d(GOT)\n"
+  "\t.word\t__dyninfo%04d(GOTOFF)\n"
   "\t.size\t%s, .-%s\n";
 
 static const char nonreturning_dyncall_format[] =
@@ -167,11 +167,11 @@ static const char nonreturning_dyncall_format[] =
   "\t.type\t%s, function\n\n"
   "%s:\n"
   "\tldr\tip,.Ldyn%04d\n"
-  "\tldr\tip,[sl,ip]\n"
+  "\tadd\tip,ip,sl\n"
   "\tldr\tip,[ip,#4]\n"
   "\tbx\tip\n"
   ".Ldyn%04d:\n"
-  "\t.word\t__dyninfo%04d(GOT)\n"
+  "\t.word\t__dyninfo%04d(GOTOFF)\n"
   "\t.size\t%s, .-%s\n";
 
 #else
