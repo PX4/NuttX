@@ -885,23 +885,23 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
 
                 /* Can't fix what we ain't got */
 
-                if ((SEC_IN_MEMORY & rel_sym->section->flags) == 0)
+                if ((SEC_IN_MEMORY & rel_section->flags) == 0)
                   {
-                    err("Section %s not loaded into mem!\n", rel_sym->section->name);
+                    err("Section %s not loaded into mem!\n", rel_section->name);
                     exit(1);
                   }
 
                 /* PC24 -> can only fix text to text refs */
 
-                if ((SEC_CODE & rel_sym->section->flags) == 0)
+                if ((SEC_CODE & rel_section->flags) == 0)
                   {
-                    err("Section %s not code!\n", rel_sym->section->name);
+                    err("Section %s not code!\n", rel_section->name);
                     exit(1);
                   }
 
                 if ((SEC_CODE & inf->subsect[i]->flags) == 0)
                   {
-                    err("Section %s not code!\n", rel_sym->section->name);
+                    err("Section %s not code!\n", rel_section->name);
                     exit(1);
                   }
 
@@ -942,7 +942,7 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
 
                     /* offset */
                     temp +=
-                      ((sym_value + rel_sym->section->vma)
+                      ((sym_value + rel_section->vma)
                        - relpp[j]->address) >> how_to->rightshift;
 
                     /* demote */
@@ -1018,7 +1018,7 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
 
                 /* Offset */
 
-                temp += (sym_value + rel_sym->section->vma) >> how_to->rightshift;
+                temp += (sym_value + rel_section->vma) >> how_to->rightshift;
 
                 /* Mask upper bits from rollover */
 
@@ -1073,9 +1073,9 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
                 vdbg("  Original INSN: %04x %04x temp: %08lx\n",
                     upper_insn, lower_insn, (long)temp);
 
-                 /* Offset */
+                /* Add the branch offset (really needs a range check) */
 
-                temp += (sym_value + rel_sym->section->vma) >> how_to->rightshift;
+                temp += (sym_value + rel_section->vma - relpp[j]->address);
 
                 if ((lower_insn & 0x5000) == 0x4000)
                   {
@@ -1101,7 +1101,7 @@ resolve_segment_relocs(bfd *input_bfd, segment_info *inf, asymbol **syms)
                            | ((temp >> 1) & 0x7ff);
 
                 vdbg("  Modified INSN: %04x %04x temp: %08lx Sec VMA: %08lx\n",
-                    upper_insn, lower_insn, (long)temp, (long)rel_sym->section->vma);
+                    upper_insn, lower_insn, (long)temp, (long)rel_section->vma);
 
                 /* Put the relocated value back in the object file:  */
 
