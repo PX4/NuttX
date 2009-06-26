@@ -48,7 +48,9 @@ cortexm3-defconfig-4.3.3
 	Builds an ARM toolchain for the Cortex-M3 using gcc 4.3.3.
 	This configuration builds both gcc and g++.
 
-	NOTE:  This configuration is untested as of this writing.
+cortexm3-defconfig-nxflat
+	This configuration build an NXFLAT toolchain (only) for
+	use with the Cortex-M3
 
 bfin-defconfig-4.2.4
 	Builds an Blackfin toolchain using gcc 4.2.4

@@ -1,4 +1,4 @@
-ReleaseNotes v0.1.7:
+ReleaseNotes v0.1.8:
 ^^^^^^^^^^^^^^^^^^^
 
 This is a highly hacked up version of the buildroot (see
@@ -12,6 +12,8 @@ can be used to build the following NuttX-compatible toolchains:
 
   o arm-elf (thumb2) toolchain needed for use with the Luminary
     LM3S6918 (ARM Cortex-M3) port provided with the NuttX releases.
+
+    NXFLAT toolchain for use with the ARM Cortex-M3.
 
   o avr-elf toolchain needed for use with the ATmega128 ports
     provided with the NuttX releases.
@@ -57,5 +59,10 @@ then:
 
 And set the "Path to the NuttX root directory" appropriately.
 
+NXFLAT Toolchain Build
 
+You can select to build the NXFLAT toolchain with GCC by selecting
+the NXFLAT toolchin during the configuration process(you can also
+select omit building GCC with and only build the NXFLAT toolchain
+for use with your own GCC toolchain.
 
