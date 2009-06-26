@@ -1707,7 +1707,6 @@ static void output_got(int fd)
 {
   struct nxflat_reloc_s *relocs;
   u_int32_t *got;
-  u_int32_t offset;
   int reloc_size;
   int reloc_type;
   int nrelocs;
