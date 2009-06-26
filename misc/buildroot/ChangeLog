@@ -45,10 +45,12 @@ buildroot-0.1.6 2009-05-19 <spudmonkey@racsa.co.cr>
 	* Correct error in gcc-3.4.6/gcc/collect.c.  Calls open with O_CREAT but
 	  does not specify mode.  Newer host compilers can error out on this.
 
-buildroot-0.1.7 2009-xx-xx <spudmonkey@racsa.co.cr>
+buildroot-0.1.7 2009-06-26 <spudmonkey@racsa.co.cr>
 
 	* configs/avr-defconfig-4.3.3: Added support for AVR to support a NuttX
 	  port of the ATmega128.
 	* toolchain/nxflat:  Added logic to build NuttX NXFLAT binding support tools
 	* toolchain/genromfs:  Added support for the genromfs tool
+
+buildroot-0.1.8 2009-xx-xx <spudmonkey@racsa.co.cr>
 
