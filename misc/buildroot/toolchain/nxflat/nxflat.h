@@ -46,8 +46,8 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define NXFLAT_MAX_STRING_SIZE 64       /* Largest size of string (w/zterminator) */
-#define NXFLAT_MAGIC          "NxFT"    /* NXFLAT magic number */
+#define NXFLAT_MAX_STRING_SIZE 64     /* Largest size of string (w/zterminator) */
+#define NXFLAT_MAGIC          "NxFT"  /* NXFLAT magic number */
 
 /****************************************************************************
  * Public Types
@@ -72,7 +72,7 @@ struct nxflat_hdr_s
 
   /* The following fields provide the memory map for the nxflat binary.
    *
-   * h_entry      - Offset to the the first executable insruction from
+   * h_entry      - Offset to the first executable insruction from
    *                the beginning of the file.
    * h_datastart  - Offset to the beginning of the data segment from
    *                the beginning of the file.  This field can also
@@ -148,7 +148,7 @@ struct nxflat_reloc_s
 
 /* Pack the type and the offset into one 32-bit value */
 
-#define NXFLAT_RELOC(t,o)       (((u_int32_t)((t) & 3) << 30) | ((o) & 0x1fffffff))
+#define NXFLAT_RELOC(t,o)       (((u_int32_t)((t) & 3) << 30) | ((o) & 0x3fffffff))
 
 /* The top three bits of the relocation info is the relocation type (see the
  * NXFLAT_RELOC_TYPE_* definitions below.  This is an unsigned value.
