@@ -46,7 +46,7 @@ avr-defconfig-4.3.3
 
 cortexm3-defconfig-4.3.3
 	Builds an ARM toolchain for the Cortex-M3 using gcc 4.3.3.
-	This configuration builds both gcc and g++.
+	This configuration builds gcc, g++ and the NXFLAT toolchain.
 
 cortexm3-defconfig-nxflat
 	This configuration build an NXFLAT toolchain (only) for
