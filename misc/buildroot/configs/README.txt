@@ -141,6 +141,20 @@ GENERAL BUILD STEPS
 
 Cygwin GCC BUILD NOTES
 ^^^^^^^^^^^^^^^^^^^^^^
+
+   Cygwin normally creates a /home directory with your Windows user name.  Unfortunately,
+   that could very likely include spaces.  In that case, the Cygwin build will have
+   lots of problems.  Here is how I worked around that:
+
+   - I created a /home/buildroot directory and copied buildroot to that location
+     (/home/build/buildroot/buildroot)
+   - I have the archives directory at /home/buildroot/archives
+   - And a symbolic link to the nuttx build directory at /home/buildroot/nuttx
+
+   With those workarounds, the buildroot will build.  However, you will also need
+   to either edit the setenv.sh file to reference this new location, or else move
+   resulting build diectory.
+
    On Cygwin, the buildroot 'make' command will fail with an error like:
 
    "...
