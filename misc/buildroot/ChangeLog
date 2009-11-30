@@ -54,3 +54,8 @@ buildroot-0.1.7 2009-06-26 <spudmonkey@racsa.co.cr>
 
 buildroot-0.1.8 2009-xx-xx <spudmonkey@racsa.co.cr>
 
+	* configs/cortexm3-defconfig-4.3.3: Added support for NuttX NXFLAT
+	  tools.
+	* configs/arm7tdmi-defconfig-4.3.3: Update to arm7tdmi-defconfig-4.2.4.
+	  Also builds NuttX NXFLAT tools.
+
