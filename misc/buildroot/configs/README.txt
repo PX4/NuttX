@@ -143,7 +143,7 @@ GENERAL BUILD STEPS
 Cygwin GCC BUILD NOTES
 ^^^^^^^^^^^^^^^^^^^^^^
 
-   Cygwin normally creates a /home directory with your Windows user name.  Unfortunately,
+ o Cygwin normally creates a /home directory with your Windows user name.  Unfortunately,
    that could very likely include spaces.  In that case, the Cygwin build will have
    lots of problems.  Here is how I worked around that:
 
@@ -156,7 +156,7 @@ Cygwin GCC BUILD NOTES
    to either edit the setenv.sh file to reference this new location, or else move
    resulting build diectory.
 
-   On Cygwin, the buildroot 'make' command will fail with an error like:
+ o On Cygwin, the buildroot 'make' command will fail with an error like:
 
    "...
       build/genchecksum cc1-dummy > cc1-checksum.c
@@ -193,4 +193,16 @@ Cygwin GCC BUILD NOTES
 
       cd -						# Back to the buildroot make directory
       make						# Restart the build
-   
+
+ o Once I had problems building the toolchain on Cygwin.  In this case, I
+   would occasioinally get "Permission denied" errors will trying to configure
+   the toolchain.  My hunch is that this error was caused because of failures
+   to remove some temporary files (like conftest.c).  Perhaps there errors
+   occurred because some other application opened those files too???  Perhaps
+   a virus scanner.
+
+   Sometimes when this occurs, the build continues to execute.  If that is
+   the case, it could end-up making a bad toolchain??? In this case, you need
+   to hit Control-C to stop the build.  Normally, however, the "Permission
+   denied" error causes the configure script to stop.  In either case, if you
+   just restart the make, the build will continue past the failure point.
