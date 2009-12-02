@@ -60,7 +60,10 @@ h8300_config
 	Builds an H8/300 toolchain using gcc 3.4.5
 
 m68hc11-config
-	Builds an hc11 toolchain using gcc 3.4.5
+	Builds an hc11/hc12 toolchain using gcc 3.4.5 .
+
+m68hc12-config-4.3.3
+	Builds an hc11/hc12 toolchain using gcc 4.3.3.
 
 m68k-config
 	Builds an M68K toolchain using gcc 3.4.5
@@ -206,3 +209,9 @@ Cygwin GCC BUILD NOTES
    to hit Control-C to stop the build.  Normally, however, the "Permission
    denied" error causes the configure script to stop.  In either case, if you
    just restart the make, the build will continue past the failure point.
+
+   This has happened to me only while doing other intensive activities in
+   windows during the toolchain build.  I suspect if you leave your PC
+   mostly idle while the toolchain builds, this will not likely be a problem
+   for you.
+
