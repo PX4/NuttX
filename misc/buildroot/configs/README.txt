@@ -2,7 +2,7 @@ AVAILABLE CONFIGURATIONS
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 arm-defconfig
-	Builds an ARM toolchain using gcc 3.4.5
+	Builds an ARM toolchain using gcc 3.4.6
 
 arm7tdmi-defconfig-4.2.4
 arm920t-defconfig-4.2.4
@@ -57,19 +57,32 @@ bfin-defconfig-4.2.4
 	Builds an Blackfin toolchain using gcc 4.2.4
 
 h8300_config
-	Builds an H8/300 toolchain using gcc 3.4.5
+	Builds an H8/300 toolchain using gcc 3.4.6
 
 m68hc11-config
-	Builds an hc11/hc12 toolchain using gcc 3.4.5 .
+m68hc12-config-3.4.6
+	Builds an hc11/hc12 toolchain using gcc 3.4.6 .
 
 m68hc12-config-4.3.3
 	Builds an hc11/hc12 toolchain using gcc 4.3.3.
+	This configuration fails to build with the following error:
+
+	make[3]: Entering directory `blabla/buildroot/toolchain_build_m68hc12/gcc-4.3.3-build/m68hc12-elf/libgcc'
+	...
+	blabla/buildroot/toolchain_build_m68hc12/gcc-4.3.3/libgcc/../gcc/libgcc2.c:566: internal compiler error: in init_move_cost, at regclass.c:323
+	Please submit a full bug report,
+	with preprocessed source if appropriate.
+	See <http://gcc.gnu.org/bugs.html> for instructions.
+	make[3]: *** [_muldi3.o] Error 1
+	make[3]: Leaving directory `blabla/buildroot/toolchain_build_m68hc12/gcc-4.3.3-build/m68hc12-elf/libgcc'
+
+	Use m68hc12-config-3.4.6
 
 m68k-config
-	Builds an M68K toolchain using gcc 3.4.5
+	Builds an M68K toolchain using gcc 3.4.6
 
 sh-defconfig
-	Builds an SH-1/2 toolchain using gcc 3.4.5
+	Builds an SH-1/2 toolchain using gcc 3.4.6
 
 GENERAL BUILD STEPS
 ^^^^^^^^^^^^^^^^^^^

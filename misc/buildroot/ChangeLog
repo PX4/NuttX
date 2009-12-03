@@ -59,4 +59,6 @@ buildroot-2010.1 2010101010101010101010101010101010101010-xx-xx <spudmonkey@racs
 	* configs/arm7tdmi-defconfig-4.3.3: Update to arm7tdmi-defconfig-4.2.4.
 	  Also builds NuttX NXFLAT tools.
 	* configs/m68hc12-defconfig-4.3.3: Update to m68ch11-defconfig.
+	* configs/m68hc12-defconfig-3.4.6: There are problems building GCC
+	  4.3.3 for the hc12.
 
