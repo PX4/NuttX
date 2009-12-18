@@ -2,7 +2,7 @@
  * pdbg.c
  * P-Code Debugger
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,8 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
@@ -56,7 +58,7 @@
 #include "pdbg.h"
 
 /**********************************************************************
- * Definitions
+ * Pre-processor Definitions
  **********************************************************************/
 
 #define TRACE_ARRAY_SIZE       16
@@ -104,27 +106,27 @@ typedef struct trace_s trace_t;
  **********************************************************************/
 
 static enum command_e g_lastcmd = eCMD_NONE;
-static uint32           g_lastvalue;
+static uint32_t         g_lastvalue;
 
 /**********************************************************************
  * Private Function Prototypes
  **********************************************************************/
 
-static void   pdbg_showcommands(void);
-static void   pdbg_execcommand(struct pexec_s *st, enum command_e cmd, uint32 value);
-static sint32 pdbg_readdecimal(char *ptr);
-static sint32 pdbg_readhex(char *ptr, sint32 defaultvalue);
-static void   pdbg_programstatus(struct pexec_s *st);
-static addr_t pdbg_printpcode(struct pexec_s *st, addr_t pc, sint16 nitems);
-static addr_t pdbg_printstack(struct pexec_s *st, addr_t sp, sint16 nitems);
-static void   pdbg_printregisters(struct pexec_s *st);
-static void   pdbg_printtracearray(struct pexec_s *st);
-static void   pdbg_addbreakpoint(addr_t pc);
-static void   pdbg_deletebreakpoint(sint16 bpno);
-static void   pdbg_printbreakpoints(struct pexec_s *st);
-static void   pdbg_checkbreakpoint(struct pexec_s *st);
-static void   pdbg_initdebugger(void);
-static void   pdbg_debugpcode(struct pexec_s *st);
+static void    pdbg_showcommands(void);
+static void    pdbg_execcommand(struct pexec_s *st, enum command_e cmd, uint32_t value);
+static int32_t pdbg_readdecimal(char *ptr);
+static int32_t pdbg_readhex(char *ptr, int32_t defaultvalue);
+static void    pdbg_programstatus(struct pexec_s *st);
+static addr_t  pdbg_printpcode(struct pexec_s *st, addr_t pc, int16_t nitems);
+static addr_t  pdbg_printstack(struct pexec_s *st, addr_t sp, int16_t nitems);
+static void    pdbg_printregisters(struct pexec_s *st);
+static void    pdbg_printtracearray(struct pexec_s *st);
+static void    pdbg_addbreakpoint(addr_t pc);
+static void    pdbg_deletebreakpoint(int16_t bpno);
+static void    pdbg_printbreakpoints(struct pexec_s *st);
+static void    pdbg_checkbreakpoint(struct pexec_s *st);
+static void    pdbg_initdebugger(void);
+static void    pdbg_debugpcode(struct pexec_s *st);
 
 /**********************************************************************
  * Global Variables
@@ -137,27 +139,27 @@ static void   pdbg_debugpcode(struct pexec_s *st);
 /* Debugging variables */
 
 static trace_t  g_tracearray[TRACE_ARRAY_SIZE];
-			/* Holds execution histor */
-static uint16   g_tracendx;
-			/* This is the index into the circular g_tracearray */
-static uint16   g_ntracepoints;
-			/* This is the number of valid enties in g_tracearray */
+                        /* Holds execution histor */
+static uint16_t g_tracendx;
+                        /* This is the index into the circular g_tracearray */
+static uint16_t g_ntracepoints;
+                        /* This is the number of valid enties in g_tracearray */
 static addr_t   g_breakpoint[MAX_BREAK_POINTS];
-			/* Contains address associated with all active */
+                        /* Contains address associated with all active */
                         /* break points. */
 static addr_t   g_untilpoint;
                         /* The 'g_untilpoint' is a temporary breakpoint */
-static uint16   g_nbreakpoints;
-			/* Number of items in breakPoints[] */
+static uint16_t g_nbreakpoints;
+                        /* Number of items in breakPoints[] */
 static addr_t   g_displayloc;
-			/* P-code display location display */
-static boolean  g_bstopexecution;
-			/* TRUE means to stop program execution */
+                        /* P-code display location display */
+static bool     g_bstopexecution;
+                        /* true means to stop program execution */
 
 /* I/O variables */
 
 static char     g_inline[LINE_SIZE+1];
-			/* Command line buffer */
+                        /* Command line buffer */
 
 /**********************************************************************
  * Public Functions
@@ -172,92 +174,92 @@ void dbg_run(struct pexec_s *st)
   pdbg_initdebugger();
   pdbg_programstatus(st);
 
-  while (TRUE)
+  while (true)
     {
       printf("CMD: ");
       (void) fgets(g_inline, LINE_SIZE, stdin);
       switch (toupper(g_inline[0]))
-	{
-	case 'R' :
-	  switch (toupper(g_inline[1])) {
-	  case 'E' :  /* Reset */
-	    pdbg_execcommand(st, eCMD_RESET, 0);
-	    break;
-	  case 'U' :  /* Run */
-	    pdbg_execcommand(st, eCMD_RUN, 0);
-	    break;
-	  default :
-	    printf("Unrecognized Command\n");
-	    pdbg_execcommand(st, eCMD_HELP, 0);
-	    break;
-	  } /* end switch */
-	  break;
-	case 'S' :  /* Single Step (into) */
-	  pdbg_execcommand(st, eCMD_STEP, 0);
-	  break;
-	case 'N' :  /* Single Step (over) */
-	  pdbg_execcommand(st, eCMD_NEXT, 0);
-	  break;
-	case 'G' :  /* Go */
-	  pdbg_execcommand(st, eCMD_GO, 0);
-	  break;
-	case 'B' :
-	  switch (toupper(g_inline[1])) {
-	  case 'S' :  /* Set Breakpoint */
-	    pc = pdbg_readhex(&g_inline[2], st->pc);
-	    pdbg_execcommand(st, eCMD_BS, pc);
-	    break;
-	  case 'C' :  /* Clear Breakpoint */
-	    i =  pdbg_readdecimal(&g_inline[2]);
-	    pdbg_execcommand(st, eCMD_BC, i);
-	    break;
-	  default :
-	    printf("Unrecognized Command\n");
-	    pdbg_execcommand(st, eCMD_HELP, 0);
-	    break;
-	  } /* end switch */
-	  break;
-	case 'D' :
-	  switch (toupper(g_inline[1])) {
-	  case 'P' :  /* Display Program Status */
-	    pdbg_execcommand(st, eCMD_DP, 0);
-	    break;
-	  case 'T' :  /* Display Program Trace */
-	    pdbg_execcommand(st, eCMD_DT, 0);
-	    break;
-	  case 'S' :  /* Display Stack */
-	    pc = pdbg_readhex(&g_inline[2], st->sp);
-	    pdbg_execcommand(st, eCMD_DS, pc);
-	    break;
-	  case 'I' :  /* Display Instructions */
-	    pc = pdbg_readhex(&g_inline[2], st->pc);
-	    pdbg_execcommand(st, eCMD_DI, pc);
-	    break;
-	  case 'B' :  /* Display Breakpoints */
-	    pdbg_execcommand(st, eCMD_DB, pc);
-	    break;
-	  default :
-	    printf("Unrecognized Command\n");
-	    pdbg_execcommand(st, eCMD_HELP, 0);
-	    break;
-	  } /* end switch */
-	  break;
-	case 'Q' :  /* Quit */
-	  pdbg_execcommand(st, eCMD_QUIT, pc);
-	  break;
-	case 'H' :  /* Help */
-	case '?' :
-	  pdbg_execcommand(st, eCMD_HELP, 0);
-	  break;
-	case '\0' : /* Repeat last command */
-	case '\n' : /* Repeat last command */
-	  pdbg_execcommand(st, g_lastcmd, g_lastvalue);
-	  break;
-	default :
-	  printf("Unrecognized Command\n");
-	  pdbg_execcommand(st, eCMD_HELP, 0);
-	  break;
-	} /* end switch */
+        {
+        case 'R' :
+          switch (toupper(g_inline[1])) {
+          case 'E' :  /* Reset */
+            pdbg_execcommand(st, eCMD_RESET, 0);
+            break;
+          case 'U' :  /* Run */
+            pdbg_execcommand(st, eCMD_RUN, 0);
+            break;
+          default :
+            printf("Unrecognized Command\n");
+            pdbg_execcommand(st, eCMD_HELP, 0);
+            break;
+          } /* end switch */
+          break;
+        case 'S' :  /* Single Step (into) */
+          pdbg_execcommand(st, eCMD_STEP, 0);
+          break;
+        case 'N' :  /* Single Step (over) */
+          pdbg_execcommand(st, eCMD_NEXT, 0);
+          break;
+        case 'G' :  /* Go */
+          pdbg_execcommand(st, eCMD_GO, 0);
+          break;
+        case 'B' :
+          switch (toupper(g_inline[1])) {
+          case 'S' :  /* Set Breakpoint */
+            pc = pdbg_readhex(&g_inline[2], st->pc);
+            pdbg_execcommand(st, eCMD_BS, pc);
+            break;
+          case 'C' :  /* Clear Breakpoint */
+            i =  pdbg_readdecimal(&g_inline[2]);
+            pdbg_execcommand(st, eCMD_BC, i);
+            break;
+          default :
+            printf("Unrecognized Command\n");
+            pdbg_execcommand(st, eCMD_HELP, 0);
+            break;
+          } /* end switch */
+          break;
+        case 'D' :
+          switch (toupper(g_inline[1])) {
+          case 'P' :  /* Display Program Status */
+            pdbg_execcommand(st, eCMD_DP, 0);
+            break;
+          case 'T' :  /* Display Program Trace */
+            pdbg_execcommand(st, eCMD_DT, 0);
+            break;
+          case 'S' :  /* Display Stack */
+            pc = pdbg_readhex(&g_inline[2], st->sp);
+            pdbg_execcommand(st, eCMD_DS, pc);
+            break;
+          case 'I' :  /* Display Instructions */
+            pc = pdbg_readhex(&g_inline[2], st->pc);
+            pdbg_execcommand(st, eCMD_DI, pc);
+            break;
+          case 'B' :  /* Display Breakpoints */
+            pdbg_execcommand(st, eCMD_DB, pc);
+            break;
+          default :
+            printf("Unrecognized Command\n");
+            pdbg_execcommand(st, eCMD_HELP, 0);
+            break;
+          } /* end switch */
+          break;
+        case 'Q' :  /* Quit */
+          pdbg_execcommand(st, eCMD_QUIT, pc);
+          break;
+        case 'H' :  /* Help */
+        case '?' :
+          pdbg_execcommand(st, eCMD_HELP, 0);
+          break;
+        case '\0' : /* Repeat last command */
+        case '\n' : /* Repeat last command */
+          pdbg_execcommand(st, g_lastcmd, g_lastvalue);
+          break;
+        default :
+          printf("Unrecognized Command\n");
+          pdbg_execcommand(st, eCMD_HELP, 0);
+          break;
+        } /* end switch */
     } /* end while */
 
 } /* end pdbg_debugpcodeProgram */
@@ -288,7 +290,7 @@ static void pdbg_showcommands(void)
 } /* end pdbg_showcommands */
 
 /***********************************************************************/
-static void pdbg_execcommand(struct pexec_s *st, enum command_e cmd, uint32 value)
+static void pdbg_execcommand(struct pexec_s *st, enum command_e cmd, uint32_t value)
 {
   /* Save the command to resuse if the user enters nothing */
 
@@ -312,56 +314,56 @@ static void pdbg_execcommand(struct pexec_s *st, enum command_e cmd, uint32 valu
       pdbg_programstatus(st);
       break;
     case eCMD_STEP:   /* Single Step (into)*/
-      g_bstopexecution = TRUE;
+      g_bstopexecution = true;
       pdbg_debugpcode(st);
       pdbg_programstatus(st);
       break;
     case eCMD_NEXT:   /* Single Step (over) */
       if (st->ispace[st->pc] == oPCAL)
-	{
-	  g_bstopexecution = FALSE;
-	  g_untilpoint = st->pc + 4;
-	}
+        {
+          g_bstopexecution = false;
+          g_untilpoint = st->pc + 4;
+        }
       else
-	{
-	  g_bstopexecution = TRUE;
-	}
+        {
+          g_bstopexecution = true;
+        }
       pdbg_debugpcode(st);
       g_untilpoint = 0;
       pdbg_programstatus(st);
       break;
     case eCMD_GO:     /* Go */
-      g_bstopexecution = FALSE;
+      g_bstopexecution = false;
       pdbg_debugpcode(st);
       pdbg_programstatus(st);
       break;
     case eCMD_BS:     /* Set Breakpoint */
       if (g_nbreakpoints >= MAX_BREAK_POINTS)
-	{
-	  printf("Too many breakpoints\n");
-	  g_lastcmd = eCMD_NONE;
-	}
+        {
+          printf("Too many breakpoints\n");
+          g_lastcmd = eCMD_NONE;
+        }
       else if (value >= st->maxpc)
-	{
-	  printf("Invalid address for breakpoint\n");
-	  g_lastcmd = eCMD_NONE;
-	}
+        {
+          printf("Invalid address for breakpoint\n");
+          g_lastcmd = eCMD_NONE;
+        }
       else
-	{
-	  pdbg_addbreakpoint(value);
-	  pdbg_printbreakpoints(st);
-	} /* end else */
+        {
+          pdbg_addbreakpoint(value);
+          pdbg_printbreakpoints(st);
+        } /* end else */
       break;
     case eCMD_BC:     /* Clear Breakpoint */
       if ((value >= 1) && (value <= g_nbreakpoints))
-	{
-	  pdbg_deletebreakpoint(value);
-	}
+        {
+          pdbg_deletebreakpoint(value);
+        }
       else
-	{
-	  printf("Invalid breakpoint number\n");
-	  g_lastcmd = eCMD_NONE;
-	}
+        {
+          printf("Invalid breakpoint number\n");
+          g_lastcmd = eCMD_NONE;
+        }
       pdbg_printbreakpoints(st);
       break;
     case eCMD_DP:     /* Display Program Status */
@@ -372,25 +374,25 @@ static void pdbg_execcommand(struct pexec_s *st, enum command_e cmd, uint32 valu
       break;
     case eCMD_DS:     /* Display Stack */
       if (value > st->sp)
-	{
-	  printf("Invalid stack address\n");
-	  g_lastcmd = eCMD_NONE;
-	}
+        {
+          printf("Invalid stack address\n");
+          g_lastcmd = eCMD_NONE;
+        }
       else
-	{
-	  g_lastvalue = pdbg_printstack(st, value, DISPLAY_STACK_SIZE);
-	} /* end else */
+        {
+          g_lastvalue = pdbg_printstack(st, value, DISPLAY_STACK_SIZE);
+        } /* end else */
       break;
     case eCMD_DI:     /* Display Instructions */
       if (value >= st->maxpc)
-	{
-	  printf("Invalid instruction address\n");
-	  g_lastcmd = eCMD_NONE;
-	}
+        {
+          printf("Invalid instruction address\n");
+          g_lastcmd = eCMD_NONE;
+        }
       else
-	{
-	  g_lastvalue = pdbg_printpcode(st, value, DISPLAY_INST_SIZE);
-	} /* end else */
+        {
+          g_lastvalue = pdbg_printpcode(st, value, DISPLAY_INST_SIZE);
+        } /* end else */
       break;
     case eCMD_DB:     /* Display Breakpoints */
       pdbg_printbreakpoints(st);
@@ -411,14 +413,14 @@ static void pdbg_execcommand(struct pexec_s *st, enum command_e cmd, uint32 valu
 /***********************************************************************/
 /* Read a decimal value from the  input string */
 
-static sint32 pdbg_readdecimal(char *ptr)
+static int32_t pdbg_readdecimal(char *ptr)
 {
-   sint32 decimal = 0;
+   int32_t decimal = 0;
 
    while (!isspace(*ptr)) ptr++;
    while (isspace(*ptr))  ptr++;
    for (; ((*ptr >= '0') && (*ptr <= '9')); ptr++)
-      decimal = 10*decimal + (sint32)*ptr - (sint32)'0';
+      decimal = 10*decimal + (int32_t)*ptr - (int32_t)'0';
  
    return decimal;
 
@@ -426,29 +428,29 @@ static sint32 pdbg_readdecimal(char *ptr)
 /***********************************************************************/
 /* Read a hexadecimal value from the  input string */
 
-static sint32 pdbg_readhex(char *ptr, sint32 defaultvalue)
+static int32_t pdbg_readhex(char *ptr, int32_t defaultvalue)
 {
    char    c;
-   sint32  hex = 0;
-   boolean found = FALSE;
+   int32_t hex = 0;
+   bool    found = false;
 
    while (!isspace(*ptr)) ptr++;
    while (isspace(*ptr))  ptr++;
-   while (TRUE) {
+   while (true) {
 
       c = toupper(*ptr);
       if ((c >= '0') && (c <= '9')) {
-	 hex = ((hex << 4) | ((sint32)c - (sint32)'0'));
-	 found = TRUE;
+         hex = ((hex << 4) | ((int32_t)c - (int32_t)'0'));
+         found = true;
       } /* end if */
       else if ((c >= 'A') && (c <= 'F')) {
-	 hex = ((hex << 4) | ((sint32)c - (sint32)'A' + 10));
-	 found = TRUE;
+         hex = ((hex << 4) | ((int32_t)c - (int32_t)'A' + 10));
+         found = true;
       } /* end else if */
       else {
          if (found)
-	    return hex;
-	 else
+            return hex;
+         else
             return defaultvalue;
       } /* end else */
       ptr++;
@@ -471,11 +473,11 @@ static void pdbg_programstatus(struct pexec_s *st)
 /***********************************************************************/
 /* Print the disassembled P-Code at PC */
 
-static addr_t pdbg_printpcode(struct pexec_s *st, addr_t pc, sint16 nitems)
+static addr_t pdbg_printpcode(struct pexec_s *st, addr_t pc, int16_t nitems)
 {
   OPTYPE op;
   addr_t opsize;
-  ubyte *address;
+  uint8_t *address;
 
   for (; ((pc < st->maxpc) && (nitems > 0)); nitems--)
     {
@@ -488,23 +490,23 @@ static addr_t pdbg_printpcode(struct pexec_s *st, addr_t pc, sint16 nitems)
       printf("PC:%04x  %02x", pc, op.op);
 
       if ((op.op & o8) != 0)
-	{
-	  op.arg1 = *address++;
-	  printf("%02x", op.arg1);
-	  opsize++;
-	} /* end if */
+        {
+          op.arg1 = *address++;
+          printf("%02x", op.arg1);
+          opsize++;
+        } /* end if */
       else 
-	printf("..");
+        printf("..");
 
       if ((op.op & o16) != 0)
-	{
-	  op.arg2  = ((*address++) << 8);
-	  op.arg2 |= *address++;
-	  printf("%04x", op.arg2);
-	  opsize += 2;
-	} /* end if */
+        {
+          op.arg2  = ((*address++) << 8);
+          op.arg2 |= *address++;
+          printf("%04x", op.arg2);
+          opsize += 2;
+        } /* end if */
       else
-	printf("....");
+        printf("....");
 
       /* The disassemble it to stdout */
 
@@ -524,9 +526,9 @@ static addr_t pdbg_printpcode(struct pexec_s *st, addr_t pc, sint16 nitems)
 /***********************************************************************/
 /* Print the stack value at SP */
 
-static addr_t pdbg_printstack(struct pexec_s *st, addr_t sp, sint16 nitems)
+static addr_t pdbg_printstack(struct pexec_s *st, addr_t sp, int16_t nitems)
 {
-  sint32 isp;
+  int32_t isp;
 
   if ((st->sp < st->stacksize) && (sp <= st->sp))
     {
@@ -534,9 +536,9 @@ static addr_t pdbg_printstack(struct pexec_s *st, addr_t sp, sint16 nitems)
       printf("SP:%04x  %04x\n", sp, st->dstack.i[isp]);
 
       for (isp--, sp -= BPERI, nitems--;
-	   ((isp >= 0) && (nitems > 0));
-	   isp--, sp -= BPERI, nitems--)
-	printf("   %04x  %04x\n", sp, st->dstack.i[isp] & 0xffff);
+           ((isp >= 0) && (nitems > 0));
+           isp--, sp -= BPERI, nitems--)
+        printf("   %04x  %04x\n", sp, st->dstack.i[isp] & 0xffff);
     } /* end if */
   else
     {
@@ -580,7 +582,7 @@ static void pdbg_printtracearray(struct pexec_s *st)
 
       /* Index to the next trace entry */
       if (++index >= TRACE_ARRAY_SIZE)
-	 index = 0;
+         index = 0;
 
    } /* end for */
 
@@ -600,14 +602,14 @@ static void pdbg_addbreakpoint(addr_t pc)
       /* Yes..Check if the breakpoint already exists */
 
       for (i = 0; i < g_nbreakpoints; i++)
-	{
-	  if (g_breakpoint[i] == pc)
-	    {
-	      /* It is already set.  Return without doing anything */
+        {
+          if (g_breakpoint[i] == pc)
+            {
+              /* It is already set.  Return without doing anything */
 
-	      return;
-	    }
-	}
+              return;
+            }
+        }
 
       /* The breakpoint is not already set -- set it */
 
@@ -619,7 +621,7 @@ static void pdbg_addbreakpoint(addr_t pc)
 /***********************************************************************/
 /* Remove a breakpoint from the breakpoint array */
 
-static void pdbg_deletebreakpoint(sint16 bpno)
+static void pdbg_deletebreakpoint(int16_t bpno)
 {
    if ((bpno >= 1) && (bpno <= g_nbreakpoints)) {
 
@@ -654,7 +656,7 @@ static void pdbg_printbreakpoints(struct pexec_s *st)
 
 static void pdbg_checkbreakpoint(struct pexec_s *st)
 {
-  uint16 bpIndex;
+  uint16_t bpIndex;
 
   /* Check for a user breakpoint */
 
@@ -663,11 +665,11 @@ static void pdbg_checkbreakpoint(struct pexec_s *st)
        bpIndex++)
     {
       if (g_breakpoint[bpIndex] == st->pc)
-	{
-	  printf("Breakpoint #%d -- Execution Stopped\n", (bpIndex+1));
-	  g_bstopexecution = TRUE;
-	  return;
-	} /* end if */
+        {
+          printf("Breakpoint #%d -- Execution Stopped\n", (bpIndex+1));
+          g_bstopexecution = true;
+          return;
+        } /* end if */
     } /* end for */
 
 } /* end pdbg_checkbreakpoint */
@@ -677,7 +679,7 @@ static void pdbg_checkbreakpoint(struct pexec_s *st)
 
 static void pdbg_initdebugger(void)
 {
-   g_bstopexecution = FALSE;
+   g_bstopexecution = false;
    g_displayloc     = 0;
    g_tracendx       = 0;
    g_ntracepoints   = 0;
@@ -689,7 +691,7 @@ static void pdbg_initdebugger(void)
 
 static void pdbg_debugpcode(struct pexec_s *st)
 {
-   uint16 errno;
+   uint16_t errno;
 
    do {
       /* Trace the next instruction execution */
@@ -697,12 +699,12 @@ static void pdbg_debugpcode(struct pexec_s *st)
       g_tracearray[g_tracendx].pc  = st->pc;
       g_tracearray[g_tracendx].sp  = st->sp;
       if (st->sp < st->stacksize)
-	 g_tracearray[g_tracendx].tos = st->dstack.i[BTOISTACK(st->sp)];
+         g_tracearray[g_tracendx].tos = st->dstack.i[BTOISTACK(st->sp)];
       else
-	 g_tracearray[g_tracendx].tos = 0;
+         g_tracearray[g_tracendx].tos = 0;
 
       if (++g_tracendx >= TRACE_ARRAY_SIZE)
-	 g_tracendx = 0;
+         g_tracendx = 0;
       if (g_ntracepoints < TRACE_ARRAY_SIZE)
          g_ntracepoints++;
 
@@ -713,33 +715,33 @@ static void pdbg_debugpcode(struct pexec_s *st)
       /* Check for exceptional stopping conditions */
 
       if (errno != eNOERROR)
-	{
-	  if (errno == eEXIT)
-	    printf("Normal Termination\n");
-	  else
-	    printf("Runtime error 0x%02x -- Execution Stopped\n", errno);
-	  g_bstopexecution = TRUE;
-	} /* end if */
+        {
+          if (errno == eEXIT)
+            printf("Normal Termination\n");
+          else
+            printf("Runtime error 0x%02x -- Execution Stopped\n", errno);
+          g_bstopexecution = true;
+        } /* end if */
 
       /* Check for normal stopping conditions */
 
       if (!g_bstopexecution)
-	{
-	  /* Check for attempt to execute code outside of legal range */
+        {
+          /* Check for attempt to execute code outside of legal range */
 
-	  if (st->pc >= st->maxpc)
-	    g_bstopexecution = TRUE;
+          if (st->pc >= st->maxpc)
+            g_bstopexecution = true;
 
-	  /* Check for a temporary breakpoint */
+          /* Check for a temporary breakpoint */
 
-	  else if ((g_untilpoint > 0) && (g_untilpoint == st->pc))
-	    g_bstopexecution = TRUE;
+          else if ((g_untilpoint > 0) && (g_untilpoint == st->pc))
+            g_bstopexecution = true;
 
-	  /* Check if there is a breakpoint at the next instruction */
+          /* Check if there is a breakpoint at the next instruction */
 
-	  else if (g_nbreakpoints > 0)
-	    pdbg_checkbreakpoint(st);
-	}
+          else if (g_nbreakpoints > 0)
+            pdbg_checkbreakpoint(st);
+        }
 
    } while (!g_bstopexecution);
 

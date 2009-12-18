@@ -2,7 +2,7 @@
  * pgetopcode.c
  * P-Code access utilities
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,8 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
+
 #include "keywords.h"
 #include "podefs.h"
 #include "pinsn16.h"
@@ -54,7 +56,7 @@
  * Global Variables
  **********************************************************************/
 
-static sint16 g_bEndIn  = 0;  /* 1 = oEND pcode or EOF received */
+static int16_t g_bEndIn  = 0;  /* 1 = oEND pcode or EOF received */
 
 /**********************************************************************
  * Private Variables
@@ -70,9 +72,9 @@ static sint16 g_bEndIn  = 0;  /* 1 = oEND pcode or EOF received */
 
 /**********************************************************************/
 
-uint32 insn_GetOpCode(poffHandle_t handle, OPTYPE *ptr)
+uint32_t insn_GetOpCode(poffHandle_t handle, OPTYPE *ptr)
 {
-  uint32 opsize = 1;
+  uint32_t opsize = 1;
   int c;
 
   TRACE(stderr, "[insn_GetOpCode]");
@@ -104,25 +106,25 @@ uint32 insn_GetOpCode(poffHandle_t handle, OPTYPE *ptr)
       g_bEndIn = (ptr->op == oEND);
 
       if (ptr->op & o8)
-	{
-	  ptr->arg1 = poffGetProgByte(handle);
-	  opsize++;
-	}
+        {
+          ptr->arg1 = poffGetProgByte(handle);
+          opsize++;
+        }
       else
-	{
-	  ptr->arg1 = 0;
-	}
+        {
+          ptr->arg1 = 0;
+        }
 
       if (ptr->op & o16)
-	{
-	  ptr->arg2  = (poffGetProgByte(handle) << 8);
-	  ptr->arg2 |= (poffGetProgByte(handle) & 0xff);
-	  opsize += 2;
-	}
+        {
+          ptr->arg2  = (poffGetProgByte(handle) << 8);
+          ptr->arg2 |= (poffGetProgByte(handle) & 0xff);
+          opsize += 2;
+        }
       else
-	{
-	  ptr->arg2 = 0;
-	}
+        {
+          ptr->arg2 = 0;
+        }
     }
   return opsize;
 }

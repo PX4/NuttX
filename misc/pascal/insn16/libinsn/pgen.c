@@ -2,7 +2,7 @@
  * pgen.c
  * P-Code generation logic
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -63,13 +64,13 @@
 
 extern poffHandle_t poffHandle; /* Handle to POFF object */
 extern FILE *lstFile;           /* LIST file pointer */
-extern sint16 level;            /* Static nesting level */
+extern int16_t level;            /* Static nesting level */
 
 /**********************************************************************
  * Private Variables
  **********************************************************************/
 
-static const uint16 opmap[NUM_OPCODES] =
+static const uint16_t opmap[NUM_OPCODES] =
 {
   oNOP,    /* opNOP */
   oNEG,    /* opNEG */
@@ -170,7 +171,7 @@ static const uint16 opmap[NUM_OPCODES] =
  ***********************************************************************/
 
 static void
-insn16_Generate(enum pcode_e opcode, uint16 arg1, sint32 arg2);
+insn16_Generate(enum pcode_e opcode, uint16_t arg1, int32_t arg2);
 
 /***********************************************************************
  * Private Functions
@@ -181,7 +182,7 @@ insn16_Generate(enum pcode_e opcode, uint16 arg1, sint32 arg2);
 
 #if CONFIG_DEBUG
 static inline void
-insn16_DisassemblePCode(ubyte opcode, ubyte arg1, uint16 arg2)
+insn16_DisassemblePCode(uint8_t opcode, uint8_t arg1, uint16_t arg2)
 {
   OPTYPE op;
 
@@ -199,25 +200,25 @@ insn16_DisassemblePCode(ubyte opcode, ubyte arg1, uint16 arg2)
 /* Generate an Op-Code */
 
 static void
-insn16_Generate(enum pcode_e opcode, uint16 arg1, sint32 arg2)
+insn16_Generate(enum pcode_e opcode, uint16_t arg1, int32_t arg2)
 {
-  uint16 insn_opcode = opmap[opcode];
-  uint16 arg16;
+  uint16_t insn_opcode = opmap[opcode];
+  uint16_t arg16;
   TRACE(lstFile,"[insn16_Generate:0x%02x->0x%04x]", opcode, insn_opcode);
 
   poffAddProgByte(poffHandle, insn_opcode);
   if (insn_opcode & o8)
     {
       if (arg1 > 0xff) error(eINTOVF);
-      poffAddProgByte(poffHandle, (ubyte)arg1);
+      poffAddProgByte(poffHandle, (uint8_t)arg1);
     } /* End if */
 
   if (insn_opcode & o16)
     {
       if ((arg2 < -32768) || (arg2 > 65535)) error(eINTOVF);
-      arg16 = (uint16)arg2;
-      poffAddProgByte(poffHandle, (ubyte)(arg16 >> 8));
-      poffAddProgByte(poffHandle, (ubyte)(arg16 & 0xff));
+      arg16 = (uint16_t)arg2;
+      poffAddProgByte(poffHandle, (uint8_t)(arg16 >> 8));
+      poffAddProgByte(poffHandle, (uint8_t)(arg16 & 0xff));
     } /* End if */
 
   /* Now, add the disassembled PCode to the list file. */
@@ -239,7 +240,7 @@ insn_GenerateSimple(enum pcode_e opcode)
 /***********************************************************************/
 
 void
-insn_GenerateDataOperation(enum pcode_e opcode, sint32 data)
+insn_GenerateDataOperation(enum pcode_e opcode, int32_t data)
 {
   insn16_Generate(opcode, 0, data);
 }
@@ -249,7 +250,7 @@ insn_GenerateDataOperation(enum pcode_e opcode, sint32 data)
  * represented by that value at the top of the stack.
  */
 
-void insn_GenerateDataSize(uint32 dwDataSize)
+void insn_GenerateDataSize(uint32_t dwDataSize)
 {
   insn16_Generate(opPUSH, 0, dwDataSize);
 }
@@ -257,7 +258,7 @@ void insn_GenerateDataSize(uint32 dwDataSize)
 /***********************************************************************/
 
 void
-insn_GenerateFpOperation(ubyte fpOpcode)
+insn_GenerateFpOperation(uint8_t fpOpcode)
 {
   insn16_Generate(opFLOAT, fpOpcode, 0);
 }
@@ -265,23 +266,23 @@ insn_GenerateFpOperation(ubyte fpOpcode)
 /***********************************************************************/
 
 void
-insn_GenerateIoOperation(uint16 ioOpcode, uint16 fileNumber)
+insn_GenerateIoOperation(uint16_t ioOpcode, uint16_t fileNumber)
 {
-  insn16_Generate(opSYSIO, fileNumber, (sint32)ioOpcode);
+  insn16_Generate(opSYSIO, fileNumber, (int32_t)ioOpcode);
 }
 
 /***********************************************************************/
 
 void
-insn_BuiltInFunctionCall(uint16 libOpcode)
+insn_BuiltInFunctionCall(uint16_t libOpcode)
 {
-  insn16_Generate(opLIB, 0, (sint32)libOpcode);
+  insn16_Generate(opLIB, 0, (int32_t)libOpcode);
 }
 
 /***********************************************************************/
 
 void
-insn_GenerateLevelReference(enum pcode_e opcode, uint16 level, sint32 offset)
+insn_GenerateLevelReference(enum pcode_e opcode, uint16_t level, int32_t offset)
 {
   insn16_Generate(opcode, level, offset);
 }
@@ -289,7 +290,7 @@ insn_GenerateLevelReference(enum pcode_e opcode, uint16 level, sint32 offset)
 /***********************************************************************/
 
 void
-insn_GenerateProcedureCall(uint16 level, sint32 offset)
+insn_GenerateProcedureCall(uint16_t level, int32_t offset)
 {
   insn16_Generate(opPCAL, level, offset);
 }
@@ -297,7 +298,7 @@ insn_GenerateProcedureCall(uint16 level, sint32 offset)
 /***********************************************************************/
 
 void
-insn_GenerateLineNumber(uint16 includeNumber, uint32 lineNumber)
+insn_GenerateLineNumber(uint16_t includeNumber, uint32_t lineNumber)
 {
   insn16_Generate(opLINE, includeNumber, lineNumber);
 }
@@ -305,7 +306,7 @@ insn_GenerateLineNumber(uint16 includeNumber, uint32 lineNumber)
 /***********************************************************************/
 
 void
-insn_SetStackLevel(uint32 level)
+insn_SetStackLevel(uint32_t level)
 {
   /* Do nothing */
 }

@@ -2,7 +2,7 @@
  *  pjopt.c
  *  Branch Optimizations
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 
 #include "keywords.h"
@@ -50,10 +51,10 @@
 
 /**********************************************************************/
 
-sint16 BranchOptimize (void)
+int16_t BranchOptimize (void)
 {
-  sint16 nchanges = 0;
-  register sint16 i;
+  int16_t nchanges = 0;
+  register int16_t i;
 
   TRACE(stderr, "[BranchOptimize]");
 
@@ -63,383 +64,383 @@ sint16 BranchOptimize (void)
   while (i < nops-1)
     {
       switch (pptr[i]->op)
-	{
-	case oNOT :
-	  switch (pptr[i+1]->op)
-	    {
-	    case oJEQUZ :
-	      pptr[i+1]->op = oJNEQZ;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+        {
+        case oNOT :
+          switch (pptr[i+1]->op)
+            {
+            case oJEQUZ :
+              pptr[i+1]->op = oJNEQZ;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    case oJNEQZ :
-	      pptr[i+1]->op = oJEQUZ;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJNEQZ :
+              pptr[i+1]->op = oJEQUZ;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    default     :
-	      i++;
-	      break;
-	    } /* end switch */
-	  break;
+            default     :
+              i++;
+              break;
+            } /* end switch */
+          break;
 
-	case oNEG :
-	  switch (pptr[i+1]->op)
-	    {
-	    case oJLTZ  :
-	      pptr[i+1]->op = oJGTZ;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+        case oNEG :
+          switch (pptr[i+1]->op)
+            {
+            case oJLTZ  :
+              pptr[i+1]->op = oJGTZ;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    case oJGTEZ :
-	      pptr[i+1]->op = oJLTEZ;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJGTEZ :
+              pptr[i+1]->op = oJLTEZ;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    case oJGTZ  :
-	      pptr[i+1]->op = oJLTZ;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJGTZ  :
+              pptr[i+1]->op = oJLTZ;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    case oJLTEZ :
-	      pptr[i+1]->op = oJGTEZ;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJLTEZ :
+              pptr[i+1]->op = oJGTEZ;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    default     :
-	      i++;
-	      break;
-	    } /* end switch */
-	  break;
+            default     :
+              i++;
+              break;
+            } /* end switch */
+          break;
 
-	case oEQU  :
-	  switch (pptr[i+1]->op)
-	    {
-	    case oNOT :
-	      pptr[i]->op = oNEQ;
-	      deletePcode(i+1);
-	      nchanges++;
-	      break;
+        case oEQU  :
+          switch (pptr[i+1]->op)
+            {
+            case oNOT :
+              pptr[i]->op = oNEQ;
+              deletePcode(i+1);
+              nchanges++;
+              break;
 
-	    case oJEQUZ :
-	      pptr[i+1]->op = oJNEQ;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJEQUZ :
+              pptr[i+1]->op = oJNEQ;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    case oJNEQZ :
-	      pptr[i+1]->op = oJEQU;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJNEQZ :
+              pptr[i+1]->op = oJEQU;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    default     :
-	      i++;
-	      break;
-	    } /* end switch */
-	  break;
+            default     :
+              i++;
+              break;
+            } /* end switch */
+          break;
 
-	case oNEQ  :
-	  switch (pptr[i+1]->op)
-	    {
-	    case oNOT :
-	      pptr[i]->op = oEQU;
-	      deletePcode(i+1);
-	      nchanges++;
-	      break;
+        case oNEQ  :
+          switch (pptr[i+1]->op)
+            {
+            case oNOT :
+              pptr[i]->op = oEQU;
+              deletePcode(i+1);
+              nchanges++;
+              break;
 
-	    case oJEQUZ :
-	      pptr[i+1]->op = oJEQU;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJEQUZ :
+              pptr[i+1]->op = oJEQU;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    case oJNEQZ :
-	      pptr[i+1]->op = oJNEQ;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJNEQZ :
+              pptr[i+1]->op = oJNEQ;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    default     :
-	      i++;
-	      break;
-	    } /* end switch */
-	  break;
+            default     :
+              i++;
+              break;
+            } /* end switch */
+          break;
 
-	case oLT   :
-	  switch (pptr[i+1]->op)
-	    {
-	    case oNOT :
-	      pptr[i]->op = oGTE;
-	      deletePcode(i+1);
-	      nchanges++;
-	      break;
+        case oLT   :
+          switch (pptr[i+1]->op)
+            {
+            case oNOT :
+              pptr[i]->op = oGTE;
+              deletePcode(i+1);
+              nchanges++;
+              break;
 
-	    case oJEQUZ :
-	      pptr[i+1]->op = oJGTE;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJEQUZ :
+              pptr[i+1]->op = oJGTE;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    case oJNEQZ :
-	      pptr[i+1]->op = oJLT;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJNEQZ :
+              pptr[i+1]->op = oJLT;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    default     :
-	      i++;
-	      break;
-	    } /* end switch */
-	  break;
+            default     :
+              i++;
+              break;
+            } /* end switch */
+          break;
 
-	case oGTE  :
-	  switch (pptr[i+1]->op)
-	    {
-	    case oNOT :
-	      pptr[i]->op = oLT;
-	      deletePcode(i+1);
-	      nchanges++;
-	      break;
+        case oGTE  :
+          switch (pptr[i+1]->op)
+            {
+            case oNOT :
+              pptr[i]->op = oLT;
+              deletePcode(i+1);
+              nchanges++;
+              break;
 
-	    case oJEQUZ :
-	      pptr[i+1]->op = oJLT;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJEQUZ :
+              pptr[i+1]->op = oJLT;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    case oJNEQZ :
-	      pptr[i+1]->op = oJGTE;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJNEQZ :
+              pptr[i+1]->op = oJGTE;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    default     :
-	      i++;
-	      break;
-	    } /* end switch */
-	  break;
+            default     :
+              i++;
+              break;
+            } /* end switch */
+          break;
 
-	case oGT   :
-	  switch (pptr[i+1]->op)
-	    {
-	    case oNOT :
-	      pptr[i]->op = oLTE;
-	      deletePcode(i+1);
-	      nchanges++;
-	      break;
+        case oGT   :
+          switch (pptr[i+1]->op)
+            {
+            case oNOT :
+              pptr[i]->op = oLTE;
+              deletePcode(i+1);
+              nchanges++;
+              break;
 
-	    case oJEQUZ :
-	      pptr[i+1]->op = oJLTE;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJEQUZ :
+              pptr[i+1]->op = oJLTE;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    case oJNEQZ :
-	      pptr[i+1]->op = oJGT;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJNEQZ :
+              pptr[i+1]->op = oJGT;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    default     :
-	      i++;
-	      break;
-	    } /* end switch */
-	  break;
+            default     :
+              i++;
+              break;
+            } /* end switch */
+          break;
 
-	case oLTE :
-	  switch (pptr[i+1]->op)
-	    {
-	    case oNOT :
-	      pptr[i]->op = oGT;
-	      deletePcode(i+1);
-	      nchanges++;
-	      break;
+        case oLTE :
+          switch (pptr[i+1]->op)
+            {
+            case oNOT :
+              pptr[i]->op = oGT;
+              deletePcode(i+1);
+              nchanges++;
+              break;
 
-	    case oJEQUZ :
-	      pptr[i+1]->op = oJGT;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJEQUZ :
+              pptr[i+1]->op = oJGT;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    case oJNEQZ :
-	      pptr[i+1]->op = oJLTE;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJNEQZ :
+              pptr[i+1]->op = oJLTE;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    default     :
-	      i++;
-	      break;
-	    } /* end switch */
-	  break;
+            default     :
+              i++;
+              break;
+            } /* end switch */
+          break;
 
-	case oEQUZ  :
-	  switch (pptr[i+1]->op)
-	    {
-	    case oNOT :
-	      pptr[i]->op = oNEQZ;
-	      deletePcode(i+1);
-	      nchanges++;
-	      break;
+        case oEQUZ  :
+          switch (pptr[i+1]->op)
+            {
+            case oNOT :
+              pptr[i]->op = oNEQZ;
+              deletePcode(i+1);
+              nchanges++;
+              break;
 
-	    case oJEQUZ :
-	      pptr[i+1]->op = oJNEQZ;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJEQUZ :
+              pptr[i+1]->op = oJNEQZ;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    case oJNEQZ :
-	      pptr[i+1]->op = oJEQUZ;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJNEQZ :
+              pptr[i+1]->op = oJEQUZ;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    default     :
-	      i++;
-	      break;
-	    } /* end switch */
-	  break;
+            default     :
+              i++;
+              break;
+            } /* end switch */
+          break;
 
-	case oNEQZ  :
-	  switch (pptr[i+1]->op)
-	    {
-	    case oNOT :
-	      pptr[i]->op = oEQUZ;
-	      deletePcode(i+1);
-	      nchanges++;
-	      break;
+        case oNEQZ  :
+          switch (pptr[i+1]->op)
+            {
+            case oNOT :
+              pptr[i]->op = oEQUZ;
+              deletePcode(i+1);
+              nchanges++;
+              break;
 
-	    case oJEQUZ :
-	    case oJNEQZ :
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJEQUZ :
+            case oJNEQZ :
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    default     :
-	      i++;
-	      break;
-	    } /* end switch */
-	  break;
+            default     :
+              i++;
+              break;
+            } /* end switch */
+          break;
 
-	case oLTZ   :
-	  switch (pptr[i+1]->op)
-	    {
-	    case oNOT :
-	      pptr[i]->op = oGTEZ;
-	      deletePcode(i+1);
-	      nchanges++;
-	      break;
+        case oLTZ   :
+          switch (pptr[i+1]->op)
+            {
+            case oNOT :
+              pptr[i]->op = oGTEZ;
+              deletePcode(i+1);
+              nchanges++;
+              break;
 
-	    case oJEQUZ :
-	      pptr[i+1]->op = oJGTEZ;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJEQUZ :
+              pptr[i+1]->op = oJGTEZ;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    case oJNEQZ :
-	      pptr[i+1]->op = oJLTZ;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJNEQZ :
+              pptr[i+1]->op = oJLTZ;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    default     :
-	      i++;
-	      break;
-	    } /* end switch */
-	  break;
+            default     :
+              i++;
+              break;
+            } /* end switch */
+          break;
 
-	case oGTEZ  :
-	  switch (pptr[i+1]->op)
-	    {
-	    case oNOT :
-	      pptr[i]->op = oLTZ;
-	      deletePcode(i+1);
-	      nchanges++;
-	      break;
+        case oGTEZ  :
+          switch (pptr[i+1]->op)
+            {
+            case oNOT :
+              pptr[i]->op = oLTZ;
+              deletePcode(i+1);
+              nchanges++;
+              break;
 
-	    case oJEQUZ :
-	      pptr[i+1]->op = oJLTZ;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJEQUZ :
+              pptr[i+1]->op = oJLTZ;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    case oJNEQZ :
-	      pptr[i+1]->op = oJGTEZ;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJNEQZ :
+              pptr[i+1]->op = oJGTEZ;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    default     :
-	      i++;
-	      break;
-	    } /* end switch */
-	  break;
+            default     :
+              i++;
+              break;
+            } /* end switch */
+          break;
 
-	case oGTZ   :
-	  switch (pptr[i+1]->op)
-	    {
-	    case oNOT :
-	      pptr[i]->op = oLTEZ;
-	      deletePcode(i+1);
-	      nchanges++;
-	      break;
+        case oGTZ   :
+          switch (pptr[i+1]->op)
+            {
+            case oNOT :
+              pptr[i]->op = oLTEZ;
+              deletePcode(i+1);
+              nchanges++;
+              break;
 
-	    case oJEQUZ :
-	      pptr[i+1]->op = oJLTEZ;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJEQUZ :
+              pptr[i+1]->op = oJLTEZ;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    case oJNEQZ :
-	      pptr[i+1]->op = oJGTZ;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJNEQZ :
+              pptr[i+1]->op = oJGTZ;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    default     :
-	      i++;
-	      break;
-	    } /* end switch */
-	  break;
+            default     :
+              i++;
+              break;
+            } /* end switch */
+          break;
 
-	case oLTEZ :
-	  switch (pptr[i+1]->op)
-	    {
-	    case oNOT :
-	      pptr[i]->op = oGTZ;
-	      deletePcode(i+1);
-	      nchanges++;
-	      break;
+        case oLTEZ :
+          switch (pptr[i+1]->op)
+            {
+            case oNOT :
+              pptr[i]->op = oGTZ;
+              deletePcode(i+1);
+              nchanges++;
+              break;
 
-	    case oJEQUZ :
-	      pptr[i+1]->op = oJGTZ;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJEQUZ :
+              pptr[i+1]->op = oJGTZ;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    case oJNEQZ :
-	      pptr[i+1]->op = oJLTEZ;
-	      deletePcode(i);
-	      nchanges++;
-	      break;
+            case oJNEQZ :
+              pptr[i+1]->op = oJLTEZ;
+              deletePcode(i);
+              nchanges++;
+              break;
 
-	    default     :
-	      i++;
-	      break;
-	    } /* end switch */
-	  break;
+            default     :
+              i++;
+              break;
+            } /* end switch */
+          break;
 
-	default     :
-	  i++;
-	  break;
-	} /* end switch */
+        default     :
+          i++;
+          break;
+        } /* end switch */
     } /* end while */
   return (nchanges);
 

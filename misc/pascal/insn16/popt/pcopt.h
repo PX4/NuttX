@@ -2,7 +2,7 @@
  * pcopt.h
  * External Declarations associated with PCOPT.C
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 200-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,10 +38,16 @@
 #define __PCOPT_H
 
 /***************************************************************************
+ * Included Files
+ ***************************************************************************/
+
+#include <stdint.h>
+
+/***************************************************************************
  * Global Function Prototypes
  ***************************************************************************/
 
-extern sint16 unaryOptimize  ( void );
-extern sint16 binaryOptimize ( void );
+extern int16_t unaryOptimize(void);
+extern int16_t binaryOptimize(void);
 
 #endif /* __PCOPT_H */

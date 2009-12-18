@@ -2,7 +2,7 @@
  * plopt.h
  * External Declarations associated with plopt.c
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,8 +37,18 @@
 #ifndef __PLOPT_H
 #define __PLOPT_H
 
-extern sint16 LoadOptimize ( void );
-extern sint16 StoreOptimize ( void );
+/***************************************************************************
+ * Included Files
+ ***************************************************************************/
+
+#include <stdint.h>
+
+/***************************************************************************
+ * Public Function Prototypes
+ ***************************************************************************/
+
+extern int16_t LoadOptimize ( void );
+extern int16_t StoreOptimize ( void );
 
 #endif __PLOPT_H
 

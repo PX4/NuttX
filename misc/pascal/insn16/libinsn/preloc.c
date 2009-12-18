@@ -2,7 +2,7 @@
  * preloc.c
  * Perform P-Code relocations
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,8 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
+
 #include "keywords.h"
 #include "pdefs.h"
 #include "pedefs.h"
@@ -72,7 +74,7 @@
  * Private Functions
  **********************************************************************/
 
-int insn_Relocate(OPTYPE *op, uint32 pcOffset, uint32 roOffset)
+int insn_Relocate(OPTYPE *op, uint32_t pcOffset, uint32_t roOffset)
 {
   switch (op->op)
     {
@@ -126,7 +128,7 @@ int insn_Relocate(OPTYPE *op, uint32 pcOffset, uint32 roOffset)
 
 /***********************************************************************/
 
-void insn_FixupProcedureCall(ubyte *progData, uint32 symValue)
+void insn_FixupProcedureCall(uint8_t *progData, uint32_t symValue)
 {
 
   /* Sanity checking */

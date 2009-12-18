@@ -53,15 +53,15 @@
  * Type Definitions
  ****************************************************************************/
 
-typedef uint16 ustack_t;   /* Stack values are 16-bits in length */
-typedef sint16 sstack_t;
-typedef uint16 addr_t;     /* Addresses are 16-bits in length */
-typedef uint16 level_t;    /* Limits to MAXUINT16 levels */
+typedef uint16_t ustack_t;   /* Stack values are 16-bits in length */
+typedef int16_t sstack_t;
+typedef uint16_t addr_t;     /* Addresses are 16-bits in length */
+typedef uint16_t level_t;    /* Limits to MAXUINT16 levels */
 
 union stack_u
 {
   ustack_t *i;
-  ubyte    *b;
+  uint8_t  *b;
 };
 typedef union stack_u stackType;
 
@@ -73,13 +73,13 @@ struct pexec_attr_s
 {
   /* Instruction space (I-Space) */
 
-  FAR ubyte *ispace;  /* Allocated I-Space containing p-code data */
+  FAR uint8_t *ispace;  /* Allocated I-Space containing p-code data */
   addr_t     entry;   /* Entry point */
   addr_t     maxpc;   /* Last valid p-code address */
 
   /* Read-only data block */
 
-  FAR ubyte *rodata;  /* Address of read-only data block */
+  FAR uint8_t *rodata;  /* Address of read-only data block */
   addr_t     rosize;  /* Size of read-only data block */
 
   /* Allocate for variable storage */
@@ -98,7 +98,7 @@ struct pexec_s
 
   /* This is the emulated P-Machine instruction space (I-Space) */
 
-  FAR ubyte *ispace;
+  FAR uint8_t *ispace;
 
  /* Address of last valid P-Code */
 

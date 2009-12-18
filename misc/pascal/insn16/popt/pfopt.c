@@ -2,7 +2,7 @@
  * pfopt.c
  * Finalization of optimized image
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -84,9 +85,9 @@
 
 static void pass1(poffHandle_t poffHandle, poffProgHandle_t poffProgHandle)
 {
-  OPTYPE op;
-  uint32 pc;
-  uint32 opsize;
+  OPTYPE   op;
+  uint32_t pc;
+  uint32_t opsize;
 
   /* Build label / line number reference table
    *
@@ -105,18 +106,18 @@ static void pass1(poffHandle_t poffHandle, poffProgHandle_t poffProgHandle)
     {
       opsize = insn_GetOpCode(poffHandle, &op);
       if (op.op == oLABEL)
-	{
-	  poffAddToDefinedLabelTable(op.arg2, pc);
-	}
+        {
+          poffAddToDefinedLabelTable(op.arg2, pc);
+        }
       else if (op.op == oLINE)
-	{
-	  poffAddLineNumber(poffHandle, op.arg2, op.arg1, pc);
-	}
+        {
+          poffAddLineNumber(poffHandle, op.arg2, op.arg1, pc);
+        }
       else
-	{
-	  insn_AddTmpOpCode(poffProgHandle, &op);
-	  pc += opsize;
-	}
+        {
+          insn_AddTmpOpCode(poffProgHandle, &op);
+          pc += opsize;
+        }
     }
   while (op.op != oEND);
 
@@ -130,8 +131,8 @@ static void pass1(poffHandle_t poffHandle, poffProgHandle_t poffProgHandle)
 static void pass2(poffHandle_t poffHandle, poffProgHandle_t poffProgHandle)
 {
   poffSymHandle_t poffSymHandle;
-  sint32 symIndex;
-  sint32 nchanges = 0;
+  int32_t symIndex;
+  int32_t nchanges = 0;
 
   /* Get a container to temporarily hold any modifications that we
    * make to the symbol table.
@@ -153,49 +154,49 @@ static void pass2(poffHandle_t poffHandle, poffProgHandle_t poffProgHandle)
       poffLibSymbol_t symbol;
       symIndex = poffGetSymbol(poffHandle, &symbol);
       if (symIndex >= 0)
-	{
-	  if ((symbol.type == STT_PROC) || (symbol.type == STT_FUNC))
-	    {
-	      /* It is a symbol associated with the program data section.
-	       * Has is value been defined?
-	       */
+        {
+          if ((symbol.type == STT_PROC) || (symbol.type == STT_FUNC))
+            {
+              /* It is a symbol associated with the program data section.
+               * Has is value been defined?
+               */
 
-	      if ((symbol.flags & STF_UNDEFINED) != 0)
-		{
-		  /* No... Add it to the list of undefined labels */
+              if ((symbol.flags & STF_UNDEFINED) != 0)
+                {
+                  /* No... Add it to the list of undefined labels */
 
-		  poffAddToUndefinedLabelTable(symbol.value, symIndex);
-		}
-	      else
-		{
-		  /* It is a defined symbol. In this case, we should have
-		   * encountered its LABEL marker in the pass1 processing
-		   * and the following look up should not fail.
-		   */
-		  sint32 value = poffGetPcForDefinedLabel(symbol.value);
-		  if (value < 0)
-		    {
-		      DEBUG(stdout, "Failed to find label L%04lx\n", symbol.value);
-		      fatal(ePOFFCONFUSION);
-		    }
-		  else
-		    {
-		      /* Replace the label value with the section offset
-		       * (pc) value.
-		       */
+                  poffAddToUndefinedLabelTable(symbol.value, symIndex);
+                }
+              else
+                {
+                  /* It is a defined symbol. In this case, we should have
+                   * encountered its LABEL marker in the pass1 processing
+                   * and the following look up should not fail.
+                   */
+                  int32_t value = poffGetPcForDefinedLabel(symbol.value);
+                  if (value < 0)
+                    {
+                      DEBUG(stdout, "Failed to find label L%04lx\n", symbol.value);
+                      fatal(ePOFFCONFUSION);
+                    }
+                  else
+                    {
+                      /* Replace the label value with the section offset
+                       * (pc) value.
+                       */
 
-		      symbol.value = value;
-		      nchanges++;
-		    }
-		}
-	    }
+                      symbol.value = value;
+                      nchanges++;
+                    }
+                }
+            }
 
-	  /* In either event, we will want to save the symbol in case
-	   * we need to re-write the symbol table.
-	   */
+          /* In either event, we will want to save the symbol in case
+           * we need to re-write the symbol table.
+           */
 
-	  (void)poffAddTmpSymbol(poffHandle, poffSymHandle, &symbol);
-	}
+          (void)poffAddTmpSymbol(poffHandle, poffSymHandle, &symbol);
+        }
     }
   while (symIndex >= 0);
 
@@ -218,9 +219,9 @@ static void pass2(poffHandle_t poffHandle, poffProgHandle_t poffProgHandle)
 
 static void pass3(poffHandle_t poffHandle, poffProgHandle_t poffProgHandle)
 {
-  OPTYPE op;
-  uint32 pc;
-  uint32 opsize;
+  OPTYPE   op;
+  uint32_t pc;
+  uint32_t opsize;
 
   /* Read each opcode, generate relocation information and
    * replace label references with program section offsets.
@@ -243,131 +244,131 @@ static void pass3(poffHandle_t poffHandle, poffProgHandle_t poffProgHandle)
     {
       opsize = insn_GetOpCode(poffHandle, &op);
       switch (op.op)
-	{
-	  /* Load of an address in the rodata section */
+        {
+          /* Load of an address in the rodata section */
 
-	case oLAC:
-	  /* We are referencing something from the rodata section.
-	   * No special action need be taken.
-	   */
-	  break;
+        case oLAC:
+          /* We are referencing something from the rodata section.
+           * No special action need be taken.
+           */
+          break;
 
-	  /* Call to a procedure or function. */
+          /* Call to a procedure or function. */
 
-	case oPCAL:
-	  {
-	    /* Check if this is a defined label, i.e., a call to
-	     * procedure or function in the same file.
-	     */
+        case oPCAL:
+          {
+            /* Check if this is a defined label, i.e., a call to
+             * procedure or function in the same file.
+             */
 
-	    sint32 value = poffGetPcForDefinedLabel(op.arg2);
-	    if (value >= 0)
-	      {
-		/* Yes... replace the label reference with
-		 * a text section offset.  No relocation record
-		 * is needed in this case.  The only relocation
-		 * may be performed is a subsequent program data
-		 * section offset.
-		 */
+            int32_t value = poffGetPcForDefinedLabel(op.arg2);
+            if (value >= 0)
+              {
+                /* Yes... replace the label reference with
+                 * a text section offset.  No relocation record
+                 * is needed in this case.  The only relocation
+                 * may be performed is a subsequent program data
+                 * section offset.
+                 */
 
-		op.arg2 = (uint16)value;
-	      }
-	    else
-	      {
-		/* Check if this is a undefined label.  This would
-		 * occur for a call to a procedure or a function that
-		 * is defined in some other unit file.
-		 */
+                op.arg2 = (uint16_t)value;
+              }
+            else
+              {
+                /* Check if this is a undefined label.  This would
+                 * occur for a call to a procedure or a function that
+                 * is defined in some other unit file.
+                 */
 
-		value = poffGetSymIndexForUndefinedLabel(op.arg2);
-		if (value >= 0)
-		  {
-		    /* Use the value zero now */
+                value = poffGetSymIndexForUndefinedLabel(op.arg2);
+                if (value >= 0)
+                  {
+                    /* Use the value zero now */
 
-		    op.arg2 = 0;
+                    op.arg2 = 0;
 
-		    /* And generate a symbol-based relocation */
+                    /* And generate a symbol-based relocation */
 
-		    (void)poffAddRelocation(poffHandle, RLT_PCAL, value, pc);
-		  }
-		else
-		  {
-		    DEBUG(stdout, "Failed to find call label L%04x\n", op.arg2);
-		    fatal(ePOFFCONFUSION);
-		  }
-	      }
-	  }
-	  break;
+                    (void)poffAddRelocation(poffHandle, RLT_PCAL, value, pc);
+                  }
+                else
+                  {
+                    DEBUG(stdout, "Failed to find call label L%04x\n", op.arg2);
+                    fatal(ePOFFCONFUSION);
+                  }
+              }
+          }
+          break;
 
-	  /* Jumps to "nearby" addresses */
+          /* Jumps to "nearby" addresses */
 
-	case oJMP:   /* Unconditional */
-	case oJEQUZ: /* Unary comparisons with zero */
-	case oJNEQZ:
-	case oJLTZ:
-	case oJGTEZ:
-	case oJGTZ:
-	case oJLTEZ:
-	case oJEQU:  /* Binary comparisons */
-	case oJNEQ:
-	case oJLT:
-	case oJGTE:
-	case oJGT:
-	case oJLTE:
-	  {
-	    /* Check if this is a defined label.  This must be the case
-	     * because there can be no jumps into a unit file.
-	     */
+        case oJMP:   /* Unconditional */
+        case oJEQUZ: /* Unary comparisons with zero */
+        case oJNEQZ:
+        case oJLTZ:
+        case oJGTEZ:
+        case oJGTZ:
+        case oJLTEZ:
+        case oJEQU:  /* Binary comparisons */
+        case oJNEQ:
+        case oJLT:
+        case oJGTE:
+        case oJGT:
+        case oJLTE:
+          {
+            /* Check if this is a defined label.  This must be the case
+             * because there can be no jumps into a unit file.
+             */
 
-	    sint32 value = poffGetPcForDefinedLabel(op.arg2);
-	    if (value >= 0)
-	      {
-		/* Yes... replace the label reference with
-		 * a text section offset.  No relocation record
-		 * is needed in this case.  The only relocation
-		 * may be performed is a subsequent program data
-		 * sectioin offset.
-		 */
+            int32_t value = poffGetPcForDefinedLabel(op.arg2);
+            if (value >= 0)
+              {
+                /* Yes... replace the label reference with
+                 * a text section offset.  No relocation record
+                 * is needed in this case.  The only relocation
+                 * may be performed is a subsequent program data
+                 * sectioin offset.
+                 */
 
-		op.arg2 = (uint16)value;
-	      }
-	    else
-	      {
-		DEBUG(stdout, "Failed to find jump label L%04x\n", op.arg2);
-		fatal(ePOFFCONFUSION);
-	      }
-	  }
-	  break;
+                op.arg2 = (uint16_t)value;
+              }
+            else
+              {
+                DEBUG(stdout, "Failed to find jump label L%04x\n", op.arg2);
+                fatal(ePOFFCONFUSION);
+              }
+          }
+          break;
 
-	  /* References to stack via level offset */
+          /* References to stack via level offset */
 
-	case oLAS:   /* Load stack address */
-	case oLASX:
-	case oLDS:   /* Load value */
-	case oLDSH:
-	case oLDSB:
-	case oLDSM:
-	case oSTS:   /* Store value */
-	case oSTSH:
-	case oSTSB:
-	case oSTSM:
-	case oLDSX:
-	case oLDSXH: /* Load value indexed */
-	case oLDSXB:
-	case oLDSXM:
-	case oSTSX:  /* Store value indexed */
-	case oSTSXH:
-	case oSTSXB:
-	case oSTSXM:
-	  {
+        case oLAS:   /* Load stack address */
+        case oLASX:
+        case oLDS:   /* Load value */
+        case oLDSH:
+        case oLDSB:
+        case oLDSM:
+        case oSTS:   /* Store value */
+        case oSTSH:
+        case oSTSB:
+        case oSTSM:
+        case oLDSX:
+        case oLDSXH: /* Load value indexed */
+        case oLDSXB:
+        case oLDSXM:
+        case oSTSX:  /* Store value indexed */
+        case oSTSXH:
+        case oSTSXB:
+        case oSTSXM:
+          {
 #warning REVISIT
-	  }
-	  break;
+          }
+          break;
 
-	  /* Otherwise, it is not an interesting opcode */
-	default:
-	  break;
-	}
+          /* Otherwise, it is not an interesting opcode */
+        default:
+          break;
+        }
 
       /* Save the potentially modified opcode in the temporary
        * program data container.
@@ -387,9 +388,9 @@ static void pass3(poffHandle_t poffHandle, poffProgHandle_t poffProgHandle)
 
 static void pass4(poffHandle_t poffHandle)
 {
-  uint32 entryLabel;
-  sint32 entryOffset;
-  ubyte  fileType;
+  uint32_t entryLabel;
+  int32_t  entryOffset;
+  uint8_t  fileType;
 
   /* What kind of a file did we just process.  Was it a program file?
    * or was it a unit file?
@@ -408,9 +409,9 @@ static void pass4(poffHandle_t poffHandle)
 
       entryOffset = poffGetPcForDefinedLabel(entryLabel);
       if (entryOffset < 0)
-	{
-	  fatal(ePOFFCONFUSION);
-	}
+        {
+          fatal(ePOFFCONFUSION);
+        }
 
       /* Replace file header entry point with the program data
        * section offset

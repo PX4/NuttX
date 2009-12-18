@@ -2,7 +2,7 @@
  * pdasm.c
  * P-Code Disassembler
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,11 @@
  *
  **********************************************************************/
 
+/***********************************************************************
+ * Included Files
+ ***********************************************************************/
+
+#include <stdint.h>
 #include <stdio.h>
 
 #include "keywords.h"
@@ -45,7 +50,9 @@
 
 #include "pinsn.h"
 
-/***********************************************************************/
+/***********************************************************************
+ * Pre-processor Definitions
+ ***********************************************************************/
 
 /* These are all the format codes that apply to opcodes the an arg16 */
 
@@ -67,7 +74,7 @@ static const char invOp[] = "Invalid Opcode";
 static const struct
 {
   const char *opName;       /* Opcode mnemonics */
-  ubyte   format;           /* arg16 format */
+  uint8_t format;           /* arg16 format */
 } opTable[256] =
 {
 
@@ -484,13 +491,13 @@ void insn_DisassemblePCode(FILE* lfile, OPTYPE *pop)
     {
       fprintf(lfile, "%s ", opTable[pop->op].opName);
       if (pop->op & o8)
-	{
-	  fprintf(lfile, "%d", pop->arg1);
-	  if (pop->op & o16)
-	    fprintf(lfile, ":%d", pop->arg2);
-	} /* end if */
+        {
+          fprintf(lfile, "%d", pop->arg1);
+          if (pop->op & o16)
+            fprintf(lfile, ":%d", pop->arg2);
+        } /* end if */
       else if (pop->op & o16)
-	fprintf(lfile, "%d", pop->arg2);
+        fprintf(lfile, "%d", pop->arg2);
     } /* end if */
 
   /* Print normal opCode mnemonic */
@@ -506,51 +513,51 @@ void insn_DisassemblePCode(FILE* lfile, OPTYPE *pop)
       /* Print ar16 (if present) */
 
       if (pop->op & o16)
-	{
-	  switch (opTable[pop->op].format)
-	    {
-	    case HEX       :
-	      if (pop->op & o8) fprintf(lfile, ", ");
-	      fprintf(lfile, "0x%04x", pop->arg2);
-	      break;
+        {
+          switch (opTable[pop->op].format)
+            {
+            case HEX       :
+              if (pop->op & o8) fprintf(lfile, ", ");
+              fprintf(lfile, "0x%04x", pop->arg2);
+              break;
 
-	    case COMMENT   :
-	    case DECIMAL   :
-	      if (pop->op & o8) fprintf(lfile, ", ");
-	      fprintf(lfile, "%ld", signExtend16(pop->arg2));
-	      break;
+            case COMMENT   :
+            case DECIMAL   :
+              if (pop->op & o8) fprintf(lfile, ", ");
+              fprintf(lfile, "%ld", signExtend16(pop->arg2));
+              break;
 
-	    case UDECIMAL   :
-	      if (pop->op & o8) fprintf(lfile, ", ");
-	      fprintf(lfile, "%u", pop->arg2);
-	      break;
+            case UDECIMAL   :
+              if (pop->op & o8) fprintf(lfile, ", ");
+              fprintf(lfile, "%u", pop->arg2);
+              break;
 
-	    case fpOP       :
-	      if ((pop->arg1 & fpMASK) < MAX_FOP)
-		fprintf(lfile, " %s", fpName[(pop->arg1 & 0x3f)]);
-	      else
-		fprintf(lfile, " %s", invFpOp);
-	      break;
+            case fpOP       :
+              if ((pop->arg1 & fpMASK) < MAX_FOP)
+                fprintf(lfile, " %s", fpName[(pop->arg1 & 0x3f)]);
+              else
+                fprintf(lfile, " %s", invFpOp);
+              break;
 
-	    case xOP       :
-	      if (pop->arg2 < MAX_XOP)
-		fprintf(lfile, ", %s", xName[pop->arg2]);
-	      else
-		fprintf(lfile, ", %s", invXOp);
-	      break;
+            case xOP       :
+              if (pop->arg2 < MAX_XOP)
+                fprintf(lfile, ", %s", xName[pop->arg2]);
+              else
+                fprintf(lfile, ", %s", invXOp);
+              break;
 
-	    case lbOP :
-	      if (pop->arg2 < MAX_LBOP)
-		fprintf(lfile, "%s", lbName[pop->arg2]);
-	      else
-		fprintf(lfile, "%s", invLbOp);
-	      break;
+            case lbOP :
+              if (pop->arg2 < MAX_LBOP)
+                fprintf(lfile, "%s", lbName[pop->arg2]);
+              else
+                fprintf(lfile, "%s", invLbOp);
+              break;
 
-	    case LABEL_DEC :
-	    default        :
-	      break;
-	    } /* end switch */
-	} /* end if */
+            case LABEL_DEC :
+            default        :
+              break;
+            } /* end switch */
+        } /* end if */
     } /* end else */
 
   /* Don't forget the newline! */

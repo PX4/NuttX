@@ -2,7 +2,7 @@
  * polocal.c
  * P-Code Local Optimizer
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 
 #include "keywords.h"
@@ -67,8 +68,8 @@ static void setupPointer      (void);
 OPTYPE  ptable [WINDOW];                /* Pcode Table */
 OPTYPE *pptr   [WINDOW];                /* Valid Pcode Pointers */
 
-sint16  nops    = 0;                    /* No. Valid Pcode Pointers */
-sint16  end_out = 0;                    /* 1 = oEND pcode has been output */
+int16_t nops    = 0;                    /* No. Valid Pcode Pointers */
+int16_t end_out = 0;                    /* 1 = oEND pcode has been output */
 
 /**********************************************************************
  * Private Variables
@@ -84,9 +85,9 @@ static poffProgHandle_t myPoffProgHandle;/* Handle to temporary POFF object */
 /***********************************************************************/
 
 void localOptimization(poffHandle_t poffHandle,
-		       poffProgHandle_t poffProgHandle)
+                       poffProgHandle_t poffProgHandle)
 {
-  sint16 nchanges;
+  int16_t nchanges;
 
   TRACE(stderr, "[pass2]");
 
@@ -112,13 +113,13 @@ void localOptimization(poffHandle_t poffHandle,
        */
 
       do
-	{
-	  nchanges  = unaryOptimize ();
-	  nchanges += binaryOptimize();
-	  nchanges += BranchOptimize();
-	  nchanges += LoadOptimize();
-	  nchanges += StoreOptimize();
-	} while (nchanges);
+        {
+          nchanges  = unaryOptimize ();
+          nchanges += binaryOptimize();
+          nchanges += BranchOptimize();
+          nchanges += LoadOptimize();
+          nchanges += StoreOptimize();
+        } while (nchanges);
 
       putPCodeFromTable();
     }
@@ -126,7 +127,7 @@ void localOptimization(poffHandle_t poffHandle,
 
 /***********************************************************************/
 
-void deletePcode(sint16 delIndex)
+void deletePcode(int16_t delIndex)
 {
   TRACE(stderr, "[deletePcode]");
 
@@ -138,7 +139,7 @@ void deletePcode(sint16 delIndex)
 
 /**********************************************************************/
 
-void deletePcodePair(sint16 delIndex1, sint16 delIndex2)
+void deletePcodePair(int16_t delIndex1, int16_t delIndex2)
 {
   TRACE(stderr, "[deletePcodePair]");
 
@@ -159,7 +160,7 @@ void deletePcodePair(sint16 delIndex1, sint16 delIndex2)
 
 static void putPCodeFromTable(void)
 {
-  register sint16 i;
+  register int16_t i;
 
   TRACE(stderr, "[putPCodeFromTable]");
 
@@ -167,31 +168,31 @@ static void putPCodeFromTable(void)
   do
     {
       if ((ptable[0].op != oNOP) && !(end_out))
-	{
-	  (void)poffAddTmpProgByte(myPoffProgHandle, ptable[0].op);
+        {
+          (void)poffAddTmpProgByte(myPoffProgHandle, ptable[0].op);
 
-	  if (ptable[0].op & o8)  
-	    (void)poffAddTmpProgByte(myPoffProgHandle, ptable[0].arg1);
+          if (ptable[0].op & o8)  
+            (void)poffAddTmpProgByte(myPoffProgHandle, ptable[0].arg1);
 
-	  if (ptable[0].op & o16)
-	    { 
-	      (void)poffAddTmpProgByte(myPoffProgHandle,
-				       (ptable[0].arg2 >> 8));
-	      (void)poffAddTmpProgByte(myPoffProgHandle,
-				       (ptable[0].arg2 & 0xff));
-	    }
+          if (ptable[0].op & o16)
+            { 
+              (void)poffAddTmpProgByte(myPoffProgHandle,
+                                       (ptable[0].arg2 >> 8));
+              (void)poffAddTmpProgByte(myPoffProgHandle,
+                                       (ptable[0].arg2 & 0xff));
+            }
 
-	  end_out =(ptable[0].op == oEND);
-	}
+          end_out =(ptable[0].op == oEND);
+        }
 
       /* Move all P-Codes down one slot */
 
       for (i = 1; i < WINDOW; i++)
-	{
-	  ptable[i-1].op   = ptable[i].op ;
-	  ptable[i-1].arg1 = ptable[i].arg1;
-	  ptable[i-1].arg2 = ptable[i].arg2;
-	}
+        {
+          ptable[i-1].op   = ptable[i].op ;
+          ptable[i-1].arg1 = ptable[i].arg1;
+          ptable[i-1].arg2 = ptable[i].arg2;
+        }
 
       /* Then fill the end slot with a new P-Code from the input file */
 
@@ -205,7 +206,7 @@ static void putPCodeFromTable(void)
 
 static void setupPointer(void)
 {
-  register sint16 pindex;
+  register int16_t pindex;
 
   TRACE(stderr, "[setupPointer]");
 
@@ -216,44 +217,44 @@ static void setupPointer(void)
   for (pindex = 0; pindex < WINDOW; pindex++)
     {
       switch (ptable[pindex].op)
-	{
-	  /* Terminate list when a break from sequential logic is
-	   * encountered
-	   */
+        {
+          /* Terminate list when a break from sequential logic is
+           * encountered
+           */
 
-	case oRET   :
-	case oEND   :
-	case oJMP   :
-	case oLABEL :
-	case oPCAL  :
-	  return;
+        case oRET   :
+        case oEND   :
+        case oJMP   :
+        case oLABEL :
+        case oPCAL  :
+          return;
 
-	  /* Terminate list when a condition break from sequential logic is
-	   * encountered but include the conditional branch in the list
-	   */
+          /* Terminate list when a condition break from sequential logic is
+           * encountered but include the conditional branch in the list
+           */
 
-	case oJEQUZ :
-	case oJNEQZ :
-	case oJLTZ  :
-	case oJGTEZ :
-	case oJGTZ  :
-	case oJLTEZ :
-	  pptr[nops] = &ptable[pindex];
-	  nops++;
-	  return;
+        case oJEQUZ :
+        case oJNEQZ :
+        case oJLTZ  :
+        case oJGTEZ :
+        case oJGTZ  :
+        case oJLTEZ :
+          pptr[nops] = &ptable[pindex];
+          nops++;
+          return;
 
-	  /* Skip over NOPs and comment class pcodes */
+          /* Skip over NOPs and comment class pcodes */
 
-	case oNOP   :
-	case oLINE  :
-	  break;
+        case oNOP   :
+        case oLINE  :
+          break;
 
-	  /* Include all other pcodes in the optimization list and continue */
+          /* Include all other pcodes in the optimization list and continue */
 
-	default     :
-	  pptr[nops] = &ptable[pindex];
-	  nops++;
-	}
+        default     :
+          pptr[nops] = &ptable[pindex];
+          nops++;
+        }
     }
 }
 
@@ -261,7 +262,7 @@ static void setupPointer(void)
 
 static void initPTable(void)
 {
-  register sint16 i;
+  register int16_t i;
 
   TRACE(stderr, "[intPTable]");
 
@@ -276,15 +277,15 @@ static void initPTable(void)
       (void)poffAddTmpProgByte(myPoffProgHandle, ptable[0].op);
 
       if (ptable[0].op & o8)  
-	{
-	  (void)poffAddTmpProgByte(myPoffProgHandle, ptable[0].arg1);
-	}
+        {
+          (void)poffAddTmpProgByte(myPoffProgHandle, ptable[0].arg1);
+        }
 
       if (ptable[0].op & o16)
-	{ 
-	  (void)poffAddTmpProgByte(myPoffProgHandle, (ptable[0].arg2 >> 8));
-	  (void)poffAddTmpProgByte(myPoffProgHandle, (ptable[0].arg2 & 0xff));
-	} /* end if */
+        { 
+          (void)poffAddTmpProgByte(myPoffProgHandle, (ptable[0].arg2 >> 8));
+          (void)poffAddTmpProgByte(myPoffProgHandle, (ptable[0].arg2 & 0xff));
+        } /* end if */
     }
   while ((ptable[0].op != oLABEL) && (ptable[0].op != oEND));
 

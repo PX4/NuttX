@@ -2,7 +2,7 @@
  * pjopt.h
  * External Declarations associated with pjopt.c
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,16 @@
 #ifndef __PJOPT_H
 #define __PJOPT_H
 
-sint16 BranchOptimize ( void );
+/***************************************************************************
+ * Included Files
+ ***************************************************************************/
+
+#include <stdint.h>
+
+/***************************************************************************
+ * Public Function Prototypes
+ ***************************************************************************/
+
+int16_t BranchOptimize(void);
 
 #endif /* __PJOPT_H */

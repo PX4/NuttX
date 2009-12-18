@@ -1,7 +1,7 @@
 /****************************************************************************
  * pload.c
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,7 @@
  * Included Files
  ****************************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -48,7 +49,7 @@
 #include "pexec.h"
 
 /****************************************************************************
- * Definitions
+ * Pre-processor Definitions
  ****************************************************************************/
 
 /****************************************************************************
@@ -81,9 +82,9 @@ FAR struct pexec_s *pload(const char *filename, addr_t varsize, addr_t strsize)
   struct pexec_s *st;
   poffHandle_t phandle;
   FILE        *exe;
-  uint16       err;
-  ubyte        ftype;
-  ubyte        farch;
+  uint16_t     err;
+  uint8_t      ftype;
+  uint8_t      farch;
 
   /* Create a handle to contain the executable data */
 

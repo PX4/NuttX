@@ -2,7 +2,7 @@
  * popt.c
  * P-Code Optimizer Main Logic
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -56,11 +57,11 @@
  * Private Function Prototypes
  **********************************************************************/
 
-static void readPoffFile      (const char *filename);
-static void pass1             (void);
-static void pass2             (void);
-static void pass3             (void);
-static void writePoffFile     (const char *filename);
+static void readPoffFile  (const char *filename);
+static void pass1         (void);
+static void pass2         (void);
+static void pass3         (void);
+static void writePoffFile (const char *filename);
 
 /**********************************************************************
  * Global Variables
@@ -125,7 +126,7 @@ static void readPoffFile(const char *filename)
 {
   char    objname [FNAME_SIZE+1];
   FILE   *objFile;
-  uint16  errcode;
+  uint16_t errcode;
 
   TRACE(stderr, "[readPoffFile]");
 

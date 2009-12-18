@@ -1,7 +1,7 @@
 /****************************************************************************
  * pexec.c
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 200-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,8 @@
  * Included Files
  ****************************************************************************/
 
+#include <sys/types.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -135,8 +137,8 @@
 
 union fparg_u
 {
-  float64 f;
-  uint16 hw[4];
+  double   f;
+  uint16_t hw[4];
 };
 
 typedef union fparg_u fparg_t;
@@ -145,20 +147,20 @@ typedef union fparg_u fparg_t;
  * Private Function Prototypes
  ****************************************************************************/
 
-static uint16   pexec_sysio(struct pexec_s *st, ubyte fileno, uint16 subfunc);
-static uint16   pexec_libcall(struct pexec_s *st, uint16 subfunc);
-static uint16   pexec_execfp(struct pexec_s *st, ubyte fpop);
-static void     pexec_getfparguments(struct pexec_s *st, ubyte fpop, fparg_t *arg1, fparg_t *arg2);
-static ustack_t pexec_readinteger(ubyte *ioptr);
-static void     pexec_readreal(uint16 *dest, ubyte *ioptr);
+static uint16_t pexec_sysio(struct pexec_s *st, uint8_t fileno, uint16_t subfunc);
+static uint16_t pexec_libcall(struct pexec_s *st, uint16_t subfunc);
+static uint16_t pexec_execfp(struct pexec_s *st, uint8_t fpop);
+static void     pexec_getfparguments(struct pexec_s *st, uint8_t fpop, fparg_t *arg1, fparg_t *arg2);
+static ustack_t pexec_readinteger(uint8_t *ioptr);
+static void     pexec_readreal(uint16_t *dest, uint8_t *ioptr);
 static ustack_t pexec_getbaseaddress(struct pexec_s *st, level_t leveloffset);
-static ubyte   *pexec_mkcstring(ubyte *buffer, int buflen);
+static uint8_t *pexec_mkcstring(uint8_t *buffer, int buflen);
 
 /****************************************************************************
  * Private Variables
  ****************************************************************************/
 
-static ubyte ioline[LINE_SIZE+1];
+static uint8_t ioline[LINE_SIZE+1];
 
 /****************************************************************************
  * Private Functions
@@ -172,12 +174,12 @@ static ubyte ioline[LINE_SIZE+1];
  *
  ****************************************************************************/
 
-static uint16 pexec_sysio(struct pexec_s *st, ubyte fileno, uint16 subfunc)
+static uint16_t pexec_sysio(struct pexec_s *st, uint8_t fileno, uint16_t subfunc)
 {
   ustack_t uparm1;
   fparg_t  fp;
 
-  ubyte *ptr;
+  uint8_t *ptr;
 
   switch (subfunc)
     {
@@ -230,7 +232,7 @@ static uint16 pexec_sysio(struct pexec_s *st, ubyte fileno, uint16 subfunc)
 
     case xREAD_REAL :
       (void)fgets((char*)ioline, LINE_SIZE, stdin);
-      pexec_readreal((uint16*)ATSTACK(st, TOS(st, 0)), ioline);
+      pexec_readreal((uint16_t*)ATSTACK(st, TOS(st, 0)), ioline);
       break;
 
     case xWRITELN :
@@ -264,12 +266,12 @@ static uint16 pexec_sysio(struct pexec_s *st, ubyte fileno, uint16 subfunc)
 
     case xWRITE_STRING :
       uparm1 = TOS(st, 0);
-      for (ptr = (ubyte*)ATSTACK(st, TOS(st, 1)); uparm1; uparm1--, ptr++)
+      for (ptr = (uint8_t*)ATSTACK(st, TOS(st, 1)); uparm1; uparm1--, ptr++)
         putchar(*ptr);
       break;
 
       /* xWRITE_REAL:
-       * STACK INPUTS: TOS = value of float64 */
+       * STACK INPUTS: TOS = value of double */
 
     case xWRITE_REAL :
       fp.hw[0] = TOS(st, 3);
@@ -296,19 +298,19 @@ static uint16 pexec_sysio(struct pexec_s *st, ubyte fileno, uint16 subfunc)
  *
  ****************************************************************************/
 
-static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
+static uint16_t pexec_libcall(struct pexec_s *st, uint16_t subfunc)
 {
   ustack_t  uparm1;
   ustack_t  uparm2;
   addr_t    addr1;
   addr_t    addr2;
-  uint16   *tmp;
-  uint16   *ref;
-  ubyte    *src;
-  ubyte    *dest;
-  ubyte    *name;
+  uint16_t *tmp;
+  uint16_t *ref;
+  uint8_t  *src;
+  uint8_t  *dest;
+  uint8_t  *name;
   int       len;
-  sint32    value;
+  int32_t   value;
 
   switch (subfunc)
     {
@@ -324,7 +326,7 @@ static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
 
     case lbGETENV :
       len = TOS(st, 0);                    /* Number of bytes in string */
-      src = (ubyte*)&GETSTACK(st, TOS(st, 1));  /* Pointer to string */
+      src = (uint8_t*)&GETSTACK(st, TOS(st, 1));  /* Pointer to string */
                        
       /* Make a C string out of the pascal string */
 
@@ -336,13 +338,13 @@ static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
 
       /* Make the C-library call and free the string copy */
 
-      src = (ubyte*)getenv((char*)name);
+      src = (uint8_t*)getenv((char*)name);
       free_cstring(name);
 
       /* Save the returned pointer in the stack */
 
-      TOS(st, 0) = (ustack_t)((uint32)src >> 16);
-      TOS(st, 1) = (ustack_t)((uint32)src & 0x0000ffff);
+      TOS(st, 0) = (ustack_t)((uint32_t)src >> 16);
+      TOS(st, 1) = (ustack_t)((uint32_t)src & 0x0000ffff);
       break;
 
       /* Copy pascal string to a pascal string
@@ -395,9 +397,9 @@ static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
 
           /* Transfer the (16-bit) string length (must be aligned!) */
 
-          tmp    = (uint16*)dest;
+          tmp    = (uint16_t*)dest;
           *tmp++ = uparm1;
-          dest   = (ubyte*)tmp;
+          dest   = (uint8_t*)tmp;
 
           /* Then transfer the string contents */
 
@@ -423,7 +425,7 @@ static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
       /* Get proper string pointers */
 
       dest = ATSTACK(st, addr1);
-      src  = (ubyte*)((unsigned long)uparm1 << 16 | (unsigned long)uparm2);
+      src  = (uint8_t*)((unsigned long)uparm1 << 16 | (unsigned long)uparm2);
 
       /* Handle null src pointer */
 
@@ -456,9 +458,9 @@ static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
 
           /* Transfer the (16-bit) string length (must be aligned!) */
 
-          tmp    = (uint16*)dest;
+          tmp    = (uint16_t*)dest;
           *tmp++ = uparm1;
-          dest   = (ubyte*)tmp;
+          dest   = (uint8_t*)tmp;
 
           /* Then transfer the string contents */
 
@@ -491,7 +493,7 @@ static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
 
       /* Get a pointer to the destination reference */
 
-      ref = (uint16*)ATSTACK(st, addr1);
+      ref = (uint16_t*)ATSTACK(st, addr1);
 
       /* Get proper string pointers */
 
@@ -500,9 +502,9 @@ static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
 
       /* Transfer the (16-bit) string length (must be aligned!) */
 
-      tmp    = (uint16*)dest;
+      tmp    = (uint16_t*)dest;
       *tmp++ = uparm1;
-      dest   = (ubyte*)tmp;
+      dest   = (uint8_t*)tmp;
 
       /* Then transfer the string contents and save the new size */
 
@@ -528,12 +530,12 @@ static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
 
       /* Get a pointer to the destination reference */
 
-      ref = (uint16*)ATSTACK(st, addr1);
+      ref = (uint16_t*)ATSTACK(st, addr1);
 
       /* Get proper string pointers */
 
       dest = ATSTACK(st, ref[0] - 2);
-      src  = (ubyte*)((unsigned long)uparm1 << 16 | (unsigned long)uparm2);
+      src  = (uint8_t*)((unsigned long)uparm1 << 16 | (unsigned long)uparm2);
 
       /* Handle null src pointer */
 
@@ -557,9 +559,9 @@ static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
 
           /* Transfer the (16-bit) string length (must be aligned!) */
 
-          tmp    = (uint16*)dest;
+          tmp    = (uint16_t*)dest;
           *tmp++ = uparm1;
-          dest   = (ubyte*)tmp;
+          dest   = (uint8_t*)tmp;
 
           /* Then transfer the string contents */
 
@@ -598,7 +600,7 @@ static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
       /* Get the string information */
 
       len = TOS(st, 2);                    /* Number of bytes in string */
-      src = (ubyte*)&GETSTACK(st, TOS(st, 3));  /* Pointer to string */
+      src = (uint8_t*)&GETSTACK(st, TOS(st, 3));  /* Pointer to string */
 
       /* Make a C string out of the pascal string */
 
@@ -639,7 +641,7 @@ static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
 
       /* Save the length at the beginning of the copy */
 
-      tmp    = (uint16*)&GETSTACK(st, addr1);  /* Pointer to new string */
+      tmp    = (uint16_t*)&GETSTACK(st, addr1);  /* Pointer to new string */
       *tmp++ = 0;                          /* Save current size */
 
       /* Update the stack content */
@@ -684,13 +686,13 @@ static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
 
       /* Save the length at the beginning of the copy */
 
-      tmp    = (uint16*)&GETSTACK(st, addr2);  /* Pointer to new string */
+      tmp    = (uint16_t*)&GETSTACK(st, addr2);  /* Pointer to new string */
       *tmp++ = uparm1;                     /* Save current size */
-      dest   = (ubyte*)tmp;                 /* Pointer to string data */
+      dest   = (uint8_t*)tmp;                 /* Pointer to string data */
 
       /* Copy the string into the string stack */
 
-      src  = (ubyte*)&GETSTACK(st, addr1);  /* Pointer to original string */
+      src  = (uint8_t*)&GETSTACK(st, addr1);  /* Pointer to original string */
       memcpy(dest, src, uparm1);
 
       /* Update the stack content */
@@ -725,9 +727,9 @@ static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
 
       /* Save the length at the beginning of the copy */
 
-      tmp    = (uint16*)&GETSTACK(st, addr2);  /* Pointer to new string */
+      tmp    = (uint16_t*)&GETSTACK(st, addr2);  /* Pointer to new string */
       *tmp++ = 1;                          /* Save initial size */
-      dest   = (ubyte*)tmp;                 /* Pointer to string data */
+      dest   = (uint8_t*)tmp;                 /* Pointer to string data */
 
       /* Copy the character into the string stack */
 
@@ -777,9 +779,9 @@ static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
            * a pointer to string2 data.
            */
 
-          tmp    = ((uint16*)&GETSTACK(st, TOS(st, 1))) - 1;
+          tmp    = ((uint16_t*)&GETSTACK(st, TOS(st, 1))) - 1;
           *tmp++ = uparm1 + uparm2;
-          dest   = (ubyte*)tmp;
+          dest   = (uint8_t*)tmp;
 
           memcpy(&dest[uparm2], src, uparm1); /* cat strings */
           TOS(st, 0) = uparm1 + uparm2;           /* Save new size */
@@ -818,13 +820,13 @@ static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
            * a pointer to string data.
            */
 
-          tmp          = ((uint16*)&GETSTACK(st, TOS(st, 1))) - 1;
+          tmp          = ((uint16_t*)&GETSTACK(st, TOS(st, 1))) - 1;
           *tmp++       = uparm2 + 1;
-          dest         = (ubyte*)tmp;
+          dest         = (uint8_t*)tmp;
 
           /* Add the new charcter */
 
-          dest[uparm2] = (ubyte)uparm1;
+          dest[uparm2] = (uint8_t)uparm1;
 
           /* Save the new string size */
 
@@ -912,9 +914,9 @@ static uint16 pexec_libcall(struct pexec_s *st, uint16 subfunc)
  *
  ****************************************************************************/
 
-static uint16 pexec_execfp(struct pexec_s *st, ubyte fpop)
+static uint16_t pexec_execfp(struct pexec_s *st, uint8_t fpop)
 {
-  sint16 intValue;
+  int16_t intValue;
   fparg_t arg1;
   fparg_t arg2;
   fparg_t result;
@@ -925,7 +927,7 @@ static uint16 pexec_execfp(struct pexec_s *st, ubyte fpop)
 
     case fpFLOAT :
       POP(st, intValue);
-      result.f = (float64)intValue;
+      result.f = (double)intValue;
       PUSH(st, result.hw[0]);
       PUSH(st, result.hw[1]);
       PUSH(st, result.hw[2]);
@@ -935,7 +937,7 @@ static uint16 pexec_execfp(struct pexec_s *st, ubyte fpop)
     case fpTRUNC :
     case fpROUND :
       pexec_getfparguments(st, fpop, &arg1, NULL);
-      intValue = (sint16)arg1.f;
+      intValue = (int16_t)arg1.f;
       PUSH(st, intValue);
       break;
 
@@ -1126,9 +1128,9 @@ static uint16 pexec_execfp(struct pexec_s *st, ubyte fpop)
  *
  ****************************************************************************/
 
-static void pexec_getfparguments(struct pexec_s *st, ubyte fpop, fparg_t *arg1, fparg_t *arg2)
+static void pexec_getfparguments(struct pexec_s *st, uint8_t fpop, fparg_t *arg1, fparg_t *arg2)
 {
-  sint16 sparm;
+  int16_t sparm;
 
   /* Extract arg2 from the stack */
 
@@ -1139,7 +1141,7 @@ static void pexec_getfparguments(struct pexec_s *st, ubyte fpop, fparg_t *arg1, 
       if ((fpop & fpARG2) != 0)
         {
           POP(st, sparm);
-          arg2->f = (float64)sparm;
+          arg2->f = (double)sparm;
         }
       else
         {
@@ -1159,7 +1161,7 @@ static void pexec_getfparguments(struct pexec_s *st, ubyte fpop, fparg_t *arg1, 
       if ((fpop & fpARG1) != 0)
         {
           POP(st, sparm);
-          arg1->f = (float64)sparm;
+          arg1->f = (double)sparm;
         }
       else
         {
@@ -1179,7 +1181,7 @@ static void pexec_getfparguments(struct pexec_s *st, ubyte fpop, fparg_t *arg1, 
  *   This function parses a decimal integer from ioptr
  ****************************************************************************/
 
-static ustack_t pexec_readinteger(ubyte *ioptr)
+static ustack_t pexec_readinteger(uint8_t *ioptr)
 {
   sstack_t value = 0;
 
@@ -1204,12 +1206,12 @@ static ustack_t pexec_readinteger(ubyte *ioptr)
  *
  ****************************************************************************/
 
-static void pexec_readreal(uint16 *dest, ubyte *inPtr)
+static void pexec_readreal(uint16_t *dest, uint8_t *inPtr)
 {
-  sint32    intpart;
-  fparg_t   result;
-  float64   fraction;
-  ubyte     unaryop;
+  int32_t  intpart;
+  fparg_t  result;
+  double   fraction;
+  uint8_t  unaryop;
 
   intpart = 0;
   unaryop = '+';
@@ -1222,9 +1224,9 @@ static void pexec_readreal(uint16 *dest, ubyte *inPtr)
   /* Get the integer part of the real */
 
   while ((*inPtr >= '0') && (*inPtr <= '9'))
-    intpart = 10*intpart + ((sint32)*inPtr++) - ((sint32)'0');
+    intpart = 10*intpart + ((int32_t)*inPtr++) - ((int32_t)'0');
 
-  result.f = ((float64)intpart);
+  result.f = ((double)intpart);
 
   /* Check for the a fractional part */
 
@@ -1234,7 +1236,7 @@ static void pexec_readreal(uint16 *dest, ubyte *inPtr)
       fraction = 0.1;
       while ((*inPtr >= '0') && (*inPtr <= '9'))
         {
-          result.f += fraction * (float64)(((sint32)*inPtr++) - ((sint32)'0'));
+          result.f += fraction * (double)(((int32_t)*inPtr++) - ((int32_t)'0'));
           fraction /= 10.0;
         }
     }
@@ -1290,9 +1292,9 @@ static ustack_t pexec_getbaseaddress(struct pexec_s *st, level_t leveloffset)
  * Name: pexec_mkcstring
  ****************************************************************************/
 
-static ubyte *pexec_mkcstring(ubyte *buffer, int buflen)
+static uint8_t *pexec_mkcstring(uint8_t *buffer, int buflen)
 {
-  ubyte *string;
+  uint8_t *string;
 
   string = malloc(buflen + 1);
   if (string != NULL)
@@ -1311,7 +1313,7 @@ static ubyte *pexec_mkcstring(ubyte *buffer, int buflen)
  *
  ****************************************************************************/
 
-static inline int pexec8(FAR struct pexec_s *st, ubyte opcode)
+static inline int pexec8(FAR struct pexec_s *st, uint8_t opcode)
 {
   sstack_t sparm;
   ustack_t uparm1;
@@ -1631,7 +1633,7 @@ static inline int pexec8(FAR struct pexec_s *st, ubyte opcode)
  *
  ****************************************************************************/
 
-static inline int pexec16(FAR struct pexec_s *st, ubyte opcode, ubyte imm8)
+static inline int pexec16(FAR struct pexec_s *st, uint8_t opcode, uint8_t imm8)
 {
   int ret = eNOERROR;
 
@@ -1664,7 +1666,7 @@ static inline int pexec16(FAR struct pexec_s *st, ubyte opcode, ubyte imm8)
  *
  ****************************************************************************/
 
-static inline int pexec24(FAR struct pexec_s *st, ubyte opcode, uint16 imm16)
+static inline int pexec24(FAR struct pexec_s *st, uint8_t opcode, uint16_t imm16)
 {
   sstack_t sparm1;
   sstack_t sparm2;
@@ -1991,7 +1993,7 @@ branch_out:
  *
  ****************************************************************************/
 
-static int pexec32(FAR struct pexec_s *st, ubyte opcode, ubyte imm8, uint16 imm16)
+static int pexec32(FAR struct pexec_s *st, uint8_t opcode, uint8_t imm8, uint16_t imm16)
 {
   sstack_t sparm;
   ustack_t uparm1;
@@ -2233,7 +2235,7 @@ FAR struct pexec_s *pexec_init(struct pexec_attr_s *attr)
    */
 
   stacksize = attr->varsize + adjusted_rosize + attr->strsize;
-  st->dstack.b = (ubyte*)malloc(stacksize);
+  st->dstack.b = (uint8_t*)malloc(stacksize);
   if (!st->dstack.b)
     {
       free(st);
@@ -2266,7 +2268,7 @@ FAR struct pexec_s *pexec_init(struct pexec_attr_s *attr)
 
 int pexec(FAR struct pexec_s *st)
 {
-  ubyte opcode;
+  uint8_t opcode;
   int ret;
 
   /* Make sure that the program counter is within range */
@@ -2284,12 +2286,12 @@ int pexec(FAR struct pexec_s *st)
         {
           /* Get the immediate, 8-bit value */
 
-          ubyte imm8 = st->ispace[st->pc + 1];
+          uint8_t imm8 = st->ispace[st->pc + 1];
           if ((opcode & o16) != 0)
             {
               /* Get the immediate, big-endian 16-bit value */
 
-              uint16 imm16  = ((st->ispace[st->pc + 2]) << 8) | st->ispace[st->pc + 3];
+              uint16_t imm16  = ((st->ispace[st->pc + 2]) << 8) | st->ispace[st->pc + 3];
 
               /* Handle 32 bit instructions */
 
@@ -2306,7 +2308,7 @@ int pexec(FAR struct pexec_s *st)
         {
           /* Get the immediate, big-endian 16-bit value */
 
-          uint16 imm16  = ((st->ispace[st->pc + 1]) << 8) | st->ispace[st->pc + 2];
+          uint16_t imm16  = ((st->ispace[st->pc + 1]) << 8) | st->ispace[st->pc + 2];
 
           /* Handle 24-bit instructions */
 

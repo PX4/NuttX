@@ -2,7 +2,7 @@
  * polocal.h
  * External Declarations associated with polocal.c
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@
 * Included Files
 ****************************************************************************/
 
+#include <stdint.h>
 #include "keywords.h"
 #include "pdefs.h"
 #include "pofflib.h"
@@ -56,9 +57,9 @@
 ****************************************************************************/
 
 extern void localOptimization(poffHandle_t poffHandle,
-			      poffProgHandle_t poffProgHandle);
-extern void deletePcode      (sint16 delIndex);
-extern void deletePcodePair  (sint16 delIndex1, sint16 delIndex2);
+                              poffProgHandle_t poffProgHandle);
+extern void deletePcode      (int16_t delIndex);
+extern void deletePcodePair  (int16_t delIndex1, int16_t delIndex2);
 
 /***************************************************************************
  * Global Variables
@@ -67,7 +68,7 @@ extern void deletePcodePair  (sint16 delIndex1, sint16 delIndex2);
 extern OPTYPE  ptable [WINDOW];        /* Pcode Table */
 extern OPTYPE *pptr   [WINDOW];        /* Valid Pcode Pointers */
 
-extern sint16  nops;                   /* No. Valid Pcode Pointers */
-extern sint16  end_out;                /* 1 = oEND pcode has been output */
+extern int16_t nops;                   /* No. Valid Pcode Pointers */
+extern int16_t end_out;                /* 1 = oEND pcode has been output */
 
 #endif /* __PLOCAL_H */

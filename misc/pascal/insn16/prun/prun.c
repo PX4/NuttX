@@ -1,7 +1,7 @@
 /****************************************************************************
  * prun.c
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,8 @@
  * Included Files
  ****************************************************************************/
 
+#include <stdint.h>
+#include <stddefs.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
@@ -85,8 +87,8 @@ static const struct option long_options[] =
  ****************************************************************************/
 
 static const char  *g_pofffilename;
-static sint32       g_varstacksize = DEFAULT_STACK_SIZE;
-static sint32       g_strstacksize = DEFAULT_STKSTR_SIZE;
+static int32_t      g_varstacksize = DEFAULT_STACK_SIZE;
+static int32_t      g_strstacksize = DEFAULT_STKSTR_SIZE;
 static int          g_debug        = 0;
 
 /****************************************************************************
@@ -105,18 +107,18 @@ static void prun_showusage(const char *progname)
 {
   fprintf(stderr, "Usage:\n");
   fprintf(stderr, "  %s [options] <program-filename>\n",
-	  progname);
+          progname);
   fprintf(stderr, "options:\n");
   fprintf(stderr, "  -s <stack-size>\n");
   fprintf(stderr, "  --stack <stack-size>\n");
   fprintf(stderr, "    Memory in bytes to allocate for the pascal program\n");
   fprintf(stderr, "    stack in bytes (minimum is %d; default is %d bytes)\n",
-	  MIN_STACK_SIZE, DEFAULT_STACK_SIZE);
+          MIN_STACK_SIZE, DEFAULT_STACK_SIZE);
   fprintf(stderr, "  -t <stack-size>\n");
   fprintf(stderr, "  --string <string-storage-size>\n");
   fprintf(stderr, "    Memory in bytes to allocate for the pascal program\n");
   fprintf(stderr, "    string storage in bytes (default is %d bytes)\n",
-	  DEFAULT_STKSTR_SIZE);
+          DEFAULT_STKSTR_SIZE);
   fprintf(stderr, "  -d\n");
   fprintf(stderr, "  --debug\n");
   fprintf(stderr, "    Enable PCode program debugger\n");
@@ -149,46 +151,46 @@ static void prun_parseargs(int argc, char **argv)
   do
     {
       c = getopt_long (argc, argv, "t:s:dh",
-		       long_options, &option_index);
+                       long_options, &option_index);
       if (c != -1)
-	{
-	  switch (c)
-	    {
-	    case 's' :
-	      size = atoi(optarg);
-	      if (size < MIN_STACK_SIZE)
-		{
-		  fprintf(stderr, "ERROR: Invalid stack size\n");
-		  prun_showusage(argv[0]);
-		}
-	      g_varstacksize = (size + 3) & ~3;
-	      break;
+        {
+          switch (c)
+            {
+            case 's' :
+              size = atoi(optarg);
+              if (size < MIN_STACK_SIZE)
+                {
+                  fprintf(stderr, "ERROR: Invalid stack size\n");
+                  prun_showusage(argv[0]);
+                }
+              g_varstacksize = (size + 3) & ~3;
+              break;
 
-	    case 't' :
-	      size = atoi(optarg);
-	      if (size < 0)
-		{
-		  fprintf(stderr, "ERROR: Invalid string storage size\n");
-		  prun_showusage(argv[0]);
-		}
-	      g_strstacksize = ((size + 3) & ~3);
-	      break;
+            case 't' :
+              size = atoi(optarg);
+              if (size < 0)
+                {
+                  fprintf(stderr, "ERROR: Invalid string storage size\n");
+                  prun_showusage(argv[0]);
+                }
+              g_strstacksize = ((size + 3) & ~3);
+              break;
 
-	    case 'd' :
-	      g_debug++;
-	      break;
+            case 'd' :
+              g_debug++;
+              break;
 
-	    case 'h' :
-	      prun_showusage(argv[0]);
-	      break;
+            case 'h' :
+              prun_showusage(argv[0]);
+              break;
 
-	    default:
-	      /* Shouldn't happen */
+            default:
+              /* Shouldn't happen */
 
-	      fprintf(stderr, "ERROR: Unrecognized option\n");
-	      prun_showusage(argv[0]);
-	    }
-	}
+              fprintf(stderr, "ERROR: Unrecognized option\n");
+              prun_showusage(argv[0]);
+            }
+        }
     }
   while (c != -1);
 

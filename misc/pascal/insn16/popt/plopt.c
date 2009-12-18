@@ -2,7 +2,7 @@
  * plopt.c
  * Load/Store Optimizations
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 
 #include "keywords.h"
@@ -50,11 +51,11 @@
 
 /**********************************************************************/
 
-sint16 LoadOptimize(void)
+int16_t LoadOptimize(void)
 {
-  uint16 val;
-  sint16 nchanges = 0;
-  register sint16 i;
+  uint16_t val;
+  int16_t  nchanges = 0;
+  register int16_t i;
 
   TRACE(stderr, "[LoadOptimize]");
 
@@ -64,80 +65,80 @@ sint16 LoadOptimize(void)
   while (i < nops-1)
     {
       switch (pptr[i]->op)
-	{
-	  /* Eliminate duplicate loads */
+        {
+          /* Eliminate duplicate loads */
 
-	case oLDSH   :
-	  if ((pptr[i+1]->op   == oLDSH) &&
-	      (pptr[i+1]->arg1 == pptr[i]->arg1) &&
-	      (pptr[i+1]->arg2 == pptr[i]->arg2))
-	    {
-	      pptr[i+1]->op   = oDUPH;
-	      pptr[i+1]->arg1 = 0;
-	      pptr[i+1]->arg2 = 0;
-	      nchanges++;
-	      i += 2;
-	    } /* end if */
-	  else i++;
-	  break;
+        case oLDSH   :
+          if ((pptr[i+1]->op   == oLDSH) &&
+              (pptr[i+1]->arg1 == pptr[i]->arg1) &&
+              (pptr[i+1]->arg2 == pptr[i]->arg2))
+            {
+              pptr[i+1]->op   = oDUPH;
+              pptr[i+1]->arg1 = 0;
+              pptr[i+1]->arg2 = 0;
+              nchanges++;
+              i += 2;
+            } /* end if */
+          else i++;
+          break;
 
-	  /* Convert loads indexed by a constant to unindexed loads */
+          /* Convert loads indexed by a constant to unindexed loads */
 
-	case oPUSH  :
-	case oPUSHB  :
-	  /* Get the index value */
+        case oPUSH  :
+        case oPUSHB  :
+          /* Get the index value */
 
-	  if (pptr[i]->op == oPUSH)
-	    {
-	      val = pptr[i]->arg2;
-	    }
-	  else
-	    {
-	      val = pptr[i]->arg1;
-	    }
+          if (pptr[i]->op == oPUSH)
+            {
+              val = pptr[i]->arg2;
+            }
+          else
+            {
+              val = pptr[i]->arg1;
+            }
 
-	  /* If the following instruction is a load, add the constant
-	   * index value to the address and switch the opcode to the
-	   * unindexed form.
-	   */
+          /* If the following instruction is a load, add the constant
+           * index value to the address and switch the opcode to the
+           * unindexed form.
+           */
 
-	  if (pptr[i+1]->op == oLDSXH) 
-	    {
-	      pptr[i+1]->op = oLDSH;
-	      pptr[i+1]->arg2 += val;
-	      deletePcode (i);
-	      nchanges++;
-	    } /* end if */
-	  else if (pptr[i+1]->op == oLASX)
-	    {
-	      pptr[i+1]->op = oLAS;
-	      pptr[i+1]->arg2 += val;
-	      deletePcode (i);
-	      nchanges++;
-	    } /* end else if */
-	  else if (pptr[i+1]->op == oLDSXB)
-	    {
-	      pptr[i+1]->op = oLDSB;
-	      pptr[i+1]->arg2 += val;
-	      deletePcode (i);
-	      nchanges++;
-	    } /* end if */
-	  else if (pptr[i+1]->op == oLDSXM)
-	    {
-	      pptr[i+1]->op = oLDSM;
-	      pptr[i+1]->arg2 += val;
-	      deletePcode (i);
-	      nchanges++;
-	    } /* end if */
-	  else if (val < 256)
-	    {
-	      pptr[i]->op   = oPUSHB;
-	      pptr[i]->arg1 = val;
-	      pptr[i]->arg2 = 0;
-	      i++;
-	    } /* end else if */
-	  else i++;
-	  break;
+          if (pptr[i+1]->op == oLDSXH) 
+            {
+              pptr[i+1]->op = oLDSH;
+              pptr[i+1]->arg2 += val;
+              deletePcode (i);
+              nchanges++;
+            } /* end if */
+          else if (pptr[i+1]->op == oLASX)
+            {
+              pptr[i+1]->op = oLAS;
+              pptr[i+1]->arg2 += val;
+              deletePcode (i);
+              nchanges++;
+            } /* end else if */
+          else if (pptr[i+1]->op == oLDSXB)
+            {
+              pptr[i+1]->op = oLDSB;
+              pptr[i+1]->arg2 += val;
+              deletePcode (i);
+              nchanges++;
+            } /* end if */
+          else if (pptr[i+1]->op == oLDSXM)
+            {
+              pptr[i+1]->op = oLDSM;
+              pptr[i+1]->arg2 += val;
+              deletePcode (i);
+              nchanges++;
+            } /* end if */
+          else if (val < 256)
+            {
+              pptr[i]->op   = oPUSHB;
+              pptr[i]->arg1 = val;
+              pptr[i]->arg2 = 0;
+              i++;
+            } /* end else if */
+          else i++;
+          break;
 
        default     :
          i++;
@@ -148,11 +149,11 @@ sint16 LoadOptimize(void)
 } /* end LoadOptimize */
 
 /**********************************************************************/
-sint16 StoreOptimize (void)
+int16_t StoreOptimize (void)
 {
-  uint16 val;
-  sint16 nchanges = 0;
-  register sint16 i;
+  uint16_t val;
+  int16_t  nchanges = 0;
+  register int16_t i;
 
   TRACE(stderr, "[StoreOptimize]");
 
@@ -163,82 +164,82 @@ sint16 StoreOptimize (void)
   while (i < nops-1)
     {
       switch (pptr[i]->op)
-	{
-	  /* Eliminate store followed by load */
+        {
+          /* Eliminate store followed by load */
 
-	case oSTSH :
-	  if ((pptr[i+1]->op   == oLDSH) &&
-	      (pptr[i+1]->arg1 == pptr[i]->arg1) &&
-	      (pptr[i+1]->arg2 == pptr[i]->arg2))
-	    {
-	      pptr[i+1]->op = oSTSH;
-	      pptr[i]->op   = oDUPH;
-	      pptr[i]->arg1 = 0;
-	      pptr[i]->arg2 = 0;
-	      nchanges++;
-	      i += 2;
-	    } /* end if */
-	  else i++;
-	  break;
+        case oSTSH :
+          if ((pptr[i+1]->op   == oLDSH) &&
+              (pptr[i+1]->arg1 == pptr[i]->arg1) &&
+              (pptr[i+1]->arg2 == pptr[i]->arg2))
+            {
+              pptr[i+1]->op = oSTSH;
+              pptr[i]->op   = oDUPH;
+              pptr[i]->arg1 = 0;
+              pptr[i]->arg2 = 0;
+              nchanges++;
+              i += 2;
+            } /* end if */
+          else i++;
+          break;
 
-	  /* Convert stores indexed by a constant to unindexed stores */
+          /* Convert stores indexed by a constant to unindexed stores */
        case oPUSH :
-	  /* Get the index value */
+          /* Get the index value */
 
-	  if (pptr[i]->op == oPUSH)
-	    {
-	      val = pptr[i]->arg2;
-	    }
-	  else
-	    {
-	      val = pptr[i]->arg1;
-	    }
+          if (pptr[i]->op == oPUSH)
+            {
+              val = pptr[i]->arg2;
+            }
+          else
+            {
+              val = pptr[i]->arg1;
+            }
 
-	  /* If the following instruction is a store, add the constant
-	   * index value to the address and switch the opcode to the
-	   * unindexed form.
-	   */
+          /* If the following instruction is a store, add the constant
+           * index value to the address and switch the opcode to the
+           * unindexed form.
+           */
 
-	  if (i < nops-2)
-	    {
-	      if (pptr[i+2]->op == oSTSXH)
-		{
-		  pptr[i+2]->op = oSTSH;
-		  pptr[i+2]->arg2 += pptr[i]->arg2;
-		  deletePcode (i);
-		  nchanges++;
-		} /* end if */
-	      else if (pptr[i+2]->op == oSTSXB)
-		{
-		  pptr[i+2]->op = oSTSB;
-		  pptr[i+2]->arg2 += pptr[i]->arg2;
-		  deletePcode (i);
-		  nchanges++;
-		} /* end if */
-	      else i++;
-	    } /* end if */
-	  else i++;
-	  break;
+          if (i < nops-2)
+            {
+              if (pptr[i+2]->op == oSTSXH)
+                {
+                  pptr[i+2]->op = oSTSH;
+                  pptr[i+2]->arg2 += pptr[i]->arg2;
+                  deletePcode (i);
+                  nchanges++;
+                } /* end if */
+              else if (pptr[i+2]->op == oSTSXB)
+                {
+                  pptr[i+2]->op = oSTSB;
+                  pptr[i+2]->arg2 += pptr[i]->arg2;
+                  deletePcode (i);
+                  nchanges++;
+                } /* end if */
+              else i++;
+            } /* end if */
+          else i++;
+          break;
 
-	case oPUSHB :
-	  if (i < nops-2)
-	    {
-	      if (pptr[i+2]->op == oSTSXB)
-		{
-		  pptr[i+2]->op = oSTSB;
-		  pptr[i+2]->arg2 += pptr[i]->arg2;
-		  deletePcode (i);
-		  nchanges++;
-		} /* end if */
-	      else i++;
-	    } /* end if */
-	  else i++;
-	  break;
+        case oPUSHB :
+          if (i < nops-2)
+            {
+              if (pptr[i+2]->op == oSTSXB)
+                {
+                  pptr[i+2]->op = oSTSB;
+                  pptr[i+2]->arg2 += pptr[i]->arg2;
+                  deletePcode (i);
+                  nchanges++;
+                } /* end if */
+              else i++;
+            } /* end if */
+          else i++;
+          break;
 
-	default     : 
-	  i++;
-	  break;
-	} /* end switch */
+        default     : 
+          i++;
+          break;
+        } /* end switch */
     } /* end while */
 
   return (nchanges);
