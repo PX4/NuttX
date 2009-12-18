@@ -50,8 +50,6 @@
 #include "perr.h"      /* error() */
 #include "pofflib.h"   /* POFF library interface */
 
-poffLibLineNumber_t
-
 /**********************************************************************
  * Pre-processor Definitions
  **********************************************************************/

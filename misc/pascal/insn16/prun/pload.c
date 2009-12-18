@@ -76,7 +76,7 @@
  * Public Functions
  ****************************************************************************/
 
-FAR struct pexec_s *pload(const char *filename, addr_t varsize, addr_t strsize)
+FAR struct pexec_s *pload(const char *filename, paddr_t varsize, paddr_t strsize)
 {
   struct pexec_attr_s attr;
   struct pexec_s *st;

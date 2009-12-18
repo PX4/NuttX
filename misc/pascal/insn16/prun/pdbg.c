@@ -91,8 +91,8 @@ enum command_e
 
 struct trace_s
 {
-  addr_t   pc;
-  addr_t   sp;
+  paddr_t  pc;
+  paddr_t  sp;
   ustack_t tos;
 };
 typedef struct trace_s trace_t;
@@ -117,11 +117,11 @@ static void    pdbg_execcommand(struct pexec_s *st, enum command_e cmd, uint32_t
 static int32_t pdbg_readdecimal(char *ptr);
 static int32_t pdbg_readhex(char *ptr, int32_t defaultvalue);
 static void    pdbg_programstatus(struct pexec_s *st);
-static addr_t  pdbg_printpcode(struct pexec_s *st, addr_t pc, int16_t nitems);
-static addr_t  pdbg_printstack(struct pexec_s *st, addr_t sp, int16_t nitems);
+static paddr_t pdbg_printpcode(struct pexec_s *st, paddr_t pc, int16_t nitems);
+static paddr_t pdbg_printstack(struct pexec_s *st, paddr_t sp, int16_t nitems);
 static void    pdbg_printregisters(struct pexec_s *st);
 static void    pdbg_printtracearray(struct pexec_s *st);
-static void    pdbg_addbreakpoint(addr_t pc);
+static void    pdbg_addbreakpoint(paddr_t pc);
 static void    pdbg_deletebreakpoint(int16_t bpno);
 static void    pdbg_printbreakpoints(struct pexec_s *st);
 static void    pdbg_checkbreakpoint(struct pexec_s *st);
@@ -144,14 +144,14 @@ static uint16_t g_tracendx;
                         /* This is the index into the circular g_tracearray */
 static uint16_t g_ntracepoints;
                         /* This is the number of valid enties in g_tracearray */
-static addr_t   g_breakpoint[MAX_BREAK_POINTS];
+static paddr_t  g_breakpoint[MAX_BREAK_POINTS];
                         /* Contains address associated with all active */
                         /* break points. */
-static addr_t   g_untilpoint;
+static paddr_t  g_untilpoint;
                         /* The 'g_untilpoint' is a temporary breakpoint */
 static uint16_t g_nbreakpoints;
                         /* Number of items in breakPoints[] */
-static addr_t   g_displayloc;
+static paddr_t  g_displayloc;
                         /* P-code display location display */
 static bool     g_bstopexecution;
                         /* true means to stop program execution */
@@ -167,7 +167,7 @@ static char     g_inline[LINE_SIZE+1];
 
 void dbg_run(struct pexec_s *st)
 {
-  addr_t pc;
+  paddr_t pc;
   int i;
 
   pdbg_showcommands();
@@ -473,10 +473,10 @@ static void pdbg_programstatus(struct pexec_s *st)
 /***********************************************************************/
 /* Print the disassembled P-Code at PC */
 
-static addr_t pdbg_printpcode(struct pexec_s *st, addr_t pc, int16_t nitems)
+static paddr_t pdbg_printpcode(struct pexec_s *st, paddr_t pc, int16_t nitems)
 {
   OPTYPE op;
-  addr_t opsize;
+  paddr_t opsize;
   uint8_t *address;
 
   for (; ((pc < st->maxpc) && (nitems > 0)); nitems--)
@@ -526,7 +526,7 @@ static addr_t pdbg_printpcode(struct pexec_s *st, addr_t pc, int16_t nitems)
 /***********************************************************************/
 /* Print the stack value at SP */
 
-static addr_t pdbg_printstack(struct pexec_s *st, addr_t sp, int16_t nitems)
+static paddr_t pdbg_printstack(struct pexec_s *st, paddr_t sp, int16_t nitems)
 {
   int32_t isp;
 
@@ -591,7 +591,7 @@ static void pdbg_printtracearray(struct pexec_s *st)
 /***********************************************************************/
 /* Add a breakpoint to the breakpoint array */
 
-static void pdbg_addbreakpoint(addr_t pc)
+static void pdbg_addbreakpoint(paddr_t pc)
 {
   int i;
 

@@ -38,7 +38,6 @@
  ****************************************************************************/
 
 #include <stdint.h>
-#include <stddefs.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>

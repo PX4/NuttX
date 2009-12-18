@@ -302,8 +302,8 @@ static uint16_t pexec_libcall(struct pexec_s *st, uint16_t subfunc)
 {
   ustack_t  uparm1;
   ustack_t  uparm2;
-  addr_t    addr1;
-  addr_t    addr2;
+  paddr_t   addr1;
+  paddr_t   addr2;
   uint16_t *tmp;
   uint16_t *ref;
   uint8_t  *src;
@@ -1981,7 +1981,7 @@ static inline int pexec24(FAR struct pexec_s *st, uint8_t opcode, uint16_t imm16
   return ret;
 
 branch_out:
-  st->pc = (addr_t)imm16;
+  st->pc = (paddr_t)imm16;
   return ret;
 }
 
@@ -2174,7 +2174,7 @@ static int pexec32(FAR struct pexec_s *st, uint8_t opcode, uint8_t imm8, uint16_
       uparm1 = st->sp;
       PUSH(st, st->pc + 4);
       st->fp = uparm1;
-      st->pc = (addr_t)imm16;
+      st->pc = (paddr_t)imm16;
       return eNOERROR;
 
       /* System Functions:
@@ -2210,8 +2210,8 @@ static int pexec32(FAR struct pexec_s *st, uint8_t opcode, uint8_t imm8, uint16_
 FAR struct pexec_s *pexec_init(struct pexec_attr_s *attr)
 {
   struct pexec_s *st;
-  addr_t stacksize;
-  addr_t adjusted_rosize;
+  paddr_t stacksize;
+  paddr_t adjusted_rosize;
 
   /* Allocate the p-machine state stucture */
 

@@ -50,5 +50,5 @@
 extern int16_t LoadOptimize ( void );
 extern int16_t StoreOptimize ( void );
 
-#endif __PLOPT_H
+#endif /* __PLOPT_H */
 

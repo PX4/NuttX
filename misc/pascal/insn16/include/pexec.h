@@ -54,8 +54,8 @@
  ****************************************************************************/
 
 typedef uint16_t ustack_t;   /* Stack values are 16-bits in length */
-typedef int16_t sstack_t;
-typedef uint16_t addr_t;     /* Addresses are 16-bits in length */
+typedef int16_t  sstack_t;
+typedef uint16_t paddr_t;    /* Addresses are 16-bits in length */
 typedef uint16_t level_t;    /* Limits to MAXUINT16 levels */
 
 union stack_u
@@ -74,18 +74,18 @@ struct pexec_attr_s
   /* Instruction space (I-Space) */
 
   FAR uint8_t *ispace;  /* Allocated I-Space containing p-code data */
-  addr_t     entry;   /* Entry point */
-  addr_t     maxpc;   /* Last valid p-code address */
+  paddr_t      entry;   /* Entry point */
+  paddr_t      maxpc;   /* Last valid p-code address */
 
   /* Read-only data block */
 
   FAR uint8_t *rodata;  /* Address of read-only data block */
-  addr_t     rosize;  /* Size of read-only data block */
+  paddr_t      rosize;  /* Size of read-only data block */
 
   /* Allocate for variable storage */
 
-  addr_t     varsize; /* Variable storage size */
-  addr_t     strsize; /* String storage size */
+  paddr_t      varsize; /* Variable storage size */
+  paddr_t      strsize; /* String storage size */
 };
 
 /* This structure defines the current state of the p-code interpreter */
@@ -102,7 +102,7 @@ struct pexec_s
 
  /* Address of last valid P-Code */
 
-  addr_t maxpc;
+  paddr_t maxpc;
 
   /* These are the emulated P-Machine registers:
    *
@@ -116,19 +116,19 @@ struct pexec_s
    * pc: Holds the current p-code location
    */
 
-  addr_t spb;                  /* Pascal stack base */
-  addr_t sp;                   /* Pascal stack pointer */
-  addr_t csp;                  /* Character stack pointer */
-  addr_t fp;                   /* Base of the current frame */
-  addr_t rop;                  /* Read-only data pointer */
-  addr_t pc;                   /* Program counter */
+  paddr_t spb;        /* Pascal stack base */
+  paddr_t sp;         /* Pascal stack pointer */
+  paddr_t csp;        /* Character stack pointer */
+  paddr_t fp;         /* Base of the current frame */
+  paddr_t rop;        /* Read-only data pointer */
+  paddr_t pc;         /* Program counter */
 
   /* Info needed to perform a simulated reset */
 
-  addr_t strsize;              /* String stack size */
-  addr_t rosize;               /* Read-only stack size */
-  addr_t entry;                /* Entry point */
-  addr_t stacksize;            /* (debug only) */
+  paddr_t strsize;    /* String stack size */
+  paddr_t rosize;     /* Read-only stack size */
+  paddr_t entry;      /* Entry point */
+  paddr_t stacksize;  /* (debug only) */
 };
 
 /****************************************************************************
@@ -142,7 +142,7 @@ extern "C" {
 #define EXTERN extern
 #endif
 
-EXTERN FAR struct pexec_s *pload(const char *filename, addr_t varsize, addr_t strsize);
+EXTERN FAR struct pexec_s *pload(const char *filename, paddr_t varsize, paddr_t strsize);
 EXTERN FAR struct pexec_s *pexec_init(struct pexec_attr_s *attr);
 EXTERN int pexec(FAR struct pexec_s *st);
 EXTERN void pexec_reset(struct pexec_s *st);
