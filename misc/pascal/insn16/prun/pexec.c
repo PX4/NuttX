@@ -147,7 +147,7 @@ typedef union fparg_u fparg_t;
  * Private Function Prototypes
  ****************************************************************************/
 
-static uint16_t pexec_sysio(struct pexec_s *st, uint8_t fileno, uint16_t subfunc);
+static uint16_t pexec_sysio(struct pexec_s *st, uint8_t fno, uint16_t subfunc);
 static uint16_t pexec_libcall(struct pexec_s *st, uint16_t subfunc);
 static uint16_t pexec_execfp(struct pexec_s *st, uint8_t fpop);
 static void     pexec_getfparguments(struct pexec_s *st, uint8_t fpop, fparg_t *arg1, fparg_t *arg2);
@@ -174,7 +174,7 @@ static uint8_t ioline[LINE_SIZE+1];
  *
  ****************************************************************************/
 
-static uint16_t pexec_sysio(struct pexec_s *st, uint8_t fileno, uint16_t subfunc)
+static uint16_t pexec_sysio(struct pexec_s *st, uint8_t fno, uint16_t subfunc)
 {
   ustack_t uparm1;
   fparg_t  fp;
