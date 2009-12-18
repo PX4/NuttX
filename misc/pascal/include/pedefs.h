@@ -2,7 +2,7 @@
  * pedefs.h
  * Definitions of error codes
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,16 @@
 
 #ifndef __PEDEFS_H
 #define __PEDEFS_H
+
+/***********************************************************************
+ * Included Files
+ ***********************************************************************/
+
+#include <stdint.h>
+
+/***********************************************************************
+ * Pre-processor Definitions
+ ***********************************************************************/
 
 /***********************************************************************
  * COMPILATION TIME ERRORS
@@ -146,7 +156,7 @@
 
 /* This is the error code that indicates that no error has occurred */
 
-#define eNOERROR       ((uint16) 0x00)
+#define eNOERROR       ((uint16_t) 0x00)
 
 /* This is the maximum number of errors that will be reported before
  * compilation is terminated.
@@ -156,115 +166,115 @@
 
 /* COMPILATION TIME ERRORS */
 
-#define eASSIGN          ((uint16) 0x01)
-#define eBEGIN           ((uint16) 0x02)
-#define eCOLON           ((uint16) 0x03)
-#define eCOMMA           ((uint16) 0x04)
-#define eCOUNT           ((uint16) 0x05)
-#define eDO              ((uint16) 0x06)
-#define eDUPFILE         ((uint16) 0x07)
-#define eDUPSYM          ((uint16) 0x08)
-#define eEND             ((uint16) 0x09)
-#define eEQ              ((uint16) 0x0a)
-#define eEXPONENT        ((uint16) 0x0b)
-#define eFILE            ((uint16) 0x0c)
-#define eHUH             ((uint16) 0x0d)
-#define eIDENT           ((uint16) 0x0e)
-#define eIMPLEMENTATION  ((uint16) 0x0f)
+#define eASSIGN          ((uint16_t) 0x01)
+#define eBEGIN           ((uint16_t) 0x02)
+#define eCOLON           ((uint16_t) 0x03)
+#define eCOMMA           ((uint16_t) 0x04)
+#define eCOUNT           ((uint16_t) 0x05)
+#define eDO              ((uint16_t) 0x06)
+#define eDUPFILE         ((uint16_t) 0x07)
+#define eDUPSYM          ((uint16_t) 0x08)
+#define eEND             ((uint16_t) 0x09)
+#define eEQ              ((uint16_t) 0x0a)
+#define eEXPONENT        ((uint16_t) 0x0b)
+#define eFILE            ((uint16_t) 0x0c)
+#define eHUH             ((uint16_t) 0x0d)
+#define eIDENT           ((uint16_t) 0x0e)
+#define eIMPLEMENTATION  ((uint16_t) 0x0f)
 
-#define eINCLUDE         ((uint16) 0x10)
-#define eINTCONST        ((uint16) 0x11)
-#define eINTERFACE       ((uint16) 0x12)
-#define eINTOVF          ((uint16) 0x13)
-#define eINTVAR          ((uint16) 0x14)
-#define eINVALIDFUNC     ((uint16) 0x15)
-#define eINVALIDPROC     ((uint16) 0x16)
-#define eINVARG          ((uint16) 0x17)
-#define eINVCONST        ((uint16) 0x18)
-#define eINVSIGNEDCONST  ((uint16) 0x19)
-#define eINVFACTOR       ((uint16) 0x1a)
-#define eINVFILE         ((uint16) 0x1b)
-#define eINVLABEL        ((uint16) 0x1c)
-#define eINVPTR          ((uint16) 0x1d)
-#define eINVTYPE         ((uint16) 0x1e)
-#define eINVVARPARM      ((uint16) 0x1f)
+#define eINCLUDE         ((uint16_t) 0x10)
+#define eINTCONST        ((uint16_t) 0x11)
+#define eINTERFACE       ((uint16_t) 0x12)
+#define eINTOVF          ((uint16_t) 0x13)
+#define eINTVAR          ((uint16_t) 0x14)
+#define eINVALIDFUNC     ((uint16_t) 0x15)
+#define eINVALIDPROC     ((uint16_t) 0x16)
+#define eINVARG          ((uint16_t) 0x17)
+#define eINVCONST        ((uint16_t) 0x18)
+#define eINVSIGNEDCONST  ((uint16_t) 0x19)
+#define eINVFACTOR       ((uint16_t) 0x1a)
+#define eINVFILE         ((uint16_t) 0x1b)
+#define eINVLABEL        ((uint16_t) 0x1c)
+#define eINVPTR          ((uint16_t) 0x1d)
+#define eINVTYPE         ((uint16_t) 0x1e)
+#define eINVVARPARM      ((uint16_t) 0x1f)
 
-#define eLBRACKET        ((uint16) 0x20)
-#define eLPAREN          ((uint16) 0x21)
-#define eMULTLABEL       ((uint16) 0x22)
-#define eNOSQUOTE        ((uint16) 0x23)
-#define eNOTYET          ((uint16) 0x24)
-#define eNPARMS          ((uint16) 0x25)
-#define eOF              ((uint16) 0x26)
-#define eOVF             ((uint16) 0x27)
-#define ePERIOD          ((uint16) 0x28)
-#define ePOFFCONFUSION   ((uint16) 0x29)
-#define ePOFFWRITEERROR  ((uint16) 0x2a)
-#define ePROGRAM         ((uint16) 0x2b)
-#define ePTRADR          ((uint16) 0x2c)
-#define ePTRVAL          ((uint16) 0x2d)
-#define eRBRACKET        ((uint16) 0x2e)
-#define eRPAREN          ((uint16) 0x2f)
+#define eLBRACKET        ((uint16_t) 0x20)
+#define eLPAREN          ((uint16_t) 0x21)
+#define eMULTLABEL       ((uint16_t) 0x22)
+#define eNOSQUOTE        ((uint16_t) 0x23)
+#define eNOTYET          ((uint16_t) 0x24)
+#define eNPARMS          ((uint16_t) 0x25)
+#define eOF              ((uint16_t) 0x26)
+#define eOVF             ((uint16_t) 0x27)
+#define ePERIOD          ((uint16_t) 0x28)
+#define ePOFFCONFUSION   ((uint16_t) 0x29)
+#define ePOFFWRITEERROR  ((uint16_t) 0x2a)
+#define ePROGRAM         ((uint16_t) 0x2b)
+#define ePTRADR          ((uint16_t) 0x2c)
+#define ePTRVAL          ((uint16_t) 0x2d)
+#define eRBRACKET        ((uint16_t) 0x2e)
+#define eRPAREN          ((uint16_t) 0x2f)
 
-#define eRPARENorCOMMA   ((uint16) 0x30)
-#define eSEEKFAIL        ((uint16) 0x31)
-#define eSEMICOLON       ((uint16) 0x32)
-#define eSTRING          ((uint16) 0x33)
-#define eTHEN            ((uint16) 0x34)
-#define eTOorDOWNTO      ((uint16) 0x35)
-#define eTRUNC           ((uint16) 0x36)
-#define eUNDECLABEL      ((uint16) 0x37)
-#define eUNDEFILE        ((uint16) 0x38)
-#define eUNDEFLABEL      ((uint16) 0x39)
-#define eUNDEFSYM        ((uint16) 0x3a)
-#define eUNTIL           ((uint16) 0x3b)
-#define eEXPRTYPE        ((uint16) 0x3c)
-#define eTERMTYPE        ((uint16) 0x3d)
-#define eFACTORTYPE      ((uint16) 0x3e)
-#define eREADPARM        ((uint16) 0x3f)
+#define eRPARENorCOMMA   ((uint16_t) 0x30)
+#define eSEEKFAIL        ((uint16_t) 0x31)
+#define eSEMICOLON       ((uint16_t) 0x32)
+#define eSTRING          ((uint16_t) 0x33)
+#define eTHEN            ((uint16_t) 0x34)
+#define eTOorDOWNTO      ((uint16_t) 0x35)
+#define eTRUNC           ((uint16_t) 0x36)
+#define eUNDECLABEL      ((uint16_t) 0x37)
+#define eUNDEFILE        ((uint16_t) 0x38)
+#define eUNDEFLABEL      ((uint16_t) 0x39)
+#define eUNDEFSYM        ((uint16_t) 0x3a)
+#define eUNTIL           ((uint16_t) 0x3b)
+#define eEXPRTYPE        ((uint16_t) 0x3c)
+#define eTERMTYPE        ((uint16_t) 0x3d)
+#define eFACTORTYPE      ((uint16_t) 0x3e)
+#define eREADPARM        ((uint16_t) 0x3f)
 
-#define eWRITEPARM       ((uint16) 0x40)
-#define eARRAYTYPE       ((uint16) 0x41)
-#define ePOINTERTYPE     ((uint16) 0x42)
-#define eVARPARMTYPE     ((uint16) 0x43)
-#define eSUBRANGE        ((uint16) 0x44)
-#define eSUBRANGETYPE    ((uint16) 0x45)
-#define eSET             ((uint16) 0x46)
-#define eSETRANGE        ((uint16) 0x47)
-#define eSCALARTYPE      ((uint16) 0x48)
-#define eBADSHORTINT     ((uint16) 0x49)
-#define eSYMTABINTERNAL  ((uint16) 0x4a)
-#define eRECORDDECLARE   ((uint16) 0x4b)
-#define eRECORDOBJECT    ((uint16) 0x4c)
-#define eRECORDVAR       ((uint16) 0x4d)
-#define eUNIT            ((uint16) 0x4e)
-#define eUNITNAME        ((uint16) 0x4f)
+#define eWRITEPARM       ((uint16_t) 0x40)
+#define eARRAYTYPE       ((uint16_t) 0x41)
+#define ePOINTERTYPE     ((uint16_t) 0x42)
+#define eVARPARMTYPE     ((uint16_t) 0x43)
+#define eSUBRANGE        ((uint16_t) 0x44)
+#define eSUBRANGETYPE    ((uint16_t) 0x45)
+#define eSET             ((uint16_t) 0x46)
+#define eSETRANGE        ((uint16_t) 0x47)
+#define eSCALARTYPE      ((uint16_t) 0x48)
+#define eBADSHORTINT     ((uint16_t) 0x49)
+#define eSYMTABINTERNAL  ((uint16_t) 0x4a)
+#define eRECORDDECLARE   ((uint16_t) 0x4b)
+#define eRECORDOBJECT    ((uint16_t) 0x4c)
+#define eRECORDVAR       ((uint16_t) 0x4d)
+#define eUNIT            ((uint16_t) 0x4e)
+#define eUNITNAME        ((uint16_t) 0x4f)
 
-#define eARGIGNORED      ((uint16) 0x50)
+#define eARGIGNORED      ((uint16_t) 0x50)
 
 /* LINK TIME ERRORS */
 
-#define eUNDEFINEDSYMBOL ((uint16) 0x60)
-#define eMULTIDEFSYMBOL  ((uint16) 0x61)
+#define eUNDEFINEDSYMBOL ((uint16_t) 0x60)
+#define eMULTIDEFSYMBOL  ((uint16_t) 0x61)
 
 /* ERRORS WHICH MAY OCCUR AT EITHER COMPILATION OR RUNTIME */
 
-#define eNOMEMORY        ((uint16) 0x70)
-#define ePOFFREADERROR   ((uint16) 0x71)
-#define ePOFFBADFORMAT   ((uint16) 0x72)
-#define eRCVDSIGNAL      ((uint16) 0x73)
+#define eNOMEMORY        ((uint16_t) 0x70)
+#define ePOFFREADERROR   ((uint16_t) 0x71)
+#define ePOFFBADFORMAT   ((uint16_t) 0x72)
+#define eRCVDSIGNAL      ((uint16_t) 0x73)
 
 /* RUN TIME ERRORS */
 
-#define eBADPC	         ((uint16) 0x80)
-#define eBADSP	         ((uint16) 0x81)
-#define eSTRSTKOVERFLOW  ((uint16) 0x82)
-#define eILLEGALOPCODE   ((uint16) 0x83)
-#define eEXIT            ((uint16) 0x84)
-#define eBADSYSIOFUNC    ((uint16) 0x85)
-#define eBADSYSLIBCALL   ((uint16) 0x86)
-#define eBADFPOPCODE     ((uint16) 0x87)
-#define eINTEGEROVERFLOW ((uint16) 0x89)
-#define eFAILEDLIBCALL   ((uint16) 0x90)
+#define eBADPC	         ((uint16_t) 0x80)
+#define eBADSP	         ((uint16_t) 0x81)
+#define eSTRSTKOVERFLOW  ((uint16_t) 0x82)
+#define eILLEGALOPCODE   ((uint16_t) 0x83)
+#define eEXIT            ((uint16_t) 0x84)
+#define eBADSYSIOFUNC    ((uint16_t) 0x85)
+#define eBADSYSLIBCALL   ((uint16_t) 0x86)
+#define eBADFPOPCODE     ((uint16_t) 0x87)
+#define eINTEGEROVERFLOW ((uint16_t) 0x89)
+#define eFAILEDLIBCALL   ((uint16_t) 0x90)
 
 #endif /* __PEDEFS_H */

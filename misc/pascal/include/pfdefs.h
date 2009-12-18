@@ -2,7 +2,7 @@
  * pfdefs.h
  * Floating point operation codes
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,9 +37,9 @@
 #ifndef __PFDEFS_H
 #define __PFDEFS_H
 
-/**---------------------------------------------------------------------
- FLOATING POINT SUB-OPCODES
- ---------------------------------------------------------------------**/
+/***********************************************************************
+ * FLOATING POINT SUB-OPCODES
+ ***********************************************************************/
 
 /* This bit may be set in the opcode to indicate that the arguments
  * is(are) type integer and require(s) conversion. */

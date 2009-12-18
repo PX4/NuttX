@@ -2,7 +2,7 @@
  * include/paslib.h
  * External Declarations associated with paslib
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,8 @@
  ***************************************************************************/
 
 #include "keywords.h"
+#include "stdint.h"
+#include "stdbool.h"
 #include "pdefs.h"
 #include "pofflib.h"
 
@@ -67,18 +69,18 @@
 
 /* File name extension helper */
 
-extern boolean extension(const char *inName, const char *ext, char *outName,
-			 boolean force_default);
+extern bool     extension(const char *inName, const char *ext, char *outName,
+                          bool force_default);
 
 /* Math helpers */
 
-extern sint32  signExtend16(uint16 arg16);
-extern sint32  signExtend25(uint32 arg25);
+extern int32_t  signExtend16(uint16_t arg16);
+extern int32_t  signExtend25(uint32_t arg25);
 
 /* Endian-ness helpers */
 
-extern uint16 poffSwap16(uint16 val);
-extern uint32 poffSwap32(uint32 val);
+extern uint16_t poffSwap16(uint16_t val);
+extern uint32_t poffSwap32(uint32_t val);
 
 /***************************************************************************
  * Global Variables

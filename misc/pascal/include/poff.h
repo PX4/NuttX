@@ -2,7 +2,7 @@
  * poff.h
  * Definitions for the PCode Object File Format (POFF)
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,18 +38,15 @@
 #define __POFF_H
 
 /***************************************************************************
- * Compilation Switches
- ***************************************************************************/
-
-/***************************************************************************
  * Included Files
  ***************************************************************************/
 
+#include <stdint.h>
 #include "keywords.h"
 #include "config.h"
 
 /***************************************************************************
- * Definitions
+ * Pre-processor Definitions
  ***************************************************************************/
 
 /* Definitions for the fh_ident field of the poffHdr_t */
@@ -159,7 +156,7 @@
 
 #define RLI_SYM(x)           ((x) >> 8)   /* Symbol index */
 #define RLI_TYPE(x)          ((x) & 0xff) /* Rloc type */
-#define RLI_MAKE(s,t)        (((uint32)(s) << 8) | ((t) & 0xff))
+#define RLI_MAKE(s,t)        (((uint32_t)(s) << 8) | ((t) & 0xff))
 
 /***************************************************************************
  * Public Types
@@ -173,49 +170,49 @@ struct poffFileHeader_s
    * See the FHI_ definitions above.
    */
 
-  ubyte  fh_ident[FHI_NIDENT];
+  uint8_t fh_ident[FHI_NIDENT];
 
   /* fh_version holds the version of the POFF file format.  This should
    * always be FHV_CURRENT.
    */
 
-  ubyte  fh_version;
+  uint8_t fh_version;
 
   /* fh_type holds the type of binary carry by the POFF file.
    * See the FHT_ definitions above.
    */
 
-  ubyte  fh_type;
+  uint8_t fh_type;
 
   /* fh_arch holds the mach architecture identifier.  See the FHA_
    * definitions above.
    */
 
-  ubyte  fh_arch;
+  uint8_t fh_arch;
 
   /* Pad so that the next field is aligned */
 
-  ubyte  fh_padding;
+  uint8_t fh_padding;
 
   /* fh_shsize is the size a section header.  This should be
    * sizeof(poffSectionHeader_t)
    */
 
-  uint16 fh_shsize;
+  uint16_t fh_shsize;
 
   /* fh_num is the number of section headers in section header
    * list.  The total size of the section header block is then
    * fh_shsize * fh_shnum.
    */
 
-  uint16 fh_shnum;
+  uint16_t fh_shnum;
 
   /* fh_name is an offset into the string table section data.
    * It refers to a name associated with fh_type that determines
    * the specific instances of the type.
    */
 
-  uint32 fh_name;
+  uint32_t fh_name;
 
   /* For fhi_type = {FHI_EXEC or FHI_PROGRAM}, fh_entry holds the
    * entry point into the program.  For FHI_PROGRAM, this entry point
@@ -223,13 +220,13 @@ struct poffFileHeader_s
    * is an instruction space address offset (from address zero).
    */
 
-  uint32 fh_entry;
+  uint32_t fh_entry;
 
   /* fh_shoff is the file offset to the beginning of the table of file
    * headers.  fh_shoff will most likely be sizeof(poffFileHeader_t).
    */
 
-  uint32 fh_shoff;
+  uint32_t fh_shoff;
 };
 typedef struct poffFileHeader_s poffFileHeader_t;
 
@@ -241,46 +238,46 @@ struct poffSectionHeader_s
    * See the SHT_ definitions above.
    */
 
-  ubyte  sh_type;
+  uint8_t sh_type;
 
   /* These flags describe the characteristics of the section.  See the
    * SHF_ definitions above.
    */
 
-  ubyte  sh_flags;
+  uint8_t sh_flags;
 
   /* If the section holds a table of fixed sized entries, sh_entsize
    * gives the size of one entry.  The number of entries can then be
    * obtained by dividing sh_size by sh_entsize.
    */
 
-  uint16 sh_entsize;
+  uint16_t sh_entsize;
 
   /* sh_name is an offset into the string table section data.
    * It refers to a name associated with section.
    */
   
-  uint32 sh_name;
+  uint32_t sh_name;
 
   /* If the section is loaded into memory (SHF_ALLOC), then this
    * address holds the address at which the data must be loaded
    * (if applicable).
    */
 
-  uint32 sh_addr;
+  uint32_t sh_addr;
 
   /* sh_offset is the offset from the beginning of the file to
    * beginning of data associated with this section.
    */
 
-  uint32 sh_offset;
+  uint32_t sh_offset;
 
   /* sh_size provides the total size of the section data in bytes.
    * If the section holds a table of fixed sized entries, then
    * sh_size be equal to sh_entsize times the number of entries.
    */
 
-  uint32 sh_size;
+  uint32_t sh_size;
 };
 typedef struct poffSectionHeader_s poffSectionHeader_t;
 
@@ -294,14 +291,14 @@ struct poffRelocation_s
     * relocation type.  See the RLI_* macros above.
     */
 
-   uint32 rl_info;
+   uint32_t rl_info;
 
    /* This is the section data offset to the instruction/data
     * to be relocated.  The effected section is implicit in the
     * relocation type.
     */
 
-   uint32 rl_offset;           /* Offset to pcode */
+   uint32_t rl_offset;           /* Offset to pcode */
 };
 typedef struct poffRelocation_s poffRelocation_t;
 
@@ -313,7 +310,7 @@ struct poffSymbol_s
    * See the STT_ definitions above.
    */
 
-  ubyte st_type;
+  uint8_t st_type;
 
   /* For data section symbols, the following provides the required
    * data space alignment for the symbol memory representation.  For
@@ -321,20 +318,20 @@ struct poffSymbol_s
    * definitions above.
    */
 
-  ubyte st_align;
+  uint8_t st_align;
 
   /* These flags describe the characteristics of the symbol.  See the
    * STF_ definitions above.
    */
 
-  ubyte st_flags;
-  ubyte st_pad;
+  uint8_t st_flags;
+  uint8_t st_pad;
 
   /* st_name is an offset into the string table section data.
    * It refers to a name associated with symbol.
    */
   
-  uint32 st_name;
+  uint32_t st_name;
 
   /* st_value is the value associated with symbol.  For defined data
    * section symbols, this is the offset into the initialized data
@@ -343,13 +340,13 @@ struct poffSymbol_s
    * valid can be used as as addend.
    */
 
-  uint32 st_value;
+  uint32_t st_value;
 
   /* For data section symbols, this is the size of the initialized
    * data region associated with the symbol.
    */
 
-  uint32 st_size;
+  uint32_t st_size;
 };
 typedef struct poffSymbol_s poffSymbol_t;
 
@@ -359,7 +356,7 @@ typedef struct poffSymbol_s poffSymbol_t;
  * file.
  */
 
-typedef uint32 poffFileTab_t;
+typedef uint32_t poffFileTab_t;
 
 /* Line number section array entry structure.  Line numbers are
  * associated with executable program data sections.
@@ -369,21 +366,21 @@ struct poffLineNumber_s
 {
    /* This is the source file line number */
 
-   uint16 ln_lineno;
+   uint16_t ln_lineno;
 
    /* This is an index (not a byte offset) to an entry in the file
     * section table.  This can be used to identify the name of the
     * file for which the line number applies.
     */
 
-   uint16 ln_fileno;
+   uint16_t ln_fileno;
 
    /* This is an offset to the beginning of the instruction in the
     * program data section.  At present, this is limited to a single
     * program data section.
     */
 
-   uint32 ln_poffset;
+   uint32_t ln_poffset;
 };
 typedef struct poffLineNumber_s poffLineNumber_t;
 
@@ -401,19 +398,19 @@ struct poffDebugFuncInfo_s
    * point.
    */
 
-  uint32 df_value;
+  uint32_t df_value;
 
   /* This is the size of the value returned by the function in
    * bytes (zero for procedures).
    */
 
-  uint32 df_size;
+  uint32_t df_size;
 
   /* This is the number of parameters accepted by the function/
    * procedure.
    */
 
-  uint32 df_nparms;
+  uint32_t df_nparms;
 };
 typedef struct poffDebugFuncInfo_s poffDebugFuncInfo_t;
 
@@ -425,7 +422,7 @@ struct poffDebugArgInfo_s
 {
   /* This is the size, in bytes, of one input paramter */
 
-  uint32 da_size;
+  uint32_t da_size;
 };
 typedef struct poffDebugArgInfo_s poffDebugArgInfo_t;
 

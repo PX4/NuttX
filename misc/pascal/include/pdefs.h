@@ -2,7 +2,7 @@
  * include/pdefs.h
  * Common definitions
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,17 +41,18 @@
  * Included Files
  ***********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h> /* for FILE */
 #include "config.h"
 
 /***********************************************************************
- * Definitions
+ * Pre-processor Definitions
  ***********************************************************************/
 
 /* Common Sizing Parameters */
 
-#define FNAME_SIZE         40           /* Max size file name */
-#define LINE_SIZE          256          /* Max size of input line buffer */
+#define FNAME_SIZE          40           /* Max size file name */
+#define LINE_SIZE           256          /* Max size of input line buffer */
 
 /* Target P-Machine Data Storage Sizes */
 
@@ -73,20 +74,20 @@
 # define MINUINT            0
 #endif
 
-#define sCHAR_SIZE         1
-#define sBOOLEAN_SIZE      sINT_SIZE
-#define sREAL_SIZE         8
-#define sPTR_SIZE          sINT_SIZE
-#define sRETURN_SIZE      (3*sPTR_SIZE)
+#define sCHAR_SIZE          1
+#define sBOOLEAN_SIZE       sINT_SIZE
+#define sREAL_SIZE          8
+#define sPTR_SIZE           sINT_SIZE
+#define sRETURN_SIZE       (3*sPTR_SIZE)
 
-#define sSTRING_HDR_SIZE   2
-#define sSTRING_SIZE       256                    /* size(2) + string(255) */
-#define sSTRING_MAX_SIZE  (sSTRING_SIZE - 2)      /* string storage size(254) */
-#define sRSTRING_SIZE     (sPTR_SIZE + sINT_SIZE) /* ptr + size */
-#define sCSTRING_SIZE     (sizeof(void*))         /* absolute C pointer */
+#define sSTRING_HDR_SIZE    2
+#define sSTRING_SIZE        256                    /* size(2) + string(255) */
+#define sSTRING_MAX_SIZE   (sSTRING_SIZE - 2)      /* string storage size(254) */
+#define sRSTRING_SIZE      (sPTR_SIZE + sINT_SIZE) /* ptr + size */
+#define sCSTRING_SIZE      (sizeof(void*))         /* absolute C pointer */
 
-#define MAXCHAR            255
-#define MINCHAR            0
+#define MAXCHAR             255
+#define MINCHAR             0
 
 /***********************************************************************
  * Public Structure/Types
@@ -97,17 +98,17 @@
 #ifdef CONFIG_INSN16
 typedef struct P
 {
-  ubyte   op;
-  ubyte   arg1;
-  uint16  arg2;
+  uint8_t  op;
+  uint8_t  arg1;
+  uint16_t arg2;
 } OPTYPE;
 #endif
 
 #ifdef CONFIG_INSN32
 typedef struct P
 {
-  ubyte   op;
-  uint32  arg;
+  uint8_t  op;
+  uint32_t arg;
 } OPTYPE;
 #endif
 

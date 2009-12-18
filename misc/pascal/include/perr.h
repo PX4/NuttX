@@ -1,8 +1,8 @@
-/***************************************************************************
+/**********************************************************************
  * perr.h
  * External Declarations associated with perr.c
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,9 +32,25 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ****************************************************************************/
+ ***********************************************************************/
 
+#ifndef __PERR_H
+#define __PERR_H
+
+/***********************************************************************
+ * Included Files
+ ***********************************************************************/
+
+#include <stdint.h>
+
+/***********************************************************************
+ * Public Function Prototypes
+ ***********************************************************************/
+ 
 extern void errmsg(char *fmt, ...);
-extern void warn(uint16 errcode);
-extern void error(uint16 errcode);
-extern void fatal(uint16 errcode);
+extern void warn(uint16_t errcode);
+extern void error(uint16_t errcode);
+extern void fatal(uint16_t errcode);
+
+#endif /* __PERR_H */
+

@@ -75,20 +75,6 @@
 #define dbg(...) fprintf(stderr, __VA_ARGS__)
 #define vdbg(...) DEBUG(__VA_ARGS__)
 
-/*************************************************************
- * Type Definitions
- *************************************************************/
-
-typedef unsigned char  ubyte;    /* 8-bit integers */
-typedef signed char    sbyte;
-typedef unsigned short uint16;   /* 16-bit integers */
-typedef signed short   sint16;
-typedef unsigned long  uint32;   /* 32-bit integers */
-typedef signed long    sint32;
-typedef float          float32;  /* floating point types */
-typedef double         float64;
-typedef unsigned char  boolean;  /* boolean type */
-
 #endif /* __KEYWORDS_H */
 
 
