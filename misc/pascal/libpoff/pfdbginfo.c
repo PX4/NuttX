@@ -2,7 +2,7 @@
  * pdbginfo.c
  * Manage debug information
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -83,20 +84,20 @@ void poffReadDebugFuncInfoTable(poffHandle_t handle)
   while ((pDebugInfo = poffGetDebugFuncInfo(handle)) != NULL)
     {
       if (!g_pDebugInfoHead)
-	{
-	  g_pDebugInfoHead = pDebugInfo;
-	}
+        {
+          g_pDebugInfoHead = pDebugInfo;
+        }
       else
-	{
-	  g_pDebugInfoTail->next = pDebugInfo;
-	}
+        {
+          g_pDebugInfoTail->next = pDebugInfo;
+        }
       g_pDebugInfoTail = pDebugInfo;
     }
 }
 
 /***********************************************************************/
 
-poffLibDebugFuncInfo_t *poffFindDebugFuncInfo(uint32 offset)
+poffLibDebugFuncInfo_t *poffFindDebugFuncInfo(uint32_t offset)
 {
   poffLibDebugFuncInfo_t *pDebugInfo;
 
@@ -106,9 +107,9 @@ poffLibDebugFuncInfo_t *poffFindDebugFuncInfo(uint32 offset)
        pDebugInfo = pDebugInfo->next)
     {
       if (pDebugInfo->value == offset)
-	{
-	  return pDebugInfo;
-	}
+        {
+          return pDebugInfo;
+        }
     }
   return NULL;
 }

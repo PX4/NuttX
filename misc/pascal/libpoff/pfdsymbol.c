@@ -2,7 +2,7 @@
  * pfdsymbol.c
  * Dump contents of a POFF file symbol table
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -87,15 +88,15 @@ void poffDumpSymbolTable(poffHandle_t handle, FILE *outFile)
 {
   poffInfo_t   *poffInfo = (poffInfo_t*)handle;
   poffSymbol_t *psym;
-  uint32        index;
+  uint32_t      index;
 
   fprintf(outFile, "\nPOFF Symbol Table:\n");
   fprintf(outFile, "NAME                 "
-	  "TYPE   "
-	  "FLAG "
-	  "ALGN "
-	  "VALUE      "
-	  "SIZE\n");
+          "TYPE   "
+          "FLAG "
+          "ALGN "
+          "VALUE      "
+          "SIZE\n");
 
   for (index = 0;
        index < poffInfo->symbolTableSection.sh_size;
@@ -104,12 +105,12 @@ void poffDumpSymbolTable(poffHandle_t handle, FILE *outFile)
       psym = (poffSymbol_t*)&poffInfo->symbolTable[index];
 
       fprintf(outFile, "%-20s %6s 0x%02x 0x%02x 0x%08lx 0x%08lx\n",
-	      poffGetString(poffInfo, psym->st_name),
-	      poffSymTypes[psym->st_type],
-	      psym->st_flags,
-	      psym->st_align,
-	      psym->st_value,
-	      psym->st_size);
+              poffGetString(poffInfo, psym->st_name),
+              poffSymTypes[psym->st_type],
+              psym->st_flags,
+              psym->st_align,
+              psym->st_value,
+              psym->st_size);
     }
 }
 

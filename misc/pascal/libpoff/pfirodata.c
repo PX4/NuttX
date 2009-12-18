@@ -2,7 +2,7 @@
  * pfirodata.c
  * Append program read-only data to a POFF file
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -73,18 +74,18 @@
 /***********************************************************************/
 
 void poffAppendRoData(poffHandle_t handle,
-		      ubyte *roData, uint32 roDataSize)
+                      uint8_t *roData, uint32_t roDataSize)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
-  ubyte      *tmp;
-  uint32      newSize;
+  uint8_t    *tmp;
+  uint32_t    newSize;
 
   if ((roData) && (roDataSize))
     {
       /* Reallocate the read-only data */
 
       newSize = poffInfo->roDataSection.sh_size + roDataSize;
-      tmp = (ubyte*)realloc(poffInfo->roDataSectionData, newSize);
+      tmp = (uint8_t*)realloc(poffInfo->roDataSectionData, newSize);
       if (!tmp) fatal(eNOMEMORY);
 
       /* Add the new data to the new allocation */

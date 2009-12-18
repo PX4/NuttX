@@ -2,7 +2,7 @@
  * pflabel.c
  * Label resolution logic
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -64,15 +65,15 @@
 
 struct optDefinedLabelRef_s
 {
-  uint32 label;
-  uint32 pc;
+  uint32_t label;
+  uint32_t pc;
 };
 typedef struct optDefinedLabelRef_s optDefinedLabelRef_t;
 
 struct optUndefinedLabelRef_s
 {
-  uint32 label;
-  uint32 symIndex;
+  uint32_t label;
+  uint32_t symIndex;
 };
 typedef struct optUndefinedLabelRef_s optUndefinedLabelRef_t;
 
@@ -81,12 +82,12 @@ typedef struct optUndefinedLabelRef_s optUndefinedLabelRef_t;
  **********************************************************************/
 
 static optDefinedLabelRef_t   *definedLabelRefs       = NULL;
-static uint32                  definedLabelRefAlloc   = 0;
-static uint32                  nDefinedLabelRefs      = 0;
+static uint32_t                definedLabelRefAlloc   = 0;
+static uint32_t                nDefinedLabelRefs      = 0;
 
 static optUndefinedLabelRef_t *undefinedLabelRefs     = NULL;
-static uint32                  undefinedLabelRefAlloc = 0;
-static uint32                  nUndefinedLabelRefs    = 0;
+static uint32_t                undefinedLabelRefAlloc = 0;
+static uint32_t                nUndefinedLabelRefs    = 0;
 
 /**********************************************************************
  * Private Function Prototypes
@@ -111,12 +112,12 @@ static void poffCheckDefinedLabelAlloc(void)
       /* No, allocate it now */
 
       definedLabelRefs = (optDefinedLabelRef_t*)
-	malloc(INITIAL_DEFINED_ALLOCATION);
+        malloc(INITIAL_DEFINED_ALLOCATION);
 
       if (!definedLabelRefs)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
       definedLabelRefAlloc = INITIAL_DEFINED_ALLOCATION;
     }
 }
@@ -130,16 +131,16 @@ static void poffCheckDefinedLabelRealloc(void)
   if (((nDefinedLabelRefs + 1)*sizeof(optDefinedLabelRef_t)) > 
       definedLabelRefAlloc)
     {
-      uint32 newAlloc = definedLabelRefAlloc + DEFINED_INCREMENT;
+      uint32_t newAlloc = definedLabelRefAlloc + DEFINED_INCREMENT;
       void *tmp;
 
       /* Reallocate the label reference tabel */
 
       tmp = realloc(definedLabelRefs, newAlloc);
       if (!tmp)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       /* And set the new size */
 
@@ -159,12 +160,12 @@ static void poffCheckUndefinedLabelAlloc(void)
       /* No, allocate it now */
 
       undefinedLabelRefs = (optUndefinedLabelRef_t*)
-	malloc(INITIAL_UNDEFINED_ALLOCATION);
+        malloc(INITIAL_UNDEFINED_ALLOCATION);
 
       if (!undefinedLabelRefs)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
       undefinedLabelRefAlloc = INITIAL_UNDEFINED_ALLOCATION;
     }
 }
@@ -178,16 +179,16 @@ static void poffCheckUndefinedLabelRealloc(void)
   if (((nUndefinedLabelRefs + 1)*sizeof(optUndefinedLabelRef_t)) >
       undefinedLabelRefAlloc)
     {
-      uint32 newAlloc = undefinedLabelRefAlloc + UNDEFINED_INCREMENT;
+      uint32_t newAlloc = undefinedLabelRefAlloc + UNDEFINED_INCREMENT;
       void *tmp;
 
       /* Reallocate the label reference tabel */
 
       tmp = realloc(undefinedLabelRefs, newAlloc);
       if (!tmp)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       /* And set the new size */
 
@@ -204,7 +205,7 @@ static void poffCheckUndefinedLabelRealloc(void)
 
 /**********************************************************************/
 
-void poffAddToDefinedLabelTable(uint32 label, uint32 pc)
+void poffAddToDefinedLabelTable(uint32_t label, uint32_t pc)
 {
   /* Make sure we have memory to do this.  If not, we will crash */
 
@@ -220,7 +221,7 @@ void poffAddToDefinedLabelTable(uint32 label, uint32 pc)
 
 /**********************************************************************/
 
-void poffAddToUndefinedLabelTable(uint32 label, uint32 symIndex)
+void poffAddToUndefinedLabelTable(uint32_t label, uint32_t symIndex)
 {
   /* Make sure we have memory to do this.  If not, we will crash */
 
@@ -236,32 +237,32 @@ void poffAddToUndefinedLabelTable(uint32 label, uint32 symIndex)
 
 /**********************************************************************/
 
-int poffGetSymIndexForUndefinedLabel(uint32 label)
+int poffGetSymIndexForUndefinedLabel(uint32_t label)
 {
   int i;
 
   for (i = 0; i < nUndefinedLabelRefs; i++)
     {
       if (undefinedLabelRefs[i].label == label)
-	{
-	  return undefinedLabelRefs[i].symIndex;
-	}
+        {
+          return undefinedLabelRefs[i].symIndex;
+        }
     }
   return -1;
 }
 
 /**********************************************************************/
 
-int poffGetPcForDefinedLabel(uint32 label)
+int poffGetPcForDefinedLabel(uint32_t label)
 {
   int i;
 
   for (i = 0; i < nDefinedLabelRefs; i++)
     {
       if (definedLabelRefs[i].label == label)
-	{
-	  return definedLabelRefs[i].pc;
-	}
+        {
+          return definedLabelRefs[i].pc;
+        }
     }
   return -1;
 }

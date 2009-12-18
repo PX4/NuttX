@@ -2,7 +2,7 @@
  * pfrdbgcontainer.c
  * Create/destroy debug info container.
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,7 +77,7 @@
 
 /***********************************************************************/
 
-poffLibDebugFuncInfo_t *poffCreateDebugInfoContainer(uint32 nparms)
+poffLibDebugFuncInfo_t *poffCreateDebugInfoContainer(uint32_t nparms)
 {
   poffLibDebugFuncInfo_t *pDebugFuncInfo;
   int wAllocSize = SIZEOFDEBUFINFO(nparms);

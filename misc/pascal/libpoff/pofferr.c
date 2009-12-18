@@ -2,7 +2,7 @@
  * pofferr.c
  * Simple error handlers
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -68,7 +69,7 @@ void errmsg(char *fmt, ...)
 
 /***********************************************************************/
 
-void warn(uint16 errcode)
+void warn(uint16_t errcode)
 {
   /* Write error record to the error and list files */
 
@@ -77,14 +78,14 @@ void warn(uint16 errcode)
 
 /***********************************************************************/
 
-void error(uint16 errcode)
+void error(uint16_t errcode)
 {
    fatal(errcode);
 } /* end error */
 
 /***********************************************************************/
 
-void fatal(uint16 errcode)
+void fatal(uint16_t errcode)
 {
   fprintf(stderr, "Fatal Error %d -- Aborting\n", errcode);
   exit(errcode);

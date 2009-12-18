@@ -2,7 +2,7 @@
  * pfwreloc.c
  * Write relocation data to a POFF file
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -78,11 +79,11 @@ static void poffCheckRelocationAllocation(poffInfo_t *poffInfo)
     {
       /* No, allocate it now */
 
-      poffInfo->relocTable = (ubyte*)malloc(INITIAL_RELOC_TABLE_SIZE);
+      poffInfo->relocTable = (uint8_t*)malloc(INITIAL_RELOC_TABLE_SIZE);
       if (!poffInfo->relocTable)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       poffInfo->relocSection.sh_size = 0;
       poffInfo->relocAlloc           = INITIAL_RELOC_TABLE_SIZE;
@@ -96,9 +97,9 @@ static void poffCheckRelocationReallocation(poffInfo_t *poffInfo)
   if (poffInfo->relocSection.sh_size + sizeof(poffRelocation_t) >
       poffInfo->relocAlloc)
     {
-      uint32 newAlloc =
-	poffInfo->relocAlloc +
-	RELOC_TABLE_INCREMENT;
+      uint32_t newAlloc =
+        poffInfo->relocAlloc +
+        RELOC_TABLE_INCREMENT;
 
       void *tmp;
 
@@ -106,14 +107,14 @@ static void poffCheckRelocationReallocation(poffInfo_t *poffInfo)
 
       tmp = realloc(poffInfo->relocTable, newAlloc);
       if (!tmp)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       /* And set the new size */
 
       poffInfo->relocAlloc = newAlloc;
-      poffInfo->relocTable = (ubyte*)tmp;
+      poffInfo->relocTable = (uint8_t*)tmp;
     }
 }
 
@@ -126,13 +127,13 @@ static void poffCheckRelocationReallocation(poffInfo_t *poffInfo)
  * associated with the relocation entry in the relocation table.
  */
 
-uint32 poffAddRelocation(poffHandle_t handle,
-			 ubyte relocType, uint32 symIndex,
-			 uint32 sectionDataOffset)
+uint32_t poffAddRelocation(poffHandle_t handle,
+                         uint8_t relocType, uint32_t symIndex,
+                         uint32_t sectionDataOffset)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
   poffRelocation_t *prl;
-  uint32 index;
+  uint32_t index;
 
   /* Verify that the relocation table has been allocated */
 

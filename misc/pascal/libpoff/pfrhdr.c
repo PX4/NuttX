@@ -2,7 +2,7 @@
  * pfrhdr.c
  * Read info from a POFF file header
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -73,7 +74,7 @@
 /***********************************************************************/
 /* Get the type of the file from the POFF file header */
 
-ubyte poffGetFileType(poffHandle_t handle)
+uint8_t poffGetFileType(poffHandle_t handle)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
   return poffInfo->fileHeader.fh_type;
@@ -82,7 +83,7 @@ ubyte poffGetFileType(poffHandle_t handle)
 /***********************************************************************/
 /* Get the machine architecture from the POFF file header */
 
-ubyte poffGetArchitecture(poffHandle_t handle)
+uint8_t poffGetArchitecture(poffHandle_t handle)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
   return poffInfo->fileHeader.fh_arch;
@@ -91,7 +92,7 @@ ubyte poffGetArchitecture(poffHandle_t handle)
 /***********************************************************************/
 /* Get the program entry point */
 
-uint32 poffGetEntryPoint(poffHandle_t handle)
+uint32_t poffGetEntryPoint(poffHandle_t handle)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
   return poffInfo->fileHeader.fh_entry;
@@ -108,7 +109,7 @@ const char *poffGetFileHdrName(poffHandle_t handle)
 
 /***********************************************************************/
 
-uint32 poffGetRoDataSize(poffHandle_t handle)
+uint32_t poffGetRoDataSize(poffHandle_t handle)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
   return poffInfo->roDataSection.sh_size;

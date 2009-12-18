@@ -2,7 +2,7 @@
  * pfrstring.c
  * Read a string from a POFF file
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -72,7 +73,7 @@
 
 /***********************************************************************/
 
-const char *poffGetString(poffHandle_t handle, uint32 index)
+const char *poffGetString(poffHandle_t handle, uint32_t index)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
 

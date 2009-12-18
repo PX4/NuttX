@@ -2,7 +2,7 @@
  * pfwsymbol.c
  * Write symbol information to a POFF file
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -79,12 +80,12 @@
  * associated with the symbol entry in the symbol table section data.
  */
 
-uint32 poffAddSymbol(poffHandle_t handle, poffLibSymbol_t *symbol)
+uint32_t poffAddSymbol(poffHandle_t handle, poffLibSymbol_t *symbol)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
   poffSymbol_t *psym;
-  uint32 st_name;
-  uint32 index;
+  uint32_t st_name;
+  uint32_t index;
 
   /* Add the name to the string table */
 
@@ -96,11 +97,11 @@ uint32 poffAddSymbol(poffHandle_t handle, poffLibSymbol_t *symbol)
     {
       /* No, allocate it now */
 
-      poffInfo->symbolTable = (ubyte*)malloc(INITIAL_SYMBOL_TABLE_SIZE);
+      poffInfo->symbolTable = (uint8_t*)malloc(INITIAL_SYMBOL_TABLE_SIZE);
       if (!poffInfo->symbolTable)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       poffInfo->symbolTableSection.sh_size = 0;
       poffInfo->symbolTableAlloc           = INITIAL_SYMBOL_TABLE_SIZE;
@@ -112,16 +113,16 @@ uint32 poffAddSymbol(poffHandle_t handle, poffLibSymbol_t *symbol)
       poffInfo->symbolTableSection.sh_entsize >
       poffInfo->symbolTableAlloc)
     {
-      uint32 newAlloc = poffInfo->symbolTableAlloc + SYMBOL_TABLE_INCREMENT;
-      ubyte *tmp;
+      uint32_t newAlloc = poffInfo->symbolTableAlloc + SYMBOL_TABLE_INCREMENT;
+      uint8_t *tmp;
 
       /* Reallocate the file name buffer */
 
-      tmp = (ubyte*)realloc(poffInfo->symbolTable, newAlloc);
+      tmp = (uint8_t*)realloc(poffInfo->symbolTable, newAlloc);
       if (!tmp)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       /* And set the new size */
 

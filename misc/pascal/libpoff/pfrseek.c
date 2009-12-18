@@ -2,7 +2,7 @@
  * pfrseek.c
  * Seek to a position in buffered program data from a  POFF file
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -72,10 +73,10 @@
 
 /***********************************************************************/
 
-sint32 poffProgTell(poffHandle_t handle)
+int32_t poffProgTell(poffHandle_t handle)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
-  sint32 retval = -1;
+  int32_t retval = -1;
 
   /* Check if there is more data that has not yet been read */
 
@@ -88,7 +89,7 @@ sint32 poffProgTell(poffHandle_t handle)
 
 /***********************************************************************/
 
-int poffProgSeek(poffHandle_t handle, uint32 offset)
+int poffProgSeek(poffHandle_t handle, uint32_t offset)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
   int retval = -1;
@@ -106,7 +107,7 @@ int poffProgSeek(poffHandle_t handle, uint32 offset)
 
 /***********************************************************************/
 
-uint32 poffGetProgSize(poffHandle_t handle)
+uint32_t poffGetProgSize(poffHandle_t handle)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
   return poffInfo->progSection.sh_size;

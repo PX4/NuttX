@@ -2,7 +2,7 @@
  * pfwrodata.c
  * Write to the RODATA section of a POFF file
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -70,17 +71,17 @@
  * Private Functions
  ***********************************************************************/
 
-static uint16 poffCheckRoDataAlloc(poffInfo_t *poffInfo)
+static uint16_t poffCheckRoDataAlloc(poffInfo_t *poffInfo)
 {
   if (!poffInfo->roDataSectionData)
     {
       /* No, allocate it now */
 
-      poffInfo->roDataSectionData = (ubyte*)malloc(INITIAL_RODATA_SECTION_SIZE);
+      poffInfo->roDataSectionData = (uint8_t*)malloc(INITIAL_RODATA_SECTION_SIZE);
       if (!poffInfo->roDataSectionData)
-	{
-	  return eNOMEMORY;
-	}
+        {
+          return eNOMEMORY;
+        }
 
       poffInfo->roDataSection.sh_size = 0;
       poffInfo->roDataSectionAlloc    = INITIAL_RODATA_SECTION_SIZE;
@@ -88,35 +89,35 @@ static uint16 poffCheckRoDataAlloc(poffInfo_t *poffInfo)
   return eNOERROR;
 }
 
-static uint16 poffCheckRoDataRealloc(poffInfo_t *poffInfo, uint16 len)
+static uint16_t poffCheckRoDataRealloc(poffInfo_t *poffInfo, uint16_t len)
 {
   /* Check if there is room for the new data */
 
   if (poffInfo->roDataSection.sh_size + len > poffInfo->roDataSectionAlloc)
     {
-      uint32 newAlloc;
+      uint32_t newAlloc;
       void *tmp;
 
       /* Make certain that this is big enough (it should be) */
 
       newAlloc = poffInfo->roDataSectionAlloc + RODATA_SECTION_INCREMENT;
       while (poffInfo->roDataSection.sh_size + len > newAlloc)
-	{
-	  newAlloc += RODATA_SECTION_INCREMENT;
-	}
+        {
+          newAlloc += RODATA_SECTION_INCREMENT;
+        }
 
       /* Reallocate the roDataram data section buffer */
 
       tmp = realloc(poffInfo->roDataSectionData, newAlloc);
       if (!tmp)
-	{
-	  return eNOMEMORY;
-	}
+        {
+          return eNOMEMORY;
+        }
 
       /* And set the new size */
 
       poffInfo->roDataSectionAlloc = newAlloc;
-      poffInfo->roDataSectionData  = (ubyte*)tmp;
+      poffInfo->roDataSectionData  = (uint8_t*)tmp;
     }
   return eNOERROR;
 }
@@ -126,11 +127,11 @@ static uint16 poffCheckRoDataRealloc(poffInfo_t *poffInfo, uint16 len)
  ***********************************************************************/
 
 #if 0 /* Not used */
-uint32 poffAddRoDataByte(poffHandle_t handle, ubyte dataByte)
+uint32_t poffAddRoDataByte(poffHandle_t handle, uint8_t dataByte)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
-  uint32      offset;
-  uint16      errCode;
+  uint32_t    offset;
+  uint16_t    errCode;
 
   /* Check if we have allocated a data section buffer yet */
 
@@ -158,12 +159,12 @@ uint32 poffAddRoDataByte(poffHandle_t handle, ubyte dataByte)
 
 /***********************************************************************/
 
-uint32 poffAddRoDataString(poffHandle_t handle, const char *string)
+uint32_t poffAddRoDataString(poffHandle_t handle, const char *string)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
-  uint32      len;
-  uint32      offset;
-  uint16      errCode;
+  uint32_t    len;
+  uint32_t    offset;
+  uint16_t    errCode;
 
   /* Check if we have allocated a data section buffer yet */
 

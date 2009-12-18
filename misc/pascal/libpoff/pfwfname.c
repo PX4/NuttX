@@ -2,7 +2,7 @@
  * pfwfname.c
  * Write filename data to a POFF file
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -80,11 +81,11 @@
  * file name section.
  */
 
-uint32 poffAddFileName(poffHandle_t handle, const char *name)
+uint32_t poffAddFileName(poffHandle_t handle, const char *name)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
   poffFileTab_t ft;
-  uint32 index;
+  uint32_t index;
 
   /* Add the name to the string table */
 
@@ -101,9 +102,9 @@ uint32 poffAddFileName(poffHandle_t handle, const char *name)
 
       poffInfo->fileNameTable = (poffFileTab_t*)malloc(INITIAL_FILENAME_TABLE_SIZE);
       if (!poffInfo->fileNameTable)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       poffInfo->fileNameTableSection.sh_size = 0;
       poffInfo->fileNameTableAlloc           = INITIAL_FILENAME_TABLE_SIZE;
@@ -114,16 +115,16 @@ uint32 poffAddFileName(poffHandle_t handle, const char *name)
   if (poffInfo->fileNameTableSection.sh_size + sizeof(poffFileTab_t)>
       poffInfo->fileNameTableAlloc)
     {
-      uint32 newAlloc = poffInfo->fileNameTableAlloc + FILENAME_TABLE_INCREMENT;
+      uint32_t newAlloc = poffInfo->fileNameTableAlloc + FILENAME_TABLE_INCREMENT;
       void *tmp;
 
       /* Reallocate the file name buffer */
 
       tmp = realloc(poffInfo->fileNameTable, newAlloc);
       if (!tmp)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       /* And set the new size */
 

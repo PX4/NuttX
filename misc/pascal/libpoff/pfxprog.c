@@ -2,7 +2,7 @@
  * pfxprog.c
  * Extract program data from a POFF file
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -72,10 +73,10 @@
 
 /***********************************************************************/
 
-uint32 poffExtractProgramData(poffHandle_t handle, ubyte **progData)
+uint32_t poffExtractProgramData(poffHandle_t handle, uint8_t **progData)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
-  uint32      size;
+  uint32_t    size;
 
   /* Give the program data to the caller */
 

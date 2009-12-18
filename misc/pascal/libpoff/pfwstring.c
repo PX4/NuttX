@@ -2,7 +2,7 @@
  * pfwstring.c
  * Write string table data a POFF file
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -80,11 +81,11 @@
  * not found, return -1.
  */
 
-sint32 poffFindString(poffHandle_t handle, const char *string)
+int32_t poffFindString(poffHandle_t handle, const char *string)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
   char       *sptr     = poffInfo->stringTable;
-  uint32      offset;
+  uint32_t    offset;
 
   /* Has the string table been allocated yet? */
 
@@ -122,10 +123,10 @@ sint32 poffFindString(poffHandle_t handle, const char *string)
  * string storage location in the string table section data.
  */
 
-uint32 poffAddString(poffHandle_t handle, const char *string)
+uint32_t poffAddString(poffHandle_t handle, const char *string)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
-  sint32 index;
+  int32_t index;
   int len;
 
   /* Check if we have allocated a string table buffer yet */
@@ -136,9 +137,9 @@ uint32 poffAddString(poffHandle_t handle, const char *string)
 
       poffInfo->stringTable = (char*)malloc(INITIAL_STRING_TABLE_SIZE);
       if (!poffInfo->stringTable)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       /* Index 0 is reserved for the NULL string */
 
@@ -162,54 +163,54 @@ uint32 poffAddString(poffHandle_t handle, const char *string)
        */
 
       if ((string == NULL) || ((len = strlen(string)) <= 0))
-	{
-	  index = 0;
-	}
+        {
+          index = 0;
+        }
       else
-	{
-	  /* Increment the length to include the null terminator */
+        {
+          /* Increment the length to include the null terminator */
 
-	  len++;
+          len++;
 
-	  /* Check if there is room for the new string */
+          /* Check if there is room for the new string */
 
-	  if (poffInfo->stringTableSection.sh_size + len >
-	      poffInfo->stringTableAlloc)
-	    {
-	      uint32 newAlloc =
-		poffInfo->stringTableAlloc + STRING_TABLE_INCREMENT;
-	      void *tmp;
+          if (poffInfo->stringTableSection.sh_size + len >
+              poffInfo->stringTableAlloc)
+            {
+              uint32_t newAlloc =
+                poffInfo->stringTableAlloc + STRING_TABLE_INCREMENT;
+              void *tmp;
 
-	      /* Make sure that the new string will fit in the new allocation
-	       * size (shouldn't happen)
-	       */
+              /* Make sure that the new string will fit in the new allocation
+               * size (shouldn't happen)
+               */
 
-	      while (poffInfo->stringTableSection.sh_size + len > newAlloc)
-		newAlloc += STRING_TABLE_INCREMENT;
+              while (poffInfo->stringTableSection.sh_size + len > newAlloc)
+                newAlloc += STRING_TABLE_INCREMENT;
 
-	      /* Reallocate the string buffer */
+              /* Reallocate the string buffer */
 
-	      tmp = realloc(poffInfo->stringTable, newAlloc);
-	      if (!tmp)
-		{
-		  fatal(eNOMEMORY);
-		}
+              tmp = realloc(poffInfo->stringTable, newAlloc);
+              if (!tmp)
+                {
+                  fatal(eNOMEMORY);
+                }
 
-	      /* And set the new size */
+              /* And set the new size */
 
-	      poffInfo->stringTableAlloc = newAlloc;
-	      poffInfo->stringTable      = (char*)tmp;
-	    }
+              poffInfo->stringTableAlloc = newAlloc;
+              poffInfo->stringTable      = (char*)tmp;
+            }
 
-	  /* Copy the string into the string table */
+          /* Copy the string into the string table */
 
-	  index = poffInfo->stringTableSection.sh_size;
-	  memcpy(&poffInfo->stringTable[index], string, len);
+          index = poffInfo->stringTableSection.sh_size;
+          memcpy(&poffInfo->stringTable[index], string, len);
 
-	  /* Set the new size of the string table */
+          /* Set the new size of the string table */
 
-	  poffInfo->stringTableSection.sh_size += len;
-	}
+          poffInfo->stringTableSection.sh_size += len;
+        }
     }
   return index;
 }

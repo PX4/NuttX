@@ -3,7 +3,7 @@
  * Contains command, internal, private definitions used by
  * the POFF library.  These were not intended for exportation.
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,7 @@
  * Included Files
  ***************************************************************************/
 
+#include <stdint.h>
 #include "keywords.h"
 #include "poff.h"
 #include "paslib.h"    /* Endian-ness support */
@@ -120,55 +121,55 @@ struct poffInfo_s
 
   /* In-memory section data */
 
-  ubyte              *progSectionData;
-  ubyte              *roDataSectionData;
-  ubyte              *symbolTable;
+  uint8_t            *progSectionData;
+  uint8_t            *roDataSectionData;
+  uint8_t            *symbolTable;
   char               *stringTable;
-  ubyte              *relocTable;
+  uint8_t            *relocTable;
   poffFileTab_t      *fileNameTable;
-  ubyte              *lineNumberTable;
-  ubyte              *debugFuncTable;
+  uint8_t            *lineNumberTable;
+  uint8_t            *debugFuncTable;
 
   /* Current allocation sizes.  Used only on writing to determine if
    * in-memory has been allocated and how much memory has been allocated
    * in case the buffer needs to be re-allocated.
    */
 
-  uint32              progSectionAlloc;
-  uint32              roDataSectionAlloc;
-  uint32              symbolTableAlloc;
-  uint32              stringTableAlloc;
-  uint32              relocAlloc;
-  uint32              fileNameTableAlloc;
-  uint32              lineNumberTableAlloc;
-  uint32              debugFuncTableAlloc;
+  uint32_t            progSectionAlloc;
+  uint32_t            roDataSectionAlloc;
+  uint32_t            symbolTableAlloc;
+  uint32_t            stringTableAlloc;
+  uint32_t            relocAlloc;
+  uint32_t            fileNameTableAlloc;
+  uint32_t            lineNumberTableAlloc;
+  uint32_t            debugFuncTableAlloc;
 
   /* Current buffer indices.  These are used on reading data sequentially
    * from the in-memory section data.
    */
 
-  uint32              progSectionIndex;
-  uint32              symbolIndex;
-  uint32              relocIndex;
-  uint32              fileNameIndex;
-  uint32              lineNumberIndex;
-  uint32              debugFuncIndex;
+  uint32_t            progSectionIndex;
+  uint32_t            symbolIndex;
+  uint32_t            relocIndex;
+  uint32_t            fileNameIndex;
+  uint32_t            lineNumberIndex;
+  uint32_t            debugFuncIndex;
 };
 typedef struct poffInfo_s poffInfo_t;
 
 struct poffProgInfo_s
 {
-  uint32              progSectionSize;
-  uint32              progSectionAlloc;
-  ubyte              *progSectionData;
+  uint32_t            progSectionSize;
+  uint32_t            progSectionAlloc;
+  uint8_t            *progSectionData;
 };
 typedef struct poffProgInfo_s poffProgInfo_t;
 
 struct poffSymInfo_s
 {
-  uint32              symbolTableSize;
-  uint32              symbolTableAlloc;
-  ubyte              *symbolTable;
+  uint32_t            symbolTableSize;
+  uint32_t            symbolTableAlloc;
+  uint8_t            *symbolTable;
 };
 typedef struct poffSymInfo_s poffSymInfo_t;
 

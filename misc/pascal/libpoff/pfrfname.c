@@ -2,7 +2,7 @@
  * pfrfname.c
  * Read file name data from a POFF file
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,11 +77,11 @@
 
 /***********************************************************************/
 
-sint32 poffGetFileName(poffHandle_t handle, const char **fname)
+int32_t poffGetFileName(poffHandle_t handle, const char **fname)
 {
-  poffInfo_t    *poffInfo = (poffInfo_t*)handle;
-  uint32         stringTableIndex;
-  uint32         fileNameIndex;
+  poffInfo_t *poffInfo = (poffInfo_t*)handle;
+  uint32_t    stringTableIndex;
+  uint32_t    fileNameIndex;
 
   /* First, check if there is another file name in the table to be had.
    * This check is a little sloppy in that it assumes the the size in
@@ -100,7 +101,7 @@ sint32 poffGetFileName(poffHandle_t handle, const char **fname)
     {
       /* Get the string table index from the file name table */
 
-      stringTableIndex = (uint32)poffInfo->fileNameTable[fileNameIndex];
+      stringTableIndex = (uint32_t)poffInfo->fileNameTable[fileNameIndex];
 
       /* Return the file name */
 

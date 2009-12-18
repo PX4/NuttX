@@ -2,7 +2,7 @@
  * pfwprog.c
  * Write program data to a POFF file
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -74,7 +75,7 @@
  * Public Functions
  ***********************************************************************/
 
-void poffAddProgByte(poffHandle_t handle, ubyte progByte)
+void poffAddProgByte(poffHandle_t handle, uint8_t progByte)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
 
@@ -84,11 +85,11 @@ void poffAddProgByte(poffHandle_t handle, ubyte progByte)
     {
       /* No, allocate it now */
 
-      poffInfo->progSectionData = (ubyte*)malloc(INITIAL_PROG_SECTION_SIZE);
+      poffInfo->progSectionData = (uint8_t*)malloc(INITIAL_PROG_SECTION_SIZE);
       if (!poffInfo->progSectionData)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       poffInfo->progSection.sh_size = 0;
       poffInfo->progSectionAlloc    = INITIAL_STRING_TABLE_SIZE;
@@ -98,21 +99,21 @@ void poffAddProgByte(poffHandle_t handle, ubyte progByte)
 
   if (poffInfo->progSection.sh_size + 1 > poffInfo->progSectionAlloc)
     {
-      uint32 newAlloc = poffInfo->progSectionAlloc + PROG_SECTION_INCREMENT;
+      uint32_t newAlloc = poffInfo->progSectionAlloc + PROG_SECTION_INCREMENT;
       void *tmp;
 
       /* Reallocate the program data section buffer */
 
       tmp = realloc(poffInfo->progSectionData, newAlloc);
       if (!tmp)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       /* And set the new size */
 
       poffInfo->progSectionAlloc = newAlloc;
-      poffInfo->progSectionData  = (ubyte*)tmp;
+      poffInfo->progSectionData  = (uint8_t*)tmp;
     }
 
   /* Copy program data byte into the program data buffer */

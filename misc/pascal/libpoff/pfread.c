@@ -2,7 +2,7 @@
  * pfread.c
  * POFF library global variables
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,8 @@
  * Included Files
  **********************************************************************/
 
+#include <sys/types.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,11 +69,11 @@
  * Private Function Prototypes
  ***********************************************************************/
 
-static uint16 poffReadFileHeader(poffHandle_t handle, FILE *poffFile);
-static uint16 poffReadSectionHeaders(poffHandle_t handle, FILE *poffFile);
-static uint16 poffReadSectionData(poffSectionHeader_t *shdr,
-				  ubyte **sdata, FILE *poffFile);
-static uint16 poffReadAllSectionData(poffHandle_t handle, FILE *poffFile);
+static uint16_t poffReadFileHeader(poffHandle_t handle, FILE *poffFile);
+static uint16_t poffReadSectionHeaders(poffHandle_t handle, FILE *poffFile);
+static uint16_t poffReadSectionData(poffSectionHeader_t *shdr,
+                                    uint8_t **sdata, FILE *poffFile);
+static uint16_t poffReadAllSectionData(poffHandle_t handle, FILE *poffFile);
 
 /***********************************************************************
  * Private Functions
@@ -80,7 +82,7 @@ static uint16 poffReadAllSectionData(poffHandle_t handle, FILE *poffFile);
 /***********************************************************************/
 /* Read and verify the POFF file header */
 
-static uint16 poffReadFileHeader(poffHandle_t handle, FILE *poffFile)
+static uint16_t poffReadFileHeader(poffHandle_t handle, FILE *poffFile)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
   size_t entriesRead;
@@ -95,7 +97,7 @@ static uint16 poffReadFileHeader(poffHandle_t handle, FILE *poffFile)
   /* Read the POFF file header */
 
   entriesRead = fread(&poffInfo->fileHeader, sizeof(poffFileHeader_t),
-		      1, poffFile);
+                      1, poffFile);
   if (entriesRead != 1)
     {
       return ePOFFREADERROR;
@@ -121,7 +123,7 @@ static uint16 poffReadFileHeader(poffHandle_t handle, FILE *poffFile)
 /***********************************************************************/
 /* Read and verify all of the POFF section headers */
 
-static uint16 poffReadSectionHeaders(poffHandle_t handle, FILE *poffFile)
+static uint16_t poffReadSectionHeaders(poffHandle_t handle, FILE *poffFile)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
   poffSectionHeader_t sectionHeader;
@@ -137,18 +139,18 @@ static uint16 poffReadSectionHeaders(poffHandle_t handle, FILE *poffFile)
       /* Seek to the beginning of the next section header */
 
       if (fseek(poffFile, offset, SEEK_SET) != 0)
-	{
-	  return ePOFFREADERROR;
-	}
+        {
+          return ePOFFREADERROR;
+        }
 
       /* Read the section header */
 
       entriesRead = fread(&sectionHeader, sizeof(poffSectionHeader_t),
-			  1, poffFile);
+                          1, poffFile);
       if (entriesRead != 1)
-	{
-	  return ePOFFREADERROR;
-	}
+        {
+          return ePOFFREADERROR;
+        }
 
       /* The POFF file is retained in big-endian order.  Fixup fields as necessary */
 
@@ -157,41 +159,41 @@ static uint16 poffReadSectionHeaders(poffHandle_t handle, FILE *poffFile)
       /* Copy the section header to the correct location */
 
       switch (sectionHeader.sh_type)
-	{
-	case SHT_PROGDATA : /* Program data */
-	  if ((sectionHeader.sh_flags & SHF_EXEC) != 0)
-	    dest = &poffInfo->progSection;
-	  else
-	    dest = &poffInfo->roDataSection;
-	  break;
+        {
+        case SHT_PROGDATA : /* Program data */
+          if ((sectionHeader.sh_flags & SHF_EXEC) != 0)
+            dest = &poffInfo->progSection;
+          else
+            dest = &poffInfo->roDataSection;
+          break;
 
-	case SHT_SYMTAB : /* Symbol table */
+        case SHT_SYMTAB : /* Symbol table */
           dest = &poffInfo->symbolTableSection;
-	  break;
+          break;
 
-	case SHT_STRTAB :  /* String table */
-	  dest = &poffInfo->stringTableSection;
-	  break;
+        case SHT_STRTAB :  /* String table */
+          dest = &poffInfo->stringTableSection;
+          break;
 
-	case SHT_REL : /* Relocation data */
-	  dest = &poffInfo->relocSection;
-	  break;
+        case SHT_REL : /* Relocation data */
+          dest = &poffInfo->relocSection;
+          break;
 
-	case SHT_FILETAB : /* File table */
-	  dest = &poffInfo->fileNameTableSection;
-	  break;
+        case SHT_FILETAB : /* File table */
+          dest = &poffInfo->fileNameTableSection;
+          break;
 
-	case SHT_LINENO :  /* Line number data */
-	  dest = &poffInfo->lineNumberSection;
-	  break;
+        case SHT_LINENO :  /* Line number data */
+          dest = &poffInfo->lineNumberSection;
+          break;
 
-	case SHT_DEBUG :  /* Debug function info data */
-	  dest = &poffInfo->debugFuncSection;
-	  break;
+        case SHT_DEBUG :  /* Debug function info data */
+          dest = &poffInfo->debugFuncSection;
+          break;
 
-	default:
-	  return ePOFFREADERROR;
-	}
+        default:
+          return ePOFFREADERROR;
+        }
       memcpy(dest, &sectionHeader, sizeof(poffSectionHeader_t));
 
       /* Get the offset to the next section */
@@ -204,8 +206,8 @@ static uint16 poffReadSectionHeaders(poffHandle_t handle, FILE *poffFile)
 /***********************************************************************/
 /* Read and buffer all of the POFF section data */
 
-static uint16 poffReadSectionData(poffSectionHeader_t *shdr,
-				  ubyte **sdata, FILE *poffFile)
+static uint16_t poffReadSectionData(poffSectionHeader_t *shdr,
+                                    uint8_t **sdata, FILE *poffFile)
 {
   size_t entriesRead;
 
@@ -218,7 +220,7 @@ static uint16 poffReadSectionData(poffSectionHeader_t *shdr,
 
   /* Allocate memory to hold the section data */
 
-  *sdata = (ubyte*)malloc(shdr->sh_size);
+  *sdata = (uint8_t*)malloc(shdr->sh_size);
   if (*sdata == NULL)
     {
       return eNOMEMORY;
@@ -237,30 +239,30 @@ static uint16 poffReadSectionData(poffSectionHeader_t *shdr,
 /***********************************************************************/
 /* Read and buffer all of the POFF section data */
 
-static uint16 poffReadAllSectionData(poffHandle_t handle, FILE *poffFile)
+static uint16_t poffReadAllSectionData(poffHandle_t handle, FILE *poffFile)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
-  uint16 retval = eNOERROR;
+  uint16_t retval = eNOERROR;
 
   if (HAVE_PROGRAM_SECTION)
     {
       retval = poffReadSectionData(&poffInfo->progSection,
-				   (ubyte**)&poffInfo->progSectionData,
-				   poffFile);
+                                   (uint8_t**)&poffInfo->progSectionData,
+                                   poffFile);
     }
 
   if ((retval == eNOERROR) && (HAVE_RODATA_SECTION))
     {
       retval = poffReadSectionData(&poffInfo->roDataSection,
-				   (ubyte**)&poffInfo->roDataSectionData,
-				   poffFile);
+                                   (uint8_t**)&poffInfo->roDataSectionData,
+                                   poffFile);
     }
 
   if ((retval == eNOERROR) && (HAVE_SYMBOL_TABLE))
     {
       retval = poffReadSectionData(&poffInfo->symbolTableSection,
-				   (ubyte**)&poffInfo->symbolTable,
-				   poffFile);
+                                   (uint8_t**)&poffInfo->symbolTable,
+                                   poffFile);
 #ifdef CONFIG_POFF_SWAPNEEDED
       if (retval == eNOERROR)
         {
@@ -272,15 +274,15 @@ static uint16 poffReadAllSectionData(poffHandle_t handle, FILE *poffFile)
   if ((retval == eNOERROR) && (HAVE_STRING_TABLE))
     {
       retval = poffReadSectionData(&poffInfo->stringTableSection,
-				   (ubyte**)&poffInfo->stringTable,
-				   poffFile);
+                                   (uint8_t**)&poffInfo->stringTable,
+                                   poffFile);
     }
 
   if ((retval == eNOERROR) && (HAVE_RELOC_SECTION))
     {
       retval = poffReadSectionData(&poffInfo->relocSection,
-				   (ubyte**)&poffInfo->relocTable,
-				   poffFile);
+                                   (uint8_t**)&poffInfo->relocTable,
+                                   poffFile);
 #ifdef CONFIG_POFF_SWAPNEEDED
       if (retval == eNOERROR)
         {
@@ -292,8 +294,8 @@ static uint16 poffReadAllSectionData(poffHandle_t handle, FILE *poffFile)
   if ((retval == eNOERROR) && (HAVE_FILE_TABLE))
     {
       retval = poffReadSectionData(&poffInfo->fileNameTableSection,
-				   (ubyte**)&poffInfo->fileNameTable,
-				   poffFile);
+                                   (uint8_t**)&poffInfo->fileNameTable,
+                                   poffFile);
 #ifdef CONFIG_POFF_SWAPNEEDED
       if (retval == eNOERROR)
         {
@@ -305,8 +307,8 @@ static uint16 poffReadAllSectionData(poffHandle_t handle, FILE *poffFile)
   if ((retval == eNOERROR) && (HAVE_LINE_NUMBER))
     {
       retval = poffReadSectionData(&poffInfo->lineNumberSection,
-				   (ubyte**)&poffInfo->lineNumberTable,
-				   poffFile);
+                                   (uint8_t**)&poffInfo->lineNumberTable,
+                                   poffFile);
 #ifdef CONFIG_POFF_SWAPNEEDED
       if (retval == eNOERROR)
         {
@@ -318,8 +320,8 @@ static uint16 poffReadAllSectionData(poffHandle_t handle, FILE *poffFile)
   if ((retval == eNOERROR) && (HAVE_DEBUG_SECTION))
     {
       retval = poffReadSectionData(&poffInfo->debugFuncSection,
-				   (ubyte**)&poffInfo->debugFuncTable,
-				   poffFile);
+                                   (uint8_t**)&poffInfo->debugFuncTable,
+                                   poffFile);
 #ifdef CONFIG_POFF_SWAPNEEDED
       if (retval == eNOERROR)
         {
@@ -338,9 +340,9 @@ static uint16 poffReadAllSectionData(poffHandle_t handle, FILE *poffFile)
 /***********************************************************************/
 /* Set all global data structures to a known state */
 
-uint16 poffReadFile(poffHandle_t handle, FILE *poffFile)
+uint16_t poffReadFile(poffHandle_t handle, FILE *poffFile)
 {
-  uint16 retVal;
+  uint16_t retVal;
 
   /* Read the POFF header file */
 
@@ -349,9 +351,9 @@ uint16 poffReadFile(poffHandle_t handle, FILE *poffFile)
     {
       retVal = poffReadSectionHeaders(handle, poffFile);
       if (retVal == eNOERROR)
-	{
-	  retVal = poffReadAllSectionData(handle, poffFile);
-	}
+        {
+          retVal = poffReadAllSectionData(handle, poffFile);
+        }
     }
   return retVal;
 }

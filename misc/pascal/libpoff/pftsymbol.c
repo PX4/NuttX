@@ -2,7 +2,7 @@
  * pftsymbol.c
  * Write symbol information to a temporary container
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -79,13 +80,13 @@
  * associated with the symbol entry in the symbol table section data.
  */
 
-uint32 poffAddTmpSymbol(poffHandle_t handle, poffSymHandle_t symHandle,
-			poffLibSymbol_t *symbol)
+uint32_t poffAddTmpSymbol(poffHandle_t handle, poffSymHandle_t symHandle,
+                        poffLibSymbol_t *symbol)
 {
   poffSymInfo_t *poffSymInfo = (poffSymInfo_t*)symHandle;
   poffSymbol_t *psym;
-  uint32 st_name;
-  uint32 index;
+  uint32_t st_name;
+  uint32_t index;
 
   /* Add the name to the string table. Note: We are probably re-writing
    * the string table and so the string probably already exists in the
@@ -102,11 +103,11 @@ uint32 poffAddTmpSymbol(poffHandle_t handle, poffSymHandle_t symHandle,
     {
       /* No, allocate it now */
 
-      poffSymInfo->symbolTable = (ubyte*)malloc(INITIAL_SYMBOL_TABLE_SIZE);
+      poffSymInfo->symbolTable = (uint8_t*)malloc(INITIAL_SYMBOL_TABLE_SIZE);
       if (!poffSymInfo->symbolTable)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       poffSymInfo->symbolTableSize   = 0;
       poffSymInfo->symbolTableAlloc  = INITIAL_SYMBOL_TABLE_SIZE;
@@ -117,16 +118,16 @@ uint32 poffAddTmpSymbol(poffHandle_t handle, poffSymHandle_t symHandle,
   if (poffSymInfo->symbolTableSize + sizeof(poffSymbol_t) >
       poffSymInfo->symbolTableAlloc)
     {
-      uint32 newAlloc = poffSymInfo->symbolTableAlloc + SYMBOL_TABLE_INCREMENT;
-      ubyte *tmp;
+      uint32_t newAlloc = poffSymInfo->symbolTableAlloc + SYMBOL_TABLE_INCREMENT;
+      uint8_t *tmp;
 
       /* Reallocate the file name buffer */
 
-      tmp = (ubyte*)realloc(poffSymInfo->symbolTable, newAlloc);
+      tmp = (uint8_t*)realloc(poffSymInfo->symbolTable, newAlloc);
       if (!tmp)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       /* And set the new size */
 

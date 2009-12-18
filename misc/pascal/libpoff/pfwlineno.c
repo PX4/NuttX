@@ -2,7 +2,7 @@
  * pfwlineno.c
  * Write line number data to a POFF file
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -78,13 +79,13 @@ static void poffCheckLineNumberAllocation(poffInfo_t *poffInfo)
     {
       /* No, allocate it now */
 
-      poffInfo->lineNumberTable = (ubyte*)
-	malloc(INITIAL_LINENUMBER_TABLE_SIZE);
+      poffInfo->lineNumberTable = (uint8_t*)
+        malloc(INITIAL_LINENUMBER_TABLE_SIZE);
 
       if (!poffInfo->lineNumberTable)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       poffInfo->lineNumberSection.sh_size = 0;
       poffInfo->lineNumberTableAlloc      = INITIAL_LINENUMBER_TABLE_SIZE;
@@ -98,9 +99,9 @@ static void poffCheckLineNumberReallocation(poffInfo_t *poffInfo)
   if (poffInfo->lineNumberSection.sh_size + sizeof(poffLineNumber_t) >
       poffInfo->lineNumberTableAlloc)
     {
-      uint32 newAlloc =
-	poffInfo->lineNumberTableAlloc +
-	LINENUMBER_TABLE_INCREMENT;
+      uint32_t newAlloc =
+        poffInfo->lineNumberTableAlloc +
+        LINENUMBER_TABLE_INCREMENT;
 
       void *tmp;
 
@@ -108,14 +109,14 @@ static void poffCheckLineNumberReallocation(poffInfo_t *poffInfo)
 
       tmp = realloc(poffInfo->lineNumberTable, newAlloc);
       if (!tmp)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       /* And set the new size */
 
       poffInfo->lineNumberTableAlloc = newAlloc;
-      poffInfo->lineNumberTable      = (ubyte*)tmp;
+      poffInfo->lineNumberTable      = (uint8_t*)tmp;
     }
 }
 
@@ -128,13 +129,13 @@ static void poffCheckLineNumberReallocation(poffInfo_t *poffInfo)
  * associated with the line number entry in the line number table.
  */
 
-uint32 poffAddLineNumber(poffHandle_t handle,
-			 uint16 lineNumber, uint16 fileNumber,
-			 uint32 progSectionDataOffset)
+uint32_t poffAddLineNumber(poffHandle_t handle,
+                         uint16_t lineNumber, uint16_t fileNumber,
+                         uint32_t progSectionDataOffset)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
   poffLineNumber_t *pln;
-  uint32 index;
+  uint32_t index;
 
   /* Verify that the line number table has been allocated */
 

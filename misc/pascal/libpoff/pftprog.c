@@ -2,7 +2,7 @@
  * pftprog.c
  * Program data manipulations on POFF temporary object
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -68,17 +69,17 @@
  * Private Functions
  ***********************************************************************/
 
-static uint16 poffCheckProgAlloc(poffProgInfo_t *poffProgInfo)
+static uint16_t poffCheckProgAlloc(poffProgInfo_t *poffProgInfo)
 {
   if (!poffProgInfo->progSectionData)
     {
       /* No, allocate it now */
 
-      poffProgInfo->progSectionData = (ubyte*)malloc(INITIAL_PROG_SECTION_SIZE);
+      poffProgInfo->progSectionData = (uint8_t*)malloc(INITIAL_PROG_SECTION_SIZE);
       if (!poffProgInfo->progSectionData)
-	{
-	  return eNOMEMORY;
-	}
+        {
+          return eNOMEMORY;
+        }
 
       poffProgInfo->progSectionSize  = 0;
       poffProgInfo->progSectionAlloc = INITIAL_PROG_SECTION_SIZE;
@@ -86,35 +87,35 @@ static uint16 poffCheckProgAlloc(poffProgInfo_t *poffProgInfo)
   return eNOERROR;
 }
 
-static uint16 poffCheckProgRealloc(poffProgInfo_t *poffProgInfo, uint16 len)
+static uint16_t poffCheckProgRealloc(poffProgInfo_t *poffProgInfo, uint16_t len)
 {
   /* Check if there is room for the new data */
 
   if (poffProgInfo->progSectionSize + len > poffProgInfo->progSectionAlloc)
     {
-      uint32 newAlloc =
-	poffProgInfo->progSectionAlloc + PROG_SECTION_INCREMENT;
+      uint32_t newAlloc =
+        poffProgInfo->progSectionAlloc + PROG_SECTION_INCREMENT;
       void *tmp;
 
       /* Make certain that this is big enough (it should be) */
 
       while (poffProgInfo->progSectionSize + len > newAlloc)
-	{
-	  newAlloc += PROG_SECTION_INCREMENT;
-	}
+        {
+          newAlloc += PROG_SECTION_INCREMENT;
+        }
 
       /* Reallocate the program data section buffer */
 
       tmp = realloc(poffProgInfo->progSectionData, newAlloc);
       if (!tmp)
-	{
-	  return eNOMEMORY;
-	}
+        {
+          return eNOMEMORY;
+        }
 
       /* And set the new size */
 
       poffProgInfo->progSectionAlloc = newAlloc;
-      poffProgInfo->progSectionData  = (ubyte*)tmp;
+      poffProgInfo->progSectionData  = (uint8_t*)tmp;
     }
   return eNOERROR;
 }
@@ -123,10 +124,10 @@ static uint16 poffCheckProgRealloc(poffProgInfo_t *poffProgInfo, uint16 len)
  * Public Functions
  ***********************************************************************/
 
-uint16 poffAddTmpProgByte(poffProgHandle_t handle, ubyte progByte)
+uint16_t poffAddTmpProgByte(poffProgHandle_t handle, uint8_t progByte)
 {
   poffProgInfo_t *poffProgInfo = (poffProgInfo_t*)handle;
-  uint16 errCode;
+  uint16_t errCode;
 
   /* Check if we have allocated a program section buffer yet */
 
@@ -156,12 +157,12 @@ uint16 poffAddTmpProgByte(poffProgHandle_t handle, ubyte progByte)
 
 /***********************************************************************/
 
-uint16 poffWriteTmpProgBytes(ubyte *buffer, uint32 nbytes,
-			     poffProgHandle_t handle)
+uint16_t poffWriteTmpProgBytes(uint8_t *buffer, uint32_t nbytes,
+                             poffProgHandle_t handle)
 
 {
   poffProgInfo_t *poffProgInfo = (poffProgInfo_t*)handle;
-  uint16 errCode;
+  uint16_t errCode;
 
   /* Check if we have allocated a program section buffer yet */
 
@@ -182,7 +183,7 @@ uint16 poffWriteTmpProgBytes(ubyte *buffer, uint32 nbytes,
   /* Copy program data byte into the program data buffer */
 
   memcpy(&poffProgInfo->progSectionData[poffProgInfo->progSectionSize],
-	 buffer, nbytes);
+         buffer, nbytes);
 
   /* Set the new size of the string table */
 

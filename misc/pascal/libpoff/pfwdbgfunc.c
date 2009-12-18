@@ -1,7 +1,7 @@
 /**********************************************************************
  * pfwdbgfunc.c
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -77,13 +78,13 @@ static void poffCheckDebugFuncInfoAllocation(poffInfo_t *poffInfo)
     {
       /* No, allocate it now */
 
-      poffInfo->debugFuncTable = (ubyte*)
-	malloc(INITIAL_DEBUGFUNC_TABLE_SIZE);
+      poffInfo->debugFuncTable = (uint8_t*)
+        malloc(INITIAL_DEBUGFUNC_TABLE_SIZE);
 
       if (!poffInfo->debugFuncTable)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       poffInfo->debugFuncSection.sh_size = 0;
       poffInfo->debugFuncTableAlloc      = INITIAL_DEBUGFUNC_TABLE_SIZE;
@@ -92,14 +93,14 @@ static void poffCheckDebugFuncInfoAllocation(poffInfo_t *poffInfo)
 
 /***********************************************************************/
 
-static void poffCheckDebugFuncInfoReallocation(poffInfo_t *poffInfo, uint32 nparms)
+static void poffCheckDebugFuncInfoReallocation(poffInfo_t *poffInfo, uint32_t nparms)
 {
-  uint32 needed = sizeof(poffDebugFuncInfo_t) + nparms*sizeof(poffDebugArgInfo_t);
+  uint32_t needed = sizeof(poffDebugFuncInfo_t) + nparms*sizeof(poffDebugArgInfo_t);
   if (poffInfo->debugFuncSection.sh_size + needed > poffInfo->debugFuncTableAlloc)
     {
-      uint32 newAlloc =
-	poffInfo->debugFuncTableAlloc +
-	DEBUGFUNC_TABLE_INCREMENT;
+      uint32_t newAlloc =
+        poffInfo->debugFuncTableAlloc +
+        DEBUGFUNC_TABLE_INCREMENT;
 
       void *tmp;
 
@@ -107,14 +108,14 @@ static void poffCheckDebugFuncInfoReallocation(poffInfo_t *poffInfo, uint32 npar
 
       tmp = realloc(poffInfo->debugFuncTable, newAlloc);
       if (!tmp)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       /* And set the new size */
 
       poffInfo->debugFuncTableAlloc = newAlloc;
-      poffInfo->debugFuncTable      = (ubyte*)tmp;
+      poffInfo->debugFuncTable      = (uint8_t*)tmp;
     }
 }
 
@@ -127,14 +128,14 @@ static void poffCheckDebugFuncInfoReallocation(poffInfo_t *poffInfo, uint32 npar
  * associated with the line number entry in the line number table.
  */
 
-uint32 poffAddDebugFuncInfo(poffHandle_t handle,
-			    poffLibDebugFuncInfo_t *pContainer)
+uint32_t poffAddDebugFuncInfo(poffHandle_t handle,
+                            poffLibDebugFuncInfo_t *pContainer)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
   poffDebugFuncInfo_t *pFuncInfo;
   poffDebugArgInfo_t *pArgInfo;
-  uint32 funcInfoIndex;
-  uint32 argInfoIndex;
+  uint32_t funcInfoIndex;
+  uint32_t argInfoIndex;
   int i;
 
   /* Verify that the debug info table has been allocated */

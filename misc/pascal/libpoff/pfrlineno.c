@@ -2,7 +2,7 @@
  * pfrlineno.c
  * Read line number data from a POFF file
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,12 +77,12 @@
 
 /***********************************************************************/
 
-sint32 poffGetLineNumber(poffHandle_t handle, poffLibLineNumber_t *lineno)
+int32_t poffGetLineNumber(poffHandle_t handle, poffLibLineNumber_t *lineno)
 {
   poffInfo_t       *poffInfo = (poffInfo_t*)handle;
   poffLineNumber_t *pln;
-  uint32            stringTableIndex;
-  uint32            lineNumberIndex;
+  uint32_t          stringTableIndex;
+  uint32_t          lineNumberIndex;
 
   /* First, check if there is another line number in the table to be had.
    * This check is a little sloppy in that it assumes the the size in
@@ -105,11 +106,11 @@ sint32 poffGetLineNumber(poffHandle_t handle, poffLibLineNumber_t *lineno)
       /* Get the filename table index */
 
       if (pln->ln_fileno * sizeof(poffFileTab_t) >
-	  poffInfo->fileNameTableSection.sh_size)
-	{
-	  fatal(ePOFFCONFUSION);
-	}
-      stringTableIndex = (uint32)poffInfo->fileNameTable[pln->ln_fileno];
+          poffInfo->fileNameTableSection.sh_size)
+        {
+          fatal(ePOFFCONFUSION);
+        }
+      stringTableIndex = (uint32_t)poffInfo->fileNameTable[pln->ln_fileno];
 
       /* Return the line number information */
 

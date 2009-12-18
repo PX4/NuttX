@@ -2,7 +2,7 @@
  * pfrrawlineno.c
  * Read raw line number data from a POFF file
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,10 +77,10 @@
 
 /***********************************************************************/
 
-sint32 poffGetRawLineNumber(poffHandle_t handle, poffLineNumber_t *lineno)
+int32_t poffGetRawLineNumber(poffHandle_t handle, poffLineNumber_t *lineno)
 {
-  poffInfo_t       *poffInfo = (poffInfo_t*)handle;
-  uint32            lineNumberIndex;
+  poffInfo_t *poffInfo = (poffInfo_t*)handle;
+  uint32_t    lineNumberIndex;
 
   /* First, check if there is another line number in the table to be had.
    * This check is a little sloppy in that it assumes the the size in

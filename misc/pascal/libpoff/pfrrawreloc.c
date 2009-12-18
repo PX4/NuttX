@@ -2,7 +2,7 @@
  * pfrrawreloc.c
  * Read raw relocation data from a POFF file
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,10 +77,10 @@
 
 /***********************************************************************/
 
-sint32 poffGetRawRelocation(poffHandle_t handle, poffRelocation_t *lineno)
+int32_t poffGetRawRelocation(poffHandle_t handle, poffRelocation_t *lineno)
 {
-  poffInfo_t       *poffInfo = (poffInfo_t*)handle;
-  uint32            relocIndex;
+  poffInfo_t *poffInfo = (poffInfo_t*)handle;
+  uint32_t    relocIndex;
 
   /* First, check if there is another relocation in the table to be had. */
 

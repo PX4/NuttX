@@ -2,7 +2,7 @@
  * libpoff/pfswap.c
  * Handle POFF Endian-ness
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,8 @@
 /**********************************************************************
  * Included Files
  **********************************************************************/
+
+#include <stdint.h>
 
 #include "keywords.h"  /* Standard types */
 #include "paslib.h"    /* Common library */
@@ -86,7 +88,7 @@ static inline void poffSwapSymbolTableEntry(poffSymbol_t *psym)
 #ifdef CONFIG_POFF_SWAPNEEDED
 static inline void poffSwapFileTabEntry(poffFileTab_t *pfile)
 {
-  *pfile = poff32((uint32)*pfile);
+  *pfile = poff32((uint32_t)*pfile);
 }
 #endif
 
@@ -155,7 +157,7 @@ void poffSwapSectionHeader(poffSectionHeader_t *pSectionHeader)
 void poffSwapSymbolTableData(poffInfo_t *poffInfo)
 {
   poffSymbol_t *psym;
-  uint32        index;
+  uint32_t      index;
 
   for (index = 0;
        index < poffInfo->symbolTableSection.sh_size;
@@ -173,7 +175,7 @@ void poffSwapSymbolTableData(poffInfo_t *poffInfo)
 void poffSwapRelocationData(poffInfo_t *poffInfo)
 {
   poffRelocation_t *prel;
-  uint32            index;
+  uint32_t          index;
 
   for (index = 0;
        index < poffInfo->relocSection.sh_size;
@@ -191,7 +193,7 @@ void poffSwapRelocationData(poffInfo_t *poffInfo)
 void poffSwapFileTableData(poffInfo_t *poffInfo)
 {
   poffFileTab_t *pfile;
-  uint32         index;
+  uint32_t       index;
 
   for (index = 0;
        index < poffInfo->relocSection.sh_size;
@@ -209,7 +211,7 @@ void poffSwapFileTableData(poffInfo_t *poffInfo)
 void poffSwapLineNumberData(poffInfo_t *poffInfo)
 {
   poffLineNumber_t *plineno;
-  uint32            index;
+  uint32_t          index;
 
   for (index = 0;
        index < poffInfo->relocSection.sh_size;
@@ -228,7 +230,7 @@ void poffSwapDebugData(poffInfo_t *poffInfo)
 {
   poffDebugFuncInfo_t    *pdbg;
   poffDebugArgInfo_t     *parg;
-  uint32                  i;
+  uint32_t                i;
   int                     j;
 
   for (i = 0; i + sizeof(poffDebugFuncInfo_t) < poffInfo->relocSection.sh_size;)

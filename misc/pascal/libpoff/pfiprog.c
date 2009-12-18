@@ -2,7 +2,7 @@
  * pfiprog.c
  * Insert program data int a POFF file
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -73,7 +74,7 @@
 /***********************************************************************/
 
 void poffInsertProgramData(poffHandle_t handle,
-			   ubyte *progData, uint32 progSize)
+                           uint8_t *progData, uint32_t progSize)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
 

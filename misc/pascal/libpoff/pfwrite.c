@@ -2,7 +2,7 @@
  * libpoff/pfwrite.c
  * Write a POFF file
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,8 @@
  * Included Files
  **********************************************************************/
 
+#include <sys/types.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -65,19 +67,19 @@
  * Private Function Prototypes
  ***********************************************************************/
 
-static uint16 poffCountSections(poffHandle_t handle);
-static void   poffWriteFileHeader(poffHandle_t handle, FILE *poffFile);
-static void   poffWriteSectionHeaders(poffHandle_t handle, FILE *poffFile);
-static void   poffWriteSectionData(poffHandle_t handle, FILE *poffFile);
+static uint16_t poffCountSections(poffHandle_t handle);
+static void poffWriteFileHeader(poffHandle_t handle, FILE *poffFile);
+static void poffWriteSectionHeaders(poffHandle_t handle, FILE *poffFile);
+static void poffWriteSectionData(poffHandle_t handle, FILE *poffFile);
 
 /***********************************************************************
  * Private Functions
  ***********************************************************************/
 
-static uint16 poffCountSections(poffHandle_t handle)
+static uint16_t poffCountSections(poffHandle_t handle)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
-  uint16 nSections     = 1; /* We always write the string table */
+  uint16_t nSections     = 1; /* We always write the string table */
 
   /* Count each other section that has stored data */
 
@@ -123,7 +125,7 @@ static void poffWriteFileHeader(poffHandle_t handle, FILE *poffFile)
   /* Write the POFF file header */
 
   entriesWritten = fwrite(&poffInfo->fileHeader, sizeof(poffFileHeader_t),
-			  1, poffFile);
+                          1, poffFile);
   if (entriesWritten != 1)
     {
       errmsg("Failed to write POFF header: %s\n", strerror(errno));
@@ -165,7 +167,7 @@ static void poffWriteSectionHeaders(poffHandle_t handle, FILE *poffFile)
    * of section headers.
    */
 
-  uint32 dataOffset = poffInfo->fileHeader.fh_shoff +
+  uint32_t dataOffset = poffInfo->fileHeader.fh_shoff +
     poffInfo->fileHeader.fh_shnum * poffInfo->fileHeader.fh_shsize;
   size_t entriesWritten;
 
@@ -183,11 +185,11 @@ static void poffWriteSectionHeaders(poffHandle_t handle, FILE *poffFile)
 
       entriesWritten = poffWriteSectionHeader(&poffInfo->progSection, poffFile);
       if (entriesWritten != 1)
-	{
-	  errmsg("Failed to write program section header: %s\n",
-		 strerror(errno));
-	  fatal(ePOFFWRITEERROR);
-	}
+        {
+          errmsg("Failed to write program section header: %s\n",
+                 strerror(errno));
+          fatal(ePOFFWRITEERROR);
+        }
     }
 
   /* Write the initialized read-only data section header  (if we have one) */
@@ -204,11 +206,11 @@ static void poffWriteSectionHeaders(poffHandle_t handle, FILE *poffFile)
 
       entriesWritten = poffWriteSectionHeader(&poffInfo->roDataSection, poffFile);
       if (entriesWritten != 1)
-	{
-	  errmsg("Failed to write data section header: %s\n",
-		 strerror(errno));
-	  fatal(ePOFFWRITEERROR);
-	}
+        {
+          errmsg("Failed to write data section header: %s\n",
+                 strerror(errno));
+          fatal(ePOFFWRITEERROR);
+        }
     }
 
   /* Write the symbol table section header  (if we have one) */
@@ -225,11 +227,11 @@ static void poffWriteSectionHeaders(poffHandle_t handle, FILE *poffFile)
 
       entriesWritten = poffWriteSectionHeader(&poffInfo->symbolTableSection, poffFile);
       if (entriesWritten != 1)
-	{
-	  errmsg("Failed to write symbol table section header: %s\n",
-		 strerror(errno));
-	  fatal(ePOFFWRITEERROR);
-	}
+        {
+          errmsg("Failed to write symbol table section header: %s\n",
+                 strerror(errno));
+          fatal(ePOFFWRITEERROR);
+        }
     }
 
   /* Write the relocation table section header  (if we have one) */
@@ -246,11 +248,11 @@ static void poffWriteSectionHeaders(poffHandle_t handle, FILE *poffFile)
 
       entriesWritten = poffWriteSectionHeader(&poffInfo->relocSection, poffFile);
       if (entriesWritten != 1)
-	{
-	  errmsg("Failed to write relocation section header: %s\n",
-		 strerror(errno));
-	  fatal(ePOFFWRITEERROR);
-	}
+        {
+          errmsg("Failed to write relocation section header: %s\n",
+                 strerror(errno));
+          fatal(ePOFFWRITEERROR);
+        }
     }
 
   /* Write the file table section header (if we have one) */
@@ -267,11 +269,11 @@ static void poffWriteSectionHeaders(poffHandle_t handle, FILE *poffFile)
 
       entriesWritten = poffWriteSectionHeader(&poffInfo->fileNameTableSection, poffFile);
       if (entriesWritten != 1)
-	{
-	  errmsg("Failed to write file table section header: %s\n",
-		 strerror(errno));
-	  fatal(ePOFFWRITEERROR);
-	}
+        {
+          errmsg("Failed to write file table section header: %s\n",
+                 strerror(errno));
+          fatal(ePOFFWRITEERROR);
+        }
     }
 
   /* Write the line number section header (if we have one) */
@@ -288,11 +290,11 @@ static void poffWriteSectionHeaders(poffHandle_t handle, FILE *poffFile)
 
       entriesWritten = poffWriteSectionHeader(&poffInfo->lineNumberSection, poffFile);
       if (entriesWritten != 1)
-	{
-	  errmsg("Failed to write line number section header: %s\n",
-		 strerror(errno));
-	  fatal(ePOFFWRITEERROR);
-	}
+        {
+          errmsg("Failed to write line number section header: %s\n",
+                 strerror(errno));
+          fatal(ePOFFWRITEERROR);
+        }
     }
 
   /* Write the debug function info section header (if we have one) */
@@ -309,11 +311,11 @@ static void poffWriteSectionHeaders(poffHandle_t handle, FILE *poffFile)
 
       entriesWritten = poffWriteSectionHeader(&poffInfo->debugFuncSection, poffFile);
       if (entriesWritten != 1)
-	{
-	  errmsg("Failed to write debug section header: %s\n",
-		 strerror(errno));
-	  fatal(ePOFFWRITEERROR);
-	}
+        {
+          errmsg("Failed to write debug section header: %s\n",
+                 strerror(errno));
+          fatal(ePOFFWRITEERROR);
+        }
     }
 
   /* Write the string table section header LAST (because we may have
@@ -332,7 +334,7 @@ static void poffWriteSectionHeaders(poffHandle_t handle, FILE *poffFile)
   if (entriesWritten != 1)
     {
       errmsg("Failed to write string table section header: %s\n",
-	     strerror(errno));
+             strerror(errno));
       fatal(ePOFFWRITEERROR);
     }
 }
@@ -350,14 +352,14 @@ static void poffWriteSectionData(poffHandle_t handle, FILE *poffFile)
     {
       if (!poffInfo->progSectionData) fatal(ePOFFCONFUSION);
 
-      entriesWritten = fwrite(poffInfo->progSectionData, sizeof(ubyte),
-			      poffInfo->progSection.sh_size, poffFile);
+      entriesWritten = fwrite(poffInfo->progSectionData, sizeof(uint8_t),
+                              poffInfo->progSection.sh_size, poffFile);
       if (entriesWritten != poffInfo->progSection.sh_size)
-	{
-	  errmsg("Failed to write program data: %s\n",
-		 strerror(errno));
-	  fatal(ePOFFWRITEERROR);
-	}
+        {
+          errmsg("Failed to write program data: %s\n",
+                 strerror(errno));
+          fatal(ePOFFWRITEERROR);
+        }
     }
 
   /* Write the read-only data section data  (if we have one) */
@@ -366,14 +368,14 @@ static void poffWriteSectionData(poffHandle_t handle, FILE *poffFile)
     {
       if (!poffInfo->roDataSectionData) fatal(ePOFFCONFUSION);
 
-      entriesWritten = fwrite(poffInfo->roDataSectionData, sizeof(ubyte),
-			      poffInfo->roDataSection.sh_size, poffFile);
+      entriesWritten = fwrite(poffInfo->roDataSectionData, sizeof(uint8_t),
+                              poffInfo->roDataSection.sh_size, poffFile);
       if (entriesWritten != poffInfo->roDataSection.sh_size)
-	{
-	  errmsg("Failed to write initialized data: %s\n",
-		 strerror(errno));
-	  fatal(ePOFFWRITEERROR);
-	}
+        {
+          errmsg("Failed to write initialized data: %s\n",
+                 strerror(errno));
+          fatal(ePOFFWRITEERROR);
+        }
     }
 
   /* Write the symbol table section data  (if we have one) */
@@ -388,14 +390,14 @@ static void poffWriteSectionData(poffHandle_t handle, FILE *poffFile)
 
       /* Write the symbol table entries in big-endian order */
 
-      entriesWritten = fwrite(poffInfo->symbolTable, sizeof(ubyte),
-			      poffInfo->symbolTableSection.sh_size, poffFile);
+      entriesWritten = fwrite(poffInfo->symbolTable, sizeof(uint8_t),
+                              poffInfo->symbolTableSection.sh_size, poffFile);
       if (entriesWritten != poffInfo->symbolTableSection.sh_size)
-	{
-	  errmsg("Failed to write symbol table data: %s\n",
-		 strerror(errno));
-	  fatal(ePOFFWRITEERROR);
-	}
+        {
+          errmsg("Failed to write symbol table data: %s\n",
+                 strerror(errno));
+          fatal(ePOFFWRITEERROR);
+        }
 
       /* Restore host data order */
 
@@ -414,14 +416,14 @@ static void poffWriteSectionData(poffHandle_t handle, FILE *poffFile)
 
       /* Write the relocation table entries in big-endian order */
 
-      entriesWritten = fwrite(poffInfo->relocTable, sizeof(ubyte),
-			      poffInfo->relocSection.sh_size, poffFile);
+      entriesWritten = fwrite(poffInfo->relocTable, sizeof(uint8_t),
+                              poffInfo->relocSection.sh_size, poffFile);
       if (entriesWritten != poffInfo->relocSection.sh_size)
-	{
-	  errmsg("Failed to write relocation data: %s\n",
-		 strerror(errno));
-	  fatal(ePOFFWRITEERROR);
-	}
+        {
+          errmsg("Failed to write relocation data: %s\n",
+                 strerror(errno));
+          fatal(ePOFFWRITEERROR);
+        }
 
       /* Restore host data order */
 
@@ -440,15 +442,15 @@ static void poffWriteSectionData(poffHandle_t handle, FILE *poffFile)
 
       /* Write the file table entries in big-endian order */
 
-      entriesWritten = fwrite(poffInfo->fileNameTable, sizeof(ubyte),
-			      poffInfo->fileNameTableSection.sh_size,
-			      poffFile);
+      entriesWritten = fwrite(poffInfo->fileNameTable, sizeof(uint8_t),
+                              poffInfo->fileNameTableSection.sh_size,
+                              poffFile);
       if (entriesWritten != poffInfo->fileNameTableSection.sh_size)
-	{
-	  errmsg("Failed to write filename table data: %s\n",
-		 strerror(errno));
-	  fatal(ePOFFWRITEERROR);
-	}
+        {
+          errmsg("Failed to write filename table data: %s\n",
+                 strerror(errno));
+          fatal(ePOFFWRITEERROR);
+        }
 
       /* Restore host data order */
 
@@ -467,15 +469,15 @@ static void poffWriteSectionData(poffHandle_t handle, FILE *poffFile)
 
       /* Write the line number table entries in big-endian order */
 
-      entriesWritten = fwrite(poffInfo->lineNumberTable, sizeof(ubyte),
-			      poffInfo->lineNumberSection.sh_size,
-			      poffFile);
+      entriesWritten = fwrite(poffInfo->lineNumberTable, sizeof(uint8_t),
+                              poffInfo->lineNumberSection.sh_size,
+                              poffFile);
       if (entriesWritten != poffInfo->lineNumberSection.sh_size)
-	{
-	  errmsg("Failed to write line number table data: %s\n",
-		 strerror(errno));
-	  fatal(ePOFFWRITEERROR);
-	}
+        {
+          errmsg("Failed to write line number table data: %s\n",
+                 strerror(errno));
+          fatal(ePOFFWRITEERROR);
+        }
 
       /* Restore host order */
 
@@ -494,15 +496,15 @@ static void poffWriteSectionData(poffHandle_t handle, FILE *poffFile)
 
       /* Write the debug entries in big-endian order */
 
-      entriesWritten = fwrite(poffInfo->debugFuncTable, sizeof(ubyte),
-			      poffInfo->debugFuncSection.sh_size,
-			      poffFile);
+      entriesWritten = fwrite(poffInfo->debugFuncTable, sizeof(uint8_t),
+                              poffInfo->debugFuncSection.sh_size,
+                              poffFile);
       if (entriesWritten != poffInfo->debugFuncSection.sh_size)
-	{
-	  errmsg("Failed to write debug table data: %s\n",
-		 strerror(errno));
-	  fatal(ePOFFWRITEERROR);
-	}
+        {
+          errmsg("Failed to write debug table data: %s\n",
+                 strerror(errno));
+          fatal(ePOFFWRITEERROR);
+        }
 
       /* Restore host order */
 
@@ -515,12 +517,12 @@ static void poffWriteSectionData(poffHandle_t handle, FILE *poffFile)
 
   if (!poffInfo->stringTable) fatal(ePOFFCONFUSION);
 
-  entriesWritten = fwrite(poffInfo->stringTable, sizeof(ubyte),
-			  poffInfo->stringTableSection.sh_size, poffFile);
+  entriesWritten = fwrite(poffInfo->stringTable, sizeof(uint8_t),
+                          poffInfo->stringTableSection.sh_size, poffFile);
   if (entriesWritten != poffInfo->stringTableSection.sh_size)
     {
       errmsg("Failed to write string table data: %s\n",
-	     strerror(errno));
+             strerror(errno));
       fatal(ePOFFWRITEERROR);
     }
 }

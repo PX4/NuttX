@@ -2,7 +2,7 @@
  * pfwhdr.c
  * Write to POFF file file and section headers
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -77,8 +78,8 @@
 /***********************************************************************/
 /* Add the type of the file to the POFF file header */
 
-void poffSetFileType(poffHandle_t handle, ubyte fh_type,
-		     uint16 nfiles, const char *name)
+void poffSetFileType(poffHandle_t handle, uint8_t fh_type,
+                     uint16_t nfiles, const char *name)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
 
@@ -94,7 +95,7 @@ void poffSetFileType(poffHandle_t handle, ubyte fh_type,
 /***********************************************************************/
 /* Add the machine architecture to the POFF file header */
 
-void poffSetArchitecture(poffHandle_t handle, ubyte fh_arch)
+void poffSetArchitecture(poffHandle_t handle, uint8_t fh_arch)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
 
@@ -106,7 +107,7 @@ void poffSetArchitecture(poffHandle_t handle, ubyte fh_arch)
 /***********************************************************************/
 /* Set the program entry point */
 
-void poffSetEntryPoint(poffHandle_t handle, uint32 entryPoint)
+void poffSetEntryPoint(poffHandle_t handle, uint32_t entryPoint)
 {
   poffInfo_t *poffInfo = (poffInfo_t*)handle;
   poffInfo->fileHeader.fh_entry = entryPoint;

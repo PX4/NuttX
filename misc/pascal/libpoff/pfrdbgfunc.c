@@ -2,7 +2,7 @@
  * pfrdbgfunc.c
  * Read debug function information from a POFF file
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -82,7 +83,7 @@ poffLibDebugFuncInfo_t *poffGetDebugFuncInfo(poffHandle_t handle)
   poffDebugFuncInfo_t    *pDebugInfo;
   poffDebugArgInfo_t     *pArgInfo;
   poffLibDebugFuncInfo_t *pRet;
-  uint32                  debugFuncIndex;
+  uint32_t                debugFuncIndex;
   int                     i;
 
   /* Check if there is another debug entgry in the table to be had */
