@@ -8,3 +8,15 @@ different platforms.  This release is synchronized with the release
 of NuttX-0.3.8.
 
 This tarball contains a complete CVS snapshot from February 10, 2008.
+
+pascal-0.1.3
+^^^^^^^^^^^^
+
+This was a bug-fix release
+
+pascal-2.0
+^^^^^^^^^^
+
+This release updates all of the code to use the standard types defined
+in the C99 files stdint.h and stdbool.h.  This change was necessary for
+compatibility with NuttX-5.0.  No functional changes were made.

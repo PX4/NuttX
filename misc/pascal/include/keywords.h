@@ -44,11 +44,12 @@
 #include "config.h"
 
 /*************************************************************
- * Definitions
+ *Pre-processor Definitions
  *************************************************************/
 
-#define TRUE   1
-#define FALSE  0
+#ifndef NULL
+#  define NULL ((void*)0)
+#endif
 
 #ifndef CONFIG_DEBUG
 # define CONFIG_DEBUG 0

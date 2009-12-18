@@ -50,7 +50,7 @@
 #include "poff.h"
 
 /**********************************************************************
- * Definitions
+ * Pre-processor Definitions
  **********************************************************************/
 
 #define INITIAL_DEFINED_ALLOCATION   (1024*sizeof(optDefinedLabelRef_t))

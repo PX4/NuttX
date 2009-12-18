@@ -2,7 +2,7 @@
  * pascal/pasdefs.h
  * General definitions for the Pascal Compiler/Optimizer
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,12 +41,15 @@
  * Included Files
  ***********************************************************************/
 
+#include <sys/types.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>   /* for FILE */
 #include <config.h>
 #include "pdefs.h"   /* Common definitions */
 
 /***********************************************************************
- * Definitions
+ * Pre-processor Definitions
  ***********************************************************************/
 
 /* Size Parameters -- some of these can be overridden from the
@@ -55,18 +58,18 @@
 
 #define MAX_SYM           (4096)
 #define MAX_STRINGS       (65536)
-#define MAX_INCL           3            /* Max number of nested include files */
-#define MAX_FILES          8            /* Max number of opened files */
-#define FNAME_SIZE         40           /* Max size file name */
-#define MAX_INCPATHES      8            /* Max number of include pathes */
+#define MAX_INCL           3      /* Max number of nested include files */
+#define MAX_FILES          8      /* Max number of opened files */
+#define FNAME_SIZE         40     /* Max size file name */
+#define MAX_INCPATHES      8      /* Max number of include pathes */
 
 /* Bit values for the 'flags' field of the symType_t, symProc_t, and
  * symVar_t (see below)
  */
 
-#define STYPE_VARSIZE      0x01 /* Type has variable size */
-#define SPROC_EXTERNAL     0x01 /* Proc/func. is defined externally */
-#define SVAR_EXTERNAL      0x01 /* Variable is defined externally */
+#define STYPE_VARSIZE      0x01   /* Type has variable size */
+#define SPROC_EXTERNAL     0x01   /* Proc/func. is defined externally */
+#define SVAR_EXTERNAL      0x01   /* Variable is defined externally */
 
 /***********************************************************************
  * Public Enumeration Types
@@ -107,8 +110,8 @@ typedef enum fileSection_e fileSection_t;
 struct R
 {
   char   *rname;         /* pointer to name in string stack */
-  ubyte   rtype;         /* reserved word type */
-  ubyte   subtype;       /* reserved word extended type */
+  uint8_t rtype;         /* reserved word type */
+  uint8_t subtype;       /* reserved word extended type */
 };
 typedef struct R RTYPE;
 
@@ -116,14 +119,14 @@ typedef struct R RTYPE;
 
 struct symType_s         /* for sKind = sTYPE */
 {
-  ubyte     type;        /* specific type */
-  ubyte     rtype;       /* reference to type */
-  ubyte     subType;     /* constant type for subrange types */
-  ubyte     flags;       /* flags to customize a type (see above) */
-  uint32    asize;       /* size of allocated instances of this type */
-  uint32    rsize;       /* size of reference to an instances of this type */
-  sint32    minValue;    /* minimum value taken subrange */
-  sint32    maxValue;    /* maximum value taken by subrange or scalar */
+  uint8_t   type;        /* specific type */
+  uint8_t   rtype;       /* reference to type */
+  uint8_t   subType;     /* constant type for subrange types */
+  uint8_t   flags;       /* flags to customize a type (see above) */
+  uint32_t  asize;       /* size of allocated instances of this type */
+  uint32_t  rsize;       /* size of reference to an instances of this type */
+  int32_t   minValue;    /* minimum value taken subrange */
+  int32_t   maxValue;    /* maximum value taken by subrange or scalar */
   struct S *parent;      /* pointer to parent type */
 };
 typedef struct symType_s symType_t;
@@ -132,8 +135,8 @@ struct symConst_s        /* for sKind == constant type */
 {
   union
   {
-    float64 f;           /* real value */
-    sint32  i;           /* integer value */
+    double  f;           /* real value */
+    int32_t i;           /* integer value */
   } val;
   struct S *parent;      /* pointer to parent type */
 };
@@ -141,50 +144,50 @@ typedef struct symConst_s symConst_t;
 
 struct symStringConst_s  /* for sKind == sSTRING_CONST */
 {
-  uint32 offset;         /* RO data section offset of string */
-  uint32 size;           /* length of string in bytes */
+  uint32_t offset;       /* RO data section offset of string */
+  uint32_t size;         /* length of string in bytes */
 };
 typedef struct symStringConst_s symStringConst_t;
 
 struct symVarString_s    /* for sKind == sSTRING */
 {
-  uint16 label;          /* label at string declaration */
-  uint16 size;           /* valid length of string in bytes */
-  uint16 alloc;          /* max length of string in bytes */
+  uint16_t label;        /* label at string declaration */
+  uint16_t size;         /* valid length of string in bytes */
+  uint16_t alloc;        /* max length of string in bytes */
 };
 typedef struct symVarString_s symVarString_t;
 
 struct symLabel_s        /* for sKind == sLABEL */
 {
-  uint16  label;         /* label number */
-  boolean unDefined;     /* set false when defined */
+  uint16_t label;        /* label number */
+  bool     unDefined;    /* set false when defined */
 };
 typedef struct symLabel_s symLabel_t;
 
 struct symVar_s          /* for sKind == type identifier */
 {
-  sint32    offset;      /* Data stack offset */
-  uint32    size;        /* Size of variable */
-  ubyte     flags;       /* flags to customize a variable (see above) */
-  uint32    symIndex;    /* POFF symbol table index (if undefined) */
+  int32_t   offset;      /* Data stack offset */
+  uint32_t  size;        /* Size of variable */
+  uint8_t   flags;       /* flags to customize a variable (see above) */
+  uint32_t  symIndex;    /* POFF symbol table index (if undefined) */
   struct S *parent;      /* pointer to parent type */
 };
 typedef struct symVar_s symVar_t;
 
 struct symProc_s         /* for sKind == sPROC or sFUNC */
 {
-  uint16    label;       /* entry point label */
-  uint16    nParms;      /* number of parameters that follow */
-  ubyte     flags;       /* flags to customize a proc/func (see above) */
-  uint32    symIndex;    /* POFF symbol table index (if undefined) */
+  uint16_t  label;       /* entry point label */
+  uint16_t  nParms;      /* number of parameters that follow */
+  uint8_t   flags;       /* flags to customize a proc/func (see above) */
+  uint32_t  symIndex;    /* POFF symbol table index (if undefined) */
   struct S *parent;      /* pointer to parent type (sFUNC only) */
 };
 typedef struct symProc_s symProc_t;
 
 struct symRecord_s       /* for sKind == sRECORD_OBJECT */
 {
-  uint32    size;        /* size of this field */
-  uint32    offset;      /* offset into the RECORD */
+  uint32_t  size;        /* size of this field */
+  uint32_t  offset;      /* offset into the RECORD */
   struct S *record;      /* pointer to parent sRECORD type */
   struct S *parent;      /* pointer to parent field type */
 };
@@ -193,15 +196,15 @@ typedef struct symRecord_s symRecord_t;
 struct S
 {
   char     *sName;       /* pointer to name in string stack */
-  ubyte     sKind;       /* kind of symbol */
-  ubyte     sLevel;      /* static nesting level */
+  uint8_t   sKind;       /* kind of symbol */
+  uint8_t   sLevel;      /* static nesting level */
   union
   {
     symType_t        t;          /* for type definitions */
     symConst_t       c;          /* for constants */
     symStringConst_t s;          /* for strings of constant size*/
     symVarString_t   vs;         /* for strings of variable size*/
-    uint16           fileNumber; /* for files */
+    uint16_t         fileNumber; /* for files */
     symLabel_t       l;          /* for labels */
     symVar_t         v;          /* for variables */
     symProc_t        p;          /* for functions & procedures */
@@ -214,11 +217,11 @@ typedef struct S STYPE;
 
 struct W
 {
-  ubyte     level;       /* static nesting level */
-  boolean   pointer;     /* TRUE if offset is to pointer to RECORD */
-  boolean   varParm;     /* TRUE if VAR param (+pointer) */
-  sint32    offset;      /* Data stack offset */
-  uint16    index;       /* RECORD offset (if pointer) */
+  uint8_t   level;       /* static nesting level */
+  bool      pointer;     /* true if offset is to pointer to RECORD */
+  bool      varParm;     /* true if VAR param (+pointer) */
+  int32_t   offset;      /* Data stack offset */
+  uint16_t  index;       /* RECORD offset (if pointer) */
   STYPE    *parent;      /* pointer to parent RECORD type */
 };
 typedef struct W WTYPE;
@@ -227,11 +230,11 @@ typedef struct W WTYPE;
 
 struct F
 {
-  sint16  defined;
-  sint16  flevel;
-  sint16  ftype;
-  sint32  faddr;
-  sint16  fsize;
+  int16_t defined;
+  int16_t flevel;
+  int16_t ftype;
+  int32_t faddr;
+  int16_t fsize;
 };
 typedef struct F FTYPE;
 
@@ -261,8 +264,8 @@ struct fileState_s
   FILE          *stream;
   fileKind_t     kind;
   fileSection_t  section;
-  sint32         dstack;
-  sint16         include;
+  int32_t        dstack;
+  int16_t        include;
 
   /* These fields are managed by the tokenizer.  These are all
    * initialized by primeTokenizer().
@@ -272,7 +275,7 @@ struct fileState_s
    * cp        - Is the current pointer into buffer[]
    */
 
-  uint32         line;
+  uint32_t       line;
   unsigned char *cp;
   unsigned char  buffer[LINE_SIZE + 1];
 };

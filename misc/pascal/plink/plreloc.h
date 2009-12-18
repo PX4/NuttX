@@ -2,7 +2,7 @@
  * plreloc.h
  * External Declarations associated with plreloc.c
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@
  * Included Files
  ***************************************************************************/
 
+#include <stdint.h>
 #include "pofflib.h"
 
 /***************************************************************************
@@ -52,7 +53,7 @@
  ***************************************************************************/
 
 extern void mergeRelocations(poffHandle_t inHandle,
-			     uint32 pcOffset, uint32 symOffset);
+                             uint32_t pcOffset, uint32_t symOffset);
 extern void applyRelocations(poffHandle_t outHandle);
 extern void releaseRelocations(void);
 

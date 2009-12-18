@@ -2,7 +2,7 @@
  * pstm.c
  * Pascal Statements
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,8 @@
  * Included Files
  ****************************************************************************/
 
+#include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
 
 #include "keywords.h"
@@ -67,11 +69,11 @@
 #define VAR_PARM_ASSIGNMENT  0x08
 
 #define isConstant(x) \
-	(  ((x) == tINT_CONST) \
-	|| ((x) == tBOOLEAN_CONST) \
-	|| ((x) == tCHAR_CONST) \
-	|| ((x) == tREAL_CONST) \
-	|| ((x) == sSCALAR_OBJECT))
+        (  ((x) == tINT_CONST) \
+        || ((x) == tBOOLEAN_CONST) \
+        || ((x) == tCHAR_CONST) \
+        || ((x) == tREAL_CONST) \
+        || ((x) == sSCALAR_OBJECT))
 
 /****************************************************************************
  * Private Function Prototypes
@@ -80,10 +82,10 @@
 /* Assignment Statements */
 
 static void pas_ComplexAssignment(void);
-static void pas_SimpleAssignment (STYPE *varPtr, ubyte assignFlags);
-static void pas_Assignment       (uint16 storeOp, exprType assignType, STYPE *varPtr, STYPE *typePtr);
+static void pas_SimpleAssignment (STYPE *varPtr, uint8_t assignFlags);
+static void pas_Assignment       (uint16_t storeOp, exprType assignType, STYPE *varPtr, STYPE *typePtr);
 static void pas_StringAssignment (STYPE *varPtr, STYPE *typePtr);
-static void pas_LargeAssignment  (uint16 storeOp, exprType assignType, STYPE *varPtr, STYPE *typePtr);
+static void pas_LargeAssignment  (uint16_t storeOp, exprType assignType, STYPE *varPtr, STYPE *typePtr);
 
 /* Other Statements */
 
@@ -240,7 +242,7 @@ static void pas_ComplexAssignment(void)
  * simple assignment statement
  */
 
-static void pas_SimpleAssignment(STYPE *varPtr, ubyte assignFlags)
+static void pas_SimpleAssignment(STYPE *varPtr, uint8_t assignFlags)
 {
   STYPE *typePtr;
   TRACE(lstFile,"[pas_SimpleAssignment]");
@@ -256,159 +258,159 @@ static void pas_SimpleAssignment(STYPE *varPtr, ubyte assignFlags)
 
     case sINT :
       if ((assignFlags & INDEXED_ASSIGNMENT) != 0)
-	{
-	  if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
-	    {
-	      pas_GenerateStackReference(opLDSX, varPtr);
-	      pas_Assignment(opSTI, exprInteger, varPtr, typePtr);
-	    } /* end if */
-	  else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
-	    pas_Assignment(opSTSX, exprIntegerPtr, varPtr, typePtr);
-	  else 
-	    pas_Assignment(opSTSX, exprInteger, varPtr, typePtr);
-	} /* end if */
+        {
+          if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
+            {
+              pas_GenerateStackReference(opLDSX, varPtr);
+              pas_Assignment(opSTI, exprInteger, varPtr, typePtr);
+            } /* end if */
+          else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
+            pas_Assignment(opSTSX, exprIntegerPtr, varPtr, typePtr);
+          else 
+            pas_Assignment(opSTSX, exprInteger, varPtr, typePtr);
+        } /* end if */
       else
-	{
-	  if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
-	    {
-	      pas_GenerateStackReference(opLDS, varPtr);
-	      pas_Assignment(opSTI, exprInteger, varPtr, typePtr);
-	    } /* end if */
-	  else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
+        {
+          if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
+            {
+              pas_GenerateStackReference(opLDS, varPtr);
+              pas_Assignment(opSTI, exprInteger, varPtr, typePtr);
+            } /* end if */
+          else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
             pas_Assignment(opSTS, exprIntegerPtr, varPtr, typePtr);
-	  else
-	    pas_Assignment(opSTS, exprInteger, varPtr, typePtr);
-	} /* end else */
+          else
+            pas_Assignment(opSTS, exprInteger, varPtr, typePtr);
+        } /* end else */
       break;
     case sCHAR :
       if ((assignFlags & INDEXED_ASSIGNMENT) != 0)
-	{
-	  if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
-	    {
-	      pas_GenerateStackReference(opLDSX, varPtr);
-	      pas_Assignment(opSTIB, exprChar, varPtr, typePtr);
-	    } /* end if */
-	  else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
+        {
+          if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
+            {
+              pas_GenerateStackReference(opLDSX, varPtr);
+              pas_Assignment(opSTIB, exprChar, varPtr, typePtr);
+            } /* end if */
+          else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
             pas_Assignment(opSTSX, exprCharPtr, varPtr, typePtr);
-	  else 
-	    pas_Assignment(opSTSXB, exprChar, varPtr, typePtr);
-	} /* end if */
+          else 
+            pas_Assignment(opSTSXB, exprChar, varPtr, typePtr);
+        } /* end if */
       else
-	{
-	  if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
-	    {
-	      pas_GenerateStackReference(opLDS, varPtr);
-	      pas_Assignment(opSTIB, exprChar, varPtr, typePtr);
-	    } /* end if */
-	  else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
+        {
+          if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
+            {
+              pas_GenerateStackReference(opLDS, varPtr);
+              pas_Assignment(opSTIB, exprChar, varPtr, typePtr);
+            } /* end if */
+          else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
             pas_Assignment(opSTS, exprCharPtr, varPtr, typePtr);
-	  else
-	    pas_Assignment(opSTSB, exprChar, varPtr, typePtr);
-	} /* end else */
+          else
+            pas_Assignment(opSTSB, exprChar, varPtr, typePtr);
+        } /* end else */
       break;
     case sBOOLEAN :
       if ((assignFlags & INDEXED_ASSIGNMENT) != 0)
-	{
-	  if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
-	    {
-	      pas_GenerateStackReference(opLDSX, varPtr);
-	      pas_Assignment(opSTI, exprBoolean, varPtr, NULL);
-	    } /* end if */
-	  else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
+        {
+          if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
+            {
+              pas_GenerateStackReference(opLDSX, varPtr);
+              pas_Assignment(opSTI, exprBoolean, varPtr, NULL);
+            } /* end if */
+          else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
             pas_Assignment(opSTSX, exprBooleanPtr, varPtr, typePtr);
-	  else 
-	    pas_Assignment(opSTSX, exprBoolean, varPtr, NULL);
-	} /* end if */
+          else 
+            pas_Assignment(opSTSX, exprBoolean, varPtr, NULL);
+        } /* end if */
       else
-	{
-	  if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
-	    {
-	      pas_GenerateStackReference(opLDS, varPtr);
-	      pas_Assignment(opSTI, exprBoolean, varPtr, NULL);
-	    } /* end if */
-	  else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
+        {
+          if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
+            {
+              pas_GenerateStackReference(opLDS, varPtr);
+              pas_Assignment(opSTI, exprBoolean, varPtr, NULL);
+            } /* end if */
+          else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
             pas_Assignment(opSTS, exprBooleanPtr, varPtr, typePtr);
-	  else
-	    pas_Assignment(opSTS, exprBoolean, varPtr, NULL);
-	} /* end else */
+          else
+            pas_Assignment(opSTS, exprBoolean, varPtr, NULL);
+        } /* end else */
       break;
     case sREAL         :
       if ((assignFlags & INDEXED_ASSIGNMENT) != 0)
-	{
-	  if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
-	    {
-	      pas_GenerateStackReference(opLDSX, varPtr);
-	      pas_LargeAssignment(opSTIM, exprReal, varPtr, typePtr);
-	    } /* end if */
-	  else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
+        {
+          if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
+            {
+              pas_GenerateStackReference(opLDSX, varPtr);
+              pas_LargeAssignment(opSTIM, exprReal, varPtr, typePtr);
+            } /* end if */
+          else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
             pas_Assignment(opSTSX, exprRealPtr, varPtr, typePtr);
-	  else 
-	    pas_LargeAssignment(opSTSXM, exprReal, varPtr, typePtr);
-	} /* end if */
+          else 
+            pas_LargeAssignment(opSTSXM, exprReal, varPtr, typePtr);
+        } /* end if */
       else
-	{
-	  if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
-	    {
-	      pas_GenerateStackReference(opLDS, varPtr);
-	      pas_LargeAssignment(opSTIM, exprReal, varPtr, typePtr);
-	    } /* end if */
-	  else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
+        {
+          if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
+            {
+              pas_GenerateStackReference(opLDS, varPtr);
+              pas_LargeAssignment(opSTIM, exprReal, varPtr, typePtr);
+            } /* end if */
+          else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
             pas_Assignment(opSTS, exprRealPtr, varPtr, typePtr);
-	  else
-	    pas_LargeAssignment(opSTSM, exprReal, varPtr, typePtr);
-	} /* end else */
+          else
+            pas_LargeAssignment(opSTSM, exprReal, varPtr, typePtr);
+        } /* end else */
       break;
     case sSCALAR :
       if ((assignFlags & INDEXED_ASSIGNMENT) != 0)
-	{
-	  if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
-	    {
-	      pas_GenerateStackReference(opLDSX, varPtr);
-	      pas_Assignment(opSTI, exprScalar, varPtr, typePtr);
-	    } /* end if */
-	  else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
+        {
+          if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
+            {
+              pas_GenerateStackReference(opLDSX, varPtr);
+              pas_Assignment(opSTI, exprScalar, varPtr, typePtr);
+            } /* end if */
+          else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
             pas_Assignment(opSTSX, exprScalarPtr, varPtr, typePtr);
-	  else 
-	    pas_Assignment(opSTSX, exprScalar, varPtr, typePtr);
-	} /* end if */
+          else 
+            pas_Assignment(opSTSX, exprScalar, varPtr, typePtr);
+        } /* end if */
       else
-	{
-	  if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
-	    {
-	      pas_GenerateStackReference(opLDS, varPtr);
-	      pas_Assignment(opSTI, exprScalar, varPtr, typePtr);
-	    } /* end if */
-	  else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
+        {
+          if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
+            {
+              pas_GenerateStackReference(opLDS, varPtr);
+              pas_Assignment(opSTI, exprScalar, varPtr, typePtr);
+            } /* end if */
+          else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
             pas_Assignment(opSTS, exprScalarPtr, varPtr, typePtr);
-	  else
-	    pas_Assignment(opSTS, exprScalar, varPtr, typePtr);
-	} /* end else */
+          else
+            pas_Assignment(opSTS, exprScalar, varPtr, typePtr);
+        } /* end else */
       break;
     case sSET_OF :
       if ((assignFlags & INDEXED_ASSIGNMENT) != 0)
-	{
-	  if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
-	    {
-	      pas_GenerateStackReference(opLDSX, varPtr);
-	      pas_Assignment(opSTI, exprSet, varPtr, typePtr);
-	    } /* end if */
-	  else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
+        {
+          if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
+            {
+              pas_GenerateStackReference(opLDSX, varPtr);
+              pas_Assignment(opSTI, exprSet, varPtr, typePtr);
+            } /* end if */
+          else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
             pas_Assignment(opSTSX, exprSetPtr, varPtr, typePtr);
-	  else 
-	    pas_Assignment(opSTSX, exprSet, varPtr, typePtr);
-	} /* end if */
+          else 
+            pas_Assignment(opSTSX, exprSet, varPtr, typePtr);
+        } /* end if */
       else
-	{
-	  if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
-	    {
-	      pas_GenerateStackReference(opLDS, varPtr);
-	      pas_Assignment(opSTI, exprSet, varPtr, typePtr);
-	    } /* end if */
-	  else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
+        {
+          if ((assignFlags & ADDRESS_DEREFERENCE) != 0)
+            {
+              pas_GenerateStackReference(opLDS, varPtr);
+              pas_Assignment(opSTI, exprSet, varPtr, typePtr);
+            } /* end if */
+          else if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
             pas_Assignment(opSTS, exprSetPtr, varPtr, typePtr);
-	  else
-	    pas_Assignment(opSTS, exprSet, varPtr, typePtr);
-	} /* end else */
+          else
+            pas_Assignment(opSTS, exprSet, varPtr, typePtr);
+        } /* end else */
       break;
 
       /* NOPE... recurse until it becomes a simple assignment */
@@ -426,76 +428,76 @@ static void pas_SimpleAssignment(STYPE *varPtr, ubyte assignFlags)
       /* Check if this is a pointer to a record */
 
       if ((assignFlags & ADDRESS_ASSIGNMENT) != 0)
-	{
-	  if (token == '.') error(ePOINTERTYPE);
+        {
+          if (token == '.') error(ePOINTERTYPE);
 
-	  if ((assignFlags & INDEXED_ASSIGNMENT) != 0)
-	    pas_Assignment(opSTSX, exprRecordPtr, varPtr, typePtr);
-	  else
-	    pas_Assignment(opSTS, exprRecordPtr, varPtr, typePtr);
-	} /* end if */
+          if ((assignFlags & INDEXED_ASSIGNMENT) != 0)
+            pas_Assignment(opSTSX, exprRecordPtr, varPtr, typePtr);
+          else
+            pas_Assignment(opSTS, exprRecordPtr, varPtr, typePtr);
+        } /* end if */
       else if (((assignFlags & ADDRESS_DEREFERENCE) != 0) &&
                ((assignFlags & VAR_PARM_ASSIGNMENT) == 0))
-	error(ePOINTERTYPE);
+        error(ePOINTERTYPE);
 
       /* Check if a period separates the RECORD identifier from the
        * record field identifier
        */
 
       else if (token == '.')
-	{
-	  /* Skip over the period */
+        {
+          /* Skip over the period */
 
-	  getToken();
+          getToken();
 
-	  /* Verify that a field identifier associated with this record
-	   * follows the period.
-	   */
+          /* Verify that a field identifier associated with this record
+           * follows the period.
+           */
 
-	  if ((token != sRECORD_OBJECT) ||
-	      (tknPtr->sParm.r.record != typePtr))
-	    error(eRECORDOBJECT);
-	  else
-	    {
-	      /* Modify the variable so that it has the characteristics of the
-	       * the field but with level and offset associated with the record
-	       */
+          if ((token != sRECORD_OBJECT) ||
+              (tknPtr->sParm.r.record != typePtr))
+            error(eRECORDOBJECT);
+          else
+            {
+              /* Modify the variable so that it has the characteristics of the
+               * the field but with level and offset associated with the record
+               */
 
-	      typePtr                 = tknPtr->sParm.r.parent;
-	      varPtr->sKind           = typePtr->sParm.t.type;
-	      varPtr->sParm.v.parent  = typePtr;
+              typePtr                 = tknPtr->sParm.r.parent;
+              varPtr->sKind           = typePtr->sParm.t.type;
+              varPtr->sParm.v.parent  = typePtr;
 
-	      /* Special case:  The record is a VAR parameter. */
+              /* Special case:  The record is a VAR parameter. */
 
-	      if (assignFlags == (INDEXED_ASSIGNMENT | ADDRESS_DEREFERENCE | VAR_PARM_ASSIGNMENT))
-		{
-		  pas_GenerateDataOperation(opPUSH, tknPtr->sParm.r.offset);
-		  pas_GenerateSimple(opADD);
-		} /* end if */
-	      else
-		varPtr->sParm.v.offset += tknPtr->sParm.r.offset;
+              if (assignFlags == (INDEXED_ASSIGNMENT | ADDRESS_DEREFERENCE | VAR_PARM_ASSIGNMENT))
+                {
+                  pas_GenerateDataOperation(opPUSH, tknPtr->sParm.r.offset);
+                  pas_GenerateSimple(opADD);
+                } /* end if */
+              else
+                varPtr->sParm.v.offset += tknPtr->sParm.r.offset;
 
-	      getToken();
-	      pas_SimpleAssignment(varPtr, assignFlags);
+              getToken();
+              pas_SimpleAssignment(varPtr, assignFlags);
 
-	    } /* end else if */
-	} /* end else */
+            } /* end else if */
+        } /* end else */
 
       /* It must be a RECORD assignment */
 
       else
-	{
-	  /* Special case:  The record is a VAR parameter. */
+        {
+          /* Special case:  The record is a VAR parameter. */
 
-	  if (assignFlags == (INDEXED_ASSIGNMENT | ADDRESS_DEREFERENCE | VAR_PARM_ASSIGNMENT))
-	    {
-	      pas_GenerateStackReference(opLDS, varPtr);
-	      pas_GenerateSimple(opADD);
-	      pas_LargeAssignment(opSTIM, exprRecord, varPtr, typePtr);
-	    } /* end if */
-	  else
-	    pas_LargeAssignment(opSTSM, exprRecord, varPtr, typePtr);
-	} /* end else */
+          if (assignFlags == (INDEXED_ASSIGNMENT | ADDRESS_DEREFERENCE | VAR_PARM_ASSIGNMENT))
+            {
+              pas_GenerateStackReference(opLDS, varPtr);
+              pas_GenerateSimple(opADD);
+              pas_LargeAssignment(opSTIM, exprRecord, varPtr, typePtr);
+            } /* end if */
+          else
+            pas_LargeAssignment(opSTSM, exprRecord, varPtr, typePtr);
+        } /* end else */
       break;
 
     case sRECORD_OBJECT :
@@ -505,64 +507,64 @@ static void pas_SimpleAssignment(STYPE *varPtr, ubyte assignFlags)
        */
 
       if (!withRecord.parent)
-	error(eINVTYPE);
+        error(eINVTYPE);
       else if ((assignFlags && (ADDRESS_DEREFERENCE | ADDRESS_ASSIGNMENT)) != 0)
-	error(ePOINTERTYPE);
+        error(ePOINTERTYPE);
       else if ((assignFlags && INDEXED_ASSIGNMENT) != 0)
-	error(eARRAYTYPE);
+        error(eARRAYTYPE);
 
       /* Verify that a field identifier is associated with the RECORD
        * specified by the WITH statement.
        */
 
       else if (varPtr->sParm.r.record != withRecord.parent)
-	error(eRECORDOBJECT);
+        error(eRECORDOBJECT);
 
       else
-	{
-	  sint16 tempOffset;
+        {
+          int16_t tempOffset;
 
-	  /* Now there are two cases to consider:  (1) the withRecord is a
-	   * pointer to a RECORD, or (2) the withRecord is the RECORD itself
-	   */
+          /* Now there are two cases to consider:  (1) the withRecord is a
+           * pointer to a RECORD, or (2) the withRecord is the RECORD itself
+           */
 
-	  if (withRecord.pointer)
-	    {
-	      /* If the pointer is really a VAR parameter, then other syntax
-	       * rules will apply
-	       */
+          if (withRecord.pointer)
+            {
+              /* If the pointer is really a VAR parameter, then other syntax
+               * rules will apply
+               */
 
-	      if (withRecord.varParm)
-		assignFlags |= (INDEXED_ASSIGNMENT | ADDRESS_DEREFERENCE | VAR_PARM_ASSIGNMENT);
-	      else
-		assignFlags |= (INDEXED_ASSIGNMENT | ADDRESS_DEREFERENCE);
+              if (withRecord.varParm)
+                assignFlags |= (INDEXED_ASSIGNMENT | ADDRESS_DEREFERENCE | VAR_PARM_ASSIGNMENT);
+              else
+                assignFlags |= (INDEXED_ASSIGNMENT | ADDRESS_DEREFERENCE);
 
-	      pas_GenerateDataOperation(opPUSH, (varPtr->sParm.r.offset + withRecord.index));
-	      tempOffset     = withRecord.offset;
-	    } /* end if */
-	  else
-	    {
-	      tempOffset   = varPtr->sParm.r.offset + withRecord.offset;
-	    } /* end else */
+              pas_GenerateDataOperation(opPUSH, (varPtr->sParm.r.offset + withRecord.index));
+              tempOffset     = withRecord.offset;
+            } /* end if */
+          else
+            {
+              tempOffset   = varPtr->sParm.r.offset + withRecord.offset;
+            } /* end else */
 
-	  /* Modify the variable so that it has the characteristics of the
-	   * the field but with level and offset associated with the record
-	   * NOTE:  We have to be careful here because the structure
-	   * associated with sRECORD_OBJECT is not the same as for
-	   * variables!
-	   */
+          /* Modify the variable so that it has the characteristics of the
+           * the field but with level and offset associated with the record
+           * NOTE:  We have to be careful here because the structure
+           * associated with sRECORD_OBJECT is not the same as for
+           * variables!
+           */
 
-	  typePtr                 = varPtr->sParm.r.parent;
+          typePtr                 = varPtr->sParm.r.parent;
 
-	  varPtr->sKind           = typePtr->sParm.t.type;
-	  varPtr->sLevel          = withRecord.level;
-	  varPtr->sParm.v.size    = typePtr->sParm.t.asize;
-	  varPtr->sParm.v.offset  = tempOffset;
-	  varPtr->sParm.v.parent  = typePtr;
+          varPtr->sKind           = typePtr->sParm.t.type;
+          varPtr->sLevel          = withRecord.level;
+          varPtr->sParm.v.size    = typePtr->sParm.t.asize;
+          varPtr->sParm.v.offset  = tempOffset;
+          varPtr->sParm.v.parent  = typePtr;
 
-	  pas_SimpleAssignment(varPtr, assignFlags);
+          pas_SimpleAssignment(varPtr, assignFlags);
 
-	} /* end else */
+        } /* end else */
       break;
 
     case sPOINTER :
@@ -571,12 +573,12 @@ static void pas_SimpleAssignment(STYPE *varPtr, ubyte assignFlags)
        */
 
       if (token == '^') /* value assignment? */
-	{
-	  getToken();
-	  assignFlags |= ADDRESS_DEREFERENCE;
-	} /* end if */
+        {
+          getToken();
+          assignFlags |= ADDRESS_DEREFERENCE;
+        } /* end if */
       else
-	assignFlags |= ADDRESS_ASSIGNMENT;
+        assignFlags |= ADDRESS_ASSIGNMENT;
 
       varPtr->sKind = typePtr->sParm.t.type;
       pas_SimpleAssignment(varPtr, assignFlags);
@@ -617,8 +619,8 @@ static void pas_SimpleAssignment(STYPE *varPtr, ubyte assignFlags)
 /***********************************************************************/
 /* Process simple assignment statement */
 
-static void pas_Assignment(uint16 storeOp, exprType assignType,
-			   STYPE *varPtr, STYPE *typePtr)
+static void pas_Assignment(uint16_t storeOp, exprType assignType,
+                           STYPE *varPtr, STYPE *typePtr)
 {
    TRACE(lstFile,"[pas_Assignment]");
 
@@ -668,64 +670,64 @@ static void pas_StringAssignment(STYPE *varPtr, STYPE *typePtr)
    if (varPtr->sKind == sRSTRING)
      {
        /* It is an assignment to a string reference --
-	* Generate a runtime library call to copy the destination
-	* string string into the pascal string instance.  The particular
-	* runtime call will account for any necesary string type conversion.
-	*/
+        * Generate a runtime library call to copy the destination
+        * string string into the pascal string instance.  The particular
+        * runtime call will account for any necesary string type conversion.
+        */
 
        if ((stringKind == exprString) || (stringKind == exprStkString))
-	 {
-	   /* It is a pascal string type. Current stack representation is:
-	    *
-	    *   TOS(0)=address of dest string reference
-	    *   TOS(1)=length of source string
-	    *   TOS(2)=pointer to source string
-	    */
+         {
+           /* It is a pascal string type. Current stack representation is:
+            *
+            *   TOS(0)=address of dest string reference
+            *   TOS(1)=length of source string
+            *   TOS(2)=pointer to source string
+            */
 
-	   pas_BuiltInFunctionCall(lbSTR2RSTR);
-	 }
+           pas_BuiltInFunctionCall(lbSTR2RSTR);
+         }
        else if (stringKind == exprCString)
-	 {
-	   /* It is a 32-bit C string point.  Current stack representation is:
-	    *
-	    *   TOS(0)=address of dest string reference
-	    *   TOS(1)=MS 16-bits of 32-bit C source string pointer
-	    *   TOS(2)=LS 16-bits of 32-bit C source string pointer
-	    */
+         {
+           /* It is a 32-bit C string point.  Current stack representation is:
+            *
+            *   TOS(0)=address of dest string reference
+            *   TOS(1)=MS 16-bits of 32-bit C source string pointer
+            *   TOS(2)=LS 16-bits of 32-bit C source string pointer
+            */
 
-	   pas_BuiltInFunctionCall(lbCSTR2RSTR);
-	 }
+           pas_BuiltInFunctionCall(lbCSTR2RSTR);
+         }
      }
    else
      {
        /* It is an assignment to a allocated Pascal string --
-	* Generate a runtime library call to copy the destination
-	* string string into the pascal string instance.  The particular
-	* runtime call will account for any necesary string type conversion.
-	*/
+        * Generate a runtime library call to copy the destination
+        * string string into the pascal string instance.  The particular
+        * runtime call will account for any necesary string type conversion.
+        */
 
        if ((stringKind == exprString) || (stringKind == exprStkString))
-	 {
-	   /* It is a pascal string type. Current stack representation is:
-	    *
-	    *   TOS(0)=address of dest string hdr
-	    *   TOS(1)=length of source string
-	    *   TOS(2)=pointer to source string
-	    */
+         {
+           /* It is a pascal string type. Current stack representation is:
+            *
+            *   TOS(0)=address of dest string hdr
+            *   TOS(1)=length of source string
+            *   TOS(2)=pointer to source string
+            */
 
-	   pas_BuiltInFunctionCall(lbSTR2STR);
-	 }
+           pas_BuiltInFunctionCall(lbSTR2STR);
+         }
        else if (stringKind == exprCString)
-	 {
-	   /* It is a 32-bit C string point.  Current stack representation is:
-	    *
-	    *   TOS(0)=address of dest string hdr
-	    *   TOS(1)=MS 16-bits of 32-bit C source string pointer
-	    *   TOS(2)=LS 16-bits of 32-bit C source string pointer
-	    */
+         {
+           /* It is a 32-bit C string point.  Current stack representation is:
+            *
+            *   TOS(0)=address of dest string hdr
+            *   TOS(1)=MS 16-bits of 32-bit C source string pointer
+            *   TOS(2)=LS 16-bits of 32-bit C source string pointer
+            */
 
-	   pas_BuiltInFunctionCall(lbCSTR2STR);
-	 }
+           pas_BuiltInFunctionCall(lbCSTR2STR);
+         }
      }
 
    /* else ... type mismatch error already reported by expression() */
@@ -734,8 +736,8 @@ static void pas_StringAssignment(STYPE *varPtr, STYPE *typePtr)
 /***********************************************************************/
 /* Process a multiple word assignment statement */
 
-static void pas_LargeAssignment(uint16 storeOp, exprType assignType,
-				STYPE *varPtr, STYPE *typePtr)
+static void pas_LargeAssignment(uint16_t storeOp, exprType assignType,
+                                STYPE *varPtr, STYPE *typePtr)
 {
    TRACE(lstFile,"[pas_LargeAssignment]");
 
@@ -774,29 +776,29 @@ static void pas_GotoStatement(void)
        /* The integer label must be non-negative */
 
        if (tknInt < 0)
-	 {
-	   error(eINVLABEL);
-	 }
+         {
+           error(eINVLABEL);
+         }
        else
-	 {
-	   /* Find and verify the symbol associated with the label */
+         {
+           /* Find and verify the symbol associated with the label */
 
-	   (void)sprintf (labelname, "%ld", tknInt);
-	   if (!(label_ptr = findSymbol(labelname)))
-	     {
-	       error(eUNDECLABEL);
-	     }
-	   else if (label_ptr->sKind != sLABEL)
-	     {
-	       error(eINVLABEL);
-	     }
-	   else
-	     {
-	       /* Generate the branch to the label */
+           (void)sprintf (labelname, "%ld", tknInt);
+           if (!(label_ptr = findSymbol(labelname)))
+             {
+               error(eUNDECLABEL);
+             }
+           else if (label_ptr->sKind != sLABEL)
+             {
+               error(eINVLABEL);
+             }
+           else
+             {
+               /* Generate the branch to the label */
 
-	       pas_GenerateDataOperation(opJMP, label_ptr->sParm.l.label);
-	     }
-	 }
+               pas_GenerateDataOperation(opJMP, label_ptr->sParm.l.label);
+             }
+         }
 
        /* Get the token after the <integer> value */
 
@@ -840,13 +842,13 @@ static void pas_LabelStatement(void)
        /* Generate the label and indicate that it has been defined */
 
        pas_GenerateDataOperation(opLABEL, labelPtr->sParm.l.label);
-       labelPtr->sParm.l.unDefined = FALSE;
+       labelPtr->sParm.l.unDefined = false;
 
        /* We have to assume that we got here via a goto statement.
-	* We don't have logic in place to track changes to the level
-	* stack pointer (LSP) register, so we have no choice but to
-	* invalidate that register now.
-	*/
+        * We don't have logic in place to track changes to the level
+        * stack pointer (LSP) register, so we have no choice but to
+        * invalidate that register now.
+        */
 
        pas_InvalidateCurrentStackLevel();
      }
@@ -901,10 +903,10 @@ static void pas_ProcStatement(void)
 
 static void pas_IfStatement(void)
 {
-  uint16 else_label  = ++label;
-  uint16 endif_label = else_label;
-  sint32 thenLSP;
-  sint32 elseLSP;
+  uint16_t else_label  = ++label;
+  uint16_t endif_label = else_label;
+  int32_t thenLSP;
+  int32_t elseLSP;
 
   TRACE(lstFile,"[pas_IfStatement]");
 
@@ -954,40 +956,40 @@ static void pas_IfStatement(void)
       /* Check for optional ELSE <statement> */
 
       if (token == tELSE)
-	{
-	  /* Change the ENDIF label.  Now instead of branching to
-	   * the ENDIF, the logic above will branch to the ELSE
-	   * logic generated here.
-	   */
+        {
+          /* Change the ENDIF label.  Now instead of branching to
+           * the ENDIF, the logic above will branch to the ELSE
+           * logic generated here.
+           */
 
-	  endif_label = ++label;
+          endif_label = ++label;
 
-	  /* Skip over the ELSE token */
+          /* Skip over the ELSE token */
 
-	  getToken();
+          getToken();
 
-	  /* Generate Jump to ENDIF label after the  THEN <statement> */
+          /* Generate Jump to ENDIF label after the  THEN <statement> */
 
-	  pas_GenerateDataOperation(opJMP, endif_label);
+          pas_GenerateDataOperation(opJMP, endif_label);
 
-	  /* Generate the ELSE label here.  This is where we will go if
-	   * the IF <expression> evaluates to FALSE.
-	   */
+          /* Generate the ELSE label here.  This is where we will go if
+           * the IF <expression> evaluates to false.
+           */
 
-	  pas_GenerateDataOperation(opLABEL, else_label);
+          pas_GenerateDataOperation(opLABEL, else_label);
 
-	  /* Generate the ELSE <statement> then fall through to the
-	   * ENDIF label.
-	   */
+          /* Generate the ELSE <statement> then fall through to the
+           * ENDIF label.
+           */
 
-	  statement();
+          statement();
 
-	  /* Save the LSP after generating the ELSE <statement>.  We will
-	   * compare elseLSP to the thenLSP below.
-	   */
+          /* Save the LSP after generating the ELSE <statement>.  We will
+           * compare elseLSP to the thenLSP below.
+           */
 
-	  elseLSP = pas_GetCurrentStackLevel();
-	}
+          elseLSP = pas_GetCurrentStackLevel();
+        }
 
       /* Generate the ENDIF label here.  Note that if no ELSE <statement>
        * is present, this will be the same as the else_label.
@@ -1002,9 +1004,9 @@ static void pas_IfStatement(void)
        */
 
       if (thenLSP != elseLSP)
-	{
-	  pas_InvalidateCurrentStackLevel();
-	}
+        {
+          pas_InvalidateCurrentStackLevel();
+        }
     }
 }
 
@@ -1032,7 +1034,7 @@ void compoundStatement(void)
 
 void pas_RepeatStatement ()
 {
-   uint16 rpt_label = ++label;
+   uint16_t rpt_label = ++label;
 
    TRACE(lstFile,"[pas_RepeatStatement]");
 
@@ -1074,11 +1076,11 @@ void pas_RepeatStatement ()
 
 static void pas_WhileStatement(void)
 {
-   uint16  while_label    = ++label;     /* Top of loop label */
-   uint16  endwhile_label = ++label;     /* End of loop label */
-   uint32  nLspChanges;
-   sint32  topOfLoopLSP;
-   boolean bCheckLSP      = FALSE;
+   uint16_t while_label    = ++label;     /* Top of loop label */
+   uint16_t endwhile_label = ++label;     /* End of loop label */
+   uint32_t nLspChanges;
+   int32_t  topOfLoopLSP;
+   bool     bCheckLSP      = false;
 
    TRACE(lstFile,"[pas_WhileStatement]");
 
@@ -1116,11 +1118,11 @@ static void pas_WhileStatement(void)
    if (nLspChanges == pas_GetNStackLevelChanges())
      {
        /* Yes, then the value set in the WHILE <expression>
-	* is the one that will be in effect at the end_while
-	* label.
-	*/
+        * is the one that will be in effect at the end_while
+        * label.
+        */
 
-       bCheckLSP = TRUE;
+       bCheckLSP = true;
      }
 
    /* Verify that the DO token follows the expression */
@@ -1147,7 +1149,7 @@ static void pas_WhileStatement(void)
     *
     * But, we need to allow for the special case when the body
     * of the while loop never executed.  The flag bCheckLSP is
-    * set TRUE if the conditional expression evaluation does not
+    * set true if the conditional expression evaluation does not
     * set the LSP.  In the case, the current LSP will be either
     * the LSP at the top of the loop (if he body was never executed)
     * or the current LSP (the body executes at least once).
@@ -1156,21 +1158,21 @@ static void pas_WhileStatement(void)
    if (bCheckLSP)
      {
        if (topOfLoopLSP != pas_GetCurrentStackLevel())
-	 {
-	   /* In thise case, there is uncertainty in the value of the
-	    * LSP and we must invalidate it.  It will be reset to the
-	    * correct the next time that a level stack reference is
-	    * performed.
-	    */
+         {
+           /* In thise case, there is uncertainty in the value of the
+            * LSP and we must invalidate it.  It will be reset to the
+            * correct the next time that a level stack reference is
+            * performed.
+            */
 
-	   pas_InvalidateCurrentStackLevel();
-	 }
+           pas_InvalidateCurrentStackLevel();
+         }
      }
    else
      {
        /* Otherwise, make sure that the code generation logic knows
-	* the correct value of the LSP at this point.
-	*/
+        * the correct value of the LSP at this point.
+        */
 
        pas_SetCurrentStackLevel(topOfLoopLSP);
      }
@@ -1179,18 +1181,18 @@ static void pas_WhileStatement(void)
 /***********************************************************************/
 /* This is helper function for pas_CaseStatement */
 
-static boolean pas_CheckInvalidateLSP(sint32 *pTerminalLSP)
+static bool pas_CheckInvalidateLSP(int32_t *pTerminalLSP)
 {
   /* Check the LSP after evaluating the case <statement>. */
 
-  sint32 caseLSP = pas_GetCurrentStackLevel();
+  int32_t caseLSP = pas_GetCurrentStackLevel();
   if (caseLSP < 0)
     {
       /* If the LSP is invalid after any case <statement>, then it could
        * be invalid at the end_case label as well.
        */
 
-      return TRUE;
+      return true;
     }
   else if (*pTerminalLSP < 0)
     {
@@ -1209,20 +1211,20 @@ static boolean pas_CheckInvalidateLSP(sint32 *pTerminalLSP)
        * will be indeterminate and must be invalidated.
        */
 
-      return TRUE;
+      return true;
     }
   /* So far so good */
 
-  return FALSE;
+  return false;
 }
 
 static void pas_CaseStatement(void)
 {
-   uint16  this_case;
-   uint16  next_case      = ++label;
-   uint16  end_case       = ++label;
-   sint32  terminalLSP    = -1;
-   boolean bInvalidateLSP = FALSE;
+   uint16_t this_case;
+   uint16_t next_case      = ++label;
+   uint16_t end_case       = ++label;
+   int32_t  terminalLSP    = -1;
+   bool     bInvalidateLSP = false;
 
    TRACE(lstFile,"[pas_CaseStatement]");
 
@@ -1251,148 +1253,148 @@ static void pas_CaseStatement(void)
        /* Process NON-STANDARD ELSE <statement> END */
 
        if (token == tELSE)
-	 {
-	   getToken();
+         {
+           getToken();
 
-	   /* Set ELSE statement label */
+           /* Set ELSE statement label */
 
-	   pas_GenerateDataOperation(opLABEL, this_case);
+           pas_GenerateDataOperation(opLABEL, this_case);
 
-	   /* Evaluate ELSE statement */
+           /* Evaluate ELSE statement */
 
-	   statement();
+           statement();
 
-	   /* Check the LSP after evaluating the ELSE <statement>. */
+           /* Check the LSP after evaluating the ELSE <statement>. */
 
-	   if (pas_CheckInvalidateLSP(&terminalLSP))
-	     {
-	       /* The LSP will be invalid at the end case label.  Set
-		* a flag so that we can handle invalidation of the LSP when
-		* we get to the end case label.
-		*/
+           if (pas_CheckInvalidateLSP(&terminalLSP))
+             {
+               /* The LSP will be invalid at the end case label.  Set
+                * a flag so that we can handle invalidation of the LSP when
+                * we get to the end case label.
+                */
 
-	       bInvalidateLSP = TRUE;
-	     }
+               bInvalidateLSP = true;
+             }
 
-	   /* Verify that END follows the ELSE <statement> */
+           /* Verify that END follows the ELSE <statement> */
 
-	   if (token != tEND) error(eEND);
-	   else getToken();
+           if (token != tEND) error(eEND);
+           else getToken();
 
-	   /* Terminate FOR loop */
+           /* Terminate FOR loop */
 
-	   break;
-	 }
+           break;
+         }
 
        /* Process "<constant>[,<constant>[,...]] : <statement>"
-	* NOTE:  We accept any kind of constant for the case selector; there
-	* really should be some check to assure that the constant is of the
-	* same type as the expression!
-	*/  
+        * NOTE:  We accept any kind of constant for the case selector; there
+        * really should be some check to assure that the constant is of the
+        * same type as the expression!
+        */  
 
        else
-	 {
-	   /* Loop for each <constant> in the case list */
+         {
+           /* Loop for each <constant> in the case list */
 
-	   for(;;)
-	     {
-	       /* Verify that we have a constant */
+           for(;;)
+             {
+               /* Verify that we have a constant */
 
-	       if (!isConstant(token))
-		 {
-		   error(eINTCONST);
-		   break;
-		 }
+               if (!isConstant(token))
+                 {
+                   error(eINTCONST);
+                   break;
+                 }
 
-	       /* Generate a comparison of the CASE expression and the constant.
-		*
-		* First duplicate the value to be compared (from the CASE <expression>)
-		* and push the comparison value (from the <constant>:)
-		*/
+               /* Generate a comparison of the CASE expression and the constant.
+                *
+                * First duplicate the value to be compared (from the CASE <expression>)
+                * and push the comparison value (from the <constant>:)
+                */
 
-	       pas_GenerateSimple(opDUP);
-	       pas_GenerateDataOperation(opPUSH, tknInt);
+               pas_GenerateSimple(opDUP);
+               pas_GenerateDataOperation(opPUSH, tknInt);
 
-	       /* The kind of comparison we generate depends on if we have to
-		* jump over other case selector comparsions to the statement
-		* or if we can just fall through to the statement
-		*/
+               /* The kind of comparison we generate depends on if we have to
+                * jump over other case selector comparsions to the statement
+                * or if we can just fall through to the statement
+                */
 
-	       /* Skip over the constant */
+               /* Skip over the constant */
 
-	       getToken();
+               getToken();
 
-	       /* If there are multiple constants, they will be separated with
-		* commas.
-		*/
+               /* If there are multiple constants, they will be separated with
+                * commas.
+                */
 
-	       if (token == ',')
-		 {
-		   /* Generate jump to <statement> */
+               if (token == ',')
+                 {
+                   /* Generate jump to <statement> */
 
-		   pas_GenerateDataOperation(opJEQUZ, this_case);
+                   pas_GenerateDataOperation(opJEQUZ, this_case);
 
-		   /* Skip over comma */
+                   /* Skip over comma */
 
-		   getToken();
-		 }
-	       else
-		 {
-		   /* else jump to the next case */
+                   getToken();
+                 }
+               else
+                 {
+                   /* else jump to the next case */
 
-		   pas_GenerateDataOperation(opJNEQZ, next_case);
-		   break;
-		 }
-	     }
+                   pas_GenerateDataOperation(opJNEQZ, next_case);
+                   break;
+                 }
+             }
 
-	   /* Then process ... : <statement> */
+           /* Then process ... : <statement> */
 
-	   /* Verify colon presence */
+           /* Verify colon presence */
 
-	   if (token != ':') error(eCOLON);
-	   else getToken();
+           if (token != ':') error(eCOLON);
+           else getToken();
 
-	   /* Set CASE label */
+           /* Set CASE label */
 
-	   pas_GenerateDataOperation(opLABEL, this_case);
+           pas_GenerateDataOperation(opLABEL, this_case);
 
-	   /* Evaluate <statement> */
+           /* Evaluate <statement> */
 
-	   statement();
+           statement();
 
-	   /* Jump to exit CASE */
+           /* Jump to exit CASE */
 
-	   pas_GenerateDataOperation(opJMP, end_case);
+           pas_GenerateDataOperation(opJMP, end_case);
 
-	   /* Check the LSP after evaluating the case <statement>. */
+           /* Check the LSP after evaluating the case <statement>. */
 
-	   if (pas_CheckInvalidateLSP(&terminalLSP))
-	     {
-	       /* If the LSP will be invalid at the end case label.  Set
-		* a flag so that we can handle invalidation of the LSP when
-		* we get to the end case label.
-		*/
+           if (pas_CheckInvalidateLSP(&terminalLSP))
+             {
+               /* If the LSP will be invalid at the end case label.  Set
+                * a flag so that we can handle invalidation of the LSP when
+                * we get to the end case label.
+                */
 
-	       bInvalidateLSP = TRUE;
-	     }
-	 }
+               bInvalidateLSP = true;
+             }
+         }
 
        /* Check if there are more statements.  If not, verify END present */
 
        if (token == ';')
-	 {
-	   getToken();
-	 }
+         {
+           getToken();
+         }
        else if (token == tEND)
-	 {
-	   getToken();
-	   break;
-	 }
+         {
+           getToken();
+           break;
+         }
        else
-	 {
-	   error (eEND);
-	   break;
-	 }
+         {
+           error (eEND);
+           break;
+         }
      }
 
    /* Generate ENDCASE label and Pop CASE <expression> from stack */
@@ -1416,11 +1418,11 @@ static void pas_CaseStatement(void)
 static void pas_ForStatement(void)
 {
    STYPE *varPtr;
-   uint16 forLabel    = ++label;
-   uint16 endForLabel = ++label;
-   uint16 jmpOp;
-   uint16 modOp;
-   sint32 topOfLoopLSP;
+   uint16_t forLabel    = ++label;
+   uint16_t endForLabel = ++label;
+   uint16_t jmpOp;
+   uint16_t modOp;
+   int32_t topOfLoopLSP;
 
    TRACE(lstFile,"[pas_ForStatement]");
 
@@ -1436,8 +1438,8 @@ static void pas_ForStatement(void)
    else
      {
        /* Save the token associated with the left side of the assignment
-	* and evaluate the integer assignment.
-	*/
+        * and evaluate the integer assignment.
+        */
 
        varPtr = tknPtr;
        getToken();
@@ -1447,23 +1449,23 @@ static void pas_ForStatement(void)
        pas_Assignment(opSTS, exprInteger, tknPtr, tknPtr->sParm.v.parent);
 
        /* Determine if this is a TO or a DOWNTO loop and set up the opCodes
-	* to generate appropriately.
-	*/
+        * to generate appropriately.
+        */
 
        if (token == tDOWNTO)
-	 {
-	   jmpOp = opJGT;
-	   modOp = opDEC;
-	   getToken();
-	 }
+         {
+           jmpOp = opJGT;
+           modOp = opDEC;
+           getToken();
+         }
        else if (token == tTO)
-	 {
-	   jmpOp = opJLT;
-	   modOp = opINC;
-	   getToken();
-	 }
+         {
+           jmpOp = opJLT;
+           modOp = opINC;
+           getToken();
+         }
        else
-	 error (eTOorDOWNTO);
+         error (eTOorDOWNTO);
 
        /* Evaluate <expression> DO */
 
@@ -1479,18 +1481,18 @@ static void pas_ForStatement(void)
        pas_GenerateDataOperation(opLABEL, forLabel);
 
        /* Generate the top of loop comparison.  Duplicate the end of loop
-	* value, push the current value, and perform the comparison.
-	*/
+        * value, push the current value, and perform the comparison.
+        */
 
        pas_GenerateSimple(opDUP);
        pas_GenerateStackReference(opLDS, varPtr);
        pas_GenerateDataOperation(jmpOp, endForLabel);
 
        /* Save the level stack pointer (LSP) at the top of the FOR
-	* loop.  When first executed, this value will depend on
-	* logic prior to the loop body. On subsequent loops, this
-	* value may be determined by logic within the loop body.
-	*/
+        * loop.  When first executed, this value will depend on
+        * logic prior to the loop body. On subsequent loops, this
+        * value may be determined by logic within the loop body.
+        */
 
        topOfLoopLSP = pas_GetCurrentStackLevel();
 
@@ -1499,9 +1501,9 @@ static void pas_ForStatement(void)
        statement();
 
        /* Generate end of loop logic:  Load the variable, modify the
-	* variable, store the variable, and jump unconditionally to the
-	* top of the loop.
-	*/
+        * variable, store the variable, and jump unconditionally to the
+        * top of the loop.
+        */
 
        pas_GenerateStackReference(opLDS, varPtr);
        pas_GenerateSimple(modOp);
@@ -1509,34 +1511,34 @@ static void pas_ForStatement(void)
        pas_GenerateDataOperation(opJMP, forLabel);
 
        /* Generate the end of loop label.  This is where the conditional
-	* branch at the top of the loop will come to.
-	*/
+        * branch at the top of the loop will come to.
+        */
 
        pas_GenerateDataOperation(opLABEL, endForLabel);
        pas_GenerateDataOperation(opINDS, -sINT_SIZE);
 
        /* We always get here from the check at the top of the loop.
-	* Normally this will be from the branch from the bottom of 
-	* the loop to the top of the loop.  Then from the conditional
-	* branch at the top of the loop to here.
-	*
-	* But, we need to allow for the special case when the body
-	* of the for loop never executed.  In this case, the LSP at
-	* the first time into the loop may differ from the LSP at
-	* subsequent times into the loop.  If this is the case, then
-	* will will have to invalidate the LSP.
-	*/
+        * Normally this will be from the branch from the bottom of 
+        * the loop to the top of the loop.  Then from the conditional
+        * branch at the top of the loop to here.
+        *
+        * But, we need to allow for the special case when the body
+        * of the for loop never executed.  In this case, the LSP at
+        * the first time into the loop may differ from the LSP at
+        * subsequent times into the loop.  If this is the case, then
+        * will will have to invalidate the LSP.
+        */
 
        if (topOfLoopLSP != pas_GetCurrentStackLevel())
-	 {
-	   /* In thise case, there is uncertainty in the value of the
-	    * LSP and we must invalidate it.  It will be reset to the
-	    * correct the next time that a level stack reference is
-	    * performed.
-	    */
+         {
+           /* In thise case, there is uncertainty in the value of the
+            * LSP and we must invalidate it.  It will be reset to the
+            * correct the next time that a level stack reference is
+            * performed.
+            */
 
-	   pas_InvalidateCurrentStackLevel();
-	 }
+           pas_InvalidateCurrentStackLevel();
+         }
      }
 }
 
@@ -1561,100 +1563,100 @@ static void pas_WithStatement(void)
    for(;;)
      {
        /* A RECORD type variable may be used in the WITH statement only if
-	* there is no other WITH active
-	*/
+        * there is no other WITH active
+        */
 
        if ((token == sRECORD) && (!withRecord.parent))
-	 {
-	   /* Save the RECORD variable as the new withRecord */
+         {
+           /* Save the RECORD variable as the new withRecord */
 
-	   withRecord.level   = tknPtr->sLevel;
-	   withRecord.pointer = FALSE;
-	   withRecord.varParm = FALSE;
-	   withRecord.offset  = tknPtr->sParm.v.offset;
-	   withRecord.parent  = tknPtr->sParm.v.parent;
+           withRecord.level   = tknPtr->sLevel;
+           withRecord.pointer = false;
+           withRecord.varParm = false;
+           withRecord.offset  = tknPtr->sParm.v.offset;
+           withRecord.parent  = tknPtr->sParm.v.parent;
 
-	   /* Skip over the RECORD variable */
+           /* Skip over the RECORD variable */
 
-	   getToken();
-	 }
+           getToken();
+         }
 
        /* A RECORD VAR parameter may also be used in the WITH statement
-	* (again only if there is no other WITH active)
-	*/
+        * (again only if there is no other WITH active)
+        */
 
        else if ((token == sVAR_PARM) &&
-		(!withRecord.parent) &&
-		(tknPtr->sParm.v.parent->sParm.t.type == sRECORD))
-	 {
-	   /* Save the RECORD VAR parameter as the new withRecord */
+                (!withRecord.parent) &&
+                (tknPtr->sParm.v.parent->sParm.t.type == sRECORD))
+         {
+           /* Save the RECORD VAR parameter as the new withRecord */
 
-	   withRecord.level   = tknPtr->sLevel;
-	   withRecord.pointer = TRUE;
-	   withRecord.varParm = TRUE;
-	   withRecord.offset  = tknPtr->sParm.v.offset;
-	   withRecord.parent  = tknPtr->sParm.v.parent;
+           withRecord.level   = tknPtr->sLevel;
+           withRecord.pointer = true;
+           withRecord.varParm = true;
+           withRecord.offset  = tknPtr->sParm.v.offset;
+           withRecord.parent  = tknPtr->sParm.v.parent;
 
-	   /* Skip over the RECORD VAR parameter */
+           /* Skip over the RECORD VAR parameter */
 
-	   getToken();
-	 }
+           getToken();
+         }
 
        /* A pointer to a RECORD may also be used in the WITH statement
-	* (again only if there is no other WITH active)
-	*/
+        * (again only if there is no other WITH active)
+        */
 
        else if ((token == sPOINTER) &&
-		(!withRecord.parent) &&
-		(tknPtr->sParm.v.parent->sParm.t.type == sRECORD))
-	 {
-	   /* Save the RECORD pointer as the new withRecord */
+                (!withRecord.parent) &&
+                (tknPtr->sParm.v.parent->sParm.t.type == sRECORD))
+         {
+           /* Save the RECORD pointer as the new withRecord */
 
-	   withRecord.level   = tknPtr->sLevel;
-	   withRecord.pointer = TRUE;
-	   withRecord.pointer = FALSE;
-	   withRecord.offset  = tknPtr->sParm.v.offset;
-	   withRecord.parent  = tknPtr->sParm.v.parent;
+           withRecord.level   = tknPtr->sLevel;
+           withRecord.pointer = true;
+           withRecord.pointer = false;
+           withRecord.offset  = tknPtr->sParm.v.offset;
+           withRecord.parent  = tknPtr->sParm.v.parent;
 
-	   /* Skip over the RECORD pointer */
+           /* Skip over the RECORD pointer */
 
-	   getToken();
+           getToken();
 
-	   /* Verify that deferencing is specified! */
+           /* Verify that deferencing is specified! */
 
-	   if (token != '^') error(eRECORDVAR);
-	   else getToken();
-	 }
+           if (token != '^') error(eRECORDVAR);
+           else getToken();
+         }
 
        /* A RECORD_OBJECT may be used in the WITH statement if the field
-	* is from the same sRECORD type and is itself of type RECORD.
-	*/
+        * is from the same sRECORD type and is itself of type RECORD.
+        */
 
        else if ((token == sRECORD_OBJECT) &&
-		(tknPtr->sParm.r.record == withRecord.parent) &&
-		(tknPtr->sParm.r.parent->sParm.t.type == sRECORD))
-	 {
-	   /* Okay, update the withRecord to use this record field */
+                (tknPtr->sParm.r.record == withRecord.parent) &&
+                (tknPtr->sParm.r.parent->sParm.t.type == sRECORD))
+         {
+           /* Okay, update the withRecord to use this record field */
 
-	   if (withRecord.pointer)
-	     withRecord.index += tknPtr->sParm.r.offset;
-	   else
-	     withRecord.offset += tknPtr->sParm.r.offset;
+           if (withRecord.pointer)
+             withRecord.index += tknPtr->sParm.r.offset;
+           else
+             withRecord.offset += tknPtr->sParm.r.offset;
 
-	   withRecord.parent  = tknPtr->sParm.r.parent;
+           withRecord.parent  = tknPtr->sParm.r.parent;
 
-	   /* Skip over the sRECORD_OBJECT */
+           /* Skip over the sRECORD_OBJECT */
 
-	   getToken();
+           getToken();
      }
 
      /* Anything else is an error */
 
        else
-	 {
-	   error(eRECORDVAR);
-	   break;
-	 }
+         {
+           error(eRECORDVAR);
+           break;
+         }
 
 
        /* Check if there are multiple variables in the WITH statement */

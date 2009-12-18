@@ -2,7 +2,7 @@
  * pblck.h
  * External Declarations associated with pblck.c
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,14 +38,20 @@
 #define __PBLCK_H
 
 /***************************************************************************
+ * Included Files
+ ***************************************************************************/
+
+#include <stdint.h>
+
+/***************************************************************************
  * Global Function Prototypes
  ***************************************************************************/
 
-extern void   block(void);
-extern void   declarationGroup(sint32 beginLabel);
-extern void   constantDefinitionGroup(void);
-extern void   typeDefinitionGroup(void);
-extern void   variableDeclarationGroup(void);
-extern sint16 formalParameterList(STYPE *procPtr);
+extern void block(void);
+extern void declarationGroup(int32_t beginLabel);
+extern void constantDefinitionGroup(void);
+extern void typeDefinitionGroup(void);
+extern void variableDeclarationGroup(void);
+extern int16_t formalParameterList(STYPE *procPtr);
 
 #endif /* __PBLCK_H */

@@ -2,7 +2,7 @@
  * pcfunc.c
  * Standard Function operating on constant values
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,8 @@
  * Included Files
  ***************************************************************/
 
+#include <sys/types.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <math.h>
 
@@ -65,7 +67,7 @@ static void constantAbsFunc(void);    /* Integer absolute value */
 static void constantPredFunc(void);
 static void constantOrdFunc(void);    /* Convert scalar to integer */
 static void constantSqrFunc(void);
-static void constantRealFunc(ubyte fpCode);
+static void constantRealFunc(uint8_t fpCode);
 static void constantSuccFunc(void);
 static void constantOddFunc(void);
 static void constantChrFunc(void);
@@ -86,75 +88,75 @@ void builtInFunctionOfConstant(void)
       /* Yes, process it procedure according to the extended token type */
 
       switch (tknSubType)
-	{
-	  /* Functions which return the same type as their argument */
-	case txABS :
-	  constantAbsFunc();
-	  break;
-	case txSQR :
-	  constantSqrFunc();
-	  break;
-	case txPRED :
-	  constantPredFunc();
-	  break;
-	case txSUCC :
-	  constantSuccFunc();
-	  break;
+        {
+          /* Functions which return the same type as their argument */
+        case txABS :
+          constantAbsFunc();
+          break;
+        case txSQR :
+          constantSqrFunc();
+          break;
+        case txPRED :
+          constantPredFunc();
+          break;
+        case txSUCC :
+          constantSuccFunc();
+          break;
 
-	  /* Functions returning INTEGER with REAL arguments */
+          /* Functions returning INTEGER with REAL arguments */
 
-	case txROUND :
-	  constantReal2IntFunc(fpROUND);
-	  break; 
-	case txTRUNC :
-	  constantReal2IntFunc(fpTRUNC);
-	  break;
+        case txROUND :
+          constantReal2IntFunc(fpROUND);
+          break; 
+        case txTRUNC :
+          constantReal2IntFunc(fpTRUNC);
+          break;
 
-	  /* Functions returning CHARACTER with INTEGER arguments. */
+          /* Functions returning CHARACTER with INTEGER arguments. */
 
-	case txCHR :
-	  constantChrFunc();
-	  break;
+        case txCHR :
+          constantChrFunc();
+          break;
 
-	  /* Function returning integer with scalar arguments */
+          /* Function returning integer with scalar arguments */
 
-	case txORD :
-	  constantOrdFunc();
-	  break;
+        case txORD :
+          constantOrdFunc();
+          break;
 
-	  /* Functions returning BOOLEAN */
-	case txODD :
-	  constantOddFunc();
-	  break;
+          /* Functions returning BOOLEAN */
+        case txODD :
+          constantOddFunc();
+          break;
 
-	  /* Functions returning REAL with REAL/INTEGER arguments */
+          /* Functions returning REAL with REAL/INTEGER arguments */
 
-	case txSQRT :
-	  constantRealFunc(fpSQRT);
-	  break;
-	case txSIN :
-	  constantRealFunc(fpSIN);
-	  break;
-	case txCOS :
-	  constantRealFunc(fpCOS);
-	  break;
-	case txARCTAN :
-	  constantRealFunc(fpATAN);
-	  break;
-	case txLN :
-	  constantRealFunc(fpLN);
-	  break;
-	case txEXP :
-	  constantRealFunc(fpEXP);
-	  break;
+        case txSQRT :
+          constantRealFunc(fpSQRT);
+          break;
+        case txSIN :
+          constantRealFunc(fpSIN);
+          break;
+        case txCOS :
+          constantRealFunc(fpCOS);
+          break;
+        case txARCTAN :
+          constantRealFunc(fpATAN);
+          break;
+        case txLN :
+          constantRealFunc(fpLN);
+          break;
+        case txEXP :
+          constantRealFunc(fpEXP);
+          break;
 
-	case txGETENV : /* Non-standard C library interfaces */
-	case txEOLN :
-	case txEOF :
-	default :
-	  error(eINVALIDPROC);
-	  break;
-	}
+        case txGETENV : /* Non-standard C library interfaces */
+        case txEOLN :
+        case txEOF :
+        default :
+          error(eINVALIDPROC);
+          break;
+        }
     }
 }
 
@@ -172,12 +174,12 @@ static void constantAbsFunc(void)
    if (constantToken == tINT_CONST)
      {
        if (constantInt < 0)
-	 constantInt = -constantInt;
+         constantInt = -constantInt;
      }
    else if (constantToken == tREAL_CONST)
      {
        if (constantReal < 0)
-	 constantReal = -constantInt;
+         constantReal = -constantInt;
      }
    else
       error(eINVARG);
@@ -242,7 +244,7 @@ static void constantSqrFunc(void)
 
 /**********************************************************************/
 
-static void constantRealFunc(ubyte fpOpCode)
+static void constantRealFunc(uint8_t fpOpCode)
 {
    TRACE(lstFile,"[constantRealFunc]");
 
@@ -251,7 +253,7 @@ static void constantRealFunc(ubyte fpOpCode)
    checkLParen();
    constantExpression();
    if (constantToken == tINT_CONST)
-     constantReal = (float64)constantInt;
+     constantReal = (double)constantInt;
    else
      error(eINVARG);
 

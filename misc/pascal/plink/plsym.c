@@ -2,7 +2,7 @@
  * plsym.c
  * Symbol management for the P-Code Linker
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,7 +55,7 @@
 #include "plsym.h"
 
 /**********************************************************************
- * Definitions
+ * Pre-processor Definitions
  **********************************************************************/
 
 #define INITIAL_SYMBOL_LIST_SIZE (1024*sizeof(symContainer_t*))
@@ -81,7 +82,7 @@ typedef struct symContainer_s symContainer_t;
 static symContainer_t  *symHead          = NULL;
 static symContainer_t  *symTail          = NULL;
 static symContainer_t **symList          = NULL;
-static uint32           symListAlloc     = 0;
+static uint32_t         symListAlloc     = 0;
 
 static int              nUndefined       = 0;
 static int              nMultiplyDefined = 0;
@@ -92,21 +93,21 @@ static int              nMultiplyDefined = 0;
  **********************************************************************/
 
 static void            offsetSymbolValue(poffLibSymbol_t *sym,
-					 uint32 pcOffset);
+                                         uint32_t pcOffset);
 static symContainer_t *insertSymbol(poffLibSymbol_t *sym);
 static void            addSymbolToList(symContainer_t *symbol,
-				       uint32 index);
+                                       uint32_t index);
 
 /**********************************************************************
  * Public Functions
  **********************************************************************/
 
-uint32 mergeSymbols(poffHandle_t inHandle, uint32 pcOffset, uint32 symOffset)
+uint32_t mergeSymbols(poffHandle_t inHandle, uint32_t pcOffset, uint32_t symOffset)
 {
   poffLibSymbol_t symbol;
   symContainer_t *container;
-  sint32 inIndex;
-  uint32 outIndex;
+  int32_t inIndex;
+  uint32_t outIndex;
 
   do
     {
@@ -114,23 +115,23 @@ uint32 mergeSymbols(poffHandle_t inHandle, uint32 pcOffset, uint32 symOffset)
 
       inIndex = poffGetSymbol(inHandle, &symbol);
       if (inIndex >= 0)
-	{
-	  /* If the symbol carries a "payload" that is a program
-	   * section offset, then apply the pcOffset value to
-	   * that "payload"
-	   */
+        {
+          /* If the symbol carries a "payload" that is a program
+           * section offset, then apply the pcOffset value to
+           * that "payload"
+           */
 
-	  offsetSymbolValue(&symbol, pcOffset);
+          offsetSymbolValue(&symbol, pcOffset);
 
-	  /* Create a container for the symbol information */
+          /* Create a container for the symbol information */
 
-	  container = insertSymbol(&symbol);
+          container = insertSymbol(&symbol);
 
-	  /* Add the symbol to the linearly indexed list */
+          /* Add the symbol to the linearly indexed list */
 
-	  outIndex = inIndex + symOffset;
-	  addSymbolToList(container, outIndex);
-	}
+          outIndex = inIndex + symOffset;
+          addSymbolToList(container, outIndex);
+        }
     }
   while (inIndex >= 0);
 
@@ -154,11 +155,11 @@ void verifySymbols(void)
   for (sym = symHead; (sym); sym = sym->next)
     {
       if ((sym->s.flags & STF_UNDEFINED) != 0)
-	{
-	  fprintf(stderr, "ERROR: Undefined symbol '%s'\n",
-		  sym->s.name);
-	  nUndefined++;
-	}
+        {
+          fprintf(stderr, "ERROR: Undefined symbol '%s'\n",
+                  sym->s.name);
+          nUndefined++;
+        }
     }
 
   if (nUndefined) fatal(eUNDEFINEDSYMBOL);
@@ -181,7 +182,7 @@ void writeSymbols(poffHandle_t outHandle)
 
 /***********************************************************************/
 
-poffLibSymbol_t *getSymbolByIndex(uint32 symIndex)
+poffLibSymbol_t *getSymbolByIndex(uint32_t symIndex)
 {
   if (symIndex * sizeof(symContainer_t*) >= symListAlloc)
     fatal(ePOFFCONFUSION);
@@ -223,7 +224,7 @@ void releaseSymbols(void)
 
 /**********************************************************************/
 
-static void offsetSymbolValue(poffLibSymbol_t *sym, uint32 pcOffset)
+static void offsetSymbolValue(poffLibSymbol_t *sym, uint32_t pcOffset)
 {
   /* Don't do anything with undefined symbols.  By definition, these
    * cannot cannot any meaning values.
@@ -232,15 +233,15 @@ static void offsetSymbolValue(poffLibSymbol_t *sym, uint32 pcOffset)
   if ((sym->flags & STF_UNDEFINED) == 0)
     {
       switch (sym->type)
-	{
-	case STT_PROC:
-	case STT_FUNC:
-	  sym->value += pcOffset;
-	  break;
+        {
+        case STT_PROC:
+        case STT_FUNC:
+          sym->value += pcOffset;
+          break;
 
-	default:
-	  break;
-	}
+        default:
+          break;
+        }
     }
 }
 
@@ -297,30 +298,30 @@ static symContainer_t *insertSymbol(poffLibSymbol_t *sym)
        */
 
       if (compare > 0)
-	{
-	  /* Break out... curr refers to a symbol AFTER the position
-	   * where we want to put the new symbol.
-	   */
+        {
+          /* Break out... curr refers to a symbol AFTER the position
+           * where we want to put the new symbol.
+           */
 
-	  break;
-	}
+          break;
+        }
       else if (compare == 0)
-	{
-	  /* The symbols are the same.  break out only if the types
-	   * are the same or this is where we need to insert the new
-	   * symbol (same name different type)
-	   */
+        {
+          /* The symbols are the same.  break out only if the types
+           * are the same or this is where we need to insert the new
+           * symbol (same name different type)
+           */
 
-	  if (curr->s.type > sym->type)
-	    {
-	      compare = 1;
-	      break;
-	    }
-	  else if (curr->s.type == sym->type)
-	    {
-	      break;
-	    }
-	}
+          if (curr->s.type > sym->type)
+            {
+              compare = 1;
+              break;
+            }
+          else if (curr->s.type == sym->type)
+            {
+              break;
+            }
+        }
     }
 
   /* We get here if:
@@ -343,9 +344,9 @@ static symContainer_t *insertSymbol(poffLibSymbol_t *sym)
       symTail      = newsym;
 
       if (prev)
-	prev->next = newsym;
+        prev->next = newsym;
       else
-	symHead    = newsym;
+        symHead    = newsym;
     }
   else if (compare == 0)
     {
@@ -355,48 +356,48 @@ static symContainer_t *insertSymbol(poffLibSymbol_t *sym)
        */
 
       if ((curr->s.flags & STF_UNDEFINED) != 0)
-	{
-	  /* The symbol in the table is undefined */
+        {
+          /* The symbol in the table is undefined */
 
-	  if ((sym->flags & STF_UNDEFINED) != 0)
-	    {
-	      /* Both symbols are undefined. Just ignore the new one */
-	    }
-	  else
-	    {
-	      /* The symbol in the table is undefined, but the new
-	       * one is defined. Replace the one in the table (retaining
-	       * the allocated symbol name).
-	       */
-	      const char *save   = curr->s.name;
-	      curr->s            = *sym;
-	      curr->s.name       = save;
-	    }
-	}
+          if ((sym->flags & STF_UNDEFINED) != 0)
+            {
+              /* Both symbols are undefined. Just ignore the new one */
+            }
+          else
+            {
+              /* The symbol in the table is undefined, but the new
+               * one is defined. Replace the one in the table (retaining
+               * the allocated symbol name).
+               */
+              const char *save   = curr->s.name;
+              curr->s            = *sym;
+              curr->s.name       = save;
+            }
+        }
       else
-	{
-	  /* The symbol in the table is defined */
+        {
+          /* The symbol in the table is defined */
 
-	  if ((sym->flags & STF_UNDEFINED) != 0)
-	    {
-	      /* But the new symbol is undefined.  Just ignore the
-	       * new symbol
-	       */
-	    }
-	  else
-	    {
-	      /* OOPS! both symbols are defined */
+          if ((sym->flags & STF_UNDEFINED) != 0)
+            {
+              /* But the new symbol is undefined.  Just ignore the
+               * new symbol
+               */
+            }
+          else
+            {
+              /* OOPS! both symbols are defined */
 
-	      fprintf(stderr,
-		      "ERROR: Multiply defined symbol: '%s'\n",
-		      sym->name);
-	      nMultiplyDefined++;
-	    }
+              fprintf(stderr,
+                      "ERROR: Multiply defined symbol: '%s'\n",
+                      sym->name);
+              nMultiplyDefined++;
+            }
 
-	  /* In any case, return the pointer to the old container */
+          /* In any case, return the pointer to the old container */
 
-	  newsym = curr;
-	}
+          newsym = curr;
+        }
     }
   else
     {
@@ -407,9 +408,9 @@ static symContainer_t *insertSymbol(poffLibSymbol_t *sym)
       newsym->prev = prev;
       
       if (prev)
-	prev->next = newsym;
+        prev->next = newsym;
       else
-	symHead    = newsym;
+        symHead    = newsym;
     }
 
   return newsym;
@@ -422,7 +423,7 @@ static symContainer_t *insertSymbol(poffLibSymbol_t *sym)
  * deterimed by insertSymbol().
  */
 
-static void addSymbolToList(symContainer_t *symbol, uint32 index)
+static void addSymbolToList(symContainer_t *symbol, uint32_t index)
 {
   /* Check if we have allocated a symbol table buffer yet */
 
@@ -432,9 +433,9 @@ static void addSymbolToList(symContainer_t *symbol, uint32 index)
 
       symList = (symContainer_t**)malloc(INITIAL_SYMBOL_LIST_SIZE);
       if (!symList)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
       symListAlloc = INITIAL_SYMBOL_LIST_SIZE;
     }
 
@@ -442,16 +443,16 @@ static void addSymbolToList(symContainer_t *symbol, uint32 index)
 
   if ((index + 1) * sizeof(symContainer_t*) > symListAlloc)
     {
-      uint32 newAlloc = symListAlloc + SYMBOL_LIST_INCREMENT;
+      uint32_t newAlloc = symListAlloc + SYMBOL_LIST_INCREMENT;
       symContainer_t **tmp;
 
       /* Reallocate the file name buffer */
 
       tmp = (symContainer_t**)realloc(symList, newAlloc);
       if (!tmp)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       /* And set the new size */
 

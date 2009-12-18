@@ -2,7 +2,7 @@
  * pfunc.c
  * Standard Functions
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  ***************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 
 #include "keywords.h"
@@ -66,11 +67,11 @@ static exprType absFunc    (void);    /* Integer absolute value */
 static exprType predFunc   (void);
 static void     ordFunc    (void);    /* Convert scalar to integer */
 static exprType sqrFunc    (void);
-static void     realFunc   (ubyte fpCode);
+static void     realFunc   (uint8_t fpCode);
 static exprType succFunc   (void);
 static void     oddFunc    (void);
 static void     chrFunc    (void);
-static void     fileFunc   (uint16 opcode);
+static void     fileFunc   (uint16_t opcode);
 
 /* Enhanced Pascal functions */
 
@@ -102,99 +103,99 @@ exprType builtInFunction(void)
       /* Yes, process it procedure according to the extended token type */
 
       switch (tknSubType)
-	{
-	  /* Functions which return the same type as their argument */
-	case txABS :
-	  funcType = absFunc();
-	  break;
-	case txSQR :
-	  funcType = sqrFunc();
-	  break;
-	case txPRED :
-	  funcType = predFunc();
-	  break;
-	case txSUCC :
-	  funcType = succFunc();
-	  break;
+        {
+          /* Functions which return the same type as their argument */
+        case txABS :
+          funcType = absFunc();
+          break;
+        case txSQR :
+          funcType = sqrFunc();
+          break;
+        case txPRED :
+          funcType = predFunc();
+          break;
+        case txSUCC :
+          funcType = succFunc();
+          break;
 
-	case txGETENV : /* Non-standard C library interfaces */
-	  funcType = getenvFunc();
-	  break;
+        case txGETENV : /* Non-standard C library interfaces */
+          funcType = getenvFunc();
+          break;
 
-	  /* Functions returning INTEGER with REAL arguments */
+          /* Functions returning INTEGER with REAL arguments */
 
-	case txROUND :
-	  getToken();                          /* Skip over 'round' */
-	  expression(exprReal, NULL);
-	  pas_GenerateFpOperation(fpROUND);
-	  funcType = exprInteger;
-	  break; 
-	case txTRUNC :
-	  getToken();                          /* Skip over 'trunc' */
-	  expression(exprReal, NULL);
-	  pas_GenerateFpOperation(fpTRUNC);
-	  funcType = exprInteger;
-	  break;
+        case txROUND :
+          getToken();                          /* Skip over 'round' */
+          expression(exprReal, NULL);
+          pas_GenerateFpOperation(fpROUND);
+          funcType = exprInteger;
+          break; 
+        case txTRUNC :
+          getToken();                          /* Skip over 'trunc' */
+          expression(exprReal, NULL);
+          pas_GenerateFpOperation(fpTRUNC);
+          funcType = exprInteger;
+          break;
 
-	  /* Functions returning CHARACTER with INTEGER arguments. */
+          /* Functions returning CHARACTER with INTEGER arguments. */
 
-	case txCHR :
-	  chrFunc();
-	  funcType = exprChar;
-	  break;
+        case txCHR :
+          chrFunc();
+          funcType = exprChar;
+          break;
 
-	  /* Function returning integer with scalar arguments */
+          /* Function returning integer with scalar arguments */
 
-	case txORD :
-	  ordFunc();
-	  funcType = exprInteger;
-	  break;
+        case txORD :
+          ordFunc();
+          funcType = exprInteger;
+          break;
 
-	  /* Functions returning BOOLEAN */
-	case txODD :
-	  oddFunc();
-	  funcType = exprBoolean;
-	  break;
-	case txEOF :
-	  fileFunc(xEOF);
-	  funcType = exprBoolean;
-	  break;
-	case txEOLN :
-	  fileFunc(xEOLN);
-	  funcType = exprBoolean;
-	  break;
+          /* Functions returning BOOLEAN */
+        case txODD :
+          oddFunc();
+          funcType = exprBoolean;
+          break;
+        case txEOF :
+          fileFunc(xEOF);
+          funcType = exprBoolean;
+          break;
+        case txEOLN :
+          fileFunc(xEOLN);
+          funcType = exprBoolean;
+          break;
 
-	  /* Functions returning REAL with REAL/INTEGER arguments */
+          /* Functions returning REAL with REAL/INTEGER arguments */
 
-	case txSQRT :
-	  realFunc(fpSQRT);
-	  funcType = exprReal;
-	  break;
-	case txSIN :
-	  realFunc(fpSIN);
-	  funcType = exprReal;
-	  break;
-	case txCOS :
-	  realFunc(fpCOS);
-	  funcType = exprReal;
-	  break;
-	case txARCTAN :
-	  realFunc(fpATAN);
-	  funcType = exprReal;
-	  break;
-	case txLN :
-	  realFunc(fpLN);
-	  funcType = exprReal;
-	  break;
-	case txEXP :
-	  realFunc(fpEXP);
-	  funcType = exprReal;
-	  break;
+        case txSQRT :
+          realFunc(fpSQRT);
+          funcType = exprReal;
+          break;
+        case txSIN :
+          realFunc(fpSIN);
+          funcType = exprReal;
+          break;
+        case txCOS :
+          realFunc(fpCOS);
+          funcType = exprReal;
+          break;
+        case txARCTAN :
+          realFunc(fpATAN);
+          funcType = exprReal;
+          break;
+        case txLN :
+          realFunc(fpLN);
+          funcType = exprReal;
+          break;
+        case txEXP :
+          realFunc(fpEXP);
+          funcType = exprReal;
+          break;
 
-	default :
-	  error(eINVALIDPROC);
-	  break;
-	} /* end switch */
+        default :
+          error(eINVALIDPROC);
+          break;
+        } /* end switch */
     } /* end if */
 
   return funcType;
@@ -307,7 +308,7 @@ static exprType sqrFunc(void)
 } /* end sqrFunc */
 
 /**********************************************************************/
-static void realFunc (ubyte fpOpCode)
+static void realFunc (uint8_t fpOpCode)
 {
    exprType realType;
 
@@ -393,7 +394,7 @@ static void chrFunc(void)
 /****************************************************************************/
 /* EOF/EOLN function */
 
-static void fileFunc(uint16 opcode)
+static void fileFunc(uint16_t opcode)
 {
    TRACE(lstFile,"[fileFunc]");
 

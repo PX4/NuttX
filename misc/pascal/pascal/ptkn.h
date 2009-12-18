@@ -2,7 +2,7 @@
  * ptkn.h
  * External Declarations associated with ptkn.c
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,21 +38,28 @@
 #define __PTKN_H
 
 /***************************************************************************
+ * Included Files
+ ***************************************************************************/
+
+#include <stdint.h>
+#include <stdbool.h>
+
+/***************************************************************************
  * Public Variables
  ***************************************************************************/
 
 /* String stack access variables */
 
-extern char  *tkn_strt;               /* Start of token in string stack */
-extern char  *stringSP;               /* Top of string stack */
+extern char   *tkn_strt;               /* Start of token in string stack */
+extern char   *stringSP;               /* Top of string stack */
 
 /***************************************************************************
  * Public Function Prototypes
  ***************************************************************************/
 
-extern void   getToken         (void);
-extern char   getNextCharacter (boolean skipWhiteSpace);
-extern sint16 primeTokenizer   (unsigned long stringStackSize);
-extern sint16 rePrimeTokenizer (void);
+extern void    getToken         (void);
+extern char    getNextCharacter (boolean skipWhiteSpace);
+extern int16_t primeTokenizer   (unsigned long stringStackSize);
+extern int16_t rePrimeTokenizer (void);
 
 #endif /* __PTKN_H */

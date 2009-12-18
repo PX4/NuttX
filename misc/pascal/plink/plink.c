@@ -2,7 +2,7 @@
  * plink.c
  * P-Code Linker
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,8 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -59,7 +61,7 @@
  * Definitions
  **********************************************************************/
 
-#define MAX_POFF_FILES          8
+#define MAX_POFF_FILES  8
 
 /**********************************************************************
  * Private Type Definitions
@@ -73,26 +75,26 @@
  * Private Data
  **********************************************************************/
 
-static const char      *outFileName;
-static const char      *inFileName[MAX_POFF_FILES];
-static int              nPoffFiles      = 0;
+static const char *outFileName;
+static const char *inFileName[MAX_POFF_FILES];
+static int         nPoffFiles      = 0;
 
 /**********************************************************************
  * Private Function Prototypes
  **********************************************************************/
 
-static void   showUsage        (const char *progname);
-static void   parseArgs        (int argc, char **argv);
-static void   loadInputFiles   (poffHandle_t outHandle);
-static void   checkFileHeader  (poffHandle_t inHandle, poffHandle_t outHandle,
-				uint32 pcOffset,boolean *progFound);
-static uint32 mergeRoData      (poffHandle_t inHandle, poffHandle_t outHandle);
-static uint32 mergeProgramData (poffHandle_t inHandle, poffHandle_t outHandle,
-				uint32 pcOffset, uint32 roOffset);
-static uint32 mergeFileNames   (poffHandle_t inHandle, poffHandle_t outHandle);
-static uint32 mergeLineNumbers (poffHandle_t inHandle, poffHandle_t outHandle,
-				uint32 pcOffset, uint32 fnOffset);
-static void   writeOutputFile  (poffHandle_t outHandle);
+static void     showUsage        (const char *progname);
+static void     parseArgs        (int argc, char **argv);
+static void     loadInputFiles   (poffHandle_t outHandle);
+static void     checkFileHeader  (poffHandle_t inHandle, poffHandle_t outHandle,
+				  uint32_t pcOffset, bool *progFound);
+static uint32_t mergeRoData      (poffHandle_t inHandle, poffHandle_t outHandle);
+static uint32_t mergeProgramData (poffHandle_t inHandle, poffHandle_t outHandle,
+				  uint32_t pcOffset, uint32_t roOffset);
+static uint32_t mergeFileNames   (poffHandle_t inHandle, poffHandle_t outHandle);
+static uint32_t mergeLineNumbers (poffHandle_t inHandle, poffHandle_t outHandle,
+				  uint32_t pcOffset, uint32_t fnOffset);
+static void     writeOutputFile  (poffHandle_t outHandle);
 
 /**********************************************************************
  * Global Variables
@@ -202,15 +204,15 @@ static void loadInputFiles(poffHandle_t outHandle)
   poffHandle_t inHandle;
   FILE        *instream;
   char         fileName[FNAME_SIZE+1];  /* Object file name */
-  uint32       pcOffset = 0;
-  uint32       fnOffset = 0;
-  uint32       symOffset = 0;
-  uint32       roOffset = 0;
-  uint32       pcEnd = 0;
-  uint32       fnEnd = 0;
-  uint32       symEnd = 0;
-  uint16       errCode;
-  boolean      progFound = FALSE;
+  uint32_t     pcOffset = 0;
+  uint32_t     fnOffset = 0;
+  uint32_t     symOffset = 0;
+  uint32_t     roOffset = 0;
+  uint32_t     pcEnd = 0;
+  uint32_t     fnEnd = 0;
+  uint32_t     symEnd = 0;
+  uint16_t     errCode;
+  bool         progFound = false;
   int          i;
 
   /* Load the POFF files specified on the command line */
@@ -320,9 +322,9 @@ static void loadInputFiles(poffHandle_t outHandle)
 /***********************************************************************/
 
 static void checkFileHeader(poffHandle_t inHandle, poffHandle_t outHandle,
-			    uint32 pcOffset, boolean *progFound)
+			    uint32_t pcOffset, bool *progFound)
 {
-  ubyte fileType;
+  uint8_t fileType;
 
   /* What kind of file are we processing? */
 
@@ -358,7 +360,7 @@ static void checkFileHeader(poffHandle_t inHandle, poffHandle_t outHandle,
 
 	  /* Indicate that we have found the program file */
 
-	  *progFound = TRUE;
+	  *progFound = true;
 	}
     }
   else if (fileType != FHT_UNIT)
@@ -376,11 +378,11 @@ static void checkFileHeader(poffHandle_t inHandle, poffHandle_t outHandle,
 
 /***********************************************************************/
 
-static uint32 mergeRoData(poffHandle_t inHandle, poffHandle_t outHandle)
+static uint32_t mergeRoData(poffHandle_t inHandle, poffHandle_t outHandle)
 {
-  ubyte *newRoData;
-  uint32 oldRoDataSize;
-  uint32 newRoDataSize;
+  uint8_t *newRoData;
+  uint32_t oldRoDataSize;
+  uint32_t newRoDataSize;
 
   /* Get the size of the read-only data section before we add the
    * new data.  This is the offset that must be applied to any
@@ -406,13 +408,13 @@ static uint32 mergeRoData(poffHandle_t inHandle, poffHandle_t outHandle)
  * section references as they are encountered.
  */
 
-static uint32 mergeProgramData(poffHandle_t inHandle,
+static uint32_t mergeProgramData(poffHandle_t inHandle,
 			       poffHandle_t outHandle,
-			       uint32 pcOffset, uint32 roOffset)
+			       uint32_t pcOffset, uint32_t roOffset)
 {
   OPTYPE op;
-  uint32 pc;
-  uint32 opSize;
+  uint32_t pc;
+  uint32_t opSize;
   int endOp;
 
   /* Read each opcode from the input file, add pcOffset to each program
@@ -448,11 +450,11 @@ static uint32 mergeProgramData(poffHandle_t inHandle,
  * section references as they are encountered.
  */
 
-static uint32 mergeFileNames(poffHandle_t inHandle,
+static uint32_t mergeFileNames(poffHandle_t inHandle,
 			     poffHandle_t outHandle)
 {
-  sint32 inOffset;
-  uint32 outOffset;
+  int32_t inOffset;
+  uint32_t outOffset;
   const char *fname;
 
   do
@@ -482,14 +484,14 @@ static uint32 mergeFileNames(poffHandle_t inHandle,
  * section references as they are encountered.
  */
 
-static uint32 mergeLineNumbers(poffHandle_t inHandle,
+static uint32_t mergeLineNumbers(poffHandle_t inHandle,
 			       poffHandle_t outHandle,
-			       uint32 pcOffset,
-			       uint32 fnOffset)
+			       uint32_t pcOffset,
+			       uint32_t fnOffset)
 {
   poffLineNumber_t lineno;
-  sint32 inOffset;
-  uint32 outOffset;
+  int32_t inOffset;
+  uint32_t outOffset;
 
   do
     {

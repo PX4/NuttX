@@ -2,7 +2,7 @@
  * plreloc.c
  * Relocation management for the P-Code Linker
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,7 +57,7 @@
 #include "plreloc.h"
 
 /**********************************************************************
- * Definitions
+ * Pre-processor Definitions
  **********************************************************************/
 
 #define INITIAL_RELOC_LIST_SIZE (1024*sizeof(poffRelocation_t*))
@@ -71,8 +72,8 @@
  **********************************************************************/
 
 static poffRelocation_t *relocList      = NULL;
-static uint32            relocListAlloc = 0;
-static uint32            nRelocs        = 0;
+static uint32_t          relocListAlloc = 0;
+static uint32_t          nRelocs        = 0;
 
 /**********************************************************************
  * Private Function Prototypes
@@ -80,7 +81,7 @@ static uint32            nRelocs        = 0;
  **********************************************************************/
 
 static void offsetRelocation(poffRelocation_t *reloc,
-			     uint32 pcOffset, uint32 symOffset);
+                             uint32_t pcOffset, uint32_t symOffset);
 static void addRelocToList(poffRelocation_t *reloc);
 
 /**********************************************************************
@@ -88,10 +89,10 @@ static void addRelocToList(poffRelocation_t *reloc);
  **********************************************************************/
 
 void mergeRelocations(poffHandle_t inHandle,
-		      uint32 pcOffset, uint32 symOffset)
+                      uint32_t pcOffset, uint32_t symOffset)
 {
   poffRelocation_t reloc;
-  sint32 index;
+  int32_t index;
 
   do
     {
@@ -99,18 +100,18 @@ void mergeRelocations(poffHandle_t inHandle,
 
       index = poffGetRawRelocation(inHandle, &reloc);
       if (index >= 0)
-	{
-	  /* If the rellocation carries a "payload" that is a program
-	   * section offset, then apply the pcOffset value to
-	   * that "payload"
-	   */
+        {
+          /* If the rellocation carries a "payload" that is a program
+           * section offset, then apply the pcOffset value to
+           * that "payload"
+           */
 
-	  offsetRelocation(&reloc, pcOffset, symOffset);
+          offsetRelocation(&reloc, pcOffset, symOffset);
 
-	  /* Add the relocation to the in-memory relocation list */
+          /* Add the relocation to the in-memory relocation list */
 
-	  addRelocToList(&reloc);
-	}
+          addRelocToList(&reloc);
+        }
     }
   while (index >= 0);
 }
@@ -119,8 +120,8 @@ void mergeRelocations(poffHandle_t inHandle,
 
 void applyRelocations(poffHandle_t outHandle)
 {
-  ubyte *progData;
-  uint32 progSize;
+  uint8_t *progData;
+  uint32_t progSize;
   int    i;
 
   /* Take ownership of the program data image for a little while */
@@ -132,39 +133,39 @@ void applyRelocations(poffHandle_t outHandle)
   for (i = 0; i < nRelocs; i++)
     {
       poffRelocation_t *reloc = &relocList[i];
-      uint32            symIndex = RLI_SYM(reloc->rl_info);
-      uint32            relType  = RLI_TYPE(reloc->rl_info);
+      uint32_t          symIndex = RLI_SYM(reloc->rl_info);
+      uint32_t          relType  = RLI_TYPE(reloc->rl_info);
       poffLibSymbol_t  *sym;
-      uint32            progIndex;
+      uint32_t          progIndex;
 
       switch (relType)
-	{
-	case RLT_PCAL:
-	  /* Get the symbol referenced by the relocation.  At this
-	   * point, we assume that the system has already verified
-	   * that there are no undefined symbols.
-	   */
+        {
+        case RLT_PCAL:
+          /* Get the symbol referenced by the relocation.  At this
+           * point, we assume that the system has already verified
+           * that there are no undefined symbols.
+           */
 
-	  sym = getSymbolByIndex(symIndex);
+          sym = getSymbolByIndex(symIndex);
 
-	  /* Get the index to the oPCAL instruction */
+          /* Get the index to the oPCAL instruction */
 
-	  progIndex = reloc->rl_offset;
+          progIndex = reloc->rl_offset;
 
-	  /* Sanity checking */
+          /* Sanity checking */
 
-	  if (((sym->flags & STF_UNDEFINED) != 0) ||
-	      (progIndex > progSize-4))
-	    fatal(ePOFFCONFUSION);
+          if (((sym->flags & STF_UNDEFINED) != 0) ||
+              (progIndex > progSize-4))
+            fatal(ePOFFCONFUSION);
 
-	  /* Perform the relocation */
+          /* Perform the relocation */
 
-	  insn_FixupProcedureCall(&progData[progIndex], sym->value);
-	  break;
+          insn_FixupProcedureCall(&progData[progIndex], sym->value);
+          break;
 
-	default:
-	  break;
-	}
+        default:
+          break;
+        }
     }
 
 
@@ -186,10 +187,10 @@ void releaseRelocations(void)
  **********************************************************************/
 
 static void offsetRelocation(poffRelocation_t *reloc,
-			     uint32 pcOffset, uint32 symOffset)
+                             uint32_t pcOffset, uint32_t symOffset)
 {
-  uint32 symIndex = RLI_SYM(reloc->rl_info);
-  uint32 relType  = RLI_TYPE(reloc->rl_info);
+  uint32_t symIndex = RLI_SYM(reloc->rl_info);
+  uint32_t relType  = RLI_TYPE(reloc->rl_info);
 
   switch (relType)
     {
@@ -217,9 +218,9 @@ static void addRelocToList(poffRelocation_t *reloc)
 
       relocList = (poffRelocation_t*)malloc(INITIAL_RELOC_LIST_SIZE);
       if (!relocList)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
       relocListAlloc = INITIAL_RELOC_LIST_SIZE;
     }
 
@@ -227,16 +228,16 @@ static void addRelocToList(poffRelocation_t *reloc)
 
   if ((nRelocs + 1) * sizeof(poffRelocation_t) > relocListAlloc)
     {
-      uint32 newAlloc = relocListAlloc + RELOC_LIST_INCREMENT;
+      uint32_t newAlloc = relocListAlloc + RELOC_LIST_INCREMENT;
       poffRelocation_t *tmp;
 
       /* Reallocate the file name buffer */
 
       tmp = (poffRelocation_t*)realloc(relocList, newAlloc);
       if (!tmp)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       /* And set the new size */
 

@@ -2,7 +2,7 @@
  * pgen.h
  * External Declarations associated with pgen.c
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,17 +38,14 @@
 #define __PGEN_H
 
 /***************************************************************************
- * Compilation Switches
- ***************************************************************************/
-
-/***************************************************************************
  * Included Files
  ***************************************************************************/
 
+#include <stdint.h>
 #include "podefs.h"
 
 /***************************************************************************
- * Definitions
+ * Pre-processor Definitions
  ***************************************************************************/
 
 /***************************************************************************
@@ -63,30 +60,30 @@
  * Global Function Prototypes
  ***************************************************************************/
 
-extern sint32 pas_GetCurrentStackLevel(void);
-extern void   pas_InvalidateCurrentStackLevel(void);
-extern void   pas_SetCurrentStackLevel(sint32 dwLsp);
-extern uint32 pas_GetNStackLevelChanges(void);
+extern int32_t pas_GetCurrentStackLevel(void);
+extern void pas_InvalidateCurrentStackLevel(void);
+extern void pas_SetCurrentStackLevel(int32_t dwLsp);
+extern uint32_t pas_GetNStackLevelChanges(void);
 
-extern void   pas_GenerateSimple(enum pcode_e eOpCode);
-extern void   pas_GenerateDataOperation(enum pcode_e eOpCode, sint32 dwData);
-extern void   pas_GenerateDataSize(sint32 dwDataSize);
-extern void   pas_GenerateFpOperation(ubyte fpOpcode);
-extern void   pas_GenerateIoOperation(uint16 ioOpcode, uint16 fileNumber);
-extern void   pas_BuiltInFunctionCall(uint16 libOpcode);
-extern void   pas_GenerateLevelReference(enum pcode_e eOpCode, uint16 wLevel,
-					 sint32 dwOffset);
-extern void   pas_GenerateStackReference(enum pcode_e eOpCode, STYPE *pVarPtr);
-extern void   pas_GenerateProcedureCall(STYPE *pProcPtr);
-extern void   pas_GenerateLineNumber(uint16 wIncludeNumber,
-				     uint32 dwLineNumber);
-extern void   pas_GenerateStackExport(STYPE *pVarPtr);
-extern void   pas_GenerateStackImport(STYPE *pVarPtr);
-extern void   pas_GenerateProcedureCall(STYPE *pProcPtr);
-extern void   pas_GenerateDebugInfo(STYPE *pProcPtr, uint32 dwReturnSize);
-extern void   pas_GenerateProcExport(STYPE *pProcPtr);
-extern void   pas_GenerateProcImport(STYPE *pProcPtr);
-extern void   pas_GeneratePoffOutput(void);
+extern void pas_GenerateSimple(enum pcode_e eOpCode);
+extern void pas_GenerateDataOperation(enum pcode_e eOpCode, int32_t dwData);
+extern void pas_GenerateDataSize(int32_t dwDataSize);
+extern void pas_GenerateFpOperation(uint8_t fpOpcode);
+extern void pas_GenerateIoOperation(uint16_t ioOpcode, uint16_t fileNumber);
+extern void pas_BuiltInFunctionCall(uint16_t libOpcode);
+extern void pas_GenerateLevelReference(enum pcode_e eOpCode, uint16_t wLevel,
+                                       int32_t dwOffset);
+extern void pas_GenerateStackReference(enum pcode_e eOpCode, STYPE *pVarPtr);
+extern void pas_GenerateProcedureCall(STYPE *pProcPtr);
+extern void pas_GenerateLineNumber(uint16_t wIncludeNumber,
+                                   uint32_t dwLineNumber);
+extern void pas_GenerateStackExport(STYPE *pVarPtr);
+extern void pas_GenerateStackImport(STYPE *pVarPtr);
+extern void pas_GenerateProcedureCall(STYPE *pProcPtr);
+extern void pas_GenerateDebugInfo(STYPE *pProcPtr, uint32_t dwReturnSize);
+extern void pas_GenerateProcExport(STYPE *pProcPtr);
+extern void pas_GenerateProcImport(STYPE *pProcPtr);
+extern void pas_GeneratePoffOutput(void);
 
 #endif /* __PGEN_H */
 

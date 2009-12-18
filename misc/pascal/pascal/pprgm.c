@@ -2,7 +2,7 @@
  * pas.c
  * main - process PROGRAM
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -63,7 +64,7 @@
 #include "pprgm.h"
 
 /**********************************************************************
- * Definitions
+ * Pre-processor Definitions
  **********************************************************************/
 
 /**********************************************************************
@@ -111,20 +112,20 @@ void program(void)
   if (token == '(')
     {
       do
-	{
-	  getToken();
-	  if (token == tIDENT)
-	    {
-	      if ((++nfiles) > MAX_FILES) fatal(eOVF);
-	      (void)addFile(tkn_strt, nfiles);
-	      stringSP = tkn_strt;
-	      getToken();
-	    } /* end if */
-	  else if ((token == sFILE) && !(tknPtr->sParm.fileNumber))
-	    getToken();
-	  else
-	    error(eIDENT);
-	}
+        {
+          getToken();
+          if (token == tIDENT)
+            {
+              if ((++nfiles) > MAX_FILES) fatal(eOVF);
+              (void)addFile(tkn_strt, nfiles);
+              stringSP = tkn_strt;
+              getToken();
+            } /* end if */
+          else if ((token == sFILE) && !(tknPtr->sParm.fileNumber))
+            getToken();
+          else
+            error(eIDENT);
+        }
       while (token == ',');
       if (token != ')') error(eRPAREN);
       else getToken();
@@ -165,7 +166,7 @@ void program(void)
 
 void usesSection(void)
 {
-  uint16 saveToken;
+  uint16_t saveToken;
   char defaultUnitFileName[FNAME_SIZE + 1];
   char *unitFileName = NULL;
   char *saveTknStrt;
@@ -192,36 +193,36 @@ void usesSection(void)
 
       saveTknStrt = tkn_strt;
       if (token == tIN)
-	{
-	  /* Skip over 'in' and verify that a string constant representing
-	   * the file name follows.
-	   */
+        {
+          /* Skip over 'in' and verify that a string constant representing
+           * the file name follows.
+           */
 
-	  getToken();
-	  if (token != tSTRING_CONST) error(eSTRING);
-	  else
-	    {
-	      /* Save the unit file name and skip to the
-	       * next token.
-	       */
+          getToken();
+          if (token != tSTRING_CONST) error(eSTRING);
+          else
+            {
+              /* Save the unit file name and skip to the
+               * next token.
+               */
 
-	      unitFileName = tkn_strt;
-	      saveTknStrt = tkn_strt;
-	      getToken();
-	    }
-	}
+              unitFileName = tkn_strt;
+              saveTknStrt = tkn_strt;
+              getToken();
+            }
+        }
 
       /* In any event, make sure that we have a non-NULL unit
        * file name.
        */
 
       if (!unitFileName)
-	{
-	  /* Create a default filename */
+        {
+          /* Create a default filename */
 
-	  (void)extension(unitName, ".pas", defaultUnitFileName, 1);
-	  unitFileName = defaultUnitFileName;
-	}
+          (void)extension(unitName, ".pas", defaultUnitFileName, 1);
+          unitFileName = defaultUnitFileName;
+        }
 
       /* Open the unit file */
 

@@ -2,7 +2,7 @@
  * pblck.c
  * Process a Pascal Block
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,11 +68,11 @@
  */
 
 #define isConstant(x) \
-	(  ((x) == tINT_CONST) \
-	|| ((x) == tBOOLEAN_CONST) \
-	|| ((x) == tCHAR_CONST) \
-	|| ((x) == tREAL_CONST) \
-	|| ((x) == sSCALAR_OBJECT))
+        (  ((x) == tINT_CONST) \
+        || ((x) == tBOOLEAN_CONST) \
+        || ((x) == tCHAR_CONST) \
+        || ((x) == tREAL_CONST) \
+        || ((x) == sSCALAR_OBJECT))
 
 #define isIntAligned(x) (((x) & (sINT_SIZE-1)) == 0)
 #define intAlign(x)     (((x) + (sINT_SIZE-1)) & (~(sINT_SIZE-1)))
@@ -81,33 +81,33 @@
  * Private Function Prototypes
  ***************************************************************/
 
-static void    pas_DeclareLabel          (void);
-static void    pas_DeclareConst          (void);
-static STYPE  *pas_DeclareType           (char *typeName);
-static STYPE  *pas_DeclareOrdinalType    (char *typeName);
-static STYPE  *pas_DeclareVar            (void);
-static void    pas_DeclareFile           (void);
-static void    pas_ProcedureDeclaration  (void);
-static void    pas_FunctionDeclaration   (void);
+static void   pas_DeclareLabel          (void);
+static void   pas_DeclareConst          (void);
+static STYPE *pas_DeclareType           (char *typeName);
+static STYPE *pas_DeclareOrdinalType    (char *typeName);
+static STYPE *pas_DeclareVar            (void);
+static void   pas_DeclareFile           (void);
+static void   pas_ProcedureDeclaration  (void);
+static void   pas_FunctionDeclaration   (void);
 
-static void    pas_SetTypeSize           (STYPE *typePtr, boolean allocate);
-static STYPE  *pas_TypeIdentifier        (boolean allocate);
-static STYPE  *pas_TypeDenoter           (char *typeName, boolean allocate);
-static STYPE  *pas_NewComplexType        (char *typeName);
-static STYPE  *pas_NewOrdinalType        (char *typeName);
-static STYPE  *pas_OrdinalTypeIdentifier (boolean allocate);
-static STYPE  *pas_GetArrayType          (void);
-static STYPE  *pas_DeclareRecord         (char *recordName);
-static STYPE  *pas_DeclareField          (STYPE *recordPtr);
-static STYPE  *pas_DeclareParameter      (boolean pointerType);
-static boolean pas_IntAlignRequired      (STYPE *typePtr);
+static void   pas_SetTypeSize           (STYPE *typePtr, bool allocate);
+static STYPE *pas_TypeIdentifier        (bool allocate);
+static STYPE *pas_TypeDenoter           (char *typeName, bool allocate);
+static STYPE *pas_NewComplexType        (char *typeName);
+static STYPE *pas_NewOrdinalType        (char *typeName);
+static STYPE *pas_OrdinalTypeIdentifier (bool allocate);
+static STYPE *pas_GetArrayType          (void);
+static STYPE *pas_DeclareRecord         (char *recordName);
+static STYPE *pas_DeclareField          (STYPE *recordPtr);
+static STYPE *pas_DeclareParameter      (bool pointerType);
+static bool   pas_IntAlignRequired      (STYPE *typePtr);
 
 /***************************************************************
  * Private Global Variables
  ***************************************************************/
 
-static sint32  g_nParms;
-static sint32  g_dwVarSize;                      
+static int32_t g_nParms;
+static int32_t g_dwVarSize;                      
 
 /***************************************************************
  * Public Functions
@@ -133,12 +133,12 @@ static sint32  g_dwVarSize;
 
 void block()
 {
-  uint16  beginLabel   = ++label;     /* BEGIN label */
-  sint32  saveDStack   = dstack;      /* Save DSEG size */
+  uint16_t beginLabel   = ++label;     /* BEGIN label */
+  int32_t saveDStack   = dstack;      /* Save DSEG size */
   char   *saveStringSP = stringSP;    /* Save top of string stack */
-  sint16  saveNSym     = nsym;        /* Save top of symbol table */
-  sint16  saveNConst   = nconst;      /* Save top of constant table */
-  register sint16 i;
+  int16_t saveNSym     = nsym;        /* Save top of symbol table */
+  int16_t saveNConst   = nconst;      /* Save top of constant table */
+  register int16_t i;
 
   TRACE(lstFile,"[block]");
 
@@ -187,7 +187,7 @@ void block()
    * they will come to the beginLabel emitted here.
    */
 
-  pas_GenerateDataOperation(opLABEL, (sint32)beginLabel);
+  pas_GenerateDataOperation(opLABEL, (int32_t)beginLabel);
 
   /* Since we don't know for certain how we got here, invalidate
    * the level stack pointer (LSP).  This is, of course, only 
@@ -200,14 +200,14 @@ void block()
 
   if (dstack)
     {
-      pas_GenerateDataOperation(opINDS, (sint32)dstack);
+      pas_GenerateDataOperation(opINDS, (int32_t)dstack);
     }
 
   compoundStatement();
 
   if (dstack)
     {
-      pas_GenerateDataOperation(opINDS, -(sint32)dstack);
+      pas_GenerateDataOperation(opINDS, -(int32_t)dstack);
     }
 
   /* Make sure all declared labels were defined in the block */
@@ -219,11 +219,11 @@ void block()
   for (i = 0; i <= MAX_FILES; i++)
     {
       if ((files [i].defined) && (files [i].flevel >= level)) {
-	files [i].defined = 0;
-	files [i].flevel  = 0;
-	files [i].ftype   = 0;
-	files [i].faddr   = 0;
-	files [i].fsize   = 0;
+        files [i].defined = 0;
+        files [i].flevel  = 0;
+        files [i].ftype   = 0;
+        files [i].faddr   = 0;
+        files [i].fsize   = 0;
       }
     }
 
@@ -238,11 +238,11 @@ void block()
 /***************************************************************/
 /* Process declarative-part */
 
-void declarationGroup(sint32 beginLabel)
+void declarationGroup(int32_t beginLabel)
 {
-  sint16  notFirst   = 0;             /* Init count of nested procs */
-  sint16  saveNSym   = nsym;          /* Save top of symbol table */
-  sint16  saveNConst = nconst;        /* Save top of constant table */
+  int16_t notFirst   = 0;             /* Init count of nested procs */
+  int16_t saveNSym   = nsym;          /* Save top of symbol table */
+  int16_t saveNConst = nconst;        /* Save top of constant table */
 
   TRACE(lstFile,"[declarationGroup]");
 
@@ -337,54 +337,54 @@ void declarationGroup(sint32 beginLabel)
        */
 
       if (token == tFUNCTION)
-	{
-	  /* Check if we need to put a jump around the function */
+        {
+          /* Check if we need to put a jump around the function */
 
-	  if ((beginLabel > 0) && !(notFirst) && (level > 0))
-	    {
-	      pas_GenerateDataOperation(opJMP, (sint32)beginLabel);
-	    }
+          if ((beginLabel > 0) && !(notFirst) && (level > 0))
+            {
+              pas_GenerateDataOperation(opJMP, (int32_t)beginLabel);
+            }
 
-	  /* Get the procedure-identifier */
+          /* Get the procedure-identifier */
 
-	  const_strt = saveNConst;    /* Limit search to present level */
-	  sym_strt   = saveNSym;
-	  getToken();                 /* Get identifier */
-	  const_strt = 0;
-	  sym_strt   = 0;
+          const_strt = saveNConst;    /* Limit search to present level */
+          sym_strt   = saveNSym;
+          getToken();                 /* Get identifier */
+          const_strt = 0;
+          sym_strt   = 0;
 
-	  /* Define the function */
+          /* Define the function */
 
-	  pas_FunctionDeclaration();
-	  notFirst++;                 /* No JMP next time */
-	}
+          pas_FunctionDeclaration();
+          notFirst++;                 /* No JMP next time */
+        }
 
       /* FORM: procedure-heading =
        *       'procedure' identifier [ formal-parameter-list ]
        */
 
       else if (token == tPROCEDURE)
-	{
-	  /* Check if we need to put a jump around the function */
+        {
+          /* Check if we need to put a jump around the function */
 
-	  if ((beginLabel > 0) && !(notFirst) && (level > 0))
-	    {
-	      pas_GenerateDataOperation(opJMP, (sint32)beginLabel);
-	    }
+          if ((beginLabel > 0) && !(notFirst) && (level > 0))
+            {
+              pas_GenerateDataOperation(opJMP, (int32_t)beginLabel);
+            }
 
-	  /* Get the procedure-identifier */
+          /* Get the procedure-identifier */
 
-	  const_strt = saveNConst;    /* Limit search to present level */
-	  sym_strt   = saveNSym;
-	  getToken();                 /* Get identifier */
-	  const_strt = 0;
-	  sym_strt   = 0;
+          const_strt = saveNConst;    /* Limit search to present level */
+          sym_strt   = saveNSym;
+          getToken();                 /* Get identifier */
+          const_strt = 0;
+          sym_strt   = 0;
 
-	  /* Define the procedure */
+          /* Define the procedure */
 
-	  pas_ProcedureDeclaration();
-	  notFirst++;                 /* No JMP next time */
-	}
+          pas_ProcedureDeclaration();
+          notFirst++;                 /* No JMP next time */
+        }
       else break;
     }
 }
@@ -405,11 +405,11 @@ void constantDefinitionGroup(void)
   for (;;)
     {
       if (token == tIDENT)
-	{
-	  pas_DeclareConst();
-	  if (token != ';') break;
-	  else getToken();
-	}
+        {
+          pas_DeclareConst();
+          if (token != ';') break;
+          else getToken();
+        }
       else break;
     }
 }
@@ -432,22 +432,22 @@ void typeDefinitionGroup(void)
   for (;;)
     {
       if (token == tIDENT)
-	{
-	  /* Save the type identifier */
+        {
+          /* Save the type identifier */
 
-	  typeName = tkn_strt;
-	  getToken();
+          typeName = tkn_strt;
+          getToken();
 
-	  /* Verify that '=' follows the type identifier */
+          /* Verify that '=' follows the type identifier */
 
-	  if (token != '=') error (eEQ);
-	  else getToken();
+          if (token != '=') error (eEQ);
+          else getToken();
 
-	  (void)pas_DeclareType(typeName);
-	  if (token != ';') break;
-	  else getToken();
+          (void)pas_DeclareType(typeName);
+          if (token != ';') break;
+          else getToken();
 
-	}
+        }
       else break;
     }
 }
@@ -469,17 +469,17 @@ void variableDeclarationGroup(void)
   for (;;)
     {
       if (token == tIDENT)
-	{
-	  (void)pas_DeclareVar();
-	  if (token != ';') break;
-	  else getToken();
-	}
+        {
+          (void)pas_DeclareVar();
+          if (token != ';') break;
+          else getToken();
+        }
       else if (token == sFILE)
-	{
-	  pas_DeclareFile();
-	  if (token != ';') break;
-	  else getToken();
-	}
+        {
+          pas_DeclareFile();
+          if (token != ';') break;
+          else getToken();
+        }
       else break;
     }
 }
@@ -487,11 +487,11 @@ void variableDeclarationGroup(void)
 /***************************************************************/
 /* Process formal-parameter-list */
 
-sint16 formalParameterList(STYPE *procPtr)
+int16_t formalParameterList(STYPE *procPtr)
 {
-  sint16 parameterOffset;
-  sint16 i;
-  boolean pointerType;
+  int16_t parameterOffset;
+  int16_t i;
+  bool    pointerType;
 
   TRACE(lstFile,"[formalParameterList]");
 
@@ -522,27 +522,27 @@ sint16 formalParameterList(STYPE *procPtr)
       /* Process each formal-parameter-section */
 
       do
-	{
-	  getToken();
+        {
+          getToken();
 
-	  /* Check for variable-parameter-specification */
+          /* Check for variable-parameter-specification */
 
-	  if (token == tVAR)
-	    {
-	      pointerType = 1;
-	      getToken();
-	    } 
-	  else pointerType = 0;
+          if (token == tVAR)
+            {
+              pointerType = 1;
+              getToken();
+            } 
+          else pointerType = 0;
 
-	  /* Process the common part of the variable-parameter-specification
-	   * and the value-parameter specification.
-	   * NOTE that procedure-parameter-specification and
-	   * function-parameter-specification are not yet supported.
-	   */
+          /* Process the common part of the variable-parameter-specification
+           * and the value-parameter specification.
+           * NOTE that procedure-parameter-specification and
+           * function-parameter-specification are not yet supported.
+           */
 
-	  (void)pas_DeclareParameter(pointerType);
+          (void)pas_DeclareParameter(pointerType);
 
-	}
+        }
       while (token == ';');
 
       /* Verify that the formal parameter list terminates with a
@@ -593,13 +593,13 @@ static void pas_DeclareLabel(void)
      {
        getToken();
        if ((token == tINT_CONST) && (tknInt >= 0))
-	 {
-	   labelname = stringSP;
-	   (void)sprintf (labelname, "%ld", tknInt);
-	   while (*stringSP++);
-	   (void)addLabel(labelname, ++label);
-	   getToken();
-	 }
+         {
+           labelname = stringSP;
+           (void)sprintf (labelname, "%ld", tknInt);
+           while (*stringSP++);
+           (void)addLabel(labelname, ++label);
+           getToken();
+         }
        else error(eINTCONST);
      }
    while (token == ',');
@@ -658,13 +658,13 @@ static void pas_DeclareConst(void)
       break;
 
     case tREAL_CONST :
-      (void)addConstant(const_name, constantToken, (sint32*)&constantReal, NULL);
+      (void)addConstant(const_name, constantToken, (int32_t*)&constantReal, NULL);
       break;
 
     case tSTRING_CONST :
       {
-	uint32 offset = poffAddRoDataString(poffHandle, constantStart);
-	(void)addStringConst(const_name, offset, strlen(constantStart));
+        uint32_t offset = poffAddRoDataString(poffHandle, constantStart);
+        (void)addStringConst(const_name, offset, strlen(constantStart));
       }
       break;
 
@@ -698,9 +698,9 @@ static STYPE *pas_DeclareType(char *typeName)
 
       typePtr = pas_DeclareOrdinalType(typeName);
       if (typePtr == NULL)
-	{
-	  error(eINVTYPE);
-	}
+        {
+          error(eINVTYPE);
+        }
     }
 
   return typePtr;
@@ -727,10 +727,10 @@ static STYPE *pas_DeclareOrdinalType(char *typeName)
      {
        typeIdPtr = pas_TypeIdentifier(1);
        if (typeIdPtr)
-	 {
-	   typePtr = addTypeDefine(typeName, typeIdPtr->sParm.t.type,
-				    g_dwVarSize, typeIdPtr);
-	 }
+         {
+           typePtr = addTypeDefine(typeName, typeIdPtr->sParm.t.type,
+                                    g_dwVarSize, typeIdPtr);
+         }
      }
 
    return typePtr;
@@ -783,19 +783,19 @@ static STYPE *pas_DeclareVar(void)
 
       typePtr = pas_TypeDenoter(varName, 1);
       if (typePtr == NULL)
-	{
-	  error(eINVTYPE);
-	}
+        {
+          error(eINVTYPE);
+        }
     }
 
   if (typePtr)
     {
-      ubyte varType = typePtr->sParm.t.type;
+      uint8_t varType = typePtr->sParm.t.type;
 
       /* Determine if alignment to INTEGER boundaries is necessary */
 
       if ((!isIntAligned(dstack)) && (pas_IntAlignRequired(typePtr)))
-	dstack = intAlign(dstack);
+        dstack = intAlign(dstack);
 
       /* Add the new variable to the symbol table */
 
@@ -806,43 +806,43 @@ static STYPE *pas_DeclareVar(void)
        */
 
       if ((!level) && (FP->section == eIsInterfaceSection))
-	{
-	  /* Are we importing or exporting the interface?
-	   *
-	   * PROGRAM EXPORTS:
-	   * If we are generating a program binary (i.e., FP0->kind ==
-	   * eIsProgram) then the variable memory allocation must appear
-	   * on the initial stack allocation; therefore the variable
-	   * stack offset myst be exported by the program binary.
-	   *
-	   * UNIT IMPORTS:
-	   * If we are generating a unit binary (i.e., FP0->kind ==
-	   * eIsUnit), then we are importing the level 0 stack offset
-	   * from the main program.
-	   */
+        {
+          /* Are we importing or exporting the interface?
+           *
+           * PROGRAM EXPORTS:
+           * If we are generating a program binary (i.e., FP0->kind ==
+           * eIsProgram) then the variable memory allocation must appear
+           * on the initial stack allocation; therefore the variable
+           * stack offset myst be exported by the program binary.
+           *
+           * UNIT IMPORTS:
+           * If we are generating a unit binary (i.e., FP0->kind ==
+           * eIsUnit), then we are importing the level 0 stack offset
+           * from the main program.
+           */
 
-	  if (FP0->kind == eIsUnit)
-	    {
-	      /* Mark the symbol as external and replace the absolute
-	       * offset with this relative offset.
-	       */
+          if (FP0->kind == eIsUnit)
+            {
+              /* Mark the symbol as external and replace the absolute
+               * offset with this relative offset.
+               */
 
-	      varPtr->sParm.v.flags  |= SVAR_EXTERNAL;
-	      varPtr->sParm.v.offset  = dstack - FP->dstack;
+              varPtr->sParm.v.flags  |= SVAR_EXTERNAL;
+              varPtr->sParm.v.offset  = dstack - FP->dstack;
 
-	      /* IMPORT the symbol; assign an offset relative to
-	       * the dstack at the beginning of this file
-	       */
+              /* IMPORT the symbol; assign an offset relative to
+               * the dstack at the beginning of this file
+               */
  
-	      pas_GenerateStackImport(varPtr);
-	    }
-	  else /* if (FP0->kind == eIsProgram) */
-	    {
-	      /* EXPORT the symbol */
+              pas_GenerateStackImport(varPtr);
+            }
+          else /* if (FP0->kind == eIsProgram) */
+            {
+              /* EXPORT the symbol */
 
-	      pas_GenerateStackExport(varPtr);
-	    }
-	}
+              pas_GenerateStackExport(varPtr);
+            }
+        }
 
       /* In any event, bump the stack offset to include space for 
        * this new symbol.  The 'bumped' stack offset will be the
@@ -860,7 +860,7 @@ static STYPE *pas_DeclareVar(void)
 
 static void pas_DeclareFile(void)
 {
-   sint16 fileNumber = tknPtr->sParm.fileNumber;
+   int16_t fileNumber = tknPtr->sParm.fileNumber;
    STYPE *filePtr;
 
    TRACE(lstFile,"[pas_DeclareFile]");
@@ -904,12 +904,12 @@ static void pas_DeclareFile(void)
        filePtr = pas_TypeIdentifier(1);
        if (filePtr) {
 
-	 files[fileNumber].defined = -1;
-	 files[fileNumber].flevel  = level;
-	 files[fileNumber].ftype   = filePtr->sParm.t.type;
-	 files[fileNumber].faddr   = dstack;
-	 files[fileNumber].fsize   = g_dwVarSize;
-	 dstack += g_dwVarSize;
+         files[fileNumber].defined = -1;
+         files[fileNumber].flevel  = level;
+         files[fileNumber].ftype   = filePtr->sParm.t.type;
+         files[fileNumber].faddr   = dstack;
+         files[fileNumber].fsize   = g_dwVarSize;
+         dstack += g_dwVarSize;
 
        }
      }
@@ -921,7 +921,7 @@ static void pas_DeclareFile(void)
 
 static void pas_ProcedureDeclaration(void)
 {
-   uint16 procLabel = ++label;
+   uint16_t procLabel = ++label;
    char    *saveStringSP;
    STYPE   *procPtr;
    register int i;
@@ -992,7 +992,7 @@ static void pas_ProcedureDeclaration(void)
 
    /* Process block */
 
-   pas_GenerateDataOperation(opLABEL, (sint32)procLabel);
+   pas_GenerateDataOperation(opLABEL, (int32_t)procLabel);
    block();
 
    /* Destroy formal parameter names */
@@ -1020,8 +1020,8 @@ static void pas_ProcedureDeclaration(void)
 
 static void pas_FunctionDeclaration(void)
 {
-   uint16 funcLabel = ++label;
-   sint16  parameterOffset;
+   uint16_t funcLabel = ++label;
+   int16_t parameterOffset;
    char    *saveStringSP;
    STYPE   *funcPtr;
    STYPE   *valPtr;
@@ -1116,9 +1116,9 @@ static void pas_FunctionDeclaration(void)
 
      if ((level == 1) && (FP->kind == eIsUnit))
        {
-	 /* EXPORT the function symbol. */
+         /* EXPORT the function symbol. */
 
-	 pas_GenerateProcExport(funcPtr);
+         pas_GenerateProcExport(funcPtr);
        }
    }
    else
@@ -1133,7 +1133,7 @@ static void pas_FunctionDeclaration(void)
    if (token !=  ';') error (eSEMICOLON);
    else getToken();
 
-   pas_GenerateDataOperation(opLABEL, (sint32)funcLabel);
+   pas_GenerateDataOperation(opLABEL, (int32_t)funcLabel);
    block();
 
    /* Destroy formal parameter names and the function return value name */
@@ -1160,7 +1160,7 @@ static void pas_FunctionDeclaration(void)
 /***************************************************************/
 /* Determine the size value to use with this type */
 
-static void pas_SetTypeSize(STYPE *typePtr, boolean allocate)
+static void pas_SetTypeSize(STYPE *typePtr, bool allocate)
 {
   TRACE(lstFile,"[pas_SetTypeSize]");
 
@@ -1170,82 +1170,82 @@ static void pas_SetTypeSize(STYPE *typePtr, boolean allocate)
 
   if (typePtr != NULL)
     {
-      /* If allocate is TRUE, then we want to return the size of
+      /* If allocate is true, then we want to return the size of
        * the type that we would use if we are going to allocate
        * an instance on the stack.
        */
 
       if (allocate)
-	{
-	  /* Could it be a storage size value (such as is used for
-	   * the enhanced pascal string type?).  In an weak attempt to
-	   * be compatible with everyone in the world, we will allow
-	   * either '[]' or '()' to delimit the size specification.
-	   */
+        {
+          /* Could it be a storage size value (such as is used for
+           * the enhanced pascal string type?).  In an weak attempt to
+           * be compatible with everyone in the world, we will allow
+           * either '[]' or '()' to delimit the size specification.
+           */
 
-	  if (((token == '[') || (token == '(')) &&
-	      ((typePtr->sParm.t.flags & STYPE_VARSIZE) != 0))
-	    {
-	      uint16 term_token;
-	      uint16 errcode;
+          if (((token == '[') || (token == '(')) &&
+              ((typePtr->sParm.t.flags & STYPE_VARSIZE) != 0))
+            {
+              uint16_t term_token;
+              uint16_t errcode;
 
-	      /* Yes... we need to parse the size from the input stream.
-	       * First, determine which token will terminate the size
-	       * specification.
-	       */
+              /* Yes... we need to parse the size from the input stream.
+               * First, determine which token will terminate the size
+               * specification.
+               */
 
-	      if (token == '(')
-		{
-		  term_token = ')';    /* Should end with ')' */
-		  errcode = eRPAREN;   /* If not, this is the error */
-		}
-	      else
-		{
-		  term_token = ']';    /* Should end with ']' */
-		  errcode = eRBRACKET; /* If not, this is the error */
-		}
+              if (token == '(')
+                {
+                  term_token = ')';    /* Should end with ')' */
+                  errcode = eRPAREN;   /* If not, this is the error */
+                }
+              else
+                {
+                  term_token = ']';    /* Should end with ']' */
+                  errcode = eRBRACKET; /* If not, this is the error */
+                }
 
-	      /* Now, parse the size specification */
+              /* Now, parse the size specification */
 
-	      /* We expect the size to consist of a single integer constant.
-	       * We should support any constant integer expression, but this
-	       * has not yet been implemented.
-	       */
+              /* We expect the size to consist of a single integer constant.
+               * We should support any constant integer expression, but this
+               * has not yet been implemented.
+               */
 
-	      getToken();
-	      if (token != tINT_CONST) error(eINTCONST);
-	      /* else if (tknInt <= 0) error(eINVCONST); see below */
-	      else if (tknInt <= 2) error(eINVCONST);
-	      else
-		{
-		  /* Use the value of the integer constant for the size
-		   * the allocation.  NOTE:  There is a problem here in
-		   * that for the sSTRING type, it wants the first 2 bytes
-		   * for the string length.  This means that the actual
-		   * length is real two less than the specified length.
-		   */
+              getToken();
+              if (token != tINT_CONST) error(eINTCONST);
+              /* else if (tknInt <= 0) error(eINVCONST); see below */
+              else if (tknInt <= 2) error(eINVCONST);
+              else
+                {
+                  /* Use the value of the integer constant for the size
+                   * the allocation.  NOTE:  There is a problem here in
+                   * that for the sSTRING type, it wants the first 2 bytes
+                   * for the string length.  This means that the actual
+                   * length is real two less than the specified length.
+                   */
 
-		  g_dwVarSize = tknInt;
-		}
+                  g_dwVarSize = tknInt;
+                }
 
-	      /* Verify that the correct token terminated the size
-	       * specification.  This could be either ')' or ']'
-	       */
+              /* Verify that the correct token terminated the size
+               * specification.  This could be either ')' or ']'
+               */
 
-	      getToken();
-	      if (token != term_token) error(errcode);
-	      else getToken();
-	    }
-	  else
-	    {
-	      /* Return the fixed size of the allocated instance of
-	       * this type */
+              getToken();
+              if (token != term_token) error(errcode);
+              else getToken();
+            }
+          else
+            {
+              /* Return the fixed size of the allocated instance of
+               * this type */
 
-	      g_dwVarSize = typePtr->sParm.t.asize;
-	    }
-	}
+              g_dwVarSize = typePtr->sParm.t.asize;
+            }
+        }
 
-      /* If allocate is FALSE, then we want to return the size of
+      /* If allocate is false, then we want to return the size of
        * the type that we would use if we are going to refer to
        * a reference on the stack.  This is really non-standard
        * and is handle certain optimatizations where we cheat and
@@ -1254,11 +1254,11 @@ static void pas_SetTypeSize(STYPE *typePtr, boolean allocate)
        */
 
       else
-	{
-	  /* Return the size to a clone, reference to an instance */
+        {
+          /* Return the size to a clone, reference to an instance */
 
-	  g_dwVarSize = typePtr->sParm.t.rsize;
-	}
+          g_dwVarSize = typePtr->sParm.t.rsize;
+        }
     }
 }
 
@@ -1268,7 +1268,7 @@ static void pas_SetTypeSize(STYPE *typePtr, boolean allocate)
  * as a side-effect
  */
 
-static STYPE *pas_TypeIdentifier(boolean allocate)
+static STYPE *pas_TypeIdentifier(bool allocate)
 {
   STYPE *typePtr = NULL;
 
@@ -1293,7 +1293,7 @@ static STYPE *pas_TypeIdentifier(boolean allocate)
 
 /***************************************************************/
 
-static STYPE *pas_TypeDenoter(char *typeName, boolean allocate)
+static STYPE *pas_TypeDenoter(char *typeName, bool allocate)
 {
   STYPE *typePtr;
 
@@ -1348,25 +1348,25 @@ static STYPE *pas_NewOrdinalType(char *typeName)
 
    if (token == '(')
      {
-       sint32 nObjects;
+       int32_t nObjects;
        nObjects = 0;
        typePtr = addTypeDefine(typeName, sSCALAR, sINT_SIZE, NULL);
 
        /* Now declare each instance of the scalar */
 
        do {
-	 getToken();
-	 if (token != tIDENT) error(eIDENT);
-	 else
-	   {
-	     (void)addConstant(tkn_strt, sSCALAR_OBJECT, &nObjects, typePtr);
-	     nObjects++;
-	     getToken();
-	   }
+         getToken();
+         if (token != tIDENT) error(eIDENT);
+         else
+           {
+             (void)addConstant(tkn_strt, sSCALAR_OBJECT, &nObjects, typePtr);
+             nObjects++;
+             getToken();
+           }
        } while (token == ',');
 
        /* Save the number of objects associated with the scalar type (the
-	* maximum ORD is nObjects - 1). */
+        * maximum ORD is nObjects - 1). */
 
        typePtr->sParm.t.maxValue = nObjects - 1;
 
@@ -1402,12 +1402,12 @@ static STYPE *pas_NewOrdinalType(char *typeName)
        /* Verify that the ".." is following by an INTEGER constant */
 
        if ((token != tINT_CONST) || (tknInt < typePtr->sParm.t.minValue))
-	 error(eSUBRANGETYPE);
+         error(eSUBRANGETYPE);
        else
-	 {
-	   typePtr->sParm.t.maxValue = tknInt;
-	   getToken();
-	 }
+         {
+           typePtr->sParm.t.maxValue = tknInt;
+           getToken();
+         }
      }
 
    /* Case 2: <constant> is CHAR */
@@ -1430,12 +1430,12 @@ static STYPE *pas_NewOrdinalType(char *typeName)
        /* Verify that the ".." is following by a CHAR constant */
 
        if ((token != tCHAR_CONST) || (tknInt < typePtr->sParm.t.minValue))
-	 error(eSUBRANGETYPE);
+         error(eSUBRANGETYPE);
        else
-	 {
-	   typePtr->sParm.t.maxValue = tknInt;
-	   getToken();
-	 }
+         {
+           typePtr->sParm.t.maxValue = tknInt;
+           getToken();
+         }
      }
 
    /* Case 3: <constant> is a SCALAR type */
@@ -1456,18 +1456,18 @@ static STYPE *pas_NewOrdinalType(char *typeName)
        else getToken();
 
        /* Verify that the ".." is following by a SCALAR constant of the same
-	* type as the one which preceded it
-	*/
+        * type as the one which preceded it
+        */
 
        if ((token != sSCALAR_OBJECT) ||
-	   (tknPtr != typePtr->sParm.t.parent) ||
-	   (tknPtr->sParm.c.val.i < typePtr->sParm.t.minValue))
-	 error(eSUBRANGETYPE);
+           (tknPtr != typePtr->sParm.t.parent) ||
+           (tknPtr->sParm.c.val.i < typePtr->sParm.t.minValue))
+         error(eSUBRANGETYPE);
        else
-	 {
-	   typePtr->sParm.t.maxValue = tknPtr->sParm.c.val.i;
-	   getToken();
-	 }
+         {
+           typePtr->sParm.t.maxValue = tknPtr->sParm.c.val.i;
+           getToken();
+         }
      }
 
    return typePtr;
@@ -1492,13 +1492,13 @@ static STYPE *pas_NewComplexType(char *typeName)
       getToken();
       typeIdPtr = pas_TypeIdentifier(1);
       if (typeIdPtr)
-	{
-	  typePtr = addTypeDefine(typeName, sPOINTER, g_dwVarSize, typeIdPtr);
-	}
+        {
+          typePtr = addTypeDefine(typeName, sPOINTER, g_dwVarSize, typeIdPtr);
+        }
       else
-	{
-	  error(eINVTYPE);
-	}
+        {
+          error(eINVTYPE);
+        }
       break;
 
       /* FORM: new-structured-type =
@@ -1523,13 +1523,13 @@ static STYPE *pas_NewComplexType(char *typeName)
       getToken();
       typeIdPtr = pas_GetArrayType();
       if (typeIdPtr)
-	{
-	  typePtr = addTypeDefine(typeName, sARRAY, g_dwVarSize, typeIdPtr);
-	}
+        {
+          typePtr = addTypeDefine(typeName, sARRAY, g_dwVarSize, typeIdPtr);
+        }
       else
-	{
-	  error(eINVTYPE);
-	}
+        {
+          error(eINVTYPE);
+        }
       break;
 
       /* RECORD Types
@@ -1560,50 +1560,50 @@ static STYPE *pas_NewComplexType(char *typeName)
 
       typeIdPtr = pas_OrdinalTypeIdentifier(1);
       if (typeIdPtr)
-	getToken();
+        getToken();
       else
-	typeIdPtr = pas_DeclareOrdinalType(NULL);
+        typeIdPtr = pas_DeclareOrdinalType(NULL);
 
       /* Verify that the ordinal-type is either a scalar or a 
        * subrange type.  These are the only valid types for 'set of'
        */
 
       if ((typeIdPtr) &&
-	  ((typeIdPtr->sParm.t.type == sSCALAR) ||
-	   (typeIdPtr->sParm.t.type == sSUBRANGE)))
-	{
-	  /* Declare the SET type */
+          ((typeIdPtr->sParm.t.type == sSCALAR) ||
+           (typeIdPtr->sParm.t.type == sSUBRANGE)))
+        {
+          /* Declare the SET type */
 
-	  typePtr = addTypeDefine(typeName, sSET_OF,
-				  typeIdPtr->sParm.t.asize, typeIdPtr);
+          typePtr = addTypeDefine(typeName, sSET_OF,
+                                  typeIdPtr->sParm.t.asize, typeIdPtr);
 
-	  if (typePtr)
-	    {
-	      sint16 nObjects;
+          if (typePtr)
+            {
+              int16_t nObjects;
 
-	      /* Copy the scalar/subrange characteristics for convenience */
+              /* Copy the scalar/subrange characteristics for convenience */
 
-	      typePtr->sParm.t.subType  = typeIdPtr->sParm.t.type;
-	      typePtr->sParm.t.minValue = typeIdPtr->sParm.t.minValue;
-	      typePtr->sParm.t.maxValue = typeIdPtr->sParm.t.minValue;
+              typePtr->sParm.t.subType  = typeIdPtr->sParm.t.type;
+              typePtr->sParm.t.minValue = typeIdPtr->sParm.t.minValue;
+              typePtr->sParm.t.maxValue = typeIdPtr->sParm.t.minValue;
 
-	      /* Verify that the number of objects associated with the
-	       * scalar or subrange type will fit into an integer
-	       * representation of a set as a bit-string.
-	       */
+              /* Verify that the number of objects associated with the
+               * scalar or subrange type will fit into an integer
+               * representation of a set as a bit-string.
+               */
 
-	      nObjects = typeIdPtr->sParm.t.maxValue
-		- typeIdPtr->sParm.t.minValue + 1;
-	      if (nObjects > BITS_IN_INTEGER)
-		{
-		  error(eSETRANGE);
-		  typePtr->sParm.t.maxValue = typePtr->sParm.t.minValue
-		    + BITS_IN_INTEGER - 1;
-		}
-	    }
-	}
+              nObjects = typeIdPtr->sParm.t.maxValue
+                - typeIdPtr->sParm.t.minValue + 1;
+              if (nObjects > BITS_IN_INTEGER)
+                {
+                  error(eSETRANGE);
+                  typePtr->sParm.t.maxValue = typePtr->sParm.t.minValue
+                    + BITS_IN_INTEGER - 1;
+                }
+            }
+        }
       else
-	error(eSET);
+        error(eSET);
       break;
  
       /* File Types
@@ -1624,17 +1624,17 @@ static STYPE *pas_NewComplexType(char *typeName)
 
       typeIdPtr = pas_TypeDenoter(NULL,1);
       if (typeIdPtr)
-	{
-	  typePtr = addTypeDefine(typeName, sFILE_OF, g_dwVarSize, typeIdPtr);
-	  if (typePtr)
-	    {
-	      typePtr->sParm.t.subType = typeIdPtr->sParm.t.type;
-	    }
-	}
+        {
+          typePtr = addTypeDefine(typeName, sFILE_OF, g_dwVarSize, typeIdPtr);
+          if (typePtr)
+            {
+              typePtr->sParm.t.subType = typeIdPtr->sParm.t.type;
+            }
+        }
       else
-	{
-	  error(eINVTYPE);
-	}
+        {
+          error(eINVTYPE);
+        }
       break;
 
       /* FORM: string-type = pascal-string-type | c-string-type
@@ -1659,7 +1659,7 @@ static STYPE *pas_NewComplexType(char *typeName)
 /* Verify that the next token is a type identifer
  */
 
-static STYPE *pas_OrdinalTypeIdentifier(boolean allocate)
+static STYPE *pas_OrdinalTypeIdentifier(bool allocate)
 {
   STYPE *typePtr;
 
@@ -1674,25 +1674,25 @@ static STYPE *pas_OrdinalTypeIdentifier(boolean allocate)
   if (typePtr != NULL)
     {
       switch (typePtr->sParm.t.type)
-	{
-	  /* Check for an ordinal type (verify this list!) */
+        {
+          /* Check for an ordinal type (verify this list!) */
 
-	case sINT :
-	case sBOOLEAN :
-	case sCHAR :
-	case sSCALAR :
-	case sSUBRANGE:
-	  /* If it is an ordinal type, then just return the
-	   * type pointer.
-	   */
+        case sINT :
+        case sBOOLEAN :
+        case sCHAR :
+        case sSCALAR :
+        case sSUBRANGE:
+          /* If it is an ordinal type, then just return the
+           * type pointer.
+           */
 
-	  break;
-	default :
-	  /* If not, return NULL */
+          break;
+        default :
+          /* If not, return NULL */
 
-	  typePtr = NULL;
-	  break;
-	}
+          typePtr = NULL;
+          break;
+        }
     }
   return typePtr;
 }
@@ -1718,36 +1718,36 @@ static STYPE *pas_GetArrayType(void)
    else
      {
        /* FORM: index-type-list = index-type { ',' index-type }
-	* FORM: index-type = ordinal-type
-	*/
+        * FORM: index-type = ordinal-type
+        */
 
        getToken();
        if (token != tINT_CONST) error (eINTCONST);
        else
-	 {
-	   g_dwVarSize = tknInt;
-	   getToken();
+         {
+           g_dwVarSize = tknInt;
+           getToken();
 
-	   /* Verify that the index-type-list is followed by ']' */
+           /* Verify that the index-type-list is followed by ']' */
 
-	   if (token != ']') error (eRBRACKET);
-	   else getToken();
+           if (token != ']') error (eRBRACKET);
+           else getToken();
 
-	   /* Verify that 'of' precedes the type-denoter */
+           /* Verify that 'of' precedes the type-denoter */
 
-	   if (token != tOF) error (eOF);
-	   else getToken();
+           if (token != tOF) error (eOF);
+           else getToken();
 
-	   /* We have the array size in elements, not get the type and convert
-	    * the size for the type found
-	    */
+           /* We have the array size in elements, not get the type and convert
+            * the size for the type found
+            */
 
-	   typePtr = pas_DeclareType(NULL);
-	   if (typePtr)
-	     {
-	       g_dwVarSize *= typePtr->sParm.t.asize;
-	     }
-	 }
+           typePtr = pas_DeclareType(NULL);
+           if (typePtr)
+             {
+               g_dwVarSize *= typePtr->sParm.t.asize;
+             }
+         }
      }
 
    return typePtr;
@@ -1758,7 +1758,7 @@ static STYPE *pas_GetArrayType(void)
 static STYPE *pas_DeclareRecord(char *recordName)
 {
   STYPE *recordPtr;
-  sint16 recordOffset;
+  int16_t recordOffset;
   int recordCount, symbolIndex;
 
   TRACE(lstFile,"[pas_DeclareRecord]");
@@ -1805,21 +1805,21 @@ static STYPE *pas_DeclareRecord(char *recordName)
        */
 
       if (token == ';')
-	{
-	  /* Skip over the semicolon and process the next fixed
-	   * field declaration.
-	   */
+        {
+          /* Skip over the semicolon and process the next fixed
+           * field declaration.
+           */
 
-	  getToken();
+          getToken();
 
-	  /* We will treat this semi colon as optional.  If we
-	   * hit 'end' or 'case' after the semicolon, then we
-	   * will terminate the fixed part with no complaint.
-	   */
+          /* We will treat this semi colon as optional.  If we
+           * hit 'end' or 'case' after the semicolon, then we
+           * will terminate the fixed part with no complaint.
+           */
 
-	  if ((token == tEND) || (token == tCASE))
-	    break;
-	}
+          if ((token == tEND) || (token == tCASE))
+            break;
+        }
 
       /* If there is no semicolon after the field declaration,
        * then 'end' or 'case' is expected.  This will be verified
@@ -1843,21 +1843,21 @@ static STYPE *pas_DeclareRecord(char *recordName)
        */
 
       if (recordPtr[symbolIndex].sKind == sRECORD_OBJECT)
-	{
-	  /* Align the recordOffset (if necessary) */
+        {
+          /* Align the recordOffset (if necessary) */
 
-	  if ((!isIntAligned(recordOffset)) &&
-	      (pas_IntAlignRequired(recordPtr[symbolIndex].sParm.r.parent)))
-	    recordOffset = intAlign(recordOffset);
+          if ((!isIntAligned(recordOffset)) &&
+              (pas_IntAlignRequired(recordPtr[symbolIndex].sParm.r.parent)))
+            recordOffset = intAlign(recordOffset);
 
-	  /* Save the offset associated with this field, and determine the
-	   * offset to the next field (if there is one)
-	   */
+          /* Save the offset associated with this field, and determine the
+           * offset to the next field (if there is one)
+           */
 
-	  recordPtr[symbolIndex].sParm.r.offset = recordOffset;
-	  recordOffset += recordPtr[symbolIndex].sParm.r.size;
-	  recordCount++;
-	}
+          recordPtr[symbolIndex].sParm.r.offset = recordOffset;
+          recordOffset += recordPtr[symbolIndex].sParm.r.size;
+          recordCount++;
+        }
     } 
 
   /* Update the RECORD entry for the total size of all fields */
@@ -1870,8 +1870,8 @@ static STYPE *pas_DeclareRecord(char *recordName)
 
   if (token == tCASE)
     {
-      sint16 variantOffset;
-      uint16 maxRecordSize;
+      int16_t variantOffset;
+      uint16_t maxRecordSize;
 
       /* Skip over the 'case' */
 
@@ -1886,61 +1886,61 @@ static STYPE *pas_DeclareRecord(char *recordName)
       /* Add a variant-selector to the fixed-part of the record */ 
 
       else
-	{
-	  STYPE *typePtr;
-	  char  *fieldName;
+        {
+          STYPE *typePtr;
+          char  *fieldName;
 
-	  /* Save the field name */
+          /* Save the field name */
 
-	  fieldName = tkn_strt;
-	  getToken();
+          fieldName = tkn_strt;
+          getToken();
 
-	  /* Verify that the identifier is followed by a colon */
+          /* Verify that the identifier is followed by a colon */
 
-	  if (token != ':') error(eCOLON);
-	  else getToken();
+          if (token != ':') error(eCOLON);
+          else getToken();
 
-	  /* Get the ordinal-type-identifier */
+          /* Get the ordinal-type-identifier */
 
-	  typePtr = pas_OrdinalTypeIdentifier(1);
-	  if (!typePtr) error(eINVTYPE);
-	  else
-	    {
-	      STYPE *fieldPtr;
+          typePtr = pas_OrdinalTypeIdentifier(1);
+          if (!typePtr) error(eINVTYPE);
+          else
+            {
+              STYPE *fieldPtr;
 
-	      /* Declare a <field> with this <identifier> as its name */
+              /* Declare a <field> with this <identifier> as its name */
 
-	      fieldPtr = addField(fieldName, recordPtr);
+              fieldPtr = addField(fieldName, recordPtr);
 
-	      /* Increment the number of fields in the record */
+              /* Increment the number of fields in the record */
 
-	      recordPtr->sParm.t.maxValue++;
+              recordPtr->sParm.t.maxValue++;
 
-	      /* Copy the size of field from the sTYPE entry into the
-	       * <field> type entry.  NOTE:  This element is not essential
-	       * since it  can be obtained from the parent type pointer
-	       */
+              /* Copy the size of field from the sTYPE entry into the
+               * <field> type entry.  NOTE:  This element is not essential
+               * since it  can be obtained from the parent type pointer
+               */
 
-	      fieldPtr->sParm.r.size = typePtr->sParm.t.asize;
+              fieldPtr->sParm.r.size = typePtr->sParm.t.asize;
 
-	      /* Save a pointer back to the parent field type */
+              /* Save a pointer back to the parent field type */
 
-	      fieldPtr->sParm.r.parent = typePtr;
+              fieldPtr->sParm.r.parent = typePtr;
 
-	      /* Align the recordOffset (if necessary) */
+              /* Align the recordOffset (if necessary) */
 
-	      if ((!isIntAligned(recordOffset)) &&
-		  (pas_IntAlignRequired(typePtr)))
-		recordOffset = intAlign(recordOffset);
+              if ((!isIntAligned(recordOffset)) &&
+                  (pas_IntAlignRequired(typePtr)))
+                recordOffset = intAlign(recordOffset);
 
-	      /* Save the offset associated with this field, and determine
-	       * the offset to the next field (if there is one)
-	       */
+              /* Save the offset associated with this field, and determine
+               * the offset to the next field (if there is one)
+               */
 
-	      fieldPtr->sParm.r.offset = recordOffset;
-	      recordOffset += recordPtr[symbolIndex].sParm.r.size;
-	    }
-	}
+              fieldPtr->sParm.r.offset = recordOffset;
+              recordOffset += recordPtr[symbolIndex].sParm.r.size;
+            }
+        }
 
       /* Save the offset to the start of the variant portion of the RECORD */
 
@@ -1961,148 +1961,148 @@ static STYPE *pas_DeclareRecord(char *recordName)
        */
 
       for (;;)
-	{
-	  /* Now process each variant where:
-	   * FORM: variant = case-constant-list ':' '(' field-list ')'
-	   * FORM: case-constant-list = case-specifier { ',' case-specifier }
-	   * FORM: case-specifier = case-constant [ '..' case-constant ]
-	   */
+        {
+          /* Now process each variant where:
+           * FORM: variant = case-constant-list ':' '(' field-list ')'
+           * FORM: case-constant-list = case-specifier { ',' case-specifier }
+           * FORM: case-specifier = case-constant [ '..' case-constant ]
+           */
 
-	  /* Verify that the case selector begins with a case-constant.
-	   * Note that subrange case-specifiers are not yet supported.
-	   */
+          /* Verify that the case selector begins with a case-constant.
+           * Note that subrange case-specifiers are not yet supported.
+           */
 
-	  if (!isConstant(token))
-	    {
-	      error(eINVCONST);
-	      break;
-	    }
+          if (!isConstant(token))
+            {
+              error(eINVCONST);
+              break;
+            }
 
-	  /* Just consume the <case selector> for now -- Really need to
-	   * verify that each constant is of the same type as the type
-	   * identifier (or the type associated with the tag) in the CASE
-	   */
+          /* Just consume the <case selector> for now -- Really need to
+           * verify that each constant is of the same type as the type
+           * identifier (or the type associated with the tag) in the CASE
+           */
 
-	  do
-	    {
-	      getToken();
-	      if (token == ',') getToken();
-	    }
-	  while (isConstant(token));
+          do
+            {
+              getToken();
+              if (token == ',') getToken();
+            }
+          while (isConstant(token));
 
-	  /* Make sure a colon separates case-constant-list from the
-	   * field-list
-	   */
+          /* Make sure a colon separates case-constant-list from the
+           * field-list
+           */
 
-	  if (token == ':') getToken();
-	  else error(eCOLON);
+          if (token == ':') getToken();
+          else error(eCOLON);
 
-	  /* The field-list must be enclosed in parentheses */
+          /* The field-list must be enclosed in parentheses */
 
-	  if (token == '(') getToken();
-	  else error(eLPAREN);
+          if (token == '(') getToken();
+          else error(eLPAREN);
 
-	  /* Special case the empty variant <field list> */
+          /* Special case the empty variant <field list> */
 
-	  if (token != ')')
-	    {
-	      /* Now process the <field list> for the variant.  This works
-	       * just like the field list of the fixed part, except the
-	       * offset is reset for each variant.
-	       * FORM: field-list =
-	       *       [
-	       *         fixed-part [ ';' ] variant-part [ ';' ] |
-	       *         fixed-part [ ';' ] |
-	       *         variant-part [ ';' ] |
-	       *       ]
-	       */
+          if (token != ')')
+            {
+              /* Now process the <field list> for the variant.  This works
+               * just like the field list of the fixed part, except the
+               * offset is reset for each variant.
+               * FORM: field-list =
+               *       [
+               *         fixed-part [ ';' ] variant-part [ ';' ] |
+               *         fixed-part [ ';' ] |
+               *         variant-part [ ';' ] |
+               *       ]
+               */
 
-	      for (;;)
-		{
-		  /* We now expect to see and indentifier representating the
-		   * beginning of the next variablefield.
-		   */
+              for (;;)
+                {
+                  /* We now expect to see and indentifier representating the
+                   * beginning of the next variablefield.
+                   */
 
-		  (void)pas_DeclareField(recordPtr);
+                  (void)pas_DeclareField(recordPtr);
 
-		  /* If the field declaration terminates with a semicolon,
-		   * then we expect to see another <variable part>
-		   * declaration in the record.
-		   */
+                  /* If the field declaration terminates with a semicolon,
+                   * then we expect to see another <variable part>
+                   * declaration in the record.
+                   */
 
-		  if (token == ';')
-		    {
-		      /* Skip over the semicolon and process the next
-		       * variable field declaration.
-		       */
+                  if (token == ';')
+                    {
+                      /* Skip over the semicolon and process the next
+                       * variable field declaration.
+                       */
 
-		      getToken();
+                      getToken();
 
-		      /* We will treat this semi colon as optional.  If we
-		       * hit 'end' after the semicolon, then we will
-		       * terminate the fixed part with no complaint.
-		       */
+                      /* We will treat this semi colon as optional.  If we
+                       * hit 'end' after the semicolon, then we will
+                       * terminate the fixed part with no complaint.
+                       */
 
-		      if (token == tEND)
-			break;
-		    }
-		  else break;
-		}
+                      if (token == tEND)
+                        break;
+                    }
+                  else break;
+                }
 
-	      /* Get the total size of the RECORD type and the offset of each
-	       * field within the RECORD.
-	       */
+              /* Get the total size of the RECORD type and the offset of each
+               * field within the RECORD.
+               */
 
-	      for (recordOffset = variantOffset;
-		   recordCount < recordPtr->sParm.t.maxValue;
-		   symbolIndex++)
-		{
-		  /* We know that 'maxValue' sRECORD_OBJECT symbols follow
-		   * the sRECORD type declaration.  However, these may not
-		   * be sequential due to the possible declaration of sTYPEs
-		   * associated with each field.
-		   */
+              for (recordOffset = variantOffset;
+                   recordCount < recordPtr->sParm.t.maxValue;
+                   symbolIndex++)
+                {
+                  /* We know that 'maxValue' sRECORD_OBJECT symbols follow
+                   * the sRECORD type declaration.  However, these may not
+                   * be sequential due to the possible declaration of sTYPEs
+                   * associated with each field.
+                   */
 
-		  if (recordPtr[symbolIndex].sKind == sRECORD_OBJECT)
-		    {
-		      /* Align the recordOffset (if necessary) */
+                  if (recordPtr[symbolIndex].sKind == sRECORD_OBJECT)
+                    {
+                      /* Align the recordOffset (if necessary) */
 
-		      if ((!isIntAligned(recordOffset)) &&
-			  (pas_IntAlignRequired(recordPtr[symbolIndex].sParm.r.parent)))
-			recordOffset = intAlign(recordOffset);
+                      if ((!isIntAligned(recordOffset)) &&
+                          (pas_IntAlignRequired(recordPtr[symbolIndex].sParm.r.parent)))
+                        recordOffset = intAlign(recordOffset);
 
-		      /* Save the offset associated with this field, and
-		       * determine the offset to the next field (if there
-		       * is one)
-		       */
+                      /* Save the offset associated with this field, and
+                       * determine the offset to the next field (if there
+                       * is one)
+                       */
 
-		      recordPtr[symbolIndex].sParm.r.offset = recordOffset;
-		      recordOffset += recordPtr[symbolIndex].sParm.r.size;
-		      recordCount++;
-		    }
-		}
+                      recordPtr[symbolIndex].sParm.r.offset = recordOffset;
+                      recordOffset += recordPtr[symbolIndex].sParm.r.size;
+                      recordCount++;
+                    }
+                }
 
-	      /* Check if this is the largest variant that we have found
-	       * so far
-	       */
+              /* Check if this is the largest variant that we have found
+               * so far
+               */
 
-	      if (recordOffset > maxRecordSize)
-		maxRecordSize = recordOffset;
-	    } 
+              if (recordOffset > maxRecordSize)
+                maxRecordSize = recordOffset;
+            } 
 
-	  /* Verify that the <field list> is enclosed in parentheses */
+          /* Verify that the <field list> is enclosed in parentheses */
 
-	  if (token == ')') getToken();
-	  else error(eRPAREN);
+          if (token == ')') getToken();
+          else error(eRPAREN);
 
-	  /* A semicolon at this position means that another <variant>
-	   * follows.  Keep looping until all of the variants have been
-	   * processed (i.e., no semi-colon)
-	   */
+          /* A semicolon at this position means that another <variant>
+           * follows.  Keep looping until all of the variants have been
+           * processed (i.e., no semi-colon)
+           */
 
-	  if (token == ';') getToken();
-	  else break;
-	}
+          if (token == ';') getToken();
+          else break;
+        }
 
       /* Update the RECORD entry for the maximum size of all variants */
 
@@ -2181,9 +2181,9 @@ static STYPE *pas_DeclareField(STYPE *recordPtr)
 /* NOTE:  This function increments the global variable g_nParms */
 /* as a side-effect */
 
-static STYPE *pas_DeclareParameter(boolean pointerType)
+static STYPE *pas_DeclareParameter(bool pointerType)
 {
-   sint16  varType = 0;
+   int16_t varType = 0;
    STYPE  *varPtr;
    STYPE  *typePtr;
 
@@ -2200,26 +2200,26 @@ static STYPE *pas_DeclareParameter(boolean pointerType)
        getToken();
 
        if (token == ',')
-	 {
-	   getToken();
-	   typePtr = pas_DeclareParameter(pointerType);
-	 }
+         {
+           getToken();
+           typePtr = pas_DeclareParameter(pointerType);
+         }
        else
-	 {
-	   if (token != ':') error (eCOLON);
-	   else getToken();
-	   typePtr = pas_TypeIdentifier(0);
-	 }
+         {
+           if (token != ':') error (eCOLON);
+           else getToken();
+           typePtr = pas_TypeIdentifier(0);
+         }
 
        if (pointerType)
-	 {
-	   varType = sVAR_PARM;
-	   g_dwVarSize = sPTR_SIZE;
-	 }
+         {
+           varType = sVAR_PARM;
+           g_dwVarSize = sPTR_SIZE;
+         }
        else
-	 {
-	   varType = typePtr->sParm.t.rtype;
-	 }
+         {
+           varType = typePtr->sParm.t.rtype;
+         }
 
        g_nParms++;
        varPtr->sKind          = varType;
@@ -2232,9 +2232,9 @@ static STYPE *pas_DeclareParameter(boolean pointerType)
 
 /***************************************************************/
 
-static boolean pas_IntAlignRequired(STYPE *typePtr)
+static bool pas_IntAlignRequired(STYPE *typePtr)
 {
-  boolean returnValue = FALSE;
+  bool returnValue = false;
 
   /* Type CHAR and ARRAYS of CHAR do not require alignment (unless
    * they are passed as value parameters).  Otherwise, alignment
@@ -2244,17 +2244,17 @@ static boolean pas_IntAlignRequired(STYPE *typePtr)
   if (typePtr)
     {
       if (typePtr->sKind == sCHAR)
-	{
-	  returnValue = TRUE;
-	}
+        {
+          returnValue = true;
+        }
       else if (typePtr->sKind == sARRAY)
-	{
-	  typePtr = typePtr->sParm.t.parent;
-	  if ((typePtr) && (typePtr->sKind == sCHAR))
-	    {
-	      returnValue = TRUE;
-	    }
-	}
+        {
+          typePtr = typePtr->sParm.t.parent;
+          if ((typePtr) && (typePtr->sKind == sCHAR))
+            {
+              returnValue = true;
+            }
+        }
     }
 
   return returnValue;

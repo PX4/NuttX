@@ -2,7 +2,7 @@
  * pproc.c
  * Standard procedures (all called in pstm.c)
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,8 @@
  * Included Files
  ****************************************************************************/
 
+#include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -62,12 +64,12 @@
 
 /* Helpers for standard procedures  */
 
-static sint16 readProc    (void);              /* READ procedure */
-static void   readText    (uint16 fileNumber); /* READ text file */
+static int16_t readProc    (void);              /* READ procedure */
+static void   readText    (uint16_t fileNumber); /* READ text file */
 static void   readlnProc  (void);              /* READLN procedure */
-static void   fileProc    (uint16 opcode);     /* RESET/REWRITE/PAGE procedure */
-static sint16 writeProc   (void);              /* WRITE procedure */
-static void   writeText   (uint16 fileNumber); /* WRITE text file */
+static void   fileProc    (uint16_t opcode);     /* RESET/REWRITE/PAGE procedure */
+static int16_t writeProc   (void);              /* WRITE procedure */
+static void   writeText   (uint16_t fileNumber); /* WRITE text file */
 static void   writelnProc (void);              /* WRITELN procedure */
 
 /* Helpers for less-than-standard procedures */
@@ -111,60 +113,60 @@ void builtInProcedure(void)
       /* Yes, process it procedure according to the extended token type */
 
       switch (tknSubType)
-	{
-	  /* Standard Procedures & Functions */
+        {
+          /* Standard Procedures & Functions */
 
-	case txPAGE :
-	  fileProc(xWRITE_PAGE);
-	  break;
+        case txPAGE :
+          fileProc(xWRITE_PAGE);
+          break;
 
-	case txREAD : 
-	  getToken();
-	  (void)readProc();
-	  break;
+        case txREAD : 
+          getToken();
+          (void)readProc();
+          break;
 
-	case txREADLN :
-	  readlnProc();
-	  break;
+        case txREADLN :
+          readlnProc();
+          break;
 
-	case txRESET  :
-	  fileProc(xRESET);
-	  break;
+        case txRESET  :
+          fileProc(xRESET);
+          break;
 
-	case txREWRITE :
-	  fileProc(xREWRITE);
-	  break;
+        case txREWRITE :
+          fileProc(xREWRITE);
+          break;
 
-	case txWRITE : 
-	  getToken();
-	  (void)writeProc();
-	  break;
+        case txWRITE : 
+          getToken();
+          (void)writeProc();
+          break;
 
-	case txWRITELN :
-	  writelnProc();
-	  break;
+        case txWRITELN :
+          writelnProc();
+          break;
 
-	case txGET : 
-	case txNEW : 
-	case txPACK : 
-	case txPUT : 
-	case txUNPACK : 
-	  error(eNOTYET);
-	  getToken();
-	  break;
+        case txGET : 
+        case txNEW : 
+        case txPACK : 
+        case txPUT : 
+        case txUNPACK : 
+          error(eNOTYET);
+          getToken();
+          break;
 
-	  /* less-than-standard procedures */
-	case txVAL :
-	  valProc();
-	  break;
+          /* less-than-standard procedures */
+        case txVAL :
+          valProc();
+          break;
 
-	  /* Its not a recognized procedure */
-	
-	default :
-	  error(eINVALIDPROC);
-	  break;
+          /* Its not a recognized procedure */
+        
+        default :
+          error(eINVALIDPROC);
+          break;
 
-	} /* end switch */
+        } /* end switch */
     } /* end if */
 } /* end builtInProcedure */
 
@@ -254,94 +256,94 @@ int actualParameterList(STYPE *procPtr)
        */
 
       for (nParms = 1; nParms <= procPtr->sParm.p.nParms; nParms++)
-	{
-	  typePtr = procPtr[nParms].sParm.v.parent;
-	  switch (procPtr[nParms].sKind)
-	    {
-	    case sINT :
-	      expression(exprInteger, typePtr);
-	      size += sINT_SIZE;
-	      break;
-	    case sCHAR :
-	      expression(exprChar, typePtr);
-	      size += sCHAR_SIZE;
-	      break;
-	    case sREAL :
-	      expression(exprReal, typePtr);
-	      size += sREAL_SIZE;
-	      break;
-	    case sSTRING :
-	    case sRSTRING :
-	      expression(exprString, typePtr);
-	      size += sRSTRING_SIZE;
-	      break;
-	    case sSUBRANGE :
-	      expression(exprInteger, typePtr);
-	      size += sINT_SIZE;
-	      break;
-	    case sSCALAR :
-	      expression(exprScalar, typePtr);
-	      size += sINT_SIZE;
-	      break;
-	    case sSET_OF :
-	      expression(exprSet, typePtr);
-	      size += sINT_SIZE;
-	      break;
-	    case sARRAY :
-	      expression(exprArray, typePtr);
-	      size += typePtr->sParm.t.asize;
-	      break;
-	    case sRECORD :
-	      expression(exprRecord, typePtr);
-	      size += typePtr->sParm.t.asize;
-	      break;
-	    case sVAR_PARM :
-	      if (typePtr)
-		{
-		  switch (typePtr->sParm.t.type)
-		    {
-		    case sINT :
-		      varParm(exprIntegerPtr, typePtr);
-		      size += sPTR_SIZE;
-		      break;
-		    case sBOOLEAN :
-		      varParm(exprBooleanPtr, typePtr);
-		      size += sPTR_SIZE;
-		      break;
-		    case sCHAR :
-		      varParm(exprCharPtr, typePtr);
-		      size += sPTR_SIZE;
-		      break;
-		    case sREAL :
-		      varParm(exprRealPtr, typePtr);
-		      size += sPTR_SIZE;
-		      break;
-		    case sARRAY :
-		      varParm(exprArrayPtr, typePtr);
-		      size += sPTR_SIZE;
-		      break;
-		    case sRECORD :
-		      varParm(exprRecordPtr, typePtr);
-		      size += sPTR_SIZE;
-		      break;
-		    default :
-		      error(eVARPARMTYPE);
-		      break;
-		    } /* end switch */
-		} /* end if */
-	      else
-		error(eVARPARMTYPE);
-	      break;
-	    default             :
-	      error (eNPARMS);
-	    } /* end switch */
+        {
+          typePtr = procPtr[nParms].sParm.v.parent;
+          switch (procPtr[nParms].sKind)
+            {
+            case sINT :
+              expression(exprInteger, typePtr);
+              size += sINT_SIZE;
+              break;
+            case sCHAR :
+              expression(exprChar, typePtr);
+              size += sCHAR_SIZE;
+              break;
+            case sREAL :
+              expression(exprReal, typePtr);
+              size += sREAL_SIZE;
+              break;
+            case sSTRING :
+            case sRSTRING :
+              expression(exprString, typePtr);
+              size += sRSTRING_SIZE;
+              break;
+            case sSUBRANGE :
+              expression(exprInteger, typePtr);
+              size += sINT_SIZE;
+              break;
+            case sSCALAR :
+              expression(exprScalar, typePtr);
+              size += sINT_SIZE;
+              break;
+            case sSET_OF :
+              expression(exprSet, typePtr);
+              size += sINT_SIZE;
+              break;
+            case sARRAY :
+              expression(exprArray, typePtr);
+              size += typePtr->sParm.t.asize;
+              break;
+            case sRECORD :
+              expression(exprRecord, typePtr);
+              size += typePtr->sParm.t.asize;
+              break;
+            case sVAR_PARM :
+              if (typePtr)
+                {
+                  switch (typePtr->sParm.t.type)
+                    {
+                    case sINT :
+                      varParm(exprIntegerPtr, typePtr);
+                      size += sPTR_SIZE;
+                      break;
+                    case sBOOLEAN :
+                      varParm(exprBooleanPtr, typePtr);
+                      size += sPTR_SIZE;
+                      break;
+                    case sCHAR :
+                      varParm(exprCharPtr, typePtr);
+                      size += sPTR_SIZE;
+                      break;
+                    case sREAL :
+                      varParm(exprRealPtr, typePtr);
+                      size += sPTR_SIZE;
+                      break;
+                    case sARRAY :
+                      varParm(exprArrayPtr, typePtr);
+                      size += sPTR_SIZE;
+                      break;
+                    case sRECORD :
+                      varParm(exprRecordPtr, typePtr);
+                      size += sPTR_SIZE;
+                      break;
+                    default :
+                      error(eVARPARMTYPE);
+                      break;
+                    } /* end switch */
+                } /* end if */
+              else
+                error(eVARPARMTYPE);
+              break;
+            default             :
+              error (eNPARMS);
+            } /* end switch */
 
-	  if (nParms < procPtr->sParm.p.nParms)
-	    {
-	      if (token != ',') error (eCOMMA);
-	      else getToken();
-	    } /* end if */
-	} /* end for */
+          if (nParms < procPtr->sParm.p.nParms)
+            {
+              if (token != ',') error (eCOMMA);
+              else getToken();
+            } /* end if */
+        } /* end for */
 
       if (token != ')') error (eRPAREN);
       else getToken();
@@ -354,9 +356,9 @@ int actualParameterList(STYPE *procPtr)
 
 /***********************************************************************/
 
-static sint16 readProc(void)
+static int16_t readProc(void)
 {
-  uint16 fileNumber = 0;
+  uint16_t fileNumber = 0;
 
   TRACE(lstFile, "[readProc]");
 
@@ -401,7 +403,7 @@ static sint16 readProc(void)
 
 /***********************************************************************/
 
-static void readText (uint16 fileNumber)
+static void readText (uint16_t fileNumber)
 {
   STYPE *rPtr;
 
@@ -412,50 +414,50 @@ static void readText (uint16 fileNumber)
   for (;;)
     {
       switch (token)
-	{
-	  /* SPECIAL CASE: Array of type CHAR without indexing */
+        {
+          /* SPECIAL CASE: Array of type CHAR without indexing */
 
-	case sARRAY :
-	  rPtr = tknPtr->sParm.v.parent;
-	  if (((rPtr) && (rPtr->sKind == sTYPE)) &&
-	      (rPtr->sParm.t.type == sCHAR) &&
-	      (getNextCharacter(TRUE) != '['))
-	    {
-	      pas_GenerateStackReference(opLAS, rPtr);
-	      pas_GenerateDataOperation(opPUSH, rPtr->sParm.v.size);
-	      pas_GenerateIoOperation(xREAD_STRING, fileNumber);
-	      pas_GenerateDataOperation(opINDS, -(sPTR_SIZE+sINT_SIZE));
-	    } /* end if */
+        case sARRAY :
+          rPtr = tknPtr->sParm.v.parent;
+          if (((rPtr) && (rPtr->sKind == sTYPE)) &&
+              (rPtr->sParm.t.type == sCHAR) &&
+              (getNextCharacter(true) != '['))
+            {
+              pas_GenerateStackReference(opLAS, rPtr);
+              pas_GenerateDataOperation(opPUSH, rPtr->sParm.v.size);
+              pas_GenerateIoOperation(xREAD_STRING, fileNumber);
+              pas_GenerateDataOperation(opINDS, -(sPTR_SIZE+sINT_SIZE));
+            } /* end if */
 
-	  /* Otherwise, we fall through to process the ARRAY like any */
-	  /* expression */
+          /* Otherwise, we fall through to process the ARRAY like any */
+          /* expression */
 
-	default :
+        default :
 
-	  switch (varParm(exprUnknown, NULL))
-	    {
-	    case exprIntegerPtr :
-	      pas_GenerateIoOperation(xREAD_INT, fileNumber);
-	      pas_GenerateDataOperation(opINDS, -sPTR_SIZE);
-	      break;
+          switch (varParm(exprUnknown, NULL))
+            {
+            case exprIntegerPtr :
+              pas_GenerateIoOperation(xREAD_INT, fileNumber);
+              pas_GenerateDataOperation(opINDS, -sPTR_SIZE);
+              break;
 
-	    case exprCharPtr :
-	      pas_GenerateIoOperation(xREAD_CHAR, fileNumber);
-	      pas_GenerateDataOperation(opINDS, -sPTR_SIZE);
-	      break;
+            case exprCharPtr :
+              pas_GenerateIoOperation(xREAD_CHAR, fileNumber);
+              pas_GenerateDataOperation(opINDS, -sPTR_SIZE);
+              break;
 
-	    case exprRealPtr :
-	      pas_GenerateIoOperation(xREAD_REAL, fileNumber);
-	      pas_GenerateDataOperation(opINDS, -sPTR_SIZE);
-	      break;
+            case exprRealPtr :
+              pas_GenerateIoOperation(xREAD_REAL, fileNumber);
+              pas_GenerateDataOperation(opINDS, -sPTR_SIZE);
+              break;
 
-	    default :
-	      error(eINVARG);
-	      break;
-	    } /* end switch */
-	  break;
+            default :
+              error(eINVARG);
+              break;
+            } /* end switch */
+          break;
 
-	} /* end switch */
+        } /* end switch */
 
       if (token == ',') getToken();
       else return;
@@ -468,7 +470,7 @@ static void readText (uint16 fileNumber)
 
 static void readlnProc(void)          /* READLN procedure */
 {
-   sint32 fileNumber;
+   int32_t fileNumber;
 
    TRACE(lstFile, "[readlnProc]");
 
@@ -493,7 +495,7 @@ static void readlnProc(void)          /* READLN procedure */
  * writes a form-feed to the file (no check is made, but is meaningful only
  * for a text file). */
 
-static void fileProc (uint16 opcode)
+static void fileProc (uint16_t opcode)
 {
    TRACE(lstFile, "[fileProc]");
 
@@ -514,9 +516,9 @@ static void fileProc (uint16 opcode)
 
 /***********************************************************************/
 
-static sint16 writeProc(void)
+static int16_t writeProc(void)
 {
-   uint16 fileNumber = 0;
+   uint16_t fileNumber = 0;
 
    TRACE(lstFile, "[writeProc]");
 
@@ -552,7 +554,7 @@ static sint16 writeProc(void)
 
 /***********************************************************************/
 
-static void writeText (uint16 fileNumber)
+static void writeText (uint16_t fileNumber)
 {
   exprType writeType;
   STYPE *wPtr;
@@ -567,94 +569,94 @@ static void writeText (uint16 fileNumber)
        */
 
       switch (token)
-	{
-	  /* const strings -- either literal constants (tSTRING_CONST)
-	   * or defined string constant symbols (sSTRING_CONST)
-	   */
+        {
+          /* const strings -- either literal constants (tSTRING_CONST)
+           * or defined string constant symbols (sSTRING_CONST)
+           */
 
-	case tSTRING_CONST :
-	  {
-	    /* Add the literal string constant to the RO data section
-	     * and receive the offset to the data.
-	     */
+        case tSTRING_CONST :
+          {
+            /* Add the literal string constant to the RO data section
+             * and receive the offset to the data.
+             */
 
-	    uint32 offset = poffAddRoDataString(poffHandle, tkn_strt);
+            uint32_t offset = poffAddRoDataString(poffHandle, tkn_strt);
 
-	    /* Set the offset and size on the stack (order is important) */
+            /* Set the offset and size on the stack (order is important) */
 
-	    pas_GenerateDataOperation(opLAC, (uint16)offset);
-	    pas_GenerateDataOperation(opPUSH, strlen(tkn_strt));
+            pas_GenerateDataOperation(opLAC, (uint16_t)offset);
+            pas_GenerateDataOperation(opPUSH, strlen(tkn_strt));
 
-	    pas_GenerateIoOperation(xWRITE_STRING, fileNumber);
-	    pas_GenerateDataOperation(opINDS, -(sPTR_SIZE + sINT_SIZE));
-	    stringSP = tkn_strt;
-	    getToken();
-	  }
-	  break;
+            pas_GenerateIoOperation(xWRITE_STRING, fileNumber);
+            pas_GenerateDataOperation(opINDS, -(sPTR_SIZE + sINT_SIZE));
+            stringSP = tkn_strt;
+            getToken();
+          }
+          break;
 
-	case sSTRING_CONST :
-	  pas_GenerateDataOperation(opLAC, (uint16)tknPtr->sParm.s.offset);
-	  pas_GenerateDataOperation(opPUSH, (uint16)tknPtr->sParm.s.size);
-	  pas_GenerateIoOperation(xWRITE_STRING, fileNumber);
-	  pas_GenerateDataOperation(opINDS, -(sPTR_SIZE + sINT_SIZE));
-	  getToken();
-	  break;
+        case sSTRING_CONST :
+          pas_GenerateDataOperation(opLAC, (uint16_t)tknPtr->sParm.s.offset);
+          pas_GenerateDataOperation(opPUSH, (uint16_t)tknPtr->sParm.s.size);
+          pas_GenerateIoOperation(xWRITE_STRING, fileNumber);
+          pas_GenerateDataOperation(opINDS, -(sPTR_SIZE + sINT_SIZE));
+          getToken();
+          break;
 
-	  /* Array of type CHAR without indexing */
+          /* Array of type CHAR without indexing */
 
-	case sARRAY :
-	  wPtr = tknPtr->sParm.v.parent;
-	  if (((wPtr) && (wPtr->sKind == sTYPE)) &&
-	      (wPtr->sParm.t.type == sCHAR) &&
-	      (getNextCharacter(TRUE) != '['))
-	    {
-	      pas_GenerateStackReference(opLAS, wPtr);
-	      pas_GenerateDataOperation(opPUSH, wPtr->sParm.v.size);
-	      pas_GenerateIoOperation(xWRITE_STRING, fileNumber);
-	      pas_GenerateDataOperation(opINDS, -(sPTR_SIZE + sINT_SIZE));
-	      break;
-	    } /* end if */
+        case sARRAY :
+          wPtr = tknPtr->sParm.v.parent;
+          if (((wPtr) && (wPtr->sKind == sTYPE)) &&
+              (wPtr->sParm.t.type == sCHAR) &&
+              (getNextCharacter(true) != '['))
+            {
+              pas_GenerateStackReference(opLAS, wPtr);
+              pas_GenerateDataOperation(opPUSH, wPtr->sParm.v.size);
+              pas_GenerateIoOperation(xWRITE_STRING, fileNumber);
+              pas_GenerateDataOperation(opINDS, -(sPTR_SIZE + sINT_SIZE));
+              break;
+            } /* end if */
 
-	  /* Otherwise, we fall through to process the ARRAY like any */
-	  /* expression */
+          /* Otherwise, we fall through to process the ARRAY like any */
+          /* expression */
 
-	default :
-	  writeType = expression(exprUnknown, NULL);
-	  switch (writeType)
-	    {
-	    case exprInteger :
-	      pas_GenerateIoOperation(xWRITE_INT, fileNumber);
-	      pas_GenerateDataOperation(opINDS, -sINT_SIZE);
-	      break;
+        default :
+          writeType = expression(exprUnknown, NULL);
+          switch (writeType)
+            {
+            case exprInteger :
+              pas_GenerateIoOperation(xWRITE_INT, fileNumber);
+              pas_GenerateDataOperation(opINDS, -sINT_SIZE);
+              break;
 
-	    case exprBoolean :
-	      error(eNOTYET);
-	      break;
+            case exprBoolean :
+              error(eNOTYET);
+              break;
 
-	    case exprChar :
-	      pas_GenerateIoOperation(xWRITE_CHAR, fileNumber);
-	      pas_GenerateDataOperation(opINDS, -sINT_SIZE);
-	      break;
+            case exprChar :
+              pas_GenerateIoOperation(xWRITE_CHAR, fileNumber);
+              pas_GenerateDataOperation(opINDS, -sINT_SIZE);
+              break;
 
-	    case exprReal :
-	      pas_GenerateIoOperation(xWRITE_REAL, fileNumber);
-	      pas_GenerateDataOperation(opINDS, -sREAL_SIZE);
-	      break;
+            case exprReal :
+              pas_GenerateIoOperation(xWRITE_REAL, fileNumber);
+              pas_GenerateDataOperation(opINDS, -sREAL_SIZE);
+              break;
 
-	    case exprString :
-	    case exprStkString :
-	      pas_GenerateIoOperation(xWRITE_STRING, fileNumber);
-	      pas_GenerateDataOperation(opINDS, -sRSTRING_SIZE);
-	      break;
+            case exprString :
+            case exprStkString :
+              pas_GenerateIoOperation(xWRITE_STRING, fileNumber);
+              pas_GenerateDataOperation(opINDS, -sRSTRING_SIZE);
+              break;
 
-	    default :
-	      error(eWRITEPARM);
-	      break;
+            default :
+              error(eWRITEPARM);
+              break;
 
-	    } /* end switch */
-	  break;
+            } /* end switch */
+          break;
 
-	} /* end switch */
+        } /* end switch */
 
       if (token == ',') getToken();
       else return;
@@ -667,7 +669,7 @@ static void writeText (uint16 fileNumber)
 
 static void writelnProc(void)         /* WRITELN procedure */
 {
-   sint32 fileNumber = 0;
+   int32_t fileNumber = 0;
 
    TRACE(lstFile, "[writelnProc]");
 

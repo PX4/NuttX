@@ -2,7 +2,7 @@
  * pexpr.c
  * Integer Expression
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,8 @@
  * Included Files
  ***************************************************************/
 
+#include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -76,10 +78,10 @@
  ***************************************************************/
 
 typedef struct {
-   ubyte   setType;
-   boolean typeFound;
-   sint16  minValue;
-   sint16  maxValue;
+   uint8_t setType;
+   bool typeFound;
+   int16_t minValue;
+   int16_t maxValue;
    STYPE  *typePtr;
 } setTypeStruct;
 
@@ -91,17 +93,17 @@ static exprType simpleExpression  (exprType findExprType);
 static exprType term              (exprType findExprType);
 static exprType factor            (exprType findExprType);
 static exprType complexFactor     (void);
-static exprType simpleFactor      (STYPE *varPtr, ubyte factorFlags);
+static exprType simpleFactor      (STYPE *varPtr, uint8_t factorFlags);
 static exprType ptrFactor         (void);
 static exprType complexPtrFactor  (void);
-static exprType simplePtrFactor   (STYPE *varPtr, ubyte factorFlags);
+static exprType simplePtrFactor   (STYPE *varPtr, uint8_t factorFlags);
 static exprType functionDesignator(void);
 static void     setAbstractType   (STYPE *sType);
 static void     getSetFactor      (void);
 static void     getSetElement     (setTypeStruct *s);
-static boolean  isOrdinalType     (exprType testExprType);
-static boolean  isAnyStringType   (exprType testExprType);
-static boolean  isStringReference (exprType testExprType);
+static bool     isOrdinalType     (exprType testExprType);
+static bool     isAnyStringType   (exprType testExprType);
+static bool     isStringReference (exprType testExprType);
 
 /***************************************************************
  * Private Variables
@@ -118,10 +120,10 @@ static boolean  isStringReference (exprType testExprType);
 
 exprType expression(exprType findExprType, STYPE *typePtr)
 {
-   ubyte  operation;
-   uint16 intOpCode;
-   uint16 fpOpCode;
-   uint16 strOpCode;
+   uint8_t operation;
+   uint16_t intOpCode;
+   uint16_t fpOpCode;
+   uint16_t strOpCode;
    exprType simple1Type;
    exprType simple2Type;
 
@@ -368,7 +370,7 @@ exprType varParm (exprType varExprType, STYPE *typePtr)
  
 /**********************************************************************/
 /* Process Array Index */
-void arrayIndex (sint32 size)
+void arrayIndex (int32_t size)
 {
    TRACE(lstFile,"[arrayIndex]");
 
@@ -488,8 +490,8 @@ exprType getExprType(STYPE *sType)
 
 static exprType simpleExpression(exprType findExprType)
 {
-   sint16   operation = '+';
-   uint16   arg8FpBits;
+   int16_t  operation = '+';
+   uint16_t arg8FpBits;
    exprType term1Type;
    exprType term2Type;
 
@@ -724,8 +726,8 @@ static exprType simpleExpression(exprType findExprType)
 
 static exprType term(exprType findExprType)
 {
-   ubyte    operation;
-   uint16   arg8FpBits;
+   uint8_t  operation;
+   uint16_t arg8FpBits;
    exprType factor1Type;
    exprType factor2Type;
 
@@ -932,10 +934,10 @@ static exprType factor(exprType findExprType)
       break;
 
     case tREAL_CONST     :
-      pas_GenerateDataOperation(opPUSH, (sint32)*(((uint16*)&tknReal)+0));
-      pas_GenerateDataOperation(opPUSH, (sint32)*(((uint16*)&tknReal)+1));
-      pas_GenerateDataOperation(opPUSH, (sint32)*(((uint16*)&tknReal)+2));
-      pas_GenerateDataOperation(opPUSH, (sint32)*(((uint16*)&tknReal)+3));
+      pas_GenerateDataOperation(opPUSH, (int32_t)*(((uint16_t*)&tknReal)+0));
+      pas_GenerateDataOperation(opPUSH, (int32_t)*(((uint16_t*)&tknReal)+1));
+      pas_GenerateDataOperation(opPUSH, (int32_t)*(((uint16_t*)&tknReal)+2));
+      pas_GenerateDataOperation(opPUSH, (int32_t)*(((uint16_t*)&tknReal)+3));
       getToken();
       factorType = exprReal;
       break;
@@ -992,7 +994,7 @@ static exprType factor(exprType findExprType)
 	 * and get the offset to the string location.
 	 */
 
-	uint32 offset = poffAddRoDataString(poffHandle, tkn_strt);
+	uint32_t offset = poffAddRoDataString(poffHandle, tkn_strt);
 
 	/* Get the offset then size of the string on the stack */
 
@@ -1174,7 +1176,7 @@ static exprType complexFactor(void)
 /* Process a complex factor (recursively) until it becomes a */
 /* simple factor */
 
-static exprType simpleFactor(STYPE *varPtr, ubyte factorFlags)
+static exprType simpleFactor(STYPE *varPtr, uint8_t factorFlags)
 {
   STYPE *typePtr;
   exprType factorType;
@@ -1556,7 +1558,7 @@ static exprType simpleFactor(STYPE *varPtr, ubyte factorFlags)
 	error(eRECORDOBJECT);
       else
 	{
-	  sint16 tempOffset;
+	  int16_t tempOffset;
 
 	  /* Now there are two cases to consider:  (1) the withRecord is a */
 	  /* pointer to a RECORD, or (2) the withRecord is the RECOR itself */
@@ -1779,7 +1781,7 @@ static exprType complexPtrFactor(void)
 /* Process a complex factor (recursively) until it becomes a */
 /* simple simple */
 
-static exprType simplePtrFactor(STYPE *varPtr, ubyte factorFlags)
+static exprType simplePtrFactor(STYPE *varPtr, uint8_t factorFlags)
 {
   STYPE *typePtr;
   exprType factorType;
@@ -2041,7 +2043,7 @@ static exprType simplePtrFactor(STYPE *varPtr, ubyte factorFlags)
 	error(eRECORDOBJECT);
       else
 	{
-	  sint16 tempOffset;
+	  int16_t tempOffset;
 
 	  /* Now there are two cases to consider:  (1) the withRecord is a
 	   * pointer to a RECORD, or (2) the withRecord is the RECOR itself
@@ -2263,20 +2265,20 @@ static void getSetFactor(void)
    /* Now, get the associated type and MIN/MAX values */
 
    if ((s.typePtr) && (s.typePtr->sParm.t.type == sSCALAR)) {
-     s.typeFound = TRUE;
+     s.typeFound = true;
      s.setType   = sSCALAR;
      s.minValue  = s.typePtr->sParm.t.minValue;
      s.maxValue  = s.typePtr->sParm.t.maxValue;
    } /* end else if */
    else if ((s.typePtr) && (s.typePtr->sParm.t.type == sSUBRANGE)) {
-     s.typeFound = TRUE;
+     s.typeFound = true;
      s.setType   = s.typePtr->sParm.t.subType;
      s.minValue  = s.typePtr->sParm.t.minValue;
      s.maxValue  = s.typePtr->sParm.t.maxValue;
    } /* end else if */
    else {
      error(eSET);
-     s.typeFound = FALSE;
+     s.typeFound = false;
      s.typePtr   = NULL;
      s.minValue  = 0;
      s.maxValue  = BITS_IN_INTEGER-1;
@@ -2306,9 +2308,9 @@ static void getSetFactor(void)
 /***************************************************************/
 static void getSetElement(setTypeStruct *s)
 {
-   uint16  setValue;
-   sint16  firstValue;
-   sint16  lastValue;
+   uint16_t setValue;
+   int16_t firstValue;
+   int16_t lastValue;
    STYPE  *setPtr;
 
    TRACE(lstFile,"[getSetElement]");
@@ -2317,7 +2319,7 @@ static void getSetElement(setTypeStruct *s)
      case sSCALAR_OBJECT : /* A scalar or scalar subrange constant */
        firstValue = tknPtr->sParm.c.val.i;
        if (!s->typeFound) {
-	 s->typeFound = TRUE;
+	 s->typeFound = true;
 	 s->typePtr   = tknPtr->sParm.c.parent;
 	 s->setType   = sSCALAR;
 	 s->minValue  = s->typePtr->sParm.t.minValue;
@@ -2331,7 +2333,7 @@ static void getSetElement(setTypeStruct *s)
      case tINT_CONST : /* An integer subrange constant ? */
        firstValue = tknInt;
        if (!s->typeFound) {
-	 s->typeFound = TRUE;
+	 s->typeFound = true;
 	 s->setType   = sINT;
        } /* end if */
        else if (s->setType != sINT)
@@ -2341,7 +2343,7 @@ static void getSetElement(setTypeStruct *s)
      case tCHAR_CONST : /* A character subrange constant */
        firstValue = tknInt;
        if (!s->typeFound) {
-	 s->typeFound = TRUE;
+	 s->typeFound = true;
 	 s->setType   = sCHAR;
        } /* end if */
        else if (s->setType != sCHAR)
@@ -2431,7 +2433,7 @@ static void getSetElement(setTypeStruct *s)
 	       error(eSET);
 
                if (!s->typePtr) {
-	         s->typeFound = TRUE;
+	         s->typeFound = true;
 	         s->typePtr   = tknPtr->sParm.v.parent;
 	         s->setType   = sSCALAR;
 	         s->minValue  = s->typePtr->sParm.t.minValue;
@@ -2454,7 +2456,7 @@ static void getSetElement(setTypeStruct *s)
 		 error(eSET);
 
                if (!s->typePtr) {
-	         s->typeFound = TRUE;
+	         s->typeFound = true;
 	         s->typePtr   = tknPtr->sParm.v.parent;
 	         s->setType   = s->typePtr->sParm.t.subType;
 	         s->minValue  = s->typePtr->sParm.t.minValue;
@@ -2514,7 +2516,7 @@ static void getSetElement(setTypeStruct *s)
            error(eSET);
        } /* end if */
        else {
-         s->typeFound = TRUE;
+         s->typeFound = true;
 	 s->typePtr   = tknPtr->sParm.v.parent;
 	 s->setType   = sSCALAR;
 	 s->minValue  = s->typePtr->sParm.t.minValue;
@@ -2525,7 +2527,7 @@ static void getSetElement(setTypeStruct *s)
      case sINT : /* An integer subrange variable ? */
      case sCHAR : /* A character subrange variable? */
        if (!s->typeFound) {
-	 s->typeFound = TRUE;
+	 s->typeFound = true;
 	 s->setType   = token;
        } /* end if */
        else if (s->setType != token)
@@ -2538,7 +2540,7 @@ static void getSetElement(setTypeStruct *s)
            error(eSET);
        } /* end if */
        else {
-         s->typeFound = TRUE;
+         s->typeFound = true;
 	 s->typePtr   = tknPtr->sParm.v.parent;
 	 s->setType   = s->typePtr->sParm.t.subType;
 	 s->minValue  = s->typePtr->sParm.t.minValue;
@@ -2697,15 +2699,15 @@ static void getSetElement(setTypeStruct *s)
  * as well.
  */
 
-static boolean isOrdinalType(exprType testExprType)
+static bool isOrdinalType(exprType testExprType)
 {
   if ((testExprType == exprInteger) || /* integer value */
       (testExprType == exprChar) ||    /* character value */
       (testExprType == exprBoolean) || /* boolean(integer) value */
       (testExprType == exprScalar))    /* scalar(integer) value */
-    return TRUE;
+    return true;
   else
-    return FALSE;
+    return false;
 }
 
 /***************************************************************/
@@ -2714,22 +2716,22 @@ static boolean isOrdinalType(exprType testExprType)
  * records upon assignment.
  */
 
-static boolean isAnyStringType(exprType testExprType)
+static bool isAnyStringType(exprType testExprType)
 {
   if ((testExprType == exprString) ||
       (testExprType == exprStkString) ||
       (testExprType == exprCString))
-    return TRUE;
+    return true;
   else
-    return FALSE;
+    return false;
 }
 
-static boolean  isStringReference (exprType testExprType)
+static bool  isStringReference (exprType testExprType)
 {
   if ((testExprType == exprString) ||
       (testExprType == exprStkString))
-    return TRUE;
+    return true;
   else
-    return FALSE;
+    return false;
 }
 

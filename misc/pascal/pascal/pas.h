@@ -2,7 +2,7 @@
  * pas.h
  * External Declarations associated with pas.c
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,11 +47,13 @@
  * Included Files
  ***************************************************************************/
 
+#include <sys/types.h>
+#include <stdint.h>
 #include "pasdefs.h"
 #include "pofflib.h"
 
 /***************************************************************************
- * Definitions
+ * Pre-processor Definitions
  ***************************************************************************/
 
 /* This is a helper macro just to make things pretty in the source code */
@@ -69,10 +71,10 @@
  * Global Variable
  ***************************************************************************/
 
-extern uint16      token;                  /* Current token */
-extern uint16      tknSubType;             /* Extended token type */
-extern sint32      tknInt;                 /* Integer token value */
-extern float64     tknReal;                /* Real token value */
+extern uint16_t    token;                  /* Current token */
+extern uint16_t    tknSubType;             /* Extended token type */
+extern int32_t     tknInt;                 /* Integer token value */
+extern double      tknReal;                /* Real token value */
 extern STYPE      *tknPtr;                 /* Pointer to symbol token */
 extern FTYPE       files[MAX_FILES+1];     /* File Table */
 extern fileState_t fileState[MAX_INCL];    /* State of all open files */
@@ -91,18 +93,18 @@ extern FILE       *errFile;                /* Error file pointer */
 extern FILE       *lstFile;                /* List file pointer */
 
 extern WTYPE       withRecord;             /* RECORD of WITH statement */
-extern sint16      level;                  /* Static nesting level */
-extern sint16      includeIndex;           /* Include file index */
-extern sint16      nIncPathes;             /* Number pathes in includePath[] */
-extern uint16      label;                  /* Last label number */
-extern sint16      nsym;                   /* Number symbol table entries */
-extern sint16      nconst;                 /* Number constant table entries */
-extern sint16      sym_strt;               /* Symbol search start index */
-extern sint16      const_strt;             /* Constant search start index */
-extern sint16      err_count;              /* Error counter */
-extern sint16      nfiles;                 /* Program file counter */
-extern sint32      warn_count;             /* Warning counter */
-extern sint32      dstack;                 /* data stack size */
+extern int16_t     level;                  /* Static nesting level */
+extern int16_t     includeIndex;           /* Include file index */
+extern int16_t     nIncPathes;             /* Number pathes in includePath[] */
+extern uint16_t    label;                  /* Last label number */
+extern int16_t     nsym;                   /* Number symbol table entries */
+extern int16_t     nconst;                 /* Number constant table entries */
+extern int16_t     sym_strt;               /* Symbol search start index */
+extern int16_t     const_strt;             /* Constant search start index */
+extern int16_t     err_count;              /* Error counter */
+extern int16_t     nfiles;                 /* Program file counter */
+extern int32_t     warn_count;             /* Warning counter */
+extern int32_t     dstack;                 /* data stack size */
 
 /***************************************************************************
  * Global Function Prototypes

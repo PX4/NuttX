@@ -2,7 +2,7 @@
  * pas.c
  * Main process
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,8 @@
  **********************************************************************/
 
 #define _GNU_SOURCE
+#include <sys/types.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -54,7 +56,7 @@
 #include "pedefs.h"
 
 #include "pas.h"
-#include "paslib.h"    /* For extension */
+#include "paslib.h"   /* For extension */
 #include "pproc.h"    /* For primeBuiltInProcedures */
 #include "pfunc.h"    /* For primeBuiltInFunctions */
 #include "ptkn.h"     /* For primeTokenizer */
@@ -66,7 +68,7 @@
 #include "perr.h"     /* for error() */
 
 /**********************************************************************
- * Definitions
+ * Pre-processor Definitions
  **********************************************************************/
 
 /**********************************************************************
@@ -75,10 +77,10 @@
 
 /* Unitialized Global Data */
 
-uint16      token;                   /* Current token */
-uint16      tknSubType;              /* Extended token type */
-sint32      tknInt;                  /* Integer token value */
-float64     tknReal;                 /* Real token value */
+uint16_t    token;                   /* Current token */
+uint16_t    tknSubType;              /* Extended token type */
+int32_t     tknInt;                  /* Integer token value */
+double      tknReal;                 /* Real token value */
 STYPE      *tknPtr;                  /* Pointer to symbol token*/
 WTYPE       withRecord;              /* RECORD used with WITH statement */
 FTYPE       files[MAX_FILES+1];      /* File Table */
@@ -99,18 +101,18 @@ FILE       *errFile;                 /* Error file pointer */
 
 /* Initialized Global Data */
 
-sint16      level        = 0;        /* Static nesting level */
-sint16      includeIndex = 0;        /* Include file index */
-sint16      nIncPathes   = 0;        /* Number pathes in includePath[] */
-uint16      label        = 0;        /* Last label number */
-sint16      nsym         = 0;        /* Number symbol table entries */
-sint16      nconst       = 0;        /* Number constant table entries */
-sint16      sym_strt     = 0;        /* Symbol search start index */
-sint16      const_strt   = 0;        /* Constant search start index */
-sint16      err_count    = 0;        /* Error counter */
-sint16      nfiles       = 0;        /* Program file counter */
-sint32      warn_count   = 0;        /* Warning counter */
-sint32      dstack       = 0;        /* data stack size */
+int16_t     level        = 0;        /* Static nesting level */
+int16_t     includeIndex = 0;        /* Include file index */
+int16_t     nIncPathes   = 0;        /* Number pathes in includePath[] */
+uint16_t    label        = 0;        /* Last label number */
+int16_t     nsym         = 0;        /* Number symbol table entries */
+int16_t     nconst       = 0;        /* Number constant table entries */
+int16_t     sym_strt     = 0;        /* Symbol search start index */
+int16_t     const_strt   = 0;        /* Constant search start index */
+int16_t     err_count    = 0;        /* Error counter */
+int16_t     nfiles       = 0;        /* Program file counter */
+int32_t     warn_count   = 0;        /* Warning counter */
+int32_t     dstack       = 0;        /* data stack size */
 
 /**********************************************************************
  * Private Type Definitions
@@ -162,10 +164,10 @@ static void closeFiles(void)
   for(; includeIndex >= 0; includeIndex--)
     {
       if (FP->stream)
-	{
-	  (void)fclose(FP->stream);
-	  FP->stream = NULL;
-	}
+        {
+          (void)fclose(FP->stream);
+          FP->stream = NULL;
+        }
     }
 
   /* Close output files */
@@ -173,10 +175,10 @@ static void closeFiles(void)
   for (outFile = outFiles; outFile->extension; outFile++)
     {
       if (*outFile->stream)
-	{
-	  (void)fclose(*outFile->stream);
-	  *outFile->stream = NULL;
-	}
+        {
+          (void)fclose(*outFile->stream);
+          *outFile->stream = NULL;
+        }
     }
 }
 
@@ -198,11 +200,11 @@ static void openOutputFiles(void)
       (void)extension(sourceFileName, outFile->extension, tmpname, 1);
       *outFile->stream = fopen(tmpname, outFile->flags);
       if (*outFile->stream == NULL)
-	{
-	  fprintf(stderr, "Could not open output file '%s': %s\n",
-		  tmpname, strerror(errno));
-	  showUsage(); 
-	}
+        {
+          fprintf(stderr, "Could not open output file '%s': %s\n",
+                  tmpname, strerror(errno));
+          showUsage(); 
+        }
     }
 }
 
@@ -245,7 +247,7 @@ static void showUsage(void)
   fprintf(stderr, "  -I<include-path>\n");
   fprintf(stderr, "    Search in <include-path> for additional file\n");
   fprintf(stderr, "    A maximum of %d pathes may be specified\n",
-	  MAX_INCPATHES);
+          MAX_INCPATHES);
   fprintf(stderr, "    (default is current directory)\n");
   closeFiles();
   exit(1);
@@ -273,31 +275,31 @@ static void parseArguments(int argc, char **argv)
     {
       char *ptr = argv[i];
       if (ptr[0] == '-')
-	{
-	  switch (ptr[1])
-	    {
-	    case 'I' :
-	      if (nIncPathes >= MAX_INCPATHES)
-		{
-		  fprintf(stderr, "Unrecognized [option]\n");
-		  showUsage(); 
-		}
-	      else
-		{
-		  includePath[nIncPathes] = &ptr[2];
-		  nIncPathes++;
-		}
-	      break;
-	    default:
-	      fprintf(stderr, "Unrecognized [option]\n");
-	      showUsage(); 
-	    }
-	}
+        {
+          switch (ptr[1])
+            {
+            case 'I' :
+              if (nIncPathes >= MAX_INCPATHES)
+                {
+                  fprintf(stderr, "Unrecognized [option]\n");
+                  showUsage(); 
+                }
+              else
+                {
+                  includePath[nIncPathes] = &ptr[2];
+                  nIncPathes++;
+                }
+              break;
+            default:
+              fprintf(stderr, "Unrecognized [option]\n");
+              showUsage(); 
+            }
+        }
       else
-	{
-	  fprintf(stderr, "Unrecognized [option]\n");
-	  showUsage(); 
-	}
+        {
+          fprintf(stderr, "Unrecognized [option]\n");
+          showUsage(); 
+        }
     }
 
   /* Extract the Pascal program name from the command line */
@@ -335,7 +337,7 @@ int main(int argc, char *argv[])
   if (!FP->stream)
     {
       errmsg("Could not open source file '%s': %s\n",
-	     filename, strerror(errno));
+             filename, strerror(errno));
       showUsage(); 
     }
    
@@ -463,42 +465,42 @@ void openNestedFile(const char *fileName)
        */
 
       for (i = 0; ; i++)
-	{
-	  /* Open the nested file -- try all possible pathes or
-	   * until we successfully open the file.
-	   */
+        {
+          /* Open the nested file -- try all possible pathes or
+           * until we successfully open the file.
+           */
 
-	  /* The final path that we will try is the current directory */
+          /* The final path that we will try is the current directory */
 
-	  if (i == nIncPathes)
-	    {
-	      sprintf(fullpath, "./%s", fileName);
-	    }
-	  else
-	    {
-	      sprintf(fullpath, "%s/%s", includePath[i], fileName);
-	    }
+          if (i == nIncPathes)
+            {
+              sprintf(fullpath, "./%s", fileName);
+            }
+          else
+            {
+              sprintf(fullpath, "%s/%s", includePath[i], fileName);
+            }
 
-	  FP->stream = fopen (fullpath, "rb");
-	  if (!FP->stream)
-	    {
-	      /* We failed to open the file.  If there are no more
-	       * include pathes to examine (including the current directory),
-	       * then error out.  This is fatal.  Otherwise, continue
-	       * looping.
-	       */
+          FP->stream = fopen (fullpath, "rb");
+          if (!FP->stream)
+            {
+              /* We failed to open the file.  If there are no more
+               * include pathes to examine (including the current directory),
+               * then error out.  This is fatal.  Otherwise, continue
+               * looping.
+               */
 
-	      if (i == nIncPathes)
-		{
-		  errmsg("Failed to open '%s': %s\n",
-			 fileName, strerror(errno));
-		  fatal(eINCLUDE);
-		  break; /* Won't get here */
-		}
-	    } /* end else if */
-	  else
-	    break;
-	}
+              if (i == nIncPathes)
+                {
+                  errmsg("Failed to open '%s': %s\n",
+                         fileName, strerror(errno));
+                  fatal(eINCLUDE);
+                  break; /* Won't get here */
+                }
+            } /* end else if */
+          else
+            break;
+        }
 
       /* Setup the newly opened file */
 

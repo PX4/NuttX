@@ -53,7 +53,7 @@
 poffLibLineNumber_t
 
 /**********************************************************************
- * Definitions
+ * Pre-processor Definitions
  **********************************************************************/
 
 #define INITIAL_LINENUMBER_TABLE_SIZE 2048*sizeof(poffLibLineNumber_t)

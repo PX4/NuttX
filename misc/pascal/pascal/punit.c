@@ -2,7 +2,7 @@
  * punit.c
  * Parse a pascal unit file
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -62,7 +63,7 @@
 #include "punit.h"
 
 /***********************************************************************
- * Definitions
+ * Pre-processor Definitions
  ***********************************************************************/
 
 #define intAlign(x)     (((x) + (sINT_SIZE-1)) & (~(sINT_SIZE-1)))
@@ -196,7 +197,7 @@ void unitImplementation(void)
 
 void unitInterface(void)
 {
-  sint32  savedDStack  = dstack;
+  int32_t savedDStack  = dstack;
   TRACE(lstFile, "[unitInterface]");
 
   /* FORM: unit =
@@ -258,8 +259,8 @@ void unitInterface(void)
 
 static void interfaceSection(void)
 {
-  sint16  saveNSym   = nsym;          /* Save top of symbol table */
-  sint16  saveNConst = nconst;        /* Save top of constant table */
+  int16_t saveNSym   = nsym;          /* Save top of symbol table */
+  int16_t saveNConst = nconst;        /* Save top of constant table */
 
   TRACE(lstFile, "[interfaceSection]");
 
@@ -304,8 +305,8 @@ static void interfaceSection(void)
        const_strt = 0;
 
        /* Process constant-definition.
-	* FORM: constant-definition = identifier '=' constant
-	*/
+        * FORM: constant-definition = identifier '=' constant
+        */
 
        constantDefinitionGroup();
 
@@ -325,8 +326,8 @@ static void interfaceSection(void)
        sym_strt   = 0;
 
        /* Process the type-definitions in the type-definition-group
-	* FORM: type-definition = identifier '=' type-denoter
-	*/
+        * FORM: type-definition = identifier '=' type-denoter
+        */
 
        typeDefinitionGroup();
      } /* end if */
@@ -345,9 +346,9 @@ static void interfaceSection(void)
        sym_strt   = 0;
 
        /* Process the variable declarations
-	* FORM: variable-declaration = identifier-list ':' type-denoter
-	* FORM: identifier-list = identifier { ',' identifier }
-	*/
+        * FORM: variable-declaration = identifier-list ':' type-denoter
+        * FORM: identifier-list = identifier { ',' identifier }
+        */
 
        variableDeclarationGroup();
      } /* end if */
@@ -362,39 +363,39 @@ static void interfaceSection(void)
    for (;;)
      {
        /* FORM: function-heading =
-	*       'function' function-identifier [ formal-parameter-list ]
-	*        ':' result-type
-	*/
+        *       'function' function-identifier [ formal-parameter-list ]
+        *        ':' result-type
+        */
 
        if (token == tFUNCTION)
-	 {
-	   const_strt = saveNConst;    /* Limit search to present level */
-	   sym_strt   = saveNSym;
-	   getToken();                 /* Get identifier */
-	   const_strt = 0;
-	   sym_strt   = 0;
+         {
+           const_strt = saveNConst;    /* Limit search to present level */
+           sym_strt   = saveNSym;
+           getToken();                 /* Get identifier */
+           const_strt = 0;
+           sym_strt   = 0;
 
-	   /* Process the interface declaration */
+           /* Process the interface declaration */
 
-	   exportedFunctionHeading();
-	 } /* end if */
+           exportedFunctionHeading();
+         } /* end if */
 
        /* FORM: procedure-heading =
-	*       'procedure' procedure-identifier [ formal-parameter-list ]
-	*/
+        *       'procedure' procedure-identifier [ formal-parameter-list ]
+        */
 
        else if (token == tPROCEDURE)
-	 {
-	   const_strt = saveNConst;    /* Limit search to present level */
-	   sym_strt   = saveNSym;
-	   getToken();                 /* Get identifier */
-	   const_strt = 0;
-	   sym_strt   = 0;
+         {
+           const_strt = saveNConst;    /* Limit search to present level */
+           sym_strt   = saveNSym;
+           getToken();                 /* Get identifier */
+           const_strt = 0;
+           sym_strt   = 0;
 
-	   /* Process the interface declaration */
+           /* Process the interface declaration */
 
-	   exportedProcedureHeading();
-	 } /* end else if */
+           exportedProcedureHeading();
+         } /* end else if */
        else break;
      } /* end for */
 
@@ -407,7 +408,7 @@ static void interfaceSection(void)
 
 static void exportedProcedureHeading(void)
 {
-   uint16   procLabel = ++label;
+   uint16_t procLabel = ++label;
    char    *saveChSp;
    STYPE   *procPtr;
    register int i;
@@ -487,8 +488,8 @@ static void exportedProcedureHeading(void)
 
 static void exportedFunctionHeading(void)
 {
-   uint16   funcLabel = ++label;
-   sint16   parameterOffset;
+   uint16_t funcLabel = ++label;
+   int16_t  parameterOffset;
    char    *saveChSp;
    STYPE   *funcPtr;
    register int i;
@@ -547,9 +548,9 @@ static void exportedFunctionHeading(void)
    if (token == sTYPE)
      {
        /* The offset to the return value is the offset to the last
-	* parameter minus the size of the return value (aligned to
-	* multiples of size of INTEGER).
-	*/
+        * parameter minus the size of the return value (aligned to
+        * multiples of size of INTEGER).
+        */
 
        parameterOffset        -= tknPtr->sParm.t.rsize;
        parameterOffset         = intAlign(parameterOffset);

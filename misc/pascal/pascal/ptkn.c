@@ -2,7 +2,7 @@
  * ptkn.c
  * Tokenization Package
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,23 +56,23 @@
  * Private Function Prototypes
  ***************************************************************/
 
-static void    getCharacter        (void);
-static void    skipLine            (void);
-static boolean getLine             (void);
-static void    identifier          (void);
-static void    string              (void);
-static void    unsignedNumber      (void);
-static void    unsignedRealNumber  (void);
-static void    unsignedExponent    (void);
-static void    unsignedHexadecimal (void);
-static void    unsignedBinary      (void);
+static void getCharacter        (void);
+static void skipLine            (void);
+static bool getLine             (void);
+static void identifier          (void);
+static void string              (void);
+static void unsignedNumber      (void);
+static void unsignedRealNumber  (void);
+static void unsignedExponent    (void);
+static void unsignedHexadecimal (void);
+static void unsignedBinary      (void);
 
 /***************************************************************
  * Private Variables
  ***************************************************************/
 
-static char   *strStack;       /* String Stack */
-static uint16  inChar;         /* last gotten character */
+static char    *strStack;      /* String Stack */
+static uint16_t inChar;        /* last gotten character */
 
 /***************************************************************
  * Public Variables
@@ -85,7 +85,7 @@ char *stringSP;               /* Top of string stack */
  * Public Functions
  ***************************************************************/
 
-sint16 primeTokenizer(unsigned long stringStackSize)
+int16_t primeTokenizer(unsigned long stringStackSize)
 {
   TRACE(lstFile,"[primeTokenizer]");
 
@@ -112,7 +112,7 @@ sint16 primeTokenizer(unsigned long stringStackSize)
 
 /***************************************************************/
 
-sint16 rePrimeTokenizer(void)
+int16_t rePrimeTokenizer(void)
 {
   TRACE(lstFile,"[rePrimeTokenizer]");
 
@@ -147,7 +147,7 @@ sint16 rePrimeTokenizer(void)
  * again.
  */
 
-char getNextCharacter(boolean skipWhiteSpace)
+char getNextCharacter(bool skipWhiteSpace)
 {
   /* Get the next character from the line buffer. */
 
@@ -162,18 +162,18 @@ char getNextCharacter(boolean skipWhiteSpace)
        */
 
       if (getLine())
-	{
-	  /* Uh-oh, we are out of data!  Just return some bogus value. */
-	  inChar = '?';
+        {
+          /* Uh-oh, we are out of data!  Just return some bogus value. */
+          inChar = '?';
 
-	} /* end if */
+        } /* end if */
       else
-	{
-	  /* Otherwise, recurse to try again. */
+        {
+          /* Otherwise, recurse to try again. */
 
-	  return getNextCharacter(skipWhiteSpace);
+          return getNextCharacter(skipWhiteSpace);
 
-	} /* end else */
+        } /* end else */
     } /* end if */
 
   /* If it is a space and we have been told to skip spaces then consume
@@ -183,25 +183,25 @@ char getNextCharacter(boolean skipWhiteSpace)
   else if (skipWhiteSpace)
     {
       while ((isspace(inChar)) && (inChar))
-	{
-	  /* Skip over the space */
+        {
+          /* Skip over the space */
 
-	  (FP->cp)++;
+          (FP->cp)++;
 
-	  /* A get the character after the space */
+          /* A get the character after the space */
 
-	  inChar = *(FP->cp);
+          inChar = *(FP->cp);
 
-	} /* end while */
+        } /* end while */
 
       /* If we hit the EOL while searching for the next non-space, then
        * recurse to try again on the next line
        */
 
       if (!inChar)
-	{
-	  return getNextCharacter(skipWhiteSpace);
-	}
+        {
+          return getNextCharacter(skipWhiteSpace);
+        }
     } /* end else if */
 
   return inChar;
@@ -255,15 +255,15 @@ void getToken(void)
       /* ".." indicates a subrange */
 
       if (inChar == '.')
-	{
-	  token = tSUBRANGE;
-	  getCharacter();
-	}
+        {
+          token = tSUBRANGE;
+          getCharacter();
+        }
 
       /* '.' digit is a real number */
 
       else if (isdigit(inChar))
-	unsignedRealNumber();
+        unsignedRealNumber();
 
       /* Otherwise, it is just a '.' */
 
@@ -308,26 +308,26 @@ void getToken(void)
     {
       getCharacter();                    /* skip over comment character */
       if (inChar != '*')                 /* is this a comment? */
-	{
-	  token = '(';                   /* No return '(' leaving the
-					  * unprocessed char in inChar */
-	}
+        {
+          token = '(';                   /* No return '(' leaving the
+                                          * unprocessed char in inChar */
+        }
       else
-	{
-	  uint16 lastChar = ' ';         /* YES... prime the look behind */
-	  for (;;)                       /* look for end of comment */
-	    {
-	      getCharacter();            /* get the next character */
-	      if ((lastChar == '*') &&   /* Is it '*)' ?  */
-		  (inChar == ')'))
-		{
-		  break;                 /* Yes... break out */
-		}
-	      lastChar = inChar;         /* save the last character */
-	    } /* end for */
+        {
+          uint16_t lastChar = ' ';         /* YES... prime the look behind */
+          for (;;)                       /* look for end of comment */
+            {
+              getCharacter();            /* get the next character */
+              if ((lastChar == '*') &&   /* Is it '*)' ?  */
+                  (inChar == ')'))
+                {
+                  break;                 /* Yes... break out */
+                }
+              lastChar = inChar;         /* save the last character */
+            } /* end for */
 
-	  getCharacter();                /* skip over the comment end char */
-	  getToken();                    /* and get the next real token */
+          getCharacter();                /* skip over the comment end char */
+          getToken();                    /* and get the next real token */
       } /* end else */
     } /* end else if */
 
@@ -337,31 +337,31 @@ void getToken(void)
     {
       getCharacter();                    /* skip over comment character */
       if (inChar == '/')                 /* C++ style comment? */
-	{
-	  skipLine();                    /* Yes, skip rest of line */
-	  getToken();                    /* and get the next real token */
-	}
+        {
+          skipLine();                    /* Yes, skip rest of line */
+          getToken();                    /* and get the next real token */
+        }
       else if (inChar != '*')            /* is this a C-style comment? */
-	{
-	  token = '/';                   /* No return '/' leaving the
-					  * unprocessed char in inChar */
-	}
+        {
+          token = '/';                   /* No return '/' leaving the
+                                          * unprocessed char in inChar */
+        }
       else
-	{
-	  uint16 lastChar = ' ';         /* YES... prime the look behind */
-	  for (;;)                       /* look for end of comment */
-	    {
-	      getCharacter();            /* get the next character */
-	      if ((lastChar == '*') &&   /* Is it '*)' ?  */
-		  (inChar == '/'))
-		{
-		  break;                 /* Yes... break out */
-		}
-	      lastChar = inChar;         /* save the last character */
-	    } /* end for */
+        {
+          uint16_t lastChar = ' ';         /* YES... prime the look behind */
+          for (;;)                       /* look for end of comment */
+            {
+              getCharacter();            /* get the next character */
+              if ((lastChar == '*') &&   /* Is it '*)' ?  */
+                  (inChar == '/'))
+                {
+                  break;                 /* Yes... break out */
+                }
+              lastChar = inChar;         /* save the last character */
+            } /* end for */
 
-	  getCharacter();                /* skip over the comment end char */
-	  getToken();                    /* and get the next real token */
+          getCharacter();                /* skip over the comment end char */
+          getToken();                    /* and get the next real token */
       } /* end else */
     } /* end else if */
 
@@ -431,24 +431,24 @@ static void identifier(void)
     {
       tknPtr = findSymbol(tkn_strt);
       if (tknPtr)
-	{
-	  token = tknPtr->sKind;              /* get type from symbol table */
-	  stringSP = tkn_strt;                /* pop token from stack */
+        {
+          token = tknPtr->sKind;              /* get type from symbol table */
+          stringSP = tkn_strt;                /* pop token from stack */
 
-	  /* The following assignments only apply to constants.  However it
-	   * is simpler just to make the assignments than it is to determine
-	   * if is appropriate to do so
-	   */
+          /* The following assignments only apply to constants.  However it
+           * is simpler just to make the assignments than it is to determine
+           * if is appropriate to do so
+           */
 
-	  if (token == tREAL_CONST)
-	    tknReal = tknPtr->sParm.c.val.f;
-	  else
-	    tknInt  = tknPtr->sParm.c.val.i;
-	} /* End if */
+          if (token == tREAL_CONST)
+            tknReal = tknPtr->sParm.c.val.f;
+          else
+            tknInt  = tknPtr->sParm.c.val.i;
+        } /* End if */
 
       /* Otherwise, the token is an identifier */
       else
-	token = tIDENT;
+        token = tIDENT;
 
     } /* end else */
 
@@ -459,7 +459,7 @@ static void identifier(void)
 
 static void string(void)
 {
-  register sint16 count = 0;         /* # chars in string */
+  register int16_t count = 0;         /* # chars in string */
 
   token = tSTRING_CONST;             /* indicate string constant type */
   getCharacter();                    /* skip over 1st single quote */
@@ -467,15 +467,15 @@ static void string(void)
   while (inChar != SQUOTE)           /* loop until next single quote */
     {
       if (inChar == '\n')            /* check for EOL in string */
-	{
-	  error(eNOSQUOTE);          /* ERROR, terminate string */
-	  break;
-	} /* end if */
+        {
+          error(eNOSQUOTE);          /* ERROR, terminate string */
+          break;
+        } /* end if */
       else
-	{
-	  *stringSP++ = inChar;      /* concatenate character */
-	  count++;                   /* bump count of chars */
-	} /* end else */
+        {
+          *stringSP++ = inChar;      /* concatenate character */
+          count++;                   /* bump count of chars */
+        } /* end else */
       getCharacter();                /* get the next character */
     } /* end while */
   *stringSP++ = '\0';                /* terminate ASCIIZ string */
@@ -526,9 +526,9 @@ static void skipLine(void)
 
 /***************************************************************/
 
-static boolean getLine(void)
+static bool getLine(void)
 {
-  boolean endOfFile = FALSE;
+  bool endOfFile = false;
 
   /* Reset the character pointer to the start of the new line */
 
@@ -543,30 +543,30 @@ static boolean getLine(void)
        */
 
       if (includeIndex > 0)
-	{
-	  /* Yes.  Close the file */
+        {
+          /* Yes.  Close the file */
 
-	  closeNestedFile();
+          closeNestedFile();
 
-	  /* Indicate that there is no data on the input line. NOTE:
-	   * that FP now refers to the previous file at the next lower
-	   * level of nesting.
-	   */
+          /* Indicate that there is no data on the input line. NOTE:
+           * that FP now refers to the previous file at the next lower
+           * level of nesting.
+           */
 
-	  FP->buffer[0] = '\0';
-	} /* end if */
+          FP->buffer[0] = '\0';
+        } /* end if */
        else
-	 {
-	   /* No.  We are completely out of data.  Return TRUE in this case. */
+         {
+           /* No.  We are completely out of data.  Return true in this case. */
 
-	   endOfFile = TRUE;
-	 } /* end else */
+           endOfFile = true;
+         } /* end else */
      } /* end if */
    else
      {
        /* We have a new line of data.  Increment the line number, then echo
-	* the new line to the list file.
-	*/
+        * the new line to the list file.
+        */
 
        (FP->line)++;
        fprintf(lstFile, "%d:%04ld %s", FP->include, FP->line, FP->buffer);
@@ -624,7 +624,7 @@ static void unsignedNumber(void)
    * Otherwise, convert the integer string to binary.
    */
 
-  else if ((inChar != '.') || (getNextCharacter(FALSE) == '.'))
+  else if ((inChar != '.') || (getNextCharacter(false) == '.'))
     {
       /* Terminate the integer string and convert it using sscanf */
 
@@ -772,10 +772,10 @@ static void unsignedExponent(void)
       /* Now, loop to process the required digit-sequence */
 
       do
-	{
-	  *stringSP++ = inChar;
-	  getCharacter();
-	}
+        {
+          *stringSP++ = inChar;
+          getCharacter();
+        }
       while (isdigit(inChar));
 
       /* Terminate the real number string  and convert it to binay
@@ -819,15 +819,15 @@ static void unsignedHexadecimal(void)
       /* Is it a decimal digit? */
 
       if (isdigit(inChar))
-	*stringSP++ = inChar;
+        *stringSP++ = inChar;
 
       /* Is it a hex 'digit'? */
 
       else if ((inChar >= 'A') && (inChar <= 'F'))
-	*stringSP++ = inChar;
+        *stringSP++ = inChar;
 
       else if ((inChar >= 'a') && (inChar <= 'f'))
-	*stringSP++ = _toupper(inChar);
+        *stringSP++ = _toupper(inChar);
 
       /* Otherwise, that must be the end of the hex value */
 
@@ -848,7 +848,7 @@ static void unsignedHexadecimal(void)
 
 static void unsignedBinary(void)
 {
-  uint32 value;
+  uint32_t value;
 
   /* FORM: integer-number = decimal-integer | hexadecimal-integer |
    *       binary-integer
@@ -876,13 +876,13 @@ static void unsignedBinary(void)
       /* Is it a binary 'digit'? */
 
       if (inChar == '0')
-	value <<= 1;
+        value <<= 1;
 
       else if (inChar == '1')
-	{
-	  value <<= 1;
-	  value  |= 1;
-	}
+        {
+          value <<= 1;
+          value  |= 1;
+        }
 
       /* Otherwise, that must be the end of the binary value */
 
@@ -893,7 +893,7 @@ static void unsignedBinary(void)
    * why we did it above.
    */
 
-  tknInt = (sint32)value;
+  tknInt = (int32_t)value;
 }
 
 /***************************************************************/

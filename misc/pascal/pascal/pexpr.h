@@ -2,7 +2,7 @@
  * pexpr.h
  * External Declarations associated with pexpr.c
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,12 @@
 
 #ifndef __PEXPR_H
 #define __PEXPR_H
+
+/***********************************************************************
+ * Included Files
+ ***********************************************************************/
+
+#include <stdint.h>
 
 /***********************************************************************
  * Type Definitions
@@ -74,8 +80,8 @@ typedef enum exprEnum
  ***********************************************************************/
 
 extern int     constantToken;
-extern sint32  constantInt;
-extern float64 constantReal;
+extern int32_t constantInt;
+extern double  constantReal;
 extern char   *constantStart;
 
 /***********************************************************************
@@ -84,7 +90,7 @@ extern char   *constantStart;
 
 extern exprType expression ( exprType findExprType, STYPE *typePtr );
 extern exprType varParm    ( exprType varExprType, STYPE *typePtr );
-extern void     arrayIndex ( sint32 size );
+extern void     arrayIndex ( int32_t size );
 extern exprType getExprType( STYPE *sType );
 
 extern void constantExpression(void);

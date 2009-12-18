@@ -2,7 +2,7 @@
  * ptbl.h
  * External Declarations associated with ptbl.c
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@
  * Included Files
  ***************************************************************************/
 
+#include <stdint.h>
 #include "config.h"
 
 /***************************************************************************
@@ -56,20 +57,20 @@ extern STYPE *parentString;
 
 extern const RTYPE *findReservedWord (char *name);
 extern STYPE *findSymbol       (char *inName);
-extern STYPE *addTypeDefine    (char *name, ubyte type, uint16 size,
-				STYPE *parent);
-extern STYPE *addConstant      (char *name, ubyte type, sint32 *value,
-				STYPE *parent);
-extern STYPE *addStringConst   (char *name, uint32 offset, uint32 size);
-extern STYPE *addFile          (char *name, uint16 fileNumber);
-extern STYPE *addLabel         (char *name, uint16 label);
-extern STYPE *addProcedure     (char *name, ubyte type, uint16 label,
-				uint16 nParms, STYPE *parent);
-extern STYPE *addVariable      (char *name, ubyte type, uint16 offset,
-				uint16 size, STYPE *parent);
+extern STYPE *addTypeDefine    (char *name, uint8_t type, uint16_t size,
+                                STYPE *parent);
+extern STYPE *addConstant      (char *name, uint8_t type, int32_t *value,
+                                STYPE *parent);
+extern STYPE *addStringConst   (char *name, uint32_t offset, uint32_t size);
+extern STYPE *addFile          (char *name, uint16_t fileNumber);
+extern STYPE *addLabel         (char *name, uint16_t label);
+extern STYPE *addProcedure     (char *name, uint8_t type, uint16_t label,
+                                uint16_t nParms, STYPE *parent);
+extern STYPE *addVariable      (char *name, uint8_t type, uint16_t offset,
+                                uint16_t size, STYPE *parent);
 extern STYPE *addField         (char *name, STYPE *record);
 extern void   primeSymbolTable (unsigned long symbolTableSize);
-extern void   verifyLabels     (sint32 symIndex);
+extern void   verifyLabels     (int32_t symIndex);
 
 #if CONFIG_DEBUG
 extern void   dumpTables       (void);

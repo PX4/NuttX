@@ -2,7 +2,7 @@
  * pgen.c
  * P-Code generation logic
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -59,14 +60,14 @@
 #include "pgen.h"     /* (to verify prototypes in this file) */
 
 /**********************************************************************
- * Definitions
+ * Pre-processor Definitions
  **********************************************************************/
 
 #define UNDEFINED_LEVEL (-1)
 #define INVALID_PCODE   (-1)
 
-#define LEVEL_DEFINED(l)  ((sint32)(l) >= 0)
-#define PCODE_VALID(p)    ((sint32)(p) >= 0)
+#define LEVEL_DEFINED(l)  ((int32_t)(l) >= 0)
+#define PCODE_VALID(p)    ((int32_t)(p) >= 0)
 
 /**********************************************************************
  * Global Variables
@@ -76,8 +77,8 @@
  * Private Variables
  **********************************************************************/
 
-static sint32 g_currentStackLevelReference = UNDEFINED_LEVEL;
-static uint32 g_nStackLevelReferenceChanges = 0;
+static int32_t  g_currentStackLevelReference  = UNDEFINED_LEVEL;
+static uint32_t g_nStackLevelReferenceChanges = 0;
 
 /***********************************************************************
  * Private Function Prototypes
@@ -114,13 +115,12 @@ pas_GenerateLevel0StackReference(enum pcode_e eOpCode, STYPE *pVar)
        */
 
       if ((pVar->sParm.v.flags & SVAR_EXTERNAL) != 0)
-	{
-	  (void)poffAddRelocation(poffHandle, RLT_LDST,
-				  pVar->sParm.v.symIndex, 0);
-	}
+        {
+          (void)poffAddRelocation(poffHandle, RLT_LDST,
+                                  pVar->sParm.v.symIndex, 0);
+        }
     }
 }
-
 
 /***********************************************************************/
 /* There are some special P-codes for accessing stack data at static
@@ -128,7 +128,7 @@ pas_GenerateLevel0StackReference(enum pcode_e eOpCode, STYPE *pVar)
  * so, return the mapped opcode.  Otherwise, return INVALID_PCODE.
  */
 
-static sint32
+static int32_t
 pas_GetLevel0Opcode(enum pcode_e eOpCode)
 {
   switch (eOpCode)
@@ -159,7 +159,7 @@ pas_GetLevel0Opcode(enum pcode_e eOpCode)
  */
 
 static void
-pas_SetLevelStackPointer(uint32 dwLevel)
+pas_SetLevelStackPointer(uint32_t dwLevel)
 {
   if (dwLevel != g_currentStackLevelReference)
     {
@@ -185,7 +185,7 @@ pas_SetLevelStackPointer(uint32 dwLevel)
  * -- assuming that the underlying architecure may have one.
  */
 
-sint32 pas_GetCurrentStackLevel(void)
+int32_t pas_GetCurrentStackLevel(void)
 {
   return g_currentStackLevelReference;
 }
@@ -208,7 +208,7 @@ void pas_InvalidateCurrentStackLevel(void)
  * bottom of the loop.
  */
 
-void pas_SetCurrentStackLevel(sint32 dwLsp)
+void pas_SetCurrentStackLevel(int32_t dwLsp)
 {
   g_currentStackLevelReference = dwLsp;
   g_nStackLevelReferenceChanges++;
@@ -220,7 +220,7 @@ void pas_SetCurrentStackLevel(sint32 dwLsp)
  * ever changed by any logic path.
  */
 
-uint32 pas_GetNStackLevelChanges(void)
+uint32_t pas_GetNStackLevelChanges(void)
 {
   return g_nStackLevelReferenceChanges;
 }
@@ -236,7 +236,7 @@ void pas_GenerateSimple(enum pcode_e eOpCode)
 /***********************************************************************/
 /* Generate a P-code with a single data argument */
 
-void pas_GenerateDataOperation(enum pcode_e eOpCode, sint32 dwData)
+void pas_GenerateDataOperation(enum pcode_e eOpCode, int32_t dwData)
 {
   insn_GenerateDataOperation(eOpCode, dwData);
 }
@@ -250,7 +250,7 @@ void pas_GenerateDataOperation(enum pcode_e eOpCode, sint32 dwData)
  * setting of a dedicated count register.
  */
 
-void pas_GenerateDataSize(sint32 dwDataSize)
+void pas_GenerateDataSize(int32_t dwDataSize)
 {
   insn_GenerateDataSize(dwDataSize);
 }
@@ -258,7 +258,7 @@ void pas_GenerateDataSize(sint32 dwDataSize)
 /***********************************************************************/
 /* Generate a floating point operation */
 
-void pas_GenerateFpOperation(ubyte fpOpcode)
+void pas_GenerateFpOperation(uint8_t fpOpcode)
 {
   insn_GenerateFpOperation(fpOpcode);
 }
@@ -266,7 +266,7 @@ void pas_GenerateFpOperation(ubyte fpOpcode)
 /***********************************************************************/
 /* Generate an IO operation */
 
-void pas_GenerateIoOperation(uint16 ioOpcode, uint16 fileNumber)
+void pas_GenerateIoOperation(uint16_t ioOpcode, uint16_t fileNumber)
 {
   insn_GenerateIoOperation(ioOpcode, fileNumber);
 }
@@ -274,7 +274,7 @@ void pas_GenerateIoOperation(uint16 ioOpcode, uint16 fileNumber)
 /***********************************************************************/
 /* Generate a psuedo call to a built-in, standard pascal function */
 
-void pas_BuiltInFunctionCall(uint16 libOpcode)
+void pas_BuiltInFunctionCall(uint16_t libOpcode)
 {
   insn_BuiltInFunctionCall(libOpcode);
 }
@@ -284,8 +284,8 @@ void pas_BuiltInFunctionCall(uint16 libOpcode)
  * level and offset.
  */
 
-void pas_GenerateLevelReference(enum pcode_e eOpCode, uint16 wLevel,
-				sint32 dwOffset)
+void pas_GenerateLevelReference(enum pcode_e eOpCode, uint16_t wLevel,
+                                int32_t dwOffset)
 {
   /* Is this variable declared at level 0 (i.e., it has global scope)
    * that is being offset via a nesting level?
@@ -293,12 +293,12 @@ void pas_GenerateLevelReference(enum pcode_e eOpCode, uint16 wLevel,
 
   if (wLevel == 0)
     {
-      sint32 level0Opcode = pas_GetLevel0Opcode(eOpCode);
+      int32_t level0Opcode = pas_GetLevel0Opcode(eOpCode);
       if (PCODE_VALID(level0Opcode))
-	{
-	  insn_GenerateDataOperation(level0Opcode, dwOffset);
-	  return;
-	}
+        {
+          insn_GenerateDataOperation(level0Opcode, dwOffset);
+          return;
+        }
     }
 
   /* We get here if the reference is at some static nesting level
@@ -331,12 +331,12 @@ void pas_GenerateStackReference(enum pcode_e eOpCode, STYPE *pVar)
 
   if (pVar->sLevel == 0)
     {
-      sint32 level0Opcode = pas_GetLevel0Opcode(eOpCode);
+      int32_t level0Opcode = pas_GetLevel0Opcode(eOpCode);
       if (PCODE_VALID(level0Opcode))
-	{
-	  pas_GenerateLevel0StackReference(level0Opcode, pVar);
-	  return;
-	}
+        {
+          pas_GenerateLevel0StackReference(level0Opcode, pVar);
+          return;
+        }
     }
 
   /* We get here if the reference is at some static nesting level
@@ -355,7 +355,7 @@ void pas_GenerateStackReference(enum pcode_e eOpCode, STYPE *pVar)
    */
 
   insn_GenerateLevelReference(eOpCode, (level - pVar->sLevel),
-			      pVar->sParm.v.offset);
+                              pVar->sParm.v.offset);
 }
 
 /***********************************************************************/
@@ -390,8 +390,8 @@ pas_GenerateProcedureCall(STYPE *pProc)
       /* For now */
 # error "Don't know what last parameter should be"
       (void)poffAddRelocation(poffHandle, RLT_PCAL,
-			      pVar->sParm.p.symIndex,
-			      0);
+                              pVar->sParm.p.symIndex,
+                              0);
     }
 #endif
 
@@ -404,20 +404,20 @@ pas_GenerateProcedureCall(STYPE *pProc)
 
 /***********************************************************************/
 
-void pas_GenerateLineNumber(uint16 wIncludeNumber, uint32 dwLineNumber)
+void pas_GenerateLineNumber(uint16_t wIncludeNumber, uint32_t dwLineNumber)
 {
   insn_GenerateLineNumber(wIncludeNumber, dwLineNumber);
 }
 
 /***********************************************************************/
 
-void pas_GenerateDebugInfo(STYPE *pProc, uint32 dwReturnSize)
+void pas_GenerateDebugInfo(STYPE *pProc, uint32_t dwReturnSize)
 {
   int i;
 
   /* Allocate a container to pass the proc information to the library */
 
-  uint32 nparms                      = pProc->sParm.p.nParms;
+  uint32_t nparms                      = pProc->sParm.p.nParms;
   poffLibDebugFuncInfo_t *pContainer = poffCreateDebugInfoContainer(nparms);
 
   /* Put the proc information into the container */

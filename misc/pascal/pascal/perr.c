@@ -2,7 +2,7 @@
  * perr.c
  * Error Handlers
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -55,7 +56,7 @@
 #endif
 
 /**********************************************************************
- * Definitions
+ * Pre-processor Definitions
  **********************************************************************/
 
 #if CONFIG_DEBUG
@@ -79,7 +80,7 @@ static const char fmtErrAbort[] =
  * Private Function Prototypes
  **********************************************************************/
 
-static void printError(uint16 errcode);
+static void printError(uint16_t errcode);
 
 /***********************************************************************/
 
@@ -104,7 +105,7 @@ void errmsg(char *fmt, ...)
 
 /***********************************************************************/
 
-void warn(uint16 errcode)
+void warn(uint16_t errcode)
 {
    TRACE(lstFile,"[warn:%04x]", errcode);
 
@@ -119,7 +120,7 @@ void warn(uint16 errcode)
 
 /***********************************************************************/
 
-void error(uint16 errcode)
+void error(uint16_t errcode)
 {
    TRACE(lstFile,"[error:%04x]", errcode);
 
@@ -142,7 +143,7 @@ void error(uint16 errcode)
 
 /***********************************************************************/
 
-void fatal(uint16 errcode)
+void fatal(uint16_t errcode)
 {
    TRACE(lstFile,"[fatal:%04x]", errcode);
 
@@ -165,24 +166,24 @@ void fatal(uint16 errcode)
 
 /***********************************************************************/
 
-static void printError(uint16 errcode)
+static void printError(uint16_t errcode)
 {
    /* Write error record to the error and list files */
 
    if ((tkn_strt) && (tkn_strt < stringSP))
      {
        fprintf (errFile, fmtErrWithToken,
-		FP->include, FP->line, errcode, token, tkn_strt);
+                FP->include, FP->line, errcode, token, tkn_strt);
        fprintf (lstFile, fmtErrWithToken,
-		FP->include, FP->line, errcode, token, tkn_strt);
+                FP->include, FP->line, errcode, token, tkn_strt);
        stringSP = tkn_strt; /* Clean up string stack */
      } /* end if */
    else
      {
        fprintf (errFile, fmtErrNoToken,
-		FP->include, FP->line, errcode, token);
+                FP->include, FP->line, errcode, token);
        fprintf (lstFile, fmtErrNoToken,
-		FP->include, FP->line, errcode, token);
+                FP->include, FP->line, errcode, token);
      } /* end else */
 } /* end printError */
 
