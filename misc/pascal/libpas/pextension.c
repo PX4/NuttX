@@ -2,7 +2,7 @@
  * pextension.c
  * Manage file extensions
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdbool.h>
 #include <string.h>
 
 #include "keywords.h"
@@ -46,8 +47,8 @@
 
 /***********************************************************************/
 
-boolean extension(const char *inName, const char *ext, char *outName,
-		  boolean force_default)
+bool extension(const char *inName, const char *ext, char *outName,
+               bool force_default)
 {
   int    namelen = strlen(inName);
   int    extlen;
@@ -69,17 +70,17 @@ boolean extension(const char *inName, const char *ext, char *outName,
        */
 
       if ((namelen + 1) > FNAME_SIZE)
-	{
-	  /* It won't */
+        {
+          /* It won't */
 
-	  return TRUE;
-	}
+          return true;
+        }
       else
-	{
-	  /* Copy the string. */
+        {
+          /* Copy the string. */
 
-	  strcpy(outName, inName);
-	}
+          strcpy(outName, inName);
+        }
     }
   else
     {
@@ -88,44 +89,44 @@ boolean extension(const char *inName, const char *ext, char *outName,
       extlen  = strlen(ext) + 1; /* extension + null terminator */
 
       if (lastdot != NULL)
-	{
-	  /* It has an extension.  We must copy everything except the
-	   * last dot and the following extension.
-	   */
+        {
+          /* It has an extension.  We must copy everything except the
+           * last dot and the following extension.
+           */
 
-	  copylen = namelen - strlen(lastdot); /* name - . - terminator */
-	}
+          copylen = namelen - strlen(lastdot); /* name - . - terminator */
+        }
       else
-	{
-	  /* It has no extension.  We must copy everything */
+        {
+          /* It has no extension.  We must copy everything */
 
-	  copylen = namelen + 1; /* whole name with null termination */
-	}
+          copylen = namelen + 1; /* whole name with null termination */
+        }
 
       /* Make sure that the string (with its null terminator) will fit in
        * the allocated buffer.
        */
 
       if ((copylen + extlen + 1) > FNAME_SIZE)
-	{
-	  /* It won't */
+        {
+          /* It won't */
 
-	  return TRUE;
-	}
+          return true;
+        }
       else
-	{
-	  /* It will Copy file name up to, but excluding, the '.' */
+        {
+          /* It will Copy file name up to, but excluding, the '.' */
 
-	  memcpy(outName, inName, copylen);
+          memcpy(outName, inName, copylen);
 
-	  /* Then copy the extension */
+          /* Then copy the extension */
 
-	  outName[copylen] = '.';
-	  memcpy(&outName[copylen+1], ext, extlen);
-	}
+          outName[copylen] = '.';
+          memcpy(&outName[copylen+1], ext, extlen);
+        }
     }
 
-  return FALSE;
+  return false;
 
 } /* end extension */
 

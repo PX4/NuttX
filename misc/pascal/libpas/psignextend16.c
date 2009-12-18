@@ -2,7 +2,7 @@
  * psignextend16.c
  * 16-bit sign extension
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,13 +45,13 @@
 #include "paslib.h"
 
 /***********************************************************************/
-/* This function converts a signed 16-bit value represented as a uint16
- * to a sint32.
+/* This function converts a signed 16-bit value represented as a uint16_t
+ * to a int32_t.
  */
 
-sint32 signExtend16(uint16 arg16)
+int32_t signExtend16(uint16_t arg16)
 {
-  sint32 arg32 = (sint32)arg16 << 16;
+  int32_t arg32 = (int32_t)arg16 << 16;
   return arg32 >> 16;
 }
 

@@ -2,7 +2,7 @@
  * libpas/pswap.c
  * Byte swapping to handling endian-ness conversions
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <string.h>
 
 #include "keywords.h"
@@ -46,12 +47,12 @@
 
 /***********************************************************************/
 
-uint16 poffSwap16(uint16 val)
+uint16_t poffSwap16(uint16_t val)
 {
   return val >> 8 | val << 8;
 }
 
-uint32 poffSwap32(uint32 val)
+uint32_t poffSwap32(uint32_t val)
 {
   return val >> 24 | ((val >> 8) & 0x0000ff00) | ((val << 8) & 0x00ff0000) | val << 24;
 }
