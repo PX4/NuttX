@@ -2,7 +2,7 @@
  * builtins.h
  * Definitions of built-in function calls.
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,7 +38,13 @@
 #define __BUILTINS_H
 
 /***********************************************************************
- * Definitions
+ * Included Files
+ ***********************************************************************/
+
+#include <stdint.h>
+
+/***********************************************************************
+ * Pre-processor Definitions
  ***********************************************************************/
 
 #define MAX_BUILTIN_ARGS 3
@@ -436,9 +442,9 @@
 struct regm_builtin_s
 {
   const char *szName;
-  uint32      wRetSize;
-  uint32      nParms;
-  uint32      wArgSize[MAX_BUILTIN_ARGS];
+  uint32_t    wRetSize;
+  uint32_t    nParms;
+  uint32_t    wArgSize[MAX_BUILTIN_ARGS];
 };
 
 #endif /* __BUILTINS_H */

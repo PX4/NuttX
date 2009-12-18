@@ -2,7 +2,7 @@
  * regm_tree.c
  * Tree managmenet
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -86,7 +87,7 @@ static struct procdata_s *g_pProgramHead = NULL;
 
 /***********************************************************************/
 
-static inline void regm_DumpIndent(uint32 dwIndent)
+static inline void regm_DumpIndent(uint32_t dwIndent)
 {
   while (dwIndent--) putchar(' ');
 }
@@ -98,16 +99,16 @@ void regm_DumpNode(struct procdata_s *pNode, unsigned long dwIndent)
   if (pNode)
     {
       if (pNode->section[0].dwOffset != pNode->section[1].dwOffset)
-	{
-	  regm_DumpIndent(dwIndent);
-	  printf("%08lx:%08lx\n",
-		 pNode->section[0].dwOffset,
-		 pNode->section[0].dwOffset + pNode->section[0].dwSize - 1);
-	}
+        {
+          regm_DumpIndent(dwIndent);
+          printf("%08lx:%08lx\n",
+                 pNode->section[0].dwOffset,
+                 pNode->section[0].dwOffset + pNode->section[0].dwSize - 1);
+        }
       regm_DumpIndent(dwIndent);
       printf("%08lx:%08lx\n",
-	     pNode->section[1].dwOffset,
-	     pNode->section[1].dwOffset + pNode->section[1].dwSize - 1);
+             pNode->section[1].dwOffset,
+             pNode->section[1].dwOffset + pNode->section[1].dwSize - 1);
 
       regm_DumpNode(pNode->child, dwIndent + 3);
       regm_DumpNode(pNode->peer, dwIndent);
@@ -194,8 +195,8 @@ struct procdata_s *regm_GetRootNode(void)
 /***********************************************************************/
 
 int regm_ForEachPeer(struct procdata_s *pPeer,
-		     int (*pfPeerFunc)(struct procdata_s*, void*),
-		     void *arg)
+                     int (*pfPeerFunc)(struct procdata_s*, void*),
+                     void *arg)
 {
   struct procdata_s *pCurr = pPeer;
   struct procdata_s *pNext;
@@ -206,9 +207,9 @@ int regm_ForEachPeer(struct procdata_s *pPeer,
       pNext = pCurr->peer;
       retval = pfPeerFunc(pCurr, arg);
       if (retval)
-	{
-	  return retval;
-	}
+        {
+          return retval;
+        }
       pCurr = pNext;
     }
   return 0;
@@ -217,8 +218,8 @@ int regm_ForEachPeer(struct procdata_s *pPeer,
 /***********************************************************************/
 
 int regm_ForEachChild(struct procdata_s *pParent,
-		      int (*pfChildFunc)(struct procdata_s*, void*),
-		      void *arg)
+                      int (*pfChildFunc)(struct procdata_s*, void*),
+                      void *arg)
 {
   struct procdata_s *pCurr = pParent;
   struct procdata_s *pNext;
@@ -229,9 +230,9 @@ int regm_ForEachChild(struct procdata_s *pParent,
       pNext = pCurr->child;
       retval = pfChildFunc(pCurr, arg);
       if (retval)
-	{
-	  return retval;
-	}
+        {
+          return retval;
+        }
       pCurr = pNext;
     }
   return 0;
@@ -239,14 +240,14 @@ int regm_ForEachChild(struct procdata_s *pParent,
 
 /***********************************************************************/
 
-uint32 regm_ReadNodePCodes(struct procdata_s *pNode, poffHandle_t hPoff,
-			   uint32 dwStartOffset, uint32 dwEndOffset,
-			   ubyte cTerminalOpcode)
+uint32_t regm_ReadNodePCodes(struct procdata_s *pNode, poffHandle_t hPoff,
+                           uint32_t dwStartOffset, uint32_t dwEndOffset,
+                           uint8_t cTerminalOpcode)
 {
-  uint32 dwOffset = dwStartOffset;
+  uint32_t dwOffset = dwStartOffset;
   long nAlloc = INITIAL_PCODE_ALLOC;
   long nPCodes;
-  ubyte bTerminatorFound;
+  uint8_t bTerminatorFound;
 
   dbg("Reading Node: %08lx %08lx %02x\n",
       dwStartOffset, dwEndOffset, cTerminalOpcode);
@@ -273,13 +274,13 @@ uint32 regm_ReadNodePCodes(struct procdata_s *pNode, poffHandle_t hPoff,
       /* Make sure that there is space for another pcode */
 
       if (nPCodes > nAlloc)
-	{
-	  /* If not, then reallocate the array */
+        {
+          /* If not, then reallocate the array */
 
-	  nAlloc += PCODE_RELLALLOC;
-	  pNode->pPCode = (OPTYPE*)
-	    realloc(pNode->pPCode, nAlloc*sizeof(OPTYPE));
-	}
+          nAlloc += PCODE_RELLALLOC;
+          pNode->pPCode = (OPTYPE*)
+            realloc(pNode->pPCode, nAlloc*sizeof(OPTYPE));
+        }
 
       /* Ready the pcode ito the array */
 
@@ -288,10 +289,10 @@ uint32 regm_ReadNodePCodes(struct procdata_s *pNode, poffHandle_t hPoff,
       /* Check for a terminating pcode */
 
       if ((GETOP(&pNode->pPCode[nPCodes]) == cTerminalOpcode) ||
-	  (GETOP(&pNode->pPCode[nPCodes]) == oEND))
-	{
-	  bTerminatorFound++;
-	}
+          (GETOP(&pNode->pPCode[nPCodes]) == oEND))
+        {
+          bTerminatorFound++;
+        }
 
       /* Increment the count of pcodes read */
 

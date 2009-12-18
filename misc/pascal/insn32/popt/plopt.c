@@ -2,7 +2,7 @@
  * plopt.c
  * Load/Store Optimizations
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 
 #include "keywords.h"
@@ -52,7 +53,7 @@
 
 int LoadOptimize(void)
 {
-  uint32 val;
+  uint32_t val;
   int nchanges = 0;
   register int i;
 
@@ -64,72 +65,72 @@ int LoadOptimize(void)
   while (i < nops-1)
     {
       switch (GETOP(pptr[i]))
-	{
-	  /* Eliminate duplicate loads */
+        {
+          /* Eliminate duplicate loads */
 
-	case oLDSH   :
-	  if ((GETOP(pptr[i+1])  == oLDSH) &&
-	      (GETARG(pptr[i+1]) == GETARG(pptr[i])))
-	    {
-	      PUTOP(pptr[i+1], oDUP);
-	      PUTARG(pptr[i+1], 0);
-	      nchanges++;
-	      i += 2;
-	    } /* end if */
-	  else i++;
-	  break;
+        case oLDSH   :
+          if ((GETOP(pptr[i+1])  == oLDSH) &&
+              (GETARG(pptr[i+1]) == GETARG(pptr[i])))
+            {
+              PUTOP(pptr[i+1], oDUP);
+              PUTARG(pptr[i+1], 0);
+              nchanges++;
+              i += 2;
+            } /* end if */
+          else i++;
+          break;
 
-	  /* Convert loads indexed by a constant to unindexed loads */
+          /* Convert loads indexed by a constant to unindexed loads */
 
-	case oPUSH  :
-	  /* Get the index value */
+        case oPUSH  :
+          /* Get the index value */
 
-	  val = (sint32)GETARG(pptr[i]);
+          val = (int32_t)GETARG(pptr[i]);
 
-	  /* If the following instruction is a load, add the constant
-	   * index value to the address and switch the opcode to the
-	   * unindexed form.
-	   */
+          /* If the following instruction is a load, add the constant
+           * index value to the address and switch the opcode to the
+           * unindexed form.
+           */
 
-	  if (GETOP(pptr[i+1]) == oLDSXH) 
-	    {
-	      PUTOP(pptr[i+1], oLDSH);
-	      val += GETARG(pptr[i+1]);
-	      PUTARG(pptr[i+1], val);
-	      deletePcode (i);
-	      nchanges++;
-	    } /* end if */
-	  else if (GETOP(pptr[i+1]) == oLASX)
-	    {
-	      PUTOP(pptr[i+1], oLAS);
-	      val += GETARG(pptr[i+1]);
-	      PUTARG(pptr[i+1], val);
-	      deletePcode (i);
-	      nchanges++;
-	    } /* end else if */
-	  else if (GETOP(pptr[i+1]) == oLDSXB)
-	    {
-	      PUTOP(pptr[i+1], oLDSB);
-	      val += GETARG(pptr[i+1]);
-	      PUTARG(pptr[i+1], val);
-	      deletePcode (i);
-	      nchanges++;
-	    } /* end if */
-	  else if (GETOP(pptr[i+1]) == oLDSXM)
-	    {
-	      PUTOP(pptr[i+1], oLDSM);
-	      val += GETARG(pptr[i+1]);
-	      PUTARG(pptr[i+1], val);
-	      deletePcode (i);
-	      nchanges++;
-	    } /* end if */
-	  else i++;
-	  break;
+          if (GETOP(pptr[i+1]) == oLDSXH) 
+            {
+              PUTOP(pptr[i+1], oLDSH);
+              val += GETARG(pptr[i+1]);
+              PUTARG(pptr[i+1], val);
+              deletePcode (i);
+              nchanges++;
+            } /* end if */
+          else if (GETOP(pptr[i+1]) == oLASX)
+            {
+              PUTOP(pptr[i+1], oLAS);
+              val += GETARG(pptr[i+1]);
+              PUTARG(pptr[i+1], val);
+              deletePcode (i);
+              nchanges++;
+            } /* end else if */
+          else if (GETOP(pptr[i+1]) == oLDSXB)
+            {
+              PUTOP(pptr[i+1], oLDSB);
+              val += GETARG(pptr[i+1]);
+              PUTARG(pptr[i+1], val);
+              deletePcode (i);
+              nchanges++;
+            } /* end if */
+          else if (GETOP(pptr[i+1]) == oLDSXM)
+            {
+              PUTOP(pptr[i+1], oLDSM);
+              val += GETARG(pptr[i+1]);
+              PUTARG(pptr[i+1], val);
+              deletePcode (i);
+              nchanges++;
+            } /* end if */
+          else i++;
+          break;
 
-	default     :
-	  i++;
-	  break;
-	} /* end switch */
+        default     :
+          i++;
+          break;
+        } /* end switch */
     } /* end while */
   return (nchanges);
 } /* end LoadOptimize */
@@ -137,7 +138,7 @@ int LoadOptimize(void)
 /**********************************************************************/
 int StoreOptimize (void)
 {
-  uint32 val;
+  uint32_t val;
   int nchanges = 0;
   register int i;
 
@@ -150,60 +151,60 @@ int StoreOptimize (void)
   while (i < nops-1)
     {
       switch (GETOP(pptr[i]))
-	{
-	  /* Eliminate store followed by load */
+        {
+          /* Eliminate store followed by load */
 
-	case oSTSH :
-	  if ((GETOP(pptr[i+1])  == oLDSH) &&
-	      (GETARG(pptr[i+1]) == GETARG(pptr[i])))
-	    {
-	      PUTOP(pptr[i+1], oSTSH);
-	      PUTOP(pptr[i], oDUP);
-	      PUTARG(pptr[i], 0);
-	      nchanges++;
-	      i += 2;
-	    } /* end if */
-	  else i++;
-	  break;
+        case oSTSH :
+          if ((GETOP(pptr[i+1])  == oLDSH) &&
+              (GETARG(pptr[i+1]) == GETARG(pptr[i])))
+            {
+              PUTOP(pptr[i+1], oSTSH);
+              PUTOP(pptr[i], oDUP);
+              PUTARG(pptr[i], 0);
+              nchanges++;
+              i += 2;
+            } /* end if */
+          else i++;
+          break;
 
-	  /* Convert stores indexed by a constant to unindexed stores */
-	case oPUSH :
-	  /* Get the index value */
+          /* Convert stores indexed by a constant to unindexed stores */
+        case oPUSH :
+          /* Get the index value */
 
-	  val = (sint32)GETARG(pptr[i]);
+          val = (int32_t)GETARG(pptr[i]);
 
-	  /* If the following instruction is a store, add the constant
-	   * index value to the address and switch the opcode to the
-	   * unindexed form.
-	   */
+          /* If the following instruction is a store, add the constant
+           * index value to the address and switch the opcode to the
+           * unindexed form.
+           */
 
-	  if (i < nops-2)
-	    {
-	      if (GETOP(pptr[i+2]) == oSTSXH)
-		{
-		  PUTOP(pptr[i+2], oSTSH);
-		  val += GETARG(pptr[i+2]);
-		  PUTARG(pptr[i+2], val);
-		  deletePcode (i);
-		  nchanges++;
-		} /* end if */
-	      else if (GETOP(pptr[i+2]) == oSTSXB)
-		{
-		  PUTOP(pptr[i+2], oSTSB);
-		  val += GETARG(pptr[i+2]);
-		  PUTARG(pptr[i+2], val);
-		  deletePcode (i);
-		  nchanges++;
-		} /* end if */
-	      else i++;
-	    } /* end if */
-	  else i++;
-	  break;
+          if (i < nops-2)
+            {
+              if (GETOP(pptr[i+2]) == oSTSXH)
+                {
+                  PUTOP(pptr[i+2], oSTSH);
+                  val += GETARG(pptr[i+2]);
+                  PUTARG(pptr[i+2], val);
+                  deletePcode (i);
+                  nchanges++;
+                } /* end if */
+              else if (GETOP(pptr[i+2]) == oSTSXB)
+                {
+                  PUTOP(pptr[i+2], oSTSB);
+                  val += GETARG(pptr[i+2]);
+                  PUTARG(pptr[i+2], val);
+                  deletePcode (i);
+                  nchanges++;
+                } /* end if */
+              else i++;
+            } /* end if */
+          else i++;
+          break;
 
-	default     : 
-	  i++;
-	  break;
-	} /* end switch */
+        default     : 
+          i++;
+          break;
+        } /* end switch */
     } /* end while */
 
   return (nchanges);

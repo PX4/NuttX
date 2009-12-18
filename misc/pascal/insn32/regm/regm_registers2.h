@@ -2,7 +2,7 @@
  * regm_registers2.h
  * Definitions for management of registers
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,8 @@
 /***************************************************************************
  * Included Files
  ***************************************************************************/
+
+#include <stdint.h>
 
 /***************************************************************************
  * Definitions
@@ -124,14 +126,14 @@
 
 struct regm32_t
 {
-  uint32 kind  :  3; /* Kind of register */
-  uint32 regno : 29; /* Register identifier */
+  uint32_t kind  :  3; /* Kind of register */
+  uint32_t regno : 29; /* Register identifier */
 };
 
 union regm32_u
 {
   struct regm32_t f;
-  uint32          dw;
+  uint32_t        dw;
 };
 
 enum regm_formtag_e
@@ -148,48 +150,48 @@ enum regm_formtag_e
 
 struct regm_form1rcc_s
 {
-  uint32 dwROperand1, dwROperand2, dwRCc;
+  uint32_t dwROperand1, dwROperand2, dwRCc;
 };
 
 struct regm_form1icc_s
 {
-  uint32 dwROperand1, dwImmediate, dwRCc;
+  uint32_t dwROperand1, dwImmediate, dwRCc;
 };
 
 struct regm_form2r_s
 {
-  uint32 dwRDest, dwROperand2;
+  uint32_t dwRDest, dwROperand2;
 };
 
 struct regm_form2i_s
 {
-  uint32 dwRDest, dwImmediate;
+  uint32_t dwRDest, dwImmediate;
 };
 
 struct regm_form3r_s
 {
-  uint32 dwRSrcDest, dwROperand1, dwROperand2;
+  uint32_t dwRSrcDest, dwROperand1, dwROperand2;
 };
 
 struct regm_form3i_s
 {
-  uint32 dwRSrcDest, dwROperand1, dwImmediate;
+  uint32_t dwRSrcDest, dwROperand1, dwImmediate;
 };
 
 struct regm_form4i_s
 {
-  uint32 dwRDest, dwOffset;
+  uint32_t dwRDest, dwOffset;
 };
 
 struct regm_form4icc_s
 {
-  uint32 dwRDest, dwOffset, dwRCc;
+  uint32_t dwRDest, dwOffset, dwRCc;
 };
 
 struct regm_rcode2_s
 {
-  ubyte eForm; /* See enum regm_formtag_e */
-  ubyte chOp;  /* Regm opcode */
+  uint8_t eForm; /* See enum regm_formtag_e */
+  uint8_t chOp;  /* Regm opcode */
   union
   {
     struct regm_form1rcc_s f1rcc;
@@ -210,13 +212,13 @@ typedef int (*regm_rcode2_node_t)(struct regm_rcode2_s*, void*);
  ***************************************************************************/
 
 extern struct regm_rcode2_s *g_pRCode2;
-extern uint32 g_nRCode2;
+extern uint32_t g_nRCode2;
 
 /***************************************************************************
  * Inline Functions
  ***************************************************************************/
 
-static inline uint32 regm_MkRegister(int wKind, int wRegNo)
+static inline uint32_t regm_MkRegister(int wKind, int wRegNo)
 {
   union regm32_u u;
   u.f.kind  = wKind;
@@ -224,34 +226,34 @@ static inline uint32 regm_MkRegister(int wKind, int wRegNo)
   return u.dw;
 }
 
-static inline int regm_IsKind(int wKind, uint32 dwRegister)
+static inline int regm_IsKind(int wKind, uint32_t dwRegister)
 {
   union regm32_u u;
   u.dw = dwRegister;
   return (u.f.kind == wKind);
 }
 
-static inline int regm_GetKind(uint32 dwRegister)
+static inline int regm_GetKind(uint32_t dwRegister)
 {
   union regm32_u u;
   u.dw = dwRegister;
   return u.f.kind;
 }
 
-static inline void regm_SetKind(int wKind, uint32 *pdwRegister)
+static inline void regm_SetKind(int wKind, uint32_t *pdwRegister)
 {
   union regm32_u *pu = (union regm32_u *)pdwRegister;
   pu->f.kind = wKind;
 }
 
-static inline int regm_GetRegNo(uint32 dwRegister)
+static inline int regm_GetRegNo(uint32_t dwRegister)
 {
   union regm32_u u;
   u.dw = dwRegister;
   return u.f.regno;
 }
 
-static inline void regm_SetRegNo(int wRegNo, uint32 *pdwRegister)
+static inline void regm_SetRegNo(int wRegNo, uint32_t *pdwRegister)
 {
   union regm32_u *pu = (union regm32_u *)pdwRegister;
   pu->f.regno = wRegNo;
@@ -265,52 +267,52 @@ static inline void regm_SetRegNo(int wRegNo, uint32 *pdwRegister)
  * for local variables, and save static registers that till be used.
  */
 
-extern void regm_GeneratePrologue(uint32 dwFrameSize);
+extern void regm_GeneratePrologue(uint32_t dwFrameSize);
 
 /* Restore static registers, release stack frame and return */
 
-extern void regm_GenerateEpilogue(uint32 dwFrameSize);
+extern void regm_GenerateEpilogue(uint32_t dwFrameSize);
 
 /* FORM 1R: <op> <roperand1>, <roperand2> */
 
-extern void regm_GenerateForm1RCc(ubyte chOp, uint32 dwROperand1,
-				  uint32 dwROperand2, uint32 dwRCc);
+extern void regm_GenerateForm1RCc(uint8_t chOp, uint32_t dwROperand1,
+                                  uint32_t dwROperand2, uint32_t dwRCc);
 
 /* FORM 1I: <op> <roperand1>, <immediate> */
 
-extern void regm_GenerateForm1ICc(ubyte chOp, uint32 dwROperand1,
-				  uint32 dwImmediate, uint32 dwRCc);
+extern void regm_GenerateForm1ICc(uint8_t chOp, uint32_t dwROperand1,
+                                  uint32_t dwImmediate, uint32_t dwRCc);
 
 /* FORM 2R: <op> <rdest>, <roperand2> */
 
-extern void regm_GenerateForm2R(ubyte chOp, uint32 dwRDest,
-				uint32 dwROperand2);
+extern void regm_GenerateForm2R(uint8_t chOp, uint32_t dwRDest,
+                                uint32_t dwROperand2);
 
 /* FORM 2I: <op> <rdest>, <immediate> */
 
-extern void regm_GenerateForm2I(ubyte chOp, uint32 dwRDest,
-				uint32 dwImmediate);
+extern void regm_GenerateForm2I(uint8_t chOp, uint32_t dwRDest,
+                                uint32_t dwImmediate);
 
 /* FORM 3R: <op> <rdest>, <roperand1>, <roperand2>
  *               <rsrc>,  <roperand1>, <roperand2>
  */
 
-extern void regm_GenerateForm3R(ubyte chOp, uint32 dwRSrcDest,
-				uint32 dwROperand1, uint32 dwROperand2);
+extern void regm_GenerateForm3R(uint8_t chOp, uint32_t dwRSrcDest,
+                                uint32_t dwROperand1, uint32_t dwROperand2);
 
 /* FORM 3I: <op> <rdest>, <roperand1>, <immediate>
  *                <rsrc>,  <roperand1>, <immediate>
  */
 
-extern void regm_GenerateForm3I(ubyte chOp, uint32 dwRSrcDest,
-				uint32 dwROperand1, uint32 dwImmediate);
+extern void regm_GenerateForm3I(uint8_t chOp, uint32_t dwRSrcDest,
+                                uint32_t dwROperand1, uint32_t dwImmediate);
 
 /* FORM 4I: <op> <pc-offset> */
 
-extern void regm_GenerateForm4I(ubyte chOp, uint32 dwOffset);
+extern void regm_GenerateForm4I(uint8_t chOp, uint32_t dwOffset);
 
-extern void regm_GenerateForm4ICc(ubyte chOp, uint32 dwOffset,
-				  uint32 dwRCc);
+extern void regm_GenerateForm4ICc(uint8_t chOp, uint32_t dwOffset,
+                                  uint32_t dwRCc);
 
 extern int  regm_ForEachRCode2(regm_rcode2_node_t pNode, void *arg);
 

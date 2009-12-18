@@ -2,7 +2,7 @@
  * regm_pass1.c
  * Break the pcode data into sections
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -59,22 +60,23 @@
  * Private Function Prototypes
  **********************************************************************/
 
-static void         regm_Pass1Child(poffHandle_t hPoff,
-				    struct procdata_s *pParent,
-				    uint32 dwStartOffset,
-				    uint32 dwEndOffset);
-static void         regm_Pass1Peer(poffHandle_t hPoff,
-				   struct procdata_s *pPeer,
-				   uint32 dwStartOffset,
-				   uint32 dwEndOffset);
+static void     regm_Pass1Child(poffHandle_t hPoff,
+                                struct procdata_s *pParent,
+                                uint32_t dwStartOffset,
+                                uint32_t dwEndOffset);
+static void     regm_Pass1Peer(poffHandle_t hPoff,
+                               struct procdata_s *pPeer,
+                               uint32_t dwStartOffset,
+                               uint32_t dwEndOffset);
 static struct procdata_s *regm_Pass1Node(poffHandle_t hPoff,
-					 uint32 dwStartOffset,
-					 uint32 pdwEndOffset,
-					 ubyte chTerminator);
-static uint32       regm_CheckSection1(poffHandle_t hPoff, uint32 dwOffset);
-static void         regm_Pass1Family(poffHandle_t hPoff,
-				     struct procdata_s *pNode,
-				     uint32 dwEndOffset);
+                                         uint32_t dwStartOffset,
+                                         uint32_t pdwEndOffset,
+                                         uint8_t chTerminator);
+static uint32_t regm_CheckSection1(poffHandle_t hPoff, uint32_t dwOffset);
+static void     regm_Pass1Family(poffHandle_t hPoff,
+                                 struct procdata_s *pNode,
+                                 uint32_t dwEndOffset);
+
 /**********************************************************************
  * Global Variables
  **********************************************************************/
@@ -90,7 +92,7 @@ static void         regm_Pass1Family(poffHandle_t hPoff,
 /***********************************************************************/
 
 static void regm_Pass1Child(poffHandle_t hPoff, struct procdata_s *pParent,
-			   uint32 dwStartOffset, uint32 dwEndOffset)
+                           uint32_t dwStartOffset, uint32_t dwEndOffset)
 
 {
   struct procdata_s *pNode;
@@ -113,7 +115,7 @@ static void regm_Pass1Child(poffHandle_t hPoff, struct procdata_s *pParent,
 /***********************************************************************/
 
 static void regm_Pass1Peer(poffHandle_t hPoff, struct procdata_s *pPeer,
-			   uint32 dwStartOffset, uint32 dwEndOffset)
+                           uint32_t dwStartOffset, uint32_t dwEndOffset)
 
 {
   struct procdata_s *pNode;
@@ -136,13 +138,13 @@ static void regm_Pass1Peer(poffHandle_t hPoff, struct procdata_s *pPeer,
 /***********************************************************************/
 
 static struct procdata_s *regm_Pass1Node(poffHandle_t hPoff,
-					 uint32 dwStartOffset,
-					 uint32 pdwEndOffset,
-					 ubyte chTerminator)
+                                         uint32_t dwStartOffset,
+                                         uint32_t pdwEndOffset,
+                                         uint8_t chTerminator)
 
 {
   struct procdata_s *pNode;
-  uint32 dwActualEndOffset;
+  uint32_t dwActualEndOffset;
 
   TRACE(stderr, "[regm_Pass1Node]");
 
@@ -158,8 +160,8 @@ static struct procdata_s *regm_Pass1Node(poffHandle_t hPoff,
   /* Read all of the p-codes associated with the node */
 
   dwActualEndOffset = regm_ReadNodePCodes(pNode, hPoff,
-					  pNode->section[1].dwOffset,
-					  pdwEndOffset, chTerminator);
+                                          pNode->section[1].dwOffset,
+                                          pdwEndOffset, chTerminator);
 
   /* Now calculate the size of each part of the program section */
 
@@ -187,7 +189,7 @@ static struct procdata_s *regm_Pass1Node(poffHandle_t hPoff,
 
 /***********************************************************************/
 
-static uint32 regm_CheckSection1 (poffHandle_t hPoff, uint32 dwOffset)
+static uint32_t regm_CheckSection1 (poffHandle_t hPoff, uint32_t dwOffset)
 {
   OPTYPE op;
 
@@ -221,9 +223,9 @@ static uint32 regm_CheckSection1 (poffHandle_t hPoff, uint32 dwOffset)
 /***********************************************************************/
 
 static void regm_Pass1Family(poffHandle_t hPoff, struct procdata_s *pNode,
-			     uint32 dwEndOffset)
+                             uint32_t dwEndOffset)
 {
-  uint32 dwSectionEnd;
+  uint32_t dwSectionEnd;
 
   /* Process any nested functions */
 
@@ -251,7 +253,7 @@ static void regm_Pass1Family(poffHandle_t hPoff, struct procdata_s *pNode,
 void regm_Pass1(poffHandle_t hPoff)
 {
   struct procdata_s *pNode;
-  uint32 dwEntryPoint;
+  uint32_t dwEntryPoint;
 
   TRACE(stderr, "[regm_Pass1]");
 

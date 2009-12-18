@@ -2,7 +2,7 @@
  * rinsn32.h
  * 32-bit register module instruction definitions
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +36,16 @@
 
 #ifndef __RINSN32_H
 #define __RINSN32_H
+
+/***********************************************************************
+ * Included Files
+ ***********************************************************************/
+
+#include <stdint.h>
+
+/***********************************************************************
+ * Pre-processor Definitions
+ ***********************************************************************/
 
 /* 32-bit op-code bit definitions
  *
@@ -100,36 +110,36 @@
 
 struct rinsn_u
 {
-  ubyte opcode;
+  uint8_t opcode;
   union {
     struct {
-      uint32 rop1;
-      uint32 rop2;
+      uint32_t rop1;
+      uint32_t rop2;
     } r1;
     struct {
-      uint32 rop1;
-      uint32 im2;
+      uint32_t rop1;
+      uint32_t im2;
     } i1;
     struct {
-      uint32 rdest;
-      uint32 rop;
+      uint32_t rdest;
+      uint32_t rop;
     } r2;
     struct {
-      uint32 rdest;
-      uint32 im;
+      uint32_t rdest;
+      uint32_t im;
     } i2;
     struct {
-      uint32 rdest;
-      uint32 rop1;
-      uint32 rop2;
+      uint32_t rdest;
+      uint32_t rop1;
+      uint32_t rop2;
     } r3;
     struct {
-      uint32 rdest;
-      uint32 rop1;
-      uint32 im2;
+      uint32_t rdest;
+      uint32_t rop1;
+      uint32_t im2;
     } i3;
     struct {
-      uint32 offset;
+      uint32_t offset;
     } i4;
   } f;
 };
@@ -199,8 +209,8 @@ typedef struct rinsn_u RINSN32;
 #define rLDIB  (0xd2) /* Form 3: <rdest> = (<roperand1> + <immediate>) */
 
 #define rLDM   (0xd3) /* Form 3: Load <immediate> registers.  Source
-		       * address is roperand1, first dest register is
-		       * <rdest>, register count is <immediate> */
+                       * address is roperand1, first dest register is
+                       * <rdest>, register count is <immediate> */
 
 #define rST    (0x94) /* Form 3: (<roperand1> + <roperand2>) = <rsrc> */
 #define rSTI   (0xd4) /* Form 3: (<roperand1> + (<immediate> << 2)) = <rsrc> */
@@ -210,7 +220,7 @@ typedef struct rinsn_u RINSN32;
 #define rSTIB  (0xd6) /* Form 3: (<roperand1> + <immediate>) = <rsrc> */
 
 #define rSTM   (0xd7) /* Form 3: Store <immediate> registers.  Destination
-		       * address is roperand1, first source register is
-		       * <rsrc>, register count is <immediate> */
+                       * address is roperand1, first source register is
+                       * <rsrc>, register count is <immediate> */
 
 #endif /* __RINSN32_H */

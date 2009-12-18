@@ -2,7 +2,7 @@
  * regm_registers.c
  * Pass 2 register management functions
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -69,13 +70,13 @@
  **********************************************************************/
 
 struct regm_rcode2_s *g_pRCode2 = NULL;
-uint32 g_nRCode2 = 0;
+uint32_t              g_nRCode2 = 0;
 
 /**********************************************************************
  * Private Variables
  **********************************************************************/
 
-static uint32 g_nRCode2Alloc = 0;
+static uint32_t g_nRCode2Alloc = 0;
 
 static const char * const g_prgReg2Names[NREGISTER_TYPES] =
   { "Z", "X", "CC", "A", "R", "V", "V", "S" };
@@ -98,11 +99,11 @@ static void regm_CheckRCode2Alloc(void)
       /* Allocate an inital buffer to hold the instructions */
 
       g_pRCode2 = (struct regm_rcode2_s*)
-	malloc(INITIAL_RCODE2_ALLOC*sizeof(struct regm_rcode2_s));
+        malloc(INITIAL_RCODE2_ALLOC*sizeof(struct regm_rcode2_s));
       if (!g_pRCode2)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       g_nRCode2Alloc = INITIAL_RCODE2_ALLOC;
     }
@@ -116,11 +117,11 @@ static void regm_CheckRCode2Alloc(void)
       /* If not, then reallocate the array */
 
       g_pRCode2 = (struct regm_rcode2_s*)
-	realloc(g_pRCode2, g_nRCode2Alloc*sizeof(struct regm_rcode2_s));
+        realloc(g_pRCode2, g_nRCode2Alloc*sizeof(struct regm_rcode2_s));
       if (!g_pRCode2)
-	{
-	  fatal(eNOMEMORY);
-	}
+        {
+          fatal(eNOMEMORY);
+        }
 
       g_nRCode2Alloc += RCODE2_REALLOC;
     }
@@ -145,7 +146,7 @@ struct regm_rcode2_s *regm_AllocateRCode2(void)
   return pRetSlot;
 }
 
-static void regm_PrintSpecialReg2(FILE *pStream, uint32 dwRegister)
+static void regm_PrintSpecialReg2(FILE *pStream, uint32_t dwRegister)
 {
   int wRegNo = regm_GetRegNo(dwRegister);
   if (wRegNo >= NSPECIAL_REGISTERS2)
@@ -154,7 +155,7 @@ static void regm_PrintSpecialReg2(FILE *pStream, uint32 dwRegister)
     fputs(g_prgSpecialRegNames[wRegNo], pStream);
 }
 
-static void regm_PrintReg2(FILE *pStream, uint32 dwRegister)
+static void regm_PrintReg2(FILE *pStream, uint32_t dwRegister)
 {
   int wKind  = regm_GetKind(dwRegister);
   int wRegNo = regm_GetRegNo(dwRegister)
@@ -166,7 +167,7 @@ static void regm_PrintReg2(FILE *pStream, uint32 dwRegister)
     fprintf(pStream, "%s%d", g_prgRegNames[wKind], wRegNo);
 }
 
-static void regm_PrintDebugReg(const char *string, uint32 dwRegister)
+static void regm_PrintDebugReg(const char *string, uint32_t dwRegister)
 {
   if (vRegmDebug)
     {
@@ -179,7 +180,7 @@ static void regm_PrintDebugReg(const char *string, uint32 dwRegister)
 /***********************************************************************/
 
 static void regm_MarkRegisterUsed(struct regm_rcode2_s *pReg,
-				  uint32 dwRegister)
+                                  uint32_t dwRegister)
 {
   regm_PrintDebugReg("Register used: ", dwRegister);
 
@@ -215,7 +216,7 @@ static void regm_MarkRegisterUsed(struct regm_rcode2_s *pReg,
 /***********************************************************************/
 
 static void regm_MarkRegisterModified(struct regm_rcode2_s *pReg,
-				      uint32 dwRegister)
+                                      uint32_t dwRegister)
 {
   regm_PrintDebugReg("Register modified: ", dwRegister);
 
@@ -257,7 +258,7 @@ static void regm_MarkRegisterModified(struct regm_rcode2_s *pReg,
  * for local variables, and save static registers that till be used.
  */
 
-void regm_GeneratePrologue(uint32 dwFrameSize)
+void regm_GeneratePrologue(uint32_t dwFrameSize)
 {
 #warning "Not implemented"
 }
@@ -265,7 +266,7 @@ void regm_GeneratePrologue(uint32 dwFrameSize)
 /***********************************************************************/
 /* Restore static registers, release stack frame and return */
 
-void regm_GenerateEpilogue(uint32 dwFrameSize)
+void regm_GenerateEpilogue(uint32_t dwFrameSize)
 {
 #warning "Not implemented"
 }
@@ -276,8 +277,8 @@ void regm_GenerateEpilogue(uint32 dwFrameSize)
  * FORM 1R: <op> <roperand1>, <roperand2>
  */
 
-void regm_GenerateForm1RCc(ubyte chOp, uint32 dwROperand1,
-			   uint32 dwROperand2, uint32 dwRCc)
+void regm_GenerateForm1RCc(uint8_t chOp, uint32_t dwROperand1,
+                           uint32_t dwROperand2, uint32_t dwRCc)
 {
   struct regm_rcode2_s *pReg = regm_AllocateRCode2();
   pReg->eForm                = eFORM_1RCc;
@@ -297,8 +298,8 @@ void regm_GenerateForm1RCc(ubyte chOp, uint32 dwROperand1,
  * FORM 1I: <op> <roperand1>, <immediate>
  */
 
-void regm_GenerateForm1ICc(ubyte chOp, uint32 dwROperand1,
-			   uint32 dwImmediate, uint32 dwRCc)
+void regm_GenerateForm1ICc(uint8_t chOp, uint32_t dwROperand1,
+                           uint32_t dwImmediate, uint32_t dwRCc)
 {
   struct regm_rcode2_s *pReg = regm_AllocateRCode2();
   pReg->eForm                = eFORM_1ICc;
@@ -317,8 +318,8 @@ void regm_GenerateForm1ICc(ubyte chOp, uint32 dwROperand1,
  * FORM 2R: <op> <rdest>, <roperand2>
  */
 
-void regm_GenerateForm2R(ubyte chOp, uint32 dwRDest,
-			 uint32 dwROperand2)
+void regm_GenerateForm2R(uint8_t chOp, uint32_t dwRDest,
+                         uint32_t dwROperand2)
 {
   struct regm_rcode2_s *pReg = regm_AllocateRCode2();
   pReg->eForm                = eFORM_2R;
@@ -336,8 +337,8 @@ void regm_GenerateForm2R(ubyte chOp, uint32 dwRDest,
 /* FORM 2I: <op> <rdest>, <immediate>
 */
 
-void regm_GenerateForm2I(ubyte chOp, uint32 dwRDest,
-			 uint32 dwImmediate)
+void regm_GenerateForm2I(uint8_t chOp, uint32_t dwRDest,
+                         uint32_t dwImmediate)
 {
   struct regm_rcode2_s *pReg = regm_AllocateRCode2();
   pReg->eForm                = eFORM_2I;
@@ -357,8 +358,8 @@ void regm_GenerateForm2I(ubyte chOp, uint32 dwRDest,
  *               <rsrc>,  <roperand1>, <roperand2>
  */
 
-void regm_GenerateForm3R(ubyte chOp, uint32 dwRSrcDest,
-			 uint32 dwROperand1, uint32 dwROperand2)
+void regm_GenerateForm3R(uint8_t chOp, uint32_t dwRSrcDest,
+                         uint32_t dwROperand1, uint32_t dwROperand2)
 {
   struct regm_rcode2_s *pReg = regm_AllocateRCode2();
   pReg->eForm                = eFORM_3R;
@@ -394,13 +395,13 @@ void regm_GenerateForm3R(ubyte chOp, uint32 dwRSrcDest,
       /* FORM 3: Loads multiple */
     case rLDM   :
       {
-	uint32 dwRDest = dwRSrcDest;
-	int i;
-	for (i = 0; i < g_dwRegisterCount; i++)
-	  {
-	    regm_MarkRegisterModified(pReg, dwRDest);
-	    dwRDest++;
-	  }
+        uint32_t dwRDest = dwRSrcDest;
+        int i;
+        for (i = 0; i < g_dwRegisterCount; i++)
+          {
+            regm_MarkRegisterModified(pReg, dwRDest);
+            dwRDest++;
+          }
       }
       break;
 
@@ -414,13 +415,13 @@ void regm_GenerateForm3R(ubyte chOp, uint32 dwRSrcDest,
       /* FORM 3: Store multipole */
     case rSTM   :
       {
-	uint32 dwRSrc = dwRSrcDest;
-	int i;
-	for (i = 0; i < g_dwRegisterCount; i++)
-	  {
-	    regm_MarkRegisterUsed(pReg, dwRSrc);
-	    dwRSrc++;
-	  }
+        uint32_t dwRSrc = dwRSrcDest;
+        int i;
+        for (i = 0; i < g_dwRegisterCount; i++)
+          {
+            regm_MarkRegisterUsed(pReg, dwRSrc);
+            dwRSrc++;
+          }
       }
       break;
 
@@ -441,8 +442,8 @@ void regm_GenerateForm3R(ubyte chOp, uint32 dwRSrcDest,
  *                <rsrc>,  <roperand1>, <immediate>
  */
 
-void regm_GenerateForm3I(ubyte chOp, uint32 dwRSrcDest,
-			 uint32 dwROperand1, uint32 dwImmediate)
+void regm_GenerateForm3I(uint8_t chOp, uint32_t dwRSrcDest,
+                         uint32_t dwROperand1, uint32_t dwImmediate)
 {
   struct regm_rcode2_s *pReg = regm_AllocateRCode2();
   pReg->eForm                = eFORM_3I;
@@ -495,7 +496,7 @@ void regm_GenerateForm3I(ubyte chOp, uint32 dwRSrcDest,
  * FORM 4I: <op> <pc-offset>
  */
 
-void regm_GenerateForm4I(ubyte chOp, uint32 dwOffset)
+void regm_GenerateForm4I(uint8_t chOp, uint32_t dwOffset)
 {
   struct regm_rcode2_s *pReg = regm_AllocateRCode2();
   pReg->eForm                = eFORM_4I;
@@ -509,8 +510,8 @@ void regm_GenerateForm4I(ubyte chOp, uint32 dwOffset)
  * FORM 4I: <op> <pc-offset>
  */
 
-void regm_GenerateForm4ICc(ubyte chOp, uint32 dwOffset,
-			   uint32 dwRCc)
+void regm_GenerateForm4ICc(uint8_t chOp, uint32_t dwOffset,
+                           uint32_t dwRCc)
 {
   struct regm_rcode2_s *pReg = regm_AllocateRCode2();
   pReg->eForm                = eFORM_4ICc;
@@ -531,9 +532,9 @@ int regm_ForEachRCode2(regm_rcode2_node_t pNode, void *arg)
     {
       ret = pNode(&g_pRCode2[i], arg);
       if (ret != 0)
-	{
-	  return ret;
-	}
+        {
+          return ret;
+        }
     }
   return 0;
 }

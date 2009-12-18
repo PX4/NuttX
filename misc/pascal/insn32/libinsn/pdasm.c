@@ -2,7 +2,7 @@
  * pdasm.c
  * P-Code Disassembler
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,6 +34,11 @@
  *
  **********************************************************************/
 
+/**********************************************************************
+ * Included Files
+ **********************************************************************/
+
+#include <stdint.h>
 #include <stdio.h>
 
 #include "keywords.h"
@@ -45,7 +50,9 @@
 
 #include "pinsn.h"
 
-/***********************************************************************/
+/**********************************************************************
+ * Private Types
+ **********************************************************************/
 
 /* These are all the format codes that apply to opcodes with an argument */
 
@@ -67,7 +74,7 @@ static const char invOp[] = "Invalid Opcode";
 struct optab_s
 {
   const char *opName;       /* Opcode mnemonics */
-  ubyte   format;           /* arg16 format */
+  uint8_t format;           /* arg16 format */
 };
 
 /******************** OPCODES WITH NO ARGUMENTS *************************/
@@ -373,51 +380,51 @@ void insn_DisassemblePCode(FILE* lfile, OPTYPE *pop)
   if (pop->op & o32)
     {
       switch (opTable[idx].format)
-	{
-	case HEX       :
-	  fprintf(lfile, "0x%08lx", pop->arg);
-	  break;
+        {
+        case HEX       :
+          fprintf(lfile, "0x%08lx", pop->arg);
+          break;
 
-	case FILENO    :
-	case LINENO    :
-	case DECIMAL   :
-	  fprintf(lfile, "%ld", (sint32)pop->arg);
-	  break;
+        case FILENO    :
+        case LINENO    :
+        case DECIMAL   :
+          fprintf(lfile, "%ld", (int32_t)pop->arg);
+          break;
 
-	case UDECIMAL  :
-	  fprintf(lfile, "%1lu", pop->arg);
-	  break;
+        case UDECIMAL  :
+          fprintf(lfile, "%1lu", pop->arg);
+          break;
 
-	case fpOP       :
-	  if ((pop->arg & 0x3f) < MAX_FOP)
-	    fprintf(lfile, "%s", fpName[(pop->arg & 0x3f)]);
-	  else
-	    fprintf(lfile, "%s", invFpOp);
-	  break;
+        case fpOP       :
+          if ((pop->arg & 0x3f) < MAX_FOP)
+            fprintf(lfile, "%s", fpName[(pop->arg & 0x3f)]);
+          else
+            fprintf(lfile, "%s", invFpOp);
+          break;
 
-	case xOP       :
-	  {
-	    unsigned fileno = pop->arg >> 16;
-	    unsigned xop    = pop->arg & 0xffff;
-	    fprintf(lfile, "%d, ", fileno);
-	    if (xop < MAX_XOP)
-	      fprintf(lfile, "%s", xName[xop]);
-	    else
-	      fprintf(lfile, "%s", invXOp);
-	  }
-	  break;
+        case xOP       :
+          {
+            unsigned fileno = pop->arg >> 16;
+            unsigned xop    = pop->arg & 0xffff;
+            fprintf(lfile, "%d, ", fileno);
+            if (xop < MAX_XOP)
+              fprintf(lfile, "%s", xName[xop]);
+            else
+              fprintf(lfile, "%s", invXOp);
+          }
+          break;
 
-	case lbOP :
-	  if (pop->arg < MAX_LBOP)
-	    fprintf(lfile, "%s", lbName[pop->arg]);
-	  else
-	    fprintf(lfile, "%s", invLbOp);
-	  break;
+        case lbOP :
+          if (pop->arg < MAX_LBOP)
+            fprintf(lfile, "%s", lbName[pop->arg]);
+          else
+            fprintf(lfile, "%s", invLbOp);
+          break;
 
-	case LABEL_DEC :
-	default        :
-	  break;
-	}
+        case LABEL_DEC :
+        default        :
+          break;
+        }
     }
 
   /* Don't forget the newline! */

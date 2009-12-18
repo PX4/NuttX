@@ -2,7 +2,7 @@
  * pgen.c
  * P-Code generation logic
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -65,13 +66,13 @@
 
 extern poffHandle_t poffHandle; /* Handle to POFF object */
 extern FILE *lstFile;           /* LIST file pointer */
-extern sint16 level;            /* Static nesting level */
+extern int16_t level;            /* Static nesting level */
 
 /**********************************************************************
  * Private Variables
  **********************************************************************/
 
-static const ubyte opmap[NUM_OPCODES] =
+static const uint8_t opmap[NUM_OPCODES] =
 {
   oNOP,    /* opNOP */
   oNEG,    /* opNEG */
@@ -163,7 +164,7 @@ static const ubyte opmap[NUM_OPCODES] =
   oLINE,   /* opLINE */
 };
 
-static uint16 g_nCurrentIncludeNumber = INVALID_INCLUDE;
+static uint16_t g_nCurrentIncludeNumber = INVALID_INCLUDE;
 
 /***********************************************************************
  * Private Function Prototypes
@@ -174,11 +175,11 @@ static uint16 g_nCurrentIncludeNumber = INVALID_INCLUDE;
  ***********************************************************************/
 
 static void
-insn32_GenerateSimple(ubyte opcode);
+insn32_GenerateSimple(uint8_t opcode);
 static void
-insn32_GenerateDataOperation(ubyte opcode, uint32 data);
+insn32_GenerateDataOperation(uint8_t opcode, uint32_t data);
 static void
-insn32_Generate(enum pcode_e opcode, uint32 arg);
+insn32_Generate(enum pcode_e opcode, uint32_t arg);
 
 /***********************************************************************
  * Private Functions
@@ -189,7 +190,7 @@ insn32_Generate(enum pcode_e opcode, uint32 arg);
 
 #if CONFIG_DEBUG
 static inline void
-insn32_DisassemblePCode(ubyte opcode, uint32 arg)
+insn32_DisassemblePCode(uint8_t opcode, uint32_t arg)
 {
   OPTYPE op;
 
@@ -204,7 +205,7 @@ insn32_DisassemblePCode(ubyte opcode, uint32 arg)
 
 /***********************************************************************/
 static inline void
-insn32_DisassembleOpcode(ubyte opcode, uint32 data)
+insn32_DisassembleOpcode(uint8_t opcode, uint32_t data)
 {
 #if CONFIG_DEBUG
   OPTYPE op;
@@ -218,7 +219,7 @@ insn32_DisassembleOpcode(ubyte opcode, uint32 data)
 /* Generate an Op-Code */
 
 static void
-insn32_GenerateSimple(ubyte opcode)
+insn32_GenerateSimple(uint8_t opcode)
 {
   TRACE(lstFile,"[insn32_GenerateSimple:0x%02x]", opcode);
 
@@ -234,12 +235,12 @@ insn32_GenerateSimple(ubyte opcode)
 /***********************************************************************/
 
 static void
-insn32_GenerateDataOperation(ubyte opcode, uint32 data)
+insn32_GenerateDataOperation(uint8_t opcode, uint32_t data)
 {
   union
   {
-    ubyte  b[4];
-    uint32 w;
+    uint8_t b[4];
+    uint32_t w;
   } udata;
 
   TRACE(lstFile,"[insn32_GenerateDataOperation:0x%02x:0x%07x]", opcode, data);
@@ -264,9 +265,9 @@ insn32_GenerateDataOperation(ubyte opcode, uint32 data)
 /***********************************************************************/
 
 static void
-insn32_Generate(enum pcode_e opcode, uint32 arg)
+insn32_Generate(enum pcode_e opcode, uint32_t arg)
 {
-  ubyte insn_opcode = opmap[opcode];
+  uint8_t insn_opcode = opmap[opcode];
 
   TRACE(lstFile,"[insn32_Generate:0x%02x->0x%02x]", opcode, insn_opcode);
 
@@ -281,9 +282,9 @@ insn32_Generate(enum pcode_e opcode, uint32 arg)
       /* We ignore the argument... what if one was provided? */
 
       if (arg != 0)
-	{
-	  warn(eARGIGNORED);
-	}
+        {
+          warn(eARGIGNORED);
+        }
     }
 }
 
@@ -300,9 +301,9 @@ insn_GenerateSimple(enum pcode_e opcode)
 /***********************************************************************/
 
 void
-insn_GenerateDataOperation(enum pcode_e opcode, sint32 data)
+insn_GenerateDataOperation(enum pcode_e opcode, int32_t data)
 {
-  insn32_Generate(opcode, (uint32)data);
+  insn32_Generate(opcode, (uint32_t)data);
 }
 
 /***********************************************************************/
@@ -310,7 +311,7 @@ insn_GenerateDataOperation(enum pcode_e opcode, sint32 data)
  * retained in the DC register.
  */
 
-void insn_GenerateDataSize(uint32 dwDataSize)
+void insn_GenerateDataSize(uint32_t dwDataSize)
 {
   insn32_GenerateDataOperation(oSDC, dwDataSize);
 }
@@ -318,7 +319,7 @@ void insn_GenerateDataSize(uint32 dwDataSize)
 /***********************************************************************/
 
 void
-insn_GenerateFpOperation(ubyte fpOpcode)
+insn_GenerateFpOperation(uint8_t fpOpcode)
 {
   insn32_GenerateDataOperation(oFLOAT, fpOpcode);
 }
@@ -326,44 +327,44 @@ insn_GenerateFpOperation(ubyte fpOpcode)
 /***********************************************************************/
 
 void
-insn_GenerateIoOperation(uint16 ioOpcode, uint16 fileNumber)
+insn_GenerateIoOperation(uint16_t ioOpcode, uint16_t fileNumber)
 {
-  uint32 arg = (uint32)fileNumber << 16 | (uint32)ioOpcode;
+  uint32_t arg = (uint32_t)fileNumber << 16 | (uint32_t)ioOpcode;
   insn32_GenerateDataOperation(oSYSIO, arg);
 }
 
 /***********************************************************************/
 
 void
-insn_BuiltInFunctionCall(uint16 libOpcode)
+insn_BuiltInFunctionCall(uint16_t libOpcode)
 {
-  insn32_GenerateDataOperation(oLIB, (uint32)libOpcode);
+  insn32_GenerateDataOperation(oLIB, (uint32_t)libOpcode);
 }
 
 /***********************************************************************/
 
 void
-insn_GenerateLevelReference(enum pcode_e opcode, uint16 level, sint32 offset)
+insn_GenerateLevelReference(enum pcode_e opcode, uint16_t level, int32_t offset)
 {
   /* Note that level is ignored.  We used the level set by the
    * preceding call to insn_SetStackLevel().
    */
 
-  insn32_Generate(opcode, (uint32)offset);
+  insn32_Generate(opcode, (uint32_t)offset);
 }
 
 /***********************************************************************/
 
 void
-insn_GenerateProcedureCall(uint16 level, sint32 offset)
+insn_GenerateProcedureCall(uint16_t level, int32_t offset)
 {
-  insn32_GenerateDataOperation(oPCAL, (uint32)offset);
+  insn32_GenerateDataOperation(oPCAL, (uint32_t)offset);
 }
 
 /***********************************************************************/
 
 void
-insn_GenerateLineNumber(uint16 includeNumber, uint32 lineNumber)
+insn_GenerateLineNumber(uint16_t includeNumber, uint32_t lineNumber)
 {
   if (includeNumber != g_nCurrentIncludeNumber)
     {
@@ -376,7 +377,7 @@ insn_GenerateLineNumber(uint16 includeNumber, uint32 lineNumber)
 /***********************************************************************/
 
 void
-insn_SetStackLevel(uint32 level)
+insn_SetStackLevel(uint32_t level)
 {
   insn32_GenerateDataOperation(oSLSP, level);
 }

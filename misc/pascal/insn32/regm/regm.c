@@ -2,7 +2,7 @@
  * regm.c
  * Convert 32-bit pcode defintions to a register model
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -65,7 +66,7 @@ static void         regm_Pass3(poffHandle_t hPoff);
 static void         regm_Pass4(poffHandle_t hPoff);
 static void         regm_Pass5(poffHandle_t hPoff);
 static void         regm_WritePoffFile(poffHandle_t hPoff,
-				       const char *filename);
+                                       const char *filename);
 
 /**********************************************************************
  * Public Variables
@@ -99,9 +100,9 @@ static void regm_ShowUsage(const char *progname, int errcode)
 static poffHandle_t regm_ReadPoffFile(const char *filename)
 {
   poffHandle_t hPoff;
-  char    objname [FNAME_SIZE+1];
-  FILE   *objFile;
-  int     errcode;
+  char  objname [FNAME_SIZE+1];
+  FILE *objFile;
+  int   errcode;
 
   TRACE(stderr, "[regm_ReadPoffFile]");
 
@@ -142,11 +143,11 @@ static poffHandle_t regm_ReadPoffFile(const char *filename)
 
 static int regm_CheckPoffFile(poffHandle_t hPoff)
 {
-  ubyte fileArch = poffGetArchitecture(hPoff);
+  uint8_t fileArch = poffGetArchitecture(hPoff);
   if (fileArch != FHA_PCODE_INSN32)
     {
       fprintf(stderr, "ERROR: File is not 32-bit pcode (%d)\n",
-	      fileArch);
+              fileArch);
       return -1;
     }
   return 0;
@@ -232,16 +233,16 @@ int main(int argc, char *argv[], char *envp[])
   while ((option = getopt(argc, argv, "dh")) > 0)
     {
       switch (option)
-	{
-	case 'd' :
-	  vRegmDebug++;
-	  break;
-	case 'h' :
-	  regm_ShowUsage(argv[0], 0);
-	default:
-	  fprintf(stderr, "Unrecognized option\n");
-	  regm_ShowUsage(argv[0], -1);
-	}
+        {
+        case 'd' :
+          vRegmDebug++;
+          break;
+        case 'h' :
+          regm_ShowUsage(argv[0], 0);
+        default:
+          fprintf(stderr, "Unrecognized option\n");
+          regm_ShowUsage(argv[0], -1);
+        }
     }
 
   /* Check for existence of filename argument */
@@ -328,7 +329,7 @@ int main(int argc, char *argv[], char *envp[])
 
 /***********************************************************************/
 
-void regm_ProgSeek(poffHandle_t hPoff, uint32 dwOffset)
+void regm_ProgSeek(poffHandle_t hPoff, uint32_t dwOffset)
 {
   insn_ResetOpCodeRead(hPoff);
   if (poffProgSeek(hPoff, dwOffset) < 0)

@@ -1,7 +1,7 @@
 /****************************************************************************
  * pexec.h
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,6 +40,8 @@
  * Included Files
  ****************************************************************************/
 
+#include <stdint.h>
+
 /****************************************************************************
  * Definitions
  ****************************************************************************/
@@ -53,15 +55,15 @@
  * Type Definitions
  ****************************************************************************/
 
-typedef uint32 ustack_t;   /* Stack values are 16-bits in length */
-typedef sint32 sstack_t;
-typedef uint32 addr_t;     /* Addresses are 16-bits in length */
-typedef uint16 level_t;    /* Limits to MAXUINT16 levels */
+typedef uint32_t ustack_t;   /* Stack values are 16-bits in length */
+typedef int32_t  sstack_t;
+typedef uint32_t addr_t;     /* Addresses are 16-bits in length */
+typedef uint16_t level_t;    /* Limits to MAXUINT16 levels */
 
 union stack_u
 {
   ustack_t *i;
-  ubyte    *b;
+  uint8_t  *b;
 };
 typedef union stack_u stackType;
 
@@ -73,19 +75,19 @@ struct pexec_attr_s
 {
   /* Instruction space (I-Space) */
 
-  FAR ubyte *ispace;  /* Allocated I-Space containing p-code data */
-  addr_t     entry;   /* Entry point */
-  addr_t     maxpc;   /* Last valid p-code address */
+  FAR uint8_t *ispace;  /* Allocated I-Space containing p-code data */
+  addr_t       entry;   /* Entry point */
+  addr_t       maxpc;   /* Last valid p-code address */
 
   /* Read-only data block */
 
-  FAR ubyte *rodata;  /* Address of read-only data block */
-  addr_t     rosize;  /* Size of read-only data block */
+  FAR uint8_t *rodata;  /* Address of read-only data block */
+  addr_t       rosize;  /* Size of read-only data block */
 
   /* Allocate for variable storage */
 
-  addr_t     varsize; /* Variable storage size */
-  addr_t     strsize; /* String storage size */
+  addr_t       varsize; /* Variable storage size */
+  addr_t       strsize; /* String storage size */
 };
 
 /* This structure defines the current state of the p-code interpreter */
@@ -98,7 +100,7 @@ struct pexec_s
 
   /* This is the emulated P-Machine instruction space (I-Space) */
 
-  FAR ubyte *ispace;
+  FAR uint8_t *ispace;
 
  /* Address of last valid P-Code */
 

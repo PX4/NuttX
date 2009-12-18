@@ -2,7 +2,7 @@
  * regm_tree.h
  * External Declarations associated with regm_tree.c
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,7 @@
  * Included Files
  ***************************************************************************/
 
+#include <stdint.h>
 #include "keywords.h"
 #include "pofflib.h"
 #include "rinsn32.h"
@@ -57,9 +58,9 @@
 
 struct procinsn_s
 {
-  RINSN32 sRegOp;
-  uint32  dwRegModified;
-  uint32  dwRegsUsed[2];
+  RINSN32  sRegOp;
+  uint32_t dwRegModified;
+  uint32_t dwRegsUsed[2];
 };
 
 /* Each program section is described by an entry point offset, a
@@ -70,8 +71,8 @@ struct procinsn_s
 
 struct procsection_s
 {
-  uint32 dwOffset; /* File offset to section */
-  uint32 dwSize;   /* Size of section in bytes */
+  uint32_t dwOffset; /* File offset to section */
+  uint32_t dwSize;   /* Size of section in bytes */
 };
 
 /* But each pascal procedure may contain two program sections:
@@ -102,20 +103,20 @@ extern void regm_InitTree(void);
 extern struct procdata_s *regm_CreateProgSection(void);
 extern void regm_SetProgRoot(struct procdata_s *pNode);
 extern void regm_AddProgChild(struct procdata_s *pParent,
-			      struct procdata_s *pNode);
+                              struct procdata_s *pNode);
 extern void regm_AddProgPeer(struct procdata_s *pPeer,
-			     struct procdata_s *pNode);
+                             struct procdata_s *pNode);
 extern struct procdata_s *regm_GetRootNode(void);
 extern int  regm_ForEachPeer(struct procdata_s *pPeer,
-			     int (*pfPeerFunc)(struct procdata_s*, void*),
-			     void *arg);
+                             int (*pfPeerFunc)(struct procdata_s*, void*),
+                             void *arg);
 extern int  regm_ForEachChild(struct procdata_s *pParent,
-			      int (*pfChildFunc)(struct procdata_s*, void*),
-			      void *arg);
-extern uint32 regm_ReadNodePCodes(struct procdata_s *pNode,
-				  poffHandle_t hPoff,
-				  uint32 dwStartOffset, uint32 dwEndOffset,
-				  ubyte cTerminalOpcode);
+                              int (*pfChildFunc)(struct procdata_s*, void*),
+                              void *arg);
+extern uint32_t regm_ReadNodePCodes(struct procdata_s *pNode,
+                                    poffHandle_t hPoff,
+                                    uint32_t dwStartOffset, uint32_t dwEndOffset,
+                                    uint8_t cTerminalOpcode);
 extern void regm_DumpTree(void);
 
 #endif /* __REGM_TREE_H */

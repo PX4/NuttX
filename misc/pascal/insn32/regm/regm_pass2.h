@@ -2,7 +2,7 @@
  * regm_pass2.h
  * External Declarations associated with regm_pass2.c
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,6 +41,8 @@
  * Included Files
  ***************************************************************************/
 
+#include <stdint.h>
+
 /***************************************************************************
  * Definitions
  ***************************************************************************/
@@ -53,9 +55,9 @@
  * Public Variables
  ***************************************************************************/
 
-extern uint32 g_dwStackOffset;
-extern uint32 g_dwRegisterCount;
-extern int    g_bRegisterCountValid;
+extern uint32_t g_dwStackOffset;
+extern uint32_t g_dwRegisterCount;
+extern int      g_bRegisterCountValid;
 
 /***************************************************************************
  * Public Function Prototypes

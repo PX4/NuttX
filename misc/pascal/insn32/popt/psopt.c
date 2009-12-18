@@ -2,7 +2,7 @@
  * psopt.c
  * String Stack Optimizaitons
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -70,10 +71,10 @@
  * Private Data
  **********************************************************************/
 
-static ubyte *pbuffer[NPBUFFERS];
-static int    nbytes_in_pbuffer[NPBUFFERS];
-static int    current_level = -1;
-static int    inch;
+static uint8_t *pbuffer[NPBUFFERS];
+static int      nbytes_in_pbuffer[NPBUFFERS];
+static int      current_level = -1;
+static int      inch;
 
 /**********************************************************************
  * Private Function Prototypes
@@ -97,7 +98,7 @@ static inline void putbuf(int c, poffProgHandle_t poffProgHandle)
     {
       /* No PUSHS encountered.  Write byte directly to output */
 
-      poffAddTmpProgByte(poffProgHandle, (ubyte)c);
+      poffAddTmpProgByte(poffProgHandle, (uint8_t)c);
     }
   else
     {
@@ -106,7 +107,7 @@ static inline void putbuf(int c, poffProgHandle_t poffProgHandle)
        */
 
       int idx                 = nbytes_in_pbuffer[dlvl];
-      ubyte *dest             = pbuffer[dlvl] + idx;
+      uint8_t *dest             = pbuffer[dlvl] + idx;
       *dest                   = c;
       nbytes_in_pbuffer[dlvl] = idx + 1;
     }
@@ -122,7 +123,7 @@ static inline void flushc(int c, poffProgHandle_t poffProgHandle)
 
       int dlvl                = current_level - 1;
       int idx                 = nbytes_in_pbuffer[dlvl];
-      ubyte *dest             = pbuffer[dlvl] + idx;
+      uint8_t *dest             = pbuffer[dlvl] + idx;
       *dest                   = c;
       nbytes_in_pbuffer[dlvl] = idx + 1;
     }
@@ -132,7 +133,7 @@ static inline void flushc(int c, poffProgHandle_t poffProgHandle)
        * buffer
        */
 
-      poffAddTmpProgByte(poffProgHandle, (ubyte)c);
+      poffAddTmpProgByte(poffProgHandle, (uint8_t)c);
     }
 }
 
@@ -144,33 +145,33 @@ static inline void flushbuf(poffProgHandle_t poffProgHandle)
   if (nbytes_in_pbuffer[slvl] > 0)
     {
       if (current_level > 0)
-	{
-	  /* Nested PUSHS encountered. Flush buffer into buffer associated
-	   * with the previous nesting level.
-	   */
+        {
+          /* Nested PUSHS encountered. Flush buffer into buffer associated
+           * with the previous nesting level.
+           */
 
-	  int dlvl    = slvl - 1;
-	  ubyte *src  = pbuffer[slvl];
-	  ubyte *dest = pbuffer[dlvl] + nbytes_in_pbuffer[dlvl];
+          int dlvl    = slvl - 1;
+          uint8_t *src  = pbuffer[slvl];
+          uint8_t *dest = pbuffer[dlvl] + nbytes_in_pbuffer[dlvl];
 
-	  memcpy(dest, src, nbytes_in_pbuffer[slvl]);
-	  nbytes_in_pbuffer[dlvl] += nbytes_in_pbuffer[slvl];
-	}
+          memcpy(dest, src, nbytes_in_pbuffer[slvl]);
+          nbytes_in_pbuffer[dlvl] += nbytes_in_pbuffer[slvl];
+        }
       else
-	{
-	  /* Only one PUSHS encountered.  Flush directly to the output
-	   * buffer
-	   */
+        {
+          /* Only one PUSHS encountered.  Flush directly to the output
+           * buffer
+           */
 
-	  errCode = poffWriteTmpProgBytes(pbuffer[0], nbytes_in_pbuffer[0],
-					  poffProgHandle);
+          errCode = poffWriteTmpProgBytes(pbuffer[0], nbytes_in_pbuffer[0],
+                                          poffProgHandle);
 
-	  if (errCode != eNOERROR)
-	    {
-	      printf("Error writing to file: %d\n", errCode);
-	      exit(1);
-	    }
-	}
+          if (errCode != eNOERROR)
+            {
+              printf("Error writing to file: %d\n", errCode);
+              exit(1);
+            }
+        }
     }
   nbytes_in_pbuffer[slvl] = 0;
 }
@@ -188,43 +189,43 @@ static void dopush(poffHandle_t poffHandle, poffProgHandle_t poffProgHandle)
       /* Search for a PUSHS opcode */
 
       if (inch != oPUSHS)
-	{
-	  /* Its not PUSHS, just echo to the output file/buffer */
+        {
+          /* Its not PUSHS, just echo to the output file/buffer */
 
-	  putbuf(inch, poffProgHandle);
+          putbuf(inch, poffProgHandle);
 
-	  /* Get the next byte from the input stream */
+          /* Get the next byte from the input stream */
 
-	  opcode = inch;
-	  inch = poffGetProgByte(poffHandle);
+          opcode = inch;
+          inch = poffGetProgByte(poffHandle);
 
-	  /* Check for a 32-bit argument */
+          /* Check for a 32-bit argument */
 
-	  if ((opcode & o32) != 0)
-	    {
-	      /* Echo the 32-bits of the argument */
+          if ((opcode & o32) != 0)
+            {
+              /* Echo the 32-bits of the argument */
 
-	      putbuf(inch, poffProgHandle);
-	      inch = poffGetProgByte(poffHandle);
-	      putbuf(inch, poffProgHandle);
-	      inch = poffGetProgByte(poffHandle);
-	      putbuf(inch, poffProgHandle);
-	      inch = poffGetProgByte(poffHandle);
-	      putbuf(inch, poffProgHandle);
-	      inch = poffGetProgByte(poffHandle);
-	    }
-	}
+              putbuf(inch, poffProgHandle);
+              inch = poffGetProgByte(poffHandle);
+              putbuf(inch, poffProgHandle);
+              inch = poffGetProgByte(poffHandle);
+              putbuf(inch, poffProgHandle);
+              inch = poffGetProgByte(poffHandle);
+              putbuf(inch, poffProgHandle);
+              inch = poffGetProgByte(poffHandle);
+            }
+        }
       else
-	{
-	  /* We have found PUSHS.  No search for the next occurrence
-	   * of either and instruction that increments the string
-	   * stack or for the matching POPS
-	   */
+        {
+          /* We have found PUSHS.  No search for the next occurrence
+           * of either and instruction that increments the string
+           * stack or for the matching POPS
+           */
 
-	  current_level++;
-	  dopop(poffHandle, poffProgHandle);
-	  current_level--;
-	}
+          current_level++;
+          dopop(poffHandle, poffProgHandle);
+          current_level--;
+        }
     }
 }
 
@@ -244,97 +245,97 @@ static void dopop(poffHandle_t poffHandle, poffProgHandle_t poffProgHandle)
       /* Did we encounter another PUSHS? */
 
       if (inch == oPUSHS)
-	{
-	  /* Yes... recurse to handle it */
+        {
+          /* Yes... recurse to handle it */
 
-	  current_level++;
-	  dopop(poffHandle, poffProgHandle);
-	  current_level--;
-	}
+          current_level++;
+          dopop(poffHandle, poffProgHandle);
+          current_level--;
+        }
 
       else if (inch == oPOPS)
-	{
-	  /* Flush the buffered data without the PUSHS */
+        {
+          /* Flush the buffered data without the PUSHS */
 
-	  flushbuf(poffProgHandle);
+          flushbuf(poffProgHandle);
 
-	  /* And discard the matching POPS */
+          /* And discard the matching POPS */
 
-	  inch = poffGetProgByte(poffHandle);
-	  break;
-	}
+          inch = poffGetProgByte(poffHandle);
+          break;
+        }
       else if (inch == oLIB)
-	{
-	  uint32 arg32;
-	  unsigned int tmp;
+        {
+          uint32_t arg32;
+          unsigned int tmp;
 
-	  /* Get the 32-bit argument from the big endian data stream */
+          /* Get the 32-bit argument from the big endian data stream */
 
-	  tmp = poffGetProgByte(poffHandle);
-	  arg32 = tmp << 24;
-	  putbuf(tmp, poffProgHandle);
+          tmp = poffGetProgByte(poffHandle);
+          arg32 = tmp << 24;
+          putbuf(tmp, poffProgHandle);
 
-	  tmp = poffGetProgByte(poffHandle);
-	  arg32 |= tmp << 16;
-	  putbuf(tmp, poffProgHandle);
+          tmp = poffGetProgByte(poffHandle);
+          arg32 |= tmp << 16;
+          putbuf(tmp, poffProgHandle);
 
-	  tmp = poffGetProgByte(poffHandle);
-	  arg32 |= tmp << 8;
-	  putbuf(tmp, poffProgHandle);
+          tmp = poffGetProgByte(poffHandle);
+          arg32 |= tmp << 8;
+          putbuf(tmp, poffProgHandle);
 
-	  tmp = poffGetProgByte(poffHandle);
-	  arg32 |= tmp;
-	  putbuf(tmp, poffProgHandle);
+          tmp = poffGetProgByte(poffHandle);
+          arg32 |= tmp;
+          putbuf(tmp, poffProgHandle);
 
-	  inch   = poffGetProgByte(poffHandle);
+          inch   = poffGetProgByte(poffHandle);
 
-	  /* Is it LIB MKSTK? MKSTKSTR? or MKSTKC? */
+          /* Is it LIB MKSTK? MKSTKSTR? or MKSTKC? */
 
-	  if ((arg32 == lbMKSTK) ||
-	      (arg32 == lbMKSTKSTR) ||
-	      (arg32 == lbMKSTKC))
-	    {
-	      /* Flush the buffered data with the PUSHS */
+          if ((arg32 == lbMKSTK) ||
+              (arg32 == lbMKSTKSTR) ||
+              (arg32 == lbMKSTKC))
+            {
+              /* Flush the buffered data with the PUSHS */
 
-	      flushc(oPUSHS, poffProgHandle);
-	      flushbuf(poffProgHandle);
+              flushc(oPUSHS, poffProgHandle);
+              flushbuf(poffProgHandle);
 
-	      /* And break out of the loop to search for
-	       * the next PUSHS
-	       */
+              /* And break out of the loop to search for
+               * the next PUSHS
+               */
 
-	      break;
-	    }
-	}
+              break;
+            }
+        }
       else
-	{
-	  int opcode;
+        {
+          int opcode;
 
-	  /* Something else.  Put it in the buffer */
+          /* Something else.  Put it in the buffer */
 
-	  putbuf(inch, poffProgHandle);
+          putbuf(inch, poffProgHandle);
 
-	  /* Get the next byte from the input stream */
+          /* Get the next byte from the input stream */
 
-	  opcode = inch;
-	  inch = poffGetProgByte(poffHandle);
+          opcode = inch;
+          inch = poffGetProgByte(poffHandle);
 
-	  /* Check for a 32-bit argument */
+          /* Check for a 32-bit argument */
 
-	  if (opcode & o32 != 0)
-	    {
-	      /* Buffer the remaining 24-bits of the argument */
+          if (opcode & o32 != 0)
+            {
+              /* Buffer the remaining 24-bits of the argument */
 
-	      putbuf(inch, poffProgHandle);
-	      inch = poffGetProgByte(poffHandle);
-	      putbuf(inch, poffProgHandle);
-	      inch = poffGetProgByte(poffHandle);
-	      putbuf(inch, poffProgHandle);
-	      inch = poffGetProgByte(poffHandle);
-	      putbuf(inch, poffProgHandle);
-	      inch = poffGetProgByte(poffHandle);
-	    }
-	}
+              putbuf(inch, poffProgHandle);
+              inch = poffGetProgByte(poffHandle);
+              putbuf(inch, poffProgHandle);
+              inch = poffGetProgByte(poffHandle);
+              putbuf(inch, poffProgHandle);
+              inch = poffGetProgByte(poffHandle);
+              putbuf(inch, poffProgHandle);
+              inch = poffGetProgByte(poffHandle);
+            }
+        }
     }
 }
 
@@ -343,7 +344,7 @@ static void dopop(poffHandle_t poffHandle, poffProgHandle_t poffProgHandle)
  **********************************************************************/
 
 void stringStackOptimize(poffHandle_t poffHandle,
-			 poffProgHandle_t poffProgHandle)
+                         poffProgHandle_t poffProgHandle)
 {
   int i;
 
@@ -351,12 +352,12 @@ void stringStackOptimize(poffHandle_t poffHandle,
 
   for (i = 0; i < NPBUFFERS; i++)
     {
-      pbuffer[i] = (ubyte*)malloc(PBUFFER_SIZE);
+      pbuffer[i] = (uint8_t*)malloc(PBUFFER_SIZE);
       if (pbuffer[i] == NULL)
-	{
-	  printf("Failed to allocate pcode buffer\n");
-	  exit(1);
-	}
+        {
+          printf("Failed to allocate pcode buffer\n");
+          exit(1);
+        }
       nbytes_in_pbuffer[i] = 0;
     }
 

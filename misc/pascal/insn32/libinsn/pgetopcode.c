@@ -2,7 +2,7 @@
  * pgetopcode.c
  * P-Code access utilities
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,8 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
+
 #include "keywords.h"
 #include "podefs.h"
 #include "pinsn32.h"
@@ -54,7 +56,7 @@
  * Global Variables
  **********************************************************************/
 
-static sint16 g_bEndIn  = 0;  /* 1 = oEND pcode or EOF received */
+static int16_t g_bEndIn  = 0;  /* 1 = oEND pcode or EOF received */
 
 /**********************************************************************
  * Private Variables
@@ -70,9 +72,9 @@ static sint16 g_bEndIn  = 0;  /* 1 = oEND pcode or EOF received */
 
 /**********************************************************************/
 
-uint32 insn_GetOpCode(poffHandle_t handle, OPTYPE *ptr)
+uint32_t insn_GetOpCode(poffHandle_t handle, OPTYPE *ptr)
 {
-  uint32 opsize = 1;
+  uint32_t opsize = 1;
   int c;
 
   TRACE(stderr, "[insn_GetOpCode]");
@@ -102,14 +104,14 @@ uint32 insn_GetOpCode(poffHandle_t handle, OPTYPE *ptr)
       g_bEndIn = (c == oEND);
 
       if (c & o32)
-	{
-	  ubyte *pb = (ubyte*)&ptr->arg;
-	  pb[opB1]  = poffGetProgByte(handle);
-	  pb[opB2]  = poffGetProgByte(handle);
-	  pb[opB3]  = poffGetProgByte(handle);
-	  pb[opB4]  = poffGetProgByte(handle);
-	  opsize   += 4;
-	}
+        {
+          uint8_t *pb = (uint8_t*)&ptr->arg;
+          pb[opB1]  = poffGetProgByte(handle);
+          pb[opB2]  = poffGetProgByte(handle);
+          pb[opB3]  = poffGetProgByte(handle);
+          pb[opB4]  = poffGetProgByte(handle);
+          opsize   += 4;
+        }
     }
 
   return opsize;

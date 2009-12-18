@@ -2,7 +2,7 @@
  * plist.c
  * POFF file lister
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,7 @@
  * Included Files
  **********************************************************************/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -88,16 +89,16 @@ static const struct option long_options[] =
   {"relocs",           0, NULL, 'r'},
   {"disassemble",      0, NULL, 'd'},
   {"help",             0, NULL, 'H'},
-  {NULL,     0, NULL, 0}
+  {NULL,               0, NULL, 0}
 };
 
 /**********************************************************************
  * Private Function Prototypes
  **********************************************************************/
 
-static void     showUsage          (const char *progname);
-static void     parseArgs          (int argc, char **argv);
-static void     dumpProgramData    (poffHandle_t poffHandle);
+static void showUsage       (const char *progname);
+static void parseArgs       (int argc, char **argv);
+static void dumpProgramData (poffHandle_t poffHandle);
 
 /**********************************************************************
  * Global Functions
@@ -105,10 +106,10 @@ static void     dumpProgramData    (poffHandle_t poffHandle);
 
 int main (int argc, char *argv[], char *envp[])
 {
-  FILE   *object;                  /* Object file pointer */
+  FILE    *object;                 /* Object file pointer */
   poffHandle_t poffHandle;         /* Handle for POFF object */
-  char    fileName[FNAME_SIZE+1];  /* Object file name */
-  uint16  errCode;                 /* See pedefs.h */
+  char     fileName[FNAME_SIZE+1]; /* Object file name */
+  uint16_t errCode;                /* See pedefs.h */
 
   /* Parse the command line arguments */
 
@@ -189,7 +190,7 @@ static void showUsage(const char *progname)
 {
   fprintf(stderr, "Usage:\n");
   fprintf(stderr, "  %s [options] <poff-filename>\n",
-	  progname);
+          progname);
   fprintf(stderr, "options:\n");
   fprintf(stderr, "  -a --all              Equivalent to: -h -S -s -r -d\n");
   fprintf(stderr, "  -h --file-header      Display the POFF file header\n");
@@ -221,50 +222,50 @@ static void parseArgs(int argc, char **argv)
   do
     {
       c = getopt_long (argc, argv, "ahSsrdH",
-		       long_options, &option_index);
+                       long_options, &option_index);
       if (c != -1)
-	{
-	  switch (c)
-	    {
-	    case 'a' :
-	      showFileHeader     = 1;
-	      showSectionHeaders = 1;
-	      showSymbols        = 1;
-	      showRelocs         = 1;
-	      disassemble        = 1;
-	      break;
+        {
+          switch (c)
+            {
+            case 'a' :
+              showFileHeader     = 1;
+              showSectionHeaders = 1;
+              showSymbols        = 1;
+              showRelocs         = 1;
+              disassemble        = 1;
+              break;
 
-	    case 'h' :
-	      showFileHeader     = 1;
-	      break;
+            case 'h' :
+              showFileHeader     = 1;
+              break;
 
-	    case 'S' :
-	      showSectionHeaders = 1;
-	      break;
+            case 'S' :
+              showSectionHeaders = 1;
+              break;
 
-	    case 's' :
-	      showSymbols        = 1;
-	      break;
+            case 's' :
+              showSymbols        = 1;
+              break;
 
-	    case 'r' :
-	      showRelocs         = 1;
-	      break;
+            case 'r' :
+              showRelocs         = 1;
+              break;
 
-	    case 'd' :
-	      disassemble        = 1;
-	      break;
+            case 'd' :
+              disassemble        = 1;
+              break;
 
-	    case 'H' :
-	      showUsage(argv[0]);
-	      break;
+            case 'H' :
+              showUsage(argv[0]);
+              break;
 
-	    default:
-	      /* Shouldn't happen */
+            default:
+              /* Shouldn't happen */
 
-	      fprintf(stderr, "ERROR: Unrecognized option\n");
-	      showUsage(argv[0]);
-	    }
-	}
+              fprintf(stderr, "ERROR: Unrecognized option\n");
+              showUsage(argv[0]);
+            }
+        }
     }
   while (c != -1);
 
@@ -288,7 +289,7 @@ static void dumpProgramData(poffHandle_t poffHandle)
   poffLibLineNumber_t *lastln;     /* Previous line number reference */
   poffLibLineNumber_t *ln;         /* Current line number reference */
   poffLibDebugFuncInfo_t *dfi;     /* Current line debug info */
-  uint32  pc;                      /* Program counter */
+  uint32_t pc;                      /* Program counter */
   int     opSize;                  /* Size of the opcode */
   int     inch;                    /* Input char */
   OPTYPE  op;                      /* opcode */
@@ -314,57 +315,57 @@ static void dumpProgramData(poffHandle_t poffHandle)
       opSize = 1;
 
       if (inch & o32)
-	{
-	  uint32 arg;
+        {
+          uint32_t arg;
 
-	  /* Handle 32-bits in big endian byte stream */
+          /* Handle 32-bits in big endian byte stream */
 
-	  arg  = poffGetProgByte(poffHandle) << 24;
-	  arg |= poffGetProgByte(poffHandle) << 16;
-	  arg |= poffGetProgByte(poffHandle) <<  8;
-	  arg |= poffGetProgByte(poffHandle);
+          arg  = poffGetProgByte(poffHandle) << 24;
+          arg |= poffGetProgByte(poffHandle) << 16;
+          arg |= poffGetProgByte(poffHandle) <<  8;
+          arg |= poffGetProgByte(poffHandle);
 
-	  op.arg  = arg;
-	  opSize += 4;
-	}
+          op.arg  = arg;
+          opSize += 4;
+        }
 
       /* Check for debug information associated with this line */
 
       dfi = poffFindDebugFuncInfo(pc);
       if (dfi)
-	{
-	  int i;
-	  if (dfi->retsize)
-	    {
-	      printf("\nFUNCTION ENTRY:  return size=%ld nparms=%ld\n",
-		     dfi->retsize, dfi->nparms);
-	    }
-	  else
-	    {
-	      printf("\nPROCEDURE ENTRY: nparms=%ld\n", dfi->nparms);
-	    }
+        {
+          int i;
+          if (dfi->retsize)
+            {
+              printf("\nFUNCTION ENTRY:  return size=%ld nparms=%ld\n",
+                     dfi->retsize, dfi->nparms);
+            }
+          else
+            {
+              printf("\nPROCEDURE ENTRY: nparms=%ld\n", dfi->nparms);
+            }
 
-	  for (i = 0; i < dfi->nparms; i++)
-	    {
-	      printf("Argument %2d:     size=%ld\n", i, dfi->argsize[i]);
-	    }
-	}
+          for (i = 0; i < dfi->nparms; i++)
+            {
+              printf("Argument %2d:     size=%ld\n", i, dfi->argsize[i]);
+            }
+        }
 
       /* Find the line number associated with this line */
 
       ln = poffFindLineNumber(pc);
       if ((ln) && (ln != lastln))
-	{
-	  /* Print the line number line */
+        {
+          /* Print the line number line */
 
-	  printf("\n%s:%ld\n", ln->filename, ln->lineno);
+          printf("\n%s:%ld\n", ln->filename, ln->lineno);
 
-	  /* This will suppress reporting the same line number
-	   * repeatedly.
-	   */
+          /* This will suppress reporting the same line number
+           * repeatedly.
+           */
 
-	  lastln = ln;
-	}
+          lastln = ln;
+        }
 
       /* Print the address then the opcode on stdout */
 

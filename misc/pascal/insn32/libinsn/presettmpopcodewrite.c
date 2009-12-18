@@ -2,7 +2,7 @@
  * paddtmpopcode
  * P-Code access utilities
  *
- *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,6 +37,8 @@
 /**********************************************************************
  * Included Files
  **********************************************************************/
+
+#include <stdint.h>
 
 #include "keywords.h"
 #include "podefs.h"
@@ -78,7 +80,7 @@ void insn_AddTmpOpCode(poffProgHandle_t hProg, OPTYPE *ptr)
 
   if (ptr->op & o32)  
     {
-      ubyte *pb = (ubyte*)&ptr->arg;
+      uint8_t *pb = (uint8_t*)&ptr->arg;
 
       (void)poffAddTmpProgByte(hProg, pb[opB1]);
       (void)poffAddTmpProgByte(hProg, pb[opB2]);
