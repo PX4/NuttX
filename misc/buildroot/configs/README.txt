@@ -59,6 +59,10 @@ bfin-defconfig-4.2.4
 h8300_config
 	Builds an H8/300 toolchain using gcc 3.4.6
 
+m32c_defconfig_4.2.4
+m32c_defconfig_4.3.3
+	Build a toolchain for use with the M16C port using eith gcc 4.2.4 or 4.3.3
+
 m68hc11-config
 m68hc12-config-3.4.6
 	Builds an hc11/hc12 toolchain using gcc 3.4.6 .
