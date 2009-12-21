@@ -10,8 +10,11 @@ can be used to build the following NuttX-compatible toolchains:
     i.MX1 (ARM920T), and TI DM320 (ARM926EJ-S) provided with the
     NuttX releases.
 
+    NXFLAT toolchain for use with the ARM7 and ARM9.
+
   o arm-elf (thumb2) toolchain needed for use with the Luminary
-    LM3S6918 (ARM Cortex-M3) port provided with the NuttX releases.
+    LM3S6918 (ARM Cortex-M3) and STM32 ports provided with the
+    NuttX releases.
 
     NXFLAT toolchain for use with the ARM Cortex-M3.
 
@@ -23,6 +26,9 @@ can be used to build the following NuttX-compatible toolchains:
 
   o m68hc11-elf toolchain (not currently used in any NuttX
     configuration).
+
+  o m68hc12-elf toolchain needed for use with the MC68HCS12
+    NuttX port.
 
   o sh-elf toolchain needed for the SH-1 NuttX port.
 

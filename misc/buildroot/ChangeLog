@@ -52,7 +52,7 @@ buildroot-0.1.7 2009-06-26 <spudmonkey@racsa.co.cr>
 	* toolchain/nxflat:  Added logic to build NuttX NXFLAT binding support tools
 	* toolchain/genromfs:  Added support for the genromfs tool
 
-buildroot-1.8 2010-xx-xx <spudmonkey@racsa.co.cr>
+buildroot-1.8 2009-12-21 <spudmonkey@racsa.co.cr>
 
 	* configs/cortexm3-defconfig-4.3.3: Added support for NuttX NXFLAT
 	  tools.
@@ -64,3 +64,4 @@ buildroot-1.8 2010-xx-xx <spudmonkey@racsa.co.cr>
 	* configs/m32c-defconfig-4.2.4: Added genromfs
 	* configs/m32c-defconfig-4.3.3: Update to m32c-defconfig-4.2.4
 
+buildroot-1.9 2010-xx-xx <spudmonkey@racsa.co.cr>
