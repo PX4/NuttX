@@ -20,3 +20,8 @@ pascal-2.0
 This release updates all of the code to use the standard types defined
 in the C99 files stdint.h and stdbool.h.  This change was necessary for
 compatibility with NuttX-5.0.  No functional changes were made.
+
+The release version was bumped to 2.0 because these changes introduce
+typing incompatibilies with earlier versions.
+
+This tarball contains a complete CVS snapshot from December 21, 2009.
