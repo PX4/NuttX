@@ -65,3 +65,6 @@ buildroot-1.8 2009-12-21 <spudmonkey@racsa.co.cr>
 	* configs/m32c-defconfig-4.3.3: Update to m32c-defconfig-4.2.4
 
 buildroot-1.9 2010-xx-xx <spudmonkey@racsa.co.cr>
+
+	* configs/arm926t-defconfig-4.3.3: update arm926t-defconfig-4.2.4
+
