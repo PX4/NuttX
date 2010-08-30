@@ -93,7 +93,7 @@ $(GDB_TARGET_DIR)/gdb/gdb: $(GDB_TARGET_DIR)/.configured
 $(TARGET_DIR)/usr/bin/gdb: $(GDB_TARGET_DIR)/gdb/gdb
 	install -c -D $(GDB_TARGET_DIR)/gdb/gdb $(TARGET_DIR)/usr/bin/gdb
 
-gdb_target: ncurses $(TARGET_DIR)/usr/bin/gdb
+gdb_target: $(TARGET_DIR)/usr/bin/gdb
 
 gdb_target-source: $(DL_DIR)/$(GDB_SOURCE)
 

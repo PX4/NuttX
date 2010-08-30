@@ -69,4 +69,5 @@ buildroot-1.9 2010-xx-xx <spudmonkey@racsa.co.cr>
 	* configs/arm926t-defconfig-4.3.3: update arm926t-defconfig-4.2.4
 	* configs/arm926t-defconfig-nxflat: NXFLAT-only configuration for
 	  arm926
+	* toolchain/gdb/gdb.mk - Remove ncurses dependency from gdb_target target.
 
