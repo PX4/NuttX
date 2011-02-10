@@ -1,4 +1,4 @@
-ReleaseNotes v0.1.8:
+ReleaseNotes v0.1.9:
 ^^^^^^^^^^^^^^^^^^^
 
 This is a highly hacked up version of the buildroot (see
@@ -27,8 +27,12 @@ can be used to build the following NuttX-compatible toolchains:
   o m68hc11-elf toolchain (not currently used in any NuttX
     configuration).
 
-  o m68hc12-elf toolchain needed for use with the MC68HCS12
-    NuttX port.
+  o m68hc12-elf toolchain. (NOT RECOMMENDED for hcs12;
+    Use m9s12x-elf toolchain)
+
+  o m9s12x-elf toolchain Supports Freescale m9s12x using
+    binutils 2.18 and gcc 3.3.6 and patches available from
+    http://www.msextra.com/tools courtesy of James Cortina.
 
   o sh-elf toolchain needed for the SH-1 NuttX port.
 
@@ -42,11 +46,12 @@ can be used to build the following NuttX-compatible toolchains:
 
 Supported tool versions include:
 
+  o gcc-3.3.6 + binuils-2.18 (for m9s12x).
   o gcc-3.4.6 + binutils-2.17
   o gcc-4.2.4 + binutils-2.19
   o gcc-4.3.3 + binutils-2.19.1
 
-See the ChangeLog of features/architectgures added in v0.1.5.
+See the ChangeLog of features/architectures added in v0.1.9.
 
 Installation instructions:
 
@@ -71,4 +76,6 @@ You can select to build the NXFLAT toolchain with GCC by selecting
 the NXFLAT toolchin during the configuration process(you can also
 select omit building GCC with and only build the NXFLAT toolchain
 for use with your own GCC toolchain.
+
+NFFLAT is only available for ARM and Cortex-M3 architectures.
 

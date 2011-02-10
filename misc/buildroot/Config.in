@@ -36,6 +36,8 @@ config BR2_m68hc11
 	bool "m68hc11"
 config BR2_m68hc12
 	bool "m68hc12"
+config BR2_m9s12x
+	bool "m9s12x"
 config BR2_mips
 	bool "mips"
 config BR2_mipsel
@@ -186,6 +188,7 @@ config BR2_ARCH
 	default "m68k"		if BR2_m68k
 	default "m68hc11"	if BR2_m68hc11
 	default "m68hc12"	if BR2_m68hc12
+	default "m9s12x"	if BR2_m9s12x
 	default "mips"		if BR2_mips
 	default "mipsel"	if BR2_mipsel
 	default "nios2"		if BR2_nios2
@@ -245,7 +248,7 @@ config BR2_ENDIAN
 	                    BR2_mipsel || BR2_sh3 || BR2_sh4 || BR2_x86_64 || \
 			    BR2_nios2 || BR2_sh64 || BR2_h8300
 	default "BIG"    if BR2_alpha || BR2_armeb || BR2_avr32 || BR2_m68k || \
-			    BR2_m68hc11 || BR2_m68hc12 || BR2_mips || \
+			    BR2_m68hc11 || BR2_m68hc12 || BR2_m9s12x || BR2_mips || \
 	                    BR2_powerpc || BR2_sh1 || BR2_sh2a_nofpueb || BR2_sh2eb || \
 	                    BR2_sh3eb || BR2_sh4eb || BR2_sparc
 
@@ -362,11 +365,6 @@ config BR2_PREFER_IMA
 
 	  WARNING: This is highly experimental at the moment.
 
-config BR2_DEPRECATED
-	bool "Show packages that are deprecated or obsolete"
-	default n
-	help
-	  This option hides outdated/obsolete versions of packages.
 
 endmenu
 

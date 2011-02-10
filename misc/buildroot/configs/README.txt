@@ -67,10 +67,13 @@ m32c_defconfig_4.3.3
 
 m68hc11-config
 m68hc12-config-3.4.6
-	Builds an hc11/hc12 toolchain using gcc 3.4.6 .
+	Builds an hc11/hc12 toolchain using gcc 3.4.6 .  NOT RECOMMENDED for hcs12;
+    Use m9s12x_config_3.3.6
 
 m68hc12-config-4.3.3
-	Builds an hc11/hc12 toolchain using gcc 4.3.3.
+	Builds an hc11/hc12 toolchain using gcc 4.3.3.NOT RECOMMENDED for hcs12;
+    Use m9s12x_config_3.3.6
+ 
 	This configuration fails to build with the following error:
 
 	make[3]: Entering directory `blabla/buildroot/toolchain_build_m68hc12/gcc-4.3.3-build/m68hc12-elf/libgcc'
@@ -83,6 +86,9 @@ m68hc12-config-4.3.3
 	make[3]: Leaving directory `blabla/buildroot/toolchain_build_m68hc12/gcc-4.3.3-build/m68hc12-elf/libgcc'
 
 	Use m68hc12-config-3.4.6
+
+m9s12x_config_3.3.6
+	Builds a hcs12 toolchain using gcc 3.3.6 and extensive m9x12x-specific patches.
 
 m68k-config
 	Builds an M68K toolchain using gcc 3.4.6

@@ -10,10 +10,11 @@ BR2_HAVE_DOT_CONFIG=y
 # BR2_bfin is not set
 # BR2_cris is not set
 # BR2_i386 is not set
-BR2_m32c=y
+# BR2_m32c is not set
 # BR2_m68k is not set
 # BR2_m68hc11 is not set
 # BR2_m68hc12 is not set
+BR2_m9s12x=y
 # BR2_mips is not set
 # BR2_mipsel is not set
 # BR2_nios2 is not set
@@ -23,8 +24,8 @@ BR2_m32c=y
 # BR2_h8300 is not set
 # BR2_sparc is not set
 # BR2_x86_64 is not set
-BR2_ARCH="m32c"
-BR2_ENDIAN="LITTLE"
+BR2_ARCH="m9s12x"
+BR2_ENDIAN="BIG"
 
 #
 # Build options
@@ -51,20 +52,22 @@ BR2_GNU_TARGET_SUFFIX="elf"
 # Binutils Options
 #
 # BR2_BINUTILS_VERSION_2_17 is not set
-BR2_BINUTILS_VERSION_2_19=y
+BR2_BINUTILS_VERSION_2_18=y
+# BR2_BINUTILS_VERSION_2_19 is not set
 # BR2_BINUTILS_VERSION_2_19_1 is not set
-BR2_BINUTILS_VERSION="2.19"
+BR2_BINUTILS_VERSION="2.18"
 BR2_EXTRA_BINUTILS_CONFIG_OPTIONS=""
 
 #
 # GCC Options
 #
 BR2_PACKAGE_GCC=y
+BR2_GCC_VERSION_3_3_6=y
 # BR2_GCC_VERSION_3_4_6 is not set
-BR2_GCC_VERSION_4_2_4=y
+# BR2_GCC_VERSION_4_2_4 is not set
 # BR2_GCC_VERSION_4_3_3 is not set
-BR2_GCC_SUPPORTS_SYSROOT=y
-BR2_GCC_VERSION="4.2.4"
+# BR2_GCC_SUPPORTS_SYSROOT is not set
+BR2_GCC_VERSION="3.3.6"
 # BR2_GCC_USE_SJLJ_EXCEPTIONS is not set
 BR2_EXTRA_GCC_CONFIG_OPTIONS=""
 # BR2_INSTALL_LIBSTDCPP is not set
@@ -81,7 +84,7 @@ BR2_EXTRA_GCC_CONFIG_OPTIONS=""
 #
 # NuttX Binary Support
 #
-BR2_PACKAGE_GENROMFS=y
+# BR2_PACKAGE_GENROMFS is not set
 
 #
 # Common Toolchain Options

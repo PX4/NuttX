@@ -79,7 +79,6 @@ oldlist="\
   toolchain/binutils/2.17.50.0.9\
   toolchain/binutils/2.19.1/.svn\
   toolchain/gcc/3.3.5\
-  toolchain/gcc/3.3.6\
   toolchain/gcc/3.4.2\
   toolchain/gcc/3.4.3\
   toolchain/gcc/3.4.4\
@@ -94,7 +93,6 @@ oldlist="\
   toolchain/gcc/4.1.2\
   toolchain/gcc/4.2\
   toolchain/gdb/6.2.1\
-  toolchain/gdb/6.4\
   toolchain/gdb/6.5\
 "
 
