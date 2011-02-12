@@ -240,3 +240,9 @@ Cygwin GCC BUILD NOTES
    mostly idle while the toolchain builds, this will not likely be a problem
    for you.
 
+Building GDB Under Cygwin
+
+   This can be tricking, but it has been done.  See this message sequence for
+   http://tech.groups.yahoo.com/group/nuttx/message/726 .  Apparently there
+   are some incompatibilities with Cygwin 1.7 that require an additional
+   patch.  See http://old.nabble.com/-RFA--windows-nat.c%3A-Cygwin%3A-Port-to-Cygwin-1.7-td27735619.html
