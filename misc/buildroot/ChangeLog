@@ -78,3 +78,6 @@ buildroot-1.9 2011-02-10 <spudmonkey@racsa.co.cr>
 	  Cortina.  Add configs/m9x12x-defconfig-3.3.6.
 
 buildroot-1.10 2011-xx-xx <spudmonkey@racsa.co.cr>
+
+	* Add patch submitted by Dimiter Georgiev to work around problems in building
+	  GDB 6.8 with versions of Cygwin > 1.7.

@@ -246,3 +246,11 @@ Building GDB Under Cygwin
    http://tech.groups.yahoo.com/group/nuttx/message/726 .  Apparently there
    are some incompatibilities with Cygwin 1.7 that require an additional
    patch.  See http://old.nabble.com/-RFA--windows-nat.c%3A-Cygwin%3A-Port-to-Cygwin-1.7-td27735619.html
+
+   A version of this patch for GDB-6.8 and Cywgin 1.7 (and above) is provided
+   in this directory (Thanks to Dimiter Georgiev).  That file is called
+   gdb-1_8-cygwin-1_7.patch.  This should be copied into the GDB 6.8 toolchain
+   directory if it is needed:
+
+   cp configs/gdb-1_8-cygwin-1_7.patch toolchain/gdb/6.8/.
+ 
