@@ -7,13 +7,6 @@ DATECODE=$1
 TAR="tar cvf"
 ZIP=gzip
 
-# This is a list of bad directories that have creapt into the CVS tree
-# due to bad imports, renamed directories, etc.
-
-GARBAGEDIRS="\
-  insn32/plopt\
-"
-
 # Move up one directory
 
 cd ..
@@ -42,13 +35,6 @@ fi
 
 TAR_NAME=${SUBDIR}.tar
 ZIP_NAME=${TAR_NAME}.gz
-
-# Prepare the nuttx directory -- Remove garbage directories
-
-for dir in ${GARBAGEDIRS}; do
-	echo "Removing ${SUBDIR}/${dir}"
-	rm -rf ${SUBDIR}/${dir}
-done
 
 # Prepare the directory
 
