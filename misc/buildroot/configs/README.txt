@@ -130,12 +130,11 @@ GENERAL BUILD STEPS
      unpack the buildroot package
      rename the directory to buildroot
 
-   b. Using CVS
+   b. Using SVN
 
-     Check out the misc/buildroot module. CVS checkout instructions:
+     Check out the misc/buildroot module. SVN checkout instructions:
 
-        cvs -d:pserver:anonymous@nuttx.cvs.sourceforge.net:/cvsroot/nuttx login
-        cvs -z3 -d:pserver:anonymous@nuttx.cvs.sourceforge.net:/cvsroot/nuttx co -P misc/buildroot
+        svn co https://nuttx.svn.sourceforge.net/svnroot/nuttx nuttx/trunk/misc/buildroot
 
      Move the buildroot Source Tree and create the archive directory
 
