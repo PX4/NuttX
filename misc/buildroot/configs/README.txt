@@ -167,6 +167,21 @@ GENERAL BUILD STEPS
    Where <config-file> is one of the configuration files listed above and <arch> is an
    archtecture name.  Examples: build_m32c, build_arm_nofpu, etc.
 
+FAQ
+^^^
+
+Q: What is up with errors like this:
+
+   fatal error: ansidecl.h: No such file or directory
+
+A: This was reported on Fedora F14.  The cause of the problem is that some host
+   binutils header files were moved from the binutils RPM to the binutils-dev
+   RPM.  The fix is to install the binutils-dev RPM.
+
+Q: How do I build the NuttX toolchain under Cygwin?
+
+A: See below...
+
 Cygwin GCC BUILD NOTES
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -240,6 +255,7 @@ Cygwin GCC BUILD NOTES
    for you.
 
 Building GDB Under Cygwin
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
    This can be tricking, but it has been done.  See this message sequence for
    http://tech.groups.yahoo.com/group/nuttx/message/726 .  Apparently there
