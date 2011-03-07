@@ -21,6 +21,20 @@ can be used to build the following NuttX-compatible toolchains:
   o avr-elf toolchain needed for use with the ATmega128 ports
     provided with the NuttX releases.
 
+  o H8/300 toolchain (not currently used in any NuttX
+    configuration).
+
+  o i486-elf toochain.  Why would you want such a thing?  On Linux, of 
+    course, such a thing is not needed because you can use the installed GCC 
+	to build i486 ELF binaries.  But that will not work under Cygwin!  The
+	Cygwin toolchain (and probably MinGW), build DOS MZ format executables
+	(i.e., .exe files).  That is probably not usable for most NuttX targets.
+	Instead, you should use this i486-elf-gcc to generate true ELF binaries
+	under Cygwin.
+
+  o bfin-elf toolchain not currently used in any NuttX
+    configuration).
+
   o m68k-elf toolchain (not currently used in any NuttX
     configuration).
 
@@ -34,15 +48,9 @@ can be used to build the following NuttX-compatible toolchains:
     binutils 2.18 and gcc 3.3.6 and patches available from
     http://www.msextra.com/tools courtesy of James Cortina.
 
-  o sh-elf toolchain needed for the SH-1 NuttX port.
-
   o m32c-elf toolchain needed for the Renesas M16C NuttX port.
 
-  o H8/300 toolchain (not currently used in any NuttX
-    configuration).
-
-  o bfin-elf toolchain not currently used in any NuttX
-    configuration).
+  o sh-elf toolchain needed for the SH-1 NuttX port.
 
 Supported tool versions include:
 

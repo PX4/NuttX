@@ -61,6 +61,15 @@ bfin-defconfig-4.2.4
 h8300_config
 	Builds an H8/300 toolchain using gcc 3.4.6
 
+i486-defconfig-4.3.3
+	Builds an i486 cross development toolchain using gcc 4.3.3.  Why would
+	you want such a thing?  On Linux, of course, such a thing is not needed
+	because you can use the installed GCC to build i486 ELF binaries.  But
+	that will not work under Cygwin!  The Cygwin toolchain (and probably
+	MinGW), build DOS MZ format executables (i.e., .exe files).  That is
+	probably not usable for most NuttX targets.  Instead, you should use this
+	i486-elf-gcc to generate true ELF binaries under Cygwin.
+
 m32c_defconfig_4.2.4
 m32c_defconfig_4.3.3
 	Build a toolchain for use with the M16C port using eith gcc 4.2.4 or 4.3.3
