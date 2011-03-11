@@ -1,6 +1,7 @@
 /****************************************************************************
- * drivers/sbin/exec_nuttapp.c
+ * examples/nsh/nsh_apps.c
  *
+ *   Copyright (C) 2011 Gregory Nutt. All rights reserved.
  *   Copyright (C) 2011 Uros Platise. All rights reserved.
  *   Author: Uros Platise <uros.platise@isotel.eu>
  *
@@ -38,109 +39,80 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include <nuttx/nuttapp.h>
-#include <sched.h>
 
-#include <string.h>
+#ifdef CONFIG_SCHED_WAITPID
+#  include <sys/wait.h>
+#endif
+
+#include <stdbool.h>
 #include <errno.h>
 
+#include <nuttx/nuttapp.h>
+
+#include "nsh.h"
+
+#ifdef CONFIG_EXAMPLES_NSH_BUILTIN_APPS
+
+/****************************************************************************
+ * Definitions
+ ****************************************************************************/
 
 /****************************************************************************
  * Private Types
  ****************************************************************************/
 
-/* Load builtin function prototypes */
-
-#undef EXTERN
-#if defined(__cplusplus)
-#define EXTERN extern "C"
-extern "C" {
-#else
-#define EXTERN extern
-#endif
-
-#include "exec_nuttapp_proto.h"
-
-static const struct nuttapp_s nuttapps[] = {
-# include "exec_nuttapp_list.h"
-  {.name=NULL}
-};
-
-#undef EXTERN
-#if defined(__cplusplus)
-}
-#endif
-
-
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
-
 
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
+/****************************************************************************
+ * Public Data
+ ****************************************************************************/
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
+/****************************************************************************
+ * Name: nsh_execute
+ ****************************************************************************/
 
-const char * nuttapp_getname(int index)
+int nsh_execapp(FAR struct nsh_vtbl_s *vtbl, const char *cmd, char *argv[])
 {
-  if ( index < 0 || index >= (sizeof(nuttapps)/sizeof(struct nuttapp_s)) )
-	return NULL;
-	
-  return nuttapps[index].name;
-}
- 
+   int ret = OK;
 
-int nuttapp_isavail(FAR const char *appname)
-{
-  int i;
-    
-  for (i=0; nuttapps[i].name; i++) 
-  {
-    if ( !strcmp(nuttapps[i].name, appname) ) 
-      return i;
-  }
-  
-  errno = ENOENT;
-  return -1;
-}
- 
+   /* Try to find command within pre-built application list. */
 
-int exec_nuttapp(FAR const char *appname, FAR const char *argv[])
-{
-  int i;
-  
-  if ( (i = nuttapp_isavail(appname)) >= 0 )
-  {
-#ifndef CONFIG_CUSTOM_STACK
-    i = task_create(nuttapps[i].name, nuttapps[i].priority, 
-                      nuttapps[i].stacksize, nuttapps[i].main, &argv[1]);
-#else
-    i = task_create(nuttapps[i].name, nuttapps[i].priority, nuttapps[i].main, &argv[1]);
+   ret = exec_nuttapp(cmd, argv);
+   if (ret < 0)
+     {
+	   return -errno;
+     }
+
+#ifdef CONFIG_SCHED_WAITPID
+   if (vtbl->np.np_bg == false)
+     {
+       waitpid(ret, NULL, 0);
+     }
+   else
 #endif
+     {
+       struct sched_param param;
+       sched_getparam(0, &param);
+       nsh_output(vtbl, "%s [%d:%d]\n", cmd, ret, param.sched_priority);
+     }
 
-#if CONFIG_RR_INTERVAL > 0
-    if (i > 0)
-    {
-      struct sched_param param;
-	
-      sched_getparam(0, &param);
-	  sched_setscheduler(i, SCHED_RR, &param);
-	}
-#endif
-
-    return i;
-  }
-  
-  return i;
+   return OK;
 }
+
+#endif /* CONFIG_EXAMPLES_NSH_BUILTIN_APPS */
+
+
