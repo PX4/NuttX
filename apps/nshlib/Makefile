@@ -1,7 +1,7 @@
 ############################################################################
-# examples/nsh/Makefile
+# apps/nshlib/Makefile
 #
-#   Copyright (C) 2007-2008, 2010-2011 Gregory Nutt. All rights reserved.
+#   Copyright (C) 2011 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,21 +33,61 @@
 #
 ############################################################################
 
--include $(TOPDIR)/.config
+# TODO, this makefile should run make under the app dirs, instead of
+# sourcing the Make.defs!
+
 -include $(TOPDIR)/Make.defs
+include ../Make.defs
 
-ASRCS	= 
-CSRCS	= nsh_main.c
+ifeq ($(WINTOOL),y)
+INCDIROPT	= -w
+endif
 
-AOBJS	= $(ASRCS:.S=$(OBJEXT))
-COBJS	= $(CSRCS:.c=$(OBJEXT))
+# NSH Library
 
-SRCS	= $(ASRCS) $(CSRCS)
-OBJS	= $(AOBJS) $(COBJS)
+ASRCS	=
+CSRCS	= nsh_main.c nsh_fscmds.c nsh_ddcmd.c nsh_proccmds.c nsh_mmcmds.c \
+		nsh_envcmds.c nsh_dbgcmds.c
 
-BIN	= libapp$(LIBEXT)
+ifeq ($(CONFIG_EXAMPLES_NSH_BUILTIN_APPS),y)
+CSRCS	+= nsh_apps.c
+endif
 
-all:	$(BIN)
+ifeq ($(CONFIG_EXAMPLES_NSH_ROMFSETC),y)
+CSRCS	+= nsh_romfsetc.c
+endif
+
+ifeq ($(CONFIG_NET),y)
+CSRCS	+= nsh_netinit.c nsh_netcmds.c
+endif
+
+ifeq ($(CONFIG_EXAMPLES_NSH_CONSOLE),y)
+CSRCS	+= nsh_serial.c
+endif
+
+ifeq ($(CONFIG_EXAMPLES_NSH_TELNET),y)
+CSRCS	+= nsh_telnetd.c
+endif
+
+ifneq ($(CONFIG_EXAMPLES_NSH_DISABLESCRIPT),y)
+CSRCS	+= nsh_test.c
+endif
+
+AOBJS		= $(ASRCS:.S=$(OBJEXT))
+COBJS		= $(CSRCS:.c=$(OBJEXT))
+
+SRCS		= $(ASRCS) $(CSRCS)
+OBJS		= $(AOBJS) $(COBJS)
+
+BIN	    	= ../libapps$(LIBEXT)
+
+ROOTDEPPATH	= --dep-path .
+
+# Common build
+
+VPATH		= 
+
+all:	.built
 
 $(AOBJS): %$(OBJEXT): %.S
 	$(call ASSEMBLE, $<, $@)
@@ -59,15 +99,20 @@ $(BIN):	$(OBJS)
 	@( for obj in $(OBJS) ; do \
 		$(call ARCHIVE, $@, $${obj}); \
 	done ; )
+	@touch .built
+	
+.built: $(BIN)
 
 .depend: Makefile $(SRCS)
-	@$(MKDEP) $(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
+	@$(MKDEP) $(ROOTDEPPATH) \
+	  $(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
 	@touch $@
 
+# Register application
 depend: .depend
 
 clean:
-	@rm -f $(BIN) *~ .*.swp
+	@rm -f $(BIN) *.o *~ .*.swp .built
 	$(call CLEAN)
 
 distclean: clean

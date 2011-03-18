@@ -1,8 +1,8 @@
-examples/nsh
-^^^^^^^^^^^^
+apps/nshlib
+^^^^^^^^^^^
 
-  This directory contains the NuttShell (NSH).  This is a simple
-  shell application for NuttX.
+  This directory contains the NuttShell (NSH) library.  This library can be
+  linked with other logic to provide a simple shell application for NuttX.
 
   - Console/NSH Front End
   - Command Overview
@@ -159,7 +159,7 @@ Modifying the ROMFS Image
 -------------------------
 
 The contents of the /etc directory are retained in the file
-examples/nsh/nsh_romfsimg.h (OR, if CONFIG_EXAMPLES_NSH_ARCHROMFS
+apps/nshlib/nsh_romfsimg.h (OR, if CONFIG_EXAMPLES_NSH_ARCHROMFS
 is defined, include/arch/board/rcs.template).  In order to modify
 the start-up behavior, there are three things to study:
 
@@ -178,17 +178,17 @@ the start-up behavior, there are three things to study:
 
    - The configuration settings of the installed NuttX configuration.
    - The genromfs tool (available from http://romfs.sourceforge.net).
-   - The file examples/nsh/rcS.template (OR, if
+   - The file apps/nshlib/rcS.template (OR, if
      CONFIG_EXAMPLES_NSH_ARCHROMFS is defined, include/arch/board/rcs.template)
 
 3. rcS.template.
-   The file examples/nsh/rcS.template contains the general form
+   The file apps/nshlib/rcS.template contains the general form
    of the rcS file; configured values are plugged into this
    template file to produce the final rcS file.
 
 NOTE:
 
-   examples/nsh/rcS.template generates the standard, default
+   apps/nshlib/rcS.template generates the standard, default
    nsh_romfsimg.h file.  If CONFIG_EXAMPLES_NSH_ARCHROMFS is defined
    in the NuttX configuration file, then a custom, board-specific
    nsh_romfsimg.h file residing in configs/<board>/include will be

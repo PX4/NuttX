@@ -1,5 +1,5 @@
 /****************************************************************************
- * examples/nsh/nsh.h
+ * apps/nshlib/nsh.h
  *
  *   Copyright (C) 2007-2011 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>

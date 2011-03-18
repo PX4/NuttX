@@ -1,7 +1,7 @@
 /****************************************************************************
- * examples/nsh/nsh_netinit.c
+ * apps/nshlib/nsh_netinit.c
  *
- *   Copyright (C) 2010 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2010-2011 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * This is influenced by similar logic from uIP:

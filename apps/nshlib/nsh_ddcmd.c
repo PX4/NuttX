@@ -1,5 +1,5 @@
 /****************************************************************************
- * examples/nsh/nsh_ddcmd.c
+ * apps/nshlib/nsh_ddcmd.c
  *
  *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>

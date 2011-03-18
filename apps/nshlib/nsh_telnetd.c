@@ -1,5 +1,5 @@
 /****************************************************************************
- * examples/nsh/nsh_telnetd.c
+ * apps/nshlib/nsh_telnetd.c
  *
  *   Copyright (C) 2007-2011 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>

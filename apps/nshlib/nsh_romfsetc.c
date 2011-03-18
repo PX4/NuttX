@@ -1,9 +1,8 @@
 /****************************************************************************
- * examples/nsh/nsh_apps.c
+ * apps/nshlib/nsh_romfsetc.c
  *
- *   Copyright (C) 2011 Gregory Nutt. All rights reserved.
- *   Copyright (C) 2011 Uros Platise. All rights reserved.
- *   Author: Uros Platise <uros.platise@isotel.eu>
+ *   Copyright (C) 2008-2011 Gregory Nutt. All rights reserved.
+ *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,18 +39,25 @@
 
 #include <nuttx/config.h>
 
-#ifdef CONFIG_SCHED_WAITPID
-#  include <sys/wait.h>
-#endif
-
-#include <stdbool.h>
+#include <sys/mount.h>
+#include <debug.h>
 #include <errno.h>
 
-#include <apps/apps.h>
+#include <nuttx/ramdisk.h>
 
 #include "nsh.h"
 
-#ifdef CONFIG_EXAMPLES_NSH_BUILTIN_APPS
+#ifdef CONFIG_EXAMPLES_NSH_ROMFSETC
+
+/* Should we use the default ROMFS image?  Or a custom, board-specific
+ * ROMFS image?
+ */
+
+#ifdef CONFIG_EXAMPLES_NSH_ARCHROMFS
+#  include <arch/board/nsh_romfsimg.h>
+#else
+#  include "nsh_romfsimg.h"
+#endif
 
 /****************************************************************************
  * Definitions
@@ -82,51 +88,37 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: nsh_execute
+ * Name: nsh_romfsetc
  ****************************************************************************/
 
-int nsh_execapp(FAR struct nsh_vtbl_s *vtbl, FAR const char *cmd,
-                FAR char *argv[])
+int nsh_romfsetc(void)
 {
-   int ret = OK;
-   FAR const char * name;
+  int  ret;
 
-   /* Try to find command within pre-built application list. */
+  /* Create a ROM disk for the /etc filesystem */
 
-   ret = exec_nuttapp(cmd, argv);
-   if (ret < 0)
-     {
-       int err = -errno;
-       int i;
+  ret = romdisk_register(CONFIG_EXAMPLES_NSH_ROMFSDEVNO, romfs_img,
+                         NSECTORS(romfs_img_len), CONFIG_EXAMPLES_NSH_ROMFSSECTSIZE);
+  if (ret < 0)
+    {
+      dbg("nsh: romdisk_register failed: %d\n", -ret);
+      return ERROR;
+    }
 
-       /* On failure, list the set of available built-in commands */
+  /* Mount the file system */
 
-       nsh_output(vtbl, "Builtin Apps: ");
-       for (i = 0; (name = nuttapp_getname(i)) != NULL; i++)
-         {
-           nsh_output(vtbl, "%s ", name);
-         }
-       nsh_output(vtbl, "\nand type 'help' for more NSH commands.\n\n");
-       
-	   return err;
-     }
+  vdbg("Mounting ROMFS filesystem at target=%s with source=%s\n",
+       CONFIG_EXAMPLES_NSH_ROMFSMOUNTPT, MOUNT_DEVNAME);
 
-#ifdef CONFIG_SCHED_WAITPID
-   if (vtbl->np.np_bg == false)
-     {
-       waitpid(ret, NULL, 0);
-     }
-   else
-#endif
-     {
-       struct sched_param param;
-       sched_getparam(0, &param);
-       nsh_output(vtbl, "%s [%d:%d]\n", cmd, ret, param.sched_priority);
-     }
-
-   return OK;
+  ret = mount(MOUNT_DEVNAME, CONFIG_EXAMPLES_NSH_ROMFSMOUNTPT, "romfs", MS_RDONLY, NULL);
+  if (ret < 0)
+    {
+      dbg("nsh: mount(%s,%s,romfs) failed: %s\n",
+          MOUNT_DEVNAME, CONFIG_EXAMPLES_NSH_ROMFSMOUNTPT, errno);
+      return ERROR;
+    }
+  return OK;
 }
 
-#endif /* CONFIG_EXAMPLES_NSH_BUILTIN_APPS */
-
+#endif /* CONFIG_EXAMPLES_NSH_ROMFSETC */
 

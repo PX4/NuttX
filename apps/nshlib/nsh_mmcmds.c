@@ -1,5 +1,5 @@
 /****************************************************************************
- * examples/nsh/dbg_mmcmds.c
+ * apps/nshlib/dbg_mmcmds.c
  *
  *   Copyright (C) 2011 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>

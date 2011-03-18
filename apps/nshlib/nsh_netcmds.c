@@ -1,5 +1,5 @@
 /****************************************************************************
- * examples/nsh/nsh_netcmds.c
+ * apps/nshlib/nsh_netcmds.c
  *
  *   Copyright (C) 2007-2011 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
