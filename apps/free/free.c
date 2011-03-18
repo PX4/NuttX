@@ -1,9 +1,8 @@
 /****************************************************************************
- * examples/nsh/nsh_apps.c
+ * free/free.c
  *
  *   Copyright (C) 2011 Gregory Nutt. All rights reserved.
- *   Copyright (C) 2011 Uros Platise. All rights reserved.
- *   Author: Uros Platise <uros.platise@isotel.eu>
+ *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,18 +39,9 @@
 
 #include <nuttx/config.h>
 
-#ifdef CONFIG_SCHED_WAITPID
-#  include <sys/wait.h>
-#endif
+#include <stdio.h>
+#include <stdlib.h>
 
-#include <stdbool.h>
-#include <errno.h>
-
-#include <apps/apps.h>
-
-#include "nsh.h"
-
-#ifdef CONFIG_EXAMPLES_NSH_BUILTIN_APPS
 
 /****************************************************************************
  * Definitions
@@ -82,51 +72,22 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: nsh_execute
+ * Name: cmd_free
  ****************************************************************************/
 
-int nsh_execapp(FAR struct nsh_vtbl_s *vtbl, FAR const char *cmd,
-                FAR char *argv[])
+int free_main(int argc, char **argv)
 {
-   int ret = OK;
-   FAR const char * name;
+  struct mallinfo mem;
 
-   /* Try to find command within pre-built application list. */
-
-   ret = exec_nuttapp(cmd, argv);
-   if (ret < 0)
-     {
-       int err = -errno;
-       int i;
-
-       /* On failure, list the set of available built-in commands */
-
-       nsh_output(vtbl, "Builtin Apps: ");
-       for (i = 0; (name = nuttapp_getname(i)) != NULL; i++)
-         {
-           nsh_output(vtbl, "%s ", name);
-         }
-       nsh_output(vtbl, "\nand type 'help' for more NSH commands.\n\n");
-       
-	   return err;
-     }
-
-#ifdef CONFIG_SCHED_WAITPID
-   if (vtbl->np.np_bg == false)
-     {
-       waitpid(ret, NULL, 0);
-     }
-   else
+#ifdef CONFIG_CAN_PASS_STRUCTS
+  mem = mallinfo();
+#else
+  (void)mallinfo(&mem);
 #endif
-     {
-       struct sched_param param;
-       sched_getparam(0, &param);
-       nsh_output(vtbl, "%s [%d:%d]\n", cmd, ret, param.sched_priority);
-     }
 
-   return OK;
+  printf("             total       used       free    largest\n");
+  printf("Mem:   %11d%11d%11d%11d\n",
+         mem.arena, mem.uordblks, mem.fordblks, mem.mxordblk);
+
+  return OK;
 }
-
-#endif /* CONFIG_EXAMPLES_NSH_BUILTIN_APPS */
-
-

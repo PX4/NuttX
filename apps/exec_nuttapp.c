@@ -38,7 +38,7 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include <nuttx/nuttapp.h>
+#include <apps/apps.h>
 #include <sched.h>
 
 #include <string.h>

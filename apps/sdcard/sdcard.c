@@ -1,10 +1,11 @@
 /****************************************************************************
- * config/vsn/src/power.c
- * arch/arm/src/board/power.c
+ * sdcard/sdcard.c
  *
  *   Copyright (C) 2011 Uros Platise. All rights reserved.
+ *   Copyright (C) 2009 Gregory Nutt. All rights reserved.
  *
  *   Authors: Uros Platise <uros.platise@isotel.eu>
+ *            Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,57 +38,73 @@
 
 #include <nuttx/config.h>
 
-#include <arch/board/board.h>
-#include <arch/stm32/irq.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <debug.h>
-
-#include "stm32_gpio.h"
-#include "vsn.h"
-#include "up_arch.h"
-
-
-void board_power_register(void);
-void board_power_adjust(void);
-void board_power_status(void);
+#ifdef CONFIG_STM32_SDIO
+#  include <nuttx/sdio.h>
+#  include <nuttx/mmcsd.h>
+#endif
 
 
 
-void board_power_init(void)
+/* Create device device for the SDIO-based MMC/SD block driver */
+
+int sdcard_start(int slotno)
 {
-	stm32_configgpio(GPIO_PVS);
-	stm32_configgpio(GPIO_PST);
-	stm32_configgpio(GPIO_XPWR);
-	stm32_configgpio(GPIO_SCTC);
-	stm32_configgpio(GPIO_PCLR);
+  FAR struct sdio_dev_s *sdio;
+  int ret;
+
+  /* First, get an instance of the SDIO interface */
+
+  sdio = sdio_initialize(slotno);
+  if (!sdio)
+    {
+      printf("SDIO: Failed to initialize slot %d\n", slotno);
+      return -ENODEV;
+    }
+  printf("SDIO: Initialized slot %d\n", slotno);
+
+  /* Now bind the SPI interface to the MMC/SD driver */
+
+  ret = mmcsd_slotinitialize(slotno, sdio);
+  if (ret != OK)
+    {
+      printf("SDIO: Failed to bind to the MMC/SD driver: %d\n", ret);
+      return ret;
+    }
+  printf("SDIO: Successfully bound to the MMC/SD driver\n");
+  
+  /* Then let's guess and say that there is a card in the slot.  I need to check to
+   * see if the VSN board supports a GPIO to detect if there is a card in
+   * the slot.
+   */
+  sdio_mediachange(sdio, true);
+  
+  return OK;
 }
 
 
-void board_power_reboot(void)
+int sdcard_main(int argc, char *argv[])
 {
-	// low-level board reset (not just MCU reset)
-	// if external power is present, stimulate power-off as board
-	// will wake-up immediatelly, if power is not present, set an alarm
-	// before power off the board.
-}
-
-
-void board_power_off(void)
-{
-	// Check if external supply is not present, otherwise return
-	// notifying that it is not possible to power-off the board
-
-	// \todo
-	
-	// stop background processes
-	irqsave();
-
-	// switch to internal HSI and get the PD0 and PD1 as GPIO
-	sysclock_select_hsi();
-
-	// trigger shutdown with pull-up resistor (not push-pull!) and wait.
-	stm32_gpiowrite(GPIO_PCLR, true);
-	for(;;);
+  int slotno;
+  
+  if (argc == 3) {
+    slotno = atoi(argv[2]);
+    
+    if (!strcmp(argv[1], "start")) {
+      return sdcard_start(slotno);
+    }
+    else if (!strcmp(argv[1], "stop")) {
+    }
+    else if (!strcmp(argv[1], "insert")) {
+    }
+    else if (!strcmp(argv[1], "eject")) {
+    }
+  }
+  
+  printf("%s: <start" /*|stop|insert|eject*/ "> <slotno>\n", argv[0]);
+  return -1;
 }

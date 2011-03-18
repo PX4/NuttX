@@ -1,10 +1,11 @@
 /****************************************************************************
- * config/vsn/src/power.c
- * arch/arm/src/board/power.c
+ * ramtron/ramtron.c
  *
  *   Copyright (C) 2011 Uros Platise. All rights reserved.
+ *   Copyright (C) 2009 Gregory Nutt. All rights reserved.
  *
  *   Authors: Uros Platise <uros.platise@isotel.eu>
+ *            Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,57 +38,60 @@
 
 #include <nuttx/config.h>
 
-#include <arch/board/board.h>
-#include <arch/stm32/irq.h>
-
-#include <stdint.h>
-#include <stdbool.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <debug.h>
+#include <errno.h>
 
-#include "stm32_gpio.h"
-#include "vsn.h"
-#include "up_arch.h"
-
-
-void board_power_register(void);
-void board_power_adjust(void);
-void board_power_status(void);
+#include <nuttx/spi.h>
+#include <nuttx/mtd.h>
 
 
-
-void board_power_init(void)
+int ramtron_start(int spino)
 {
-	stm32_configgpio(GPIO_PVS);
-	stm32_configgpio(GPIO_PST);
-	stm32_configgpio(GPIO_XPWR);
-	stm32_configgpio(GPIO_SCTC);
-	stm32_configgpio(GPIO_PCLR);
+  FAR struct spi_dev_s *spi;
+  FAR struct mtd_dev_s *mtd;
+  int retval;
+
+  /* Get the SPI port */
+  
+  spi = up_spiinitialize(spino);
+  if (!spi)
+    {
+      printf("RAMTRON: Failed to initialize SPI%d\n", spino);
+      return -ENODEV;
+    }
+  printf("RAMTRON: Initialized SPI%d\n", spino);
+
+  mtd = (struct mtd_dev_s *)ramtron_initialize(spi);
+  if (!mtd)
+    {
+      printf("RAMTRON: Device not found\n");
+      return -ENODEV;
+    }
+  printf("RAMTRON: FM25V10 of size 128 kB\n");
+  //printf("RAMTRON: %s of size %d B\n", ramtron_getpart(mtd), ramtron_getsize(mtd) );
+
+  retval = ftl_initialize(0, NULL, mtd);
+  printf("RAMTRON: FTL Initialized (returns with %d)\n", retval);
+
+  return OK;
 }
 
 
-void board_power_reboot(void)
+int ramtron_main(int argc, char *argv[])
 {
-	// low-level board reset (not just MCU reset)
-	// if external power is present, stimulate power-off as board
-	// will wake-up immediatelly, if power is not present, set an alarm
-	// before power off the board.
-}
-
-
-void board_power_off(void)
-{
-	// Check if external supply is not present, otherwise return
-	// notifying that it is not possible to power-off the board
-
-	// \todo
-	
-	// stop background processes
-	irqsave();
-
-	// switch to internal HSI and get the PD0 and PD1 as GPIO
-	sysclock_select_hsi();
-
-	// trigger shutdown with pull-up resistor (not push-pull!) and wait.
-	stm32_gpiowrite(GPIO_PCLR, true);
-	for(;;);
+  int spino;
+  
+  if (argc == 3) {
+    spino = atoi(argv[2]);
+    
+    if (!strcmp(argv[1], "start")) {
+      return ramtron_start(spino);
+    }
+  }
+  
+  // todo: write protect  
+  printf("%s: <start> <spino>\n", argv[0]);
+  return -1;
 }
