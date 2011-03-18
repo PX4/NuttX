@@ -17,6 +17,7 @@ below:
   pascal:
     Description:  Pascal compiler with NuttX runtime add-on.
     License: BSD
+
   sims:
     Description:  This is a repository of instruction set simulators
       that were used to verify NuttX.  The licensing of the
@@ -29,3 +30,17 @@ below:
       instruction set emulator.  That emulation is not included
       in this directory, but is automatically downloaded when
       z80sim is built.
+
+  drivers:
+    Descriptions: This is a folder of drivers that are not included
+    in the main NuttX source tree due to licensing or other concerns.
+    Compatibly licensed drivers (BSD or MIT) are included in the main
+    source tree.  These drivers have incompatible licesnes.  They
+    may, as an example, have been leveraged from Linux and, hence,
+    inherit a GPL license.  By installing this driver package you
+    agree to the licensing terms of the individual drivers.
+
+    rtl8187x
+      This is a USB host driver for the RTL8187x wireless LAN.  Some
+      of the critical logic in this driver derives from Linux and,
+      hence, is GPLv2.

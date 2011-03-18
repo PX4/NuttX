@@ -1,7 +1,8 @@
 ############################################################################
-# drivers/usbhost/Make.defs
+# misc/divers/INSTALL.sh
+# Install ALL optional drivers into the NuttX source tree
 #
-#   Copyright (C) 2010 Gregory Nutt. All rights reserved.
+#   Copyright (C) 2011 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,19 +34,64 @@
 #
 ############################################################################
 
-USBHOST_ASRCS  =
-USBHOST_CSRCS  = hid_parser.c
+# Directory list
 
-# Built-in USB driver logic
+DRIVERS="rtl8187x"
 
-ifeq ($(CONFIG_USBHOST),y)
-USBHOST_CSRCS  += usbhost_registry.c usbhost_registerclass.c usbhost_findclass.c
-USBHOST_CSRCS  += usbhost_enumerate.c usbhost_storage.c usbhost_hidkbd.c
+# Parse command arguments
 
-# Add-on USB driver logic (see misc/drivers)
+wd=`pwd`
+usage="USAGE: $0 [-d|h] <NuttX-path>"
 
-ifeq ($(CONFIG_NET),y)
-  RTL8187_CSRC  := ${shell if [ -f usbhost/rtl8187x.c ]; then echo "rtl8187x.c"; fi}
-  USBHOST_CSRCS += $(RTL8187_CSRC)
-endif
-endif
+unset nuttxdir
+unset debug
+
+while [ ! -z "$1" ]; do
+  case "$1" in
+    -d )
+      set -x
+	  debug="-d"
+      ;;
+    -h )
+      echo "$usage"
+      exit 0
+      ;;
+    *)
+      nuttxdir=$1
+      ;;
+  esac
+  shift
+done
+
+# Sanity checking
+
+if [ -z "${nuttxdir}" ]; then
+  echo "Path to the top-level NuttX directory not provided"
+  echo "$usage"
+  exit 1
+fi
+
+if [ ! -d ${nuttxdir} ]; then
+  echo "NuttX directory ${nuttxdir} does not exist"
+  exit 2
+fi
+
+# Then install each driver
+
+for dir in "$DRIVERS"; do
+
+  # More sanity checking
+
+  if [ ! -d ${dir} ]; then
+    echo "No sub-directory ${dir} under ${wd}.  Please CD into the drivers directory first"
+    exit 3
+  fi
+  if [ ! -x ${dir}/INSTALL.sh ]; then
+    echo "No executable INSTALL.sh script in ${wd}/${dir}"
+    exit 3
+  fi
+
+  # Run the driver install script
+
+  ${dir}/INSTALL.sh $debug -t "${wd}/${dir}" -n "${nuttxdir}"
+done
