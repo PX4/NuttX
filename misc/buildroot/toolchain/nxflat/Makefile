@@ -1,7 +1,7 @@
 ############################################################################
 # toolchain/nxflat/Makefile
 #
-#   Copyright (C) 2009 Gregory Nutt. All rights reserved.
+#   Copyright (C) 2009, 2011 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,8 +33,8 @@
 #
 ############################################################################
 
-CFLAGS		+= -Wall -I. -I$(BINUTILS_DIR)/bfd
-LDFLAGS		+= -L$(BINUTILS_DIR)/bfd -L$(BINUTILS_DIR)/libiberty
+CFLAGS		+= -Wall -I. -I$(BINUTILS_DIR1)/bfd -I$(BINUTILS_DIR)/include
+LDFLAGS		+= -L$(BINUTILS_DIR1)/bfd -L$(BINUTILS_DIR1)/libiberty
 LIBS		= -lbfd -lc -liberty -lz
 
 LDNXFLAT_OBJS	= ldnxflat.o

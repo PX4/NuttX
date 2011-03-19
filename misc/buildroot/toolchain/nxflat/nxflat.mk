@@ -1,7 +1,7 @@
 ############################################################################
 # toolchain/nxflat/nxflat.mk
 #
-#   Copyright (C) 2009 Gregory Nutt. All rights reserved.
+#   Copyright (C) 2009, 2011 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
 #
 # Redistribution and use in source and binary forms, with or without
@@ -38,12 +38,12 @@ NXFLAT_DIR	= $(TOPDIR)/toolchain/nxflat
 $(NXFLAT_DIR)/.compiled:
 ifeq ($(strip $(BR2_GCC_TARGET_ARCH)),"armv7-m")
 	echo "NUTTX_DIR: $(NUTTX_DIR)"
-	$(MAKE) -C $(NXFLAT_DIR) BINUTILS_DIR="$(BINUTILS_DIR1)" \
-		ARCH=thumb2 CC="$(HOSTCC)"
+	$(MAKE) -C $(NXFLAT_DIR) BINUTILS_DIR="$(BINUTILS_DIR)" \
+		BINUTILS_DIR1="$(BINUTILS_DIR1)" ARCH=thumb2 CC="$(HOSTCC)"
 else
 	echo "NUTTX_DIR: $(NUTTX_DIR)"
-	$(MAKE) -C $(NXFLAT_DIR) BINUTILS_DIR="$(BINUTILS_DIR1)" \
-		ARCH=$(BR2_ARCH) CC="$(HOSTCC)"
+	$(MAKE) -C $(NXFLAT_DIR) BINUTILS_DIR="$(BINUTILS_DIR)"  \
+		BINUTILS_DIR1="$(BINUTILS_DIR1)" ARCH=$(BR2_ARCH) CC="$(HOSTCC)"
 endif
 	touch $@
 
