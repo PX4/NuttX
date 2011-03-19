@@ -1,5 +1,5 @@
 ############################################################################
-# vsn/Makefile
+# apps/vsn/Makefile
 #
 #   Copyright (C) 2011 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
