@@ -89,4 +89,7 @@ buildroot-1.10 2011-xx-xx <spudmonkey@racsa.co.cr>
 	  .exe files).  That is probably not usable for most NuttX targets.
 	  Instead, you should use this i486-elf-gcc to generate true ELF binaries
 	  under Cygwin.
+	* Makefile - Alter copy arguements to avoid permissions problems when
+	  copying NuttX header files.
+
 

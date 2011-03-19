@@ -1,10 +1,8 @@
 ############################################################################
-# configs/vsn/nsh/defconfig
+# vsn/Makefile
 #
 #   Copyright (C) 2011 Gregory Nutt. All rights reserved.
-#   Copyright (c) 2011 Uros Platise. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
-#           Uros Platise <uros.platise@isotel.eu>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -35,38 +33,26 @@
 #
 ############################################################################
 
-########################################################################
-#
-# Applications to be included within the NuttX binary as described
-# under the apps/README.txt
-#
-# Set thi config parameter above to: CONFIG_TASK_NAME_SIZE=16
-# In order to enable argv[0]=<task name> argument set the option
-# CONFIG_TASK_NAME_SIZE=16
-#
+# Sub-directories
 
-# Invoke the following application after NuttX starts
-#CONFIG_BUILTIN_APP_START="hello"
+SUBDIRS = free hello poweroff ramtron sdcard
 
-# Application Libraries
-CONFIGURED_APPS += nshlib=.built_always
+all: nothing
+.PHONY: nothing
 
-# Individual selection of built-in applications:
+nothing:
 
-# Hello world provide a simple skeleton/demo application
-CONFIGURED_APPS += vsn/hello=.built_always
+define DOMAKE
+	@(MAKE) -C $1 $2 TOPDIR="$(TOPDIR)"
+endef
 
-# Provide poweroff command to switch off the board
-CONFIGURED_APPS += vsn/poweroff=.built_always 
+depend:
+	$(foreach DIR, $(SUBDIRS), $(eval $(call DOMAKE,$(DIR),depend)))
 
-# Provide SDcard tool
-CONFIGURED_APPS += vsn/sdcard=.built_always 
+clean:
+	$(foreach DIR, $(SUBDIRS), $(eval $(call DOMAKE,$(DIR),clean)))
 
-# Provide RAMTRON tool
-CONFIGURED_APPS += vsn/ramtron=.built_always 
+distclean: clean
+	$(foreach DIR, $(SUBDIRS), $(eval $(call DOMAKE,$(DIR),distclean)))
 
-# Provide UNIX style free 
-CONFIGURED_APPS += vsn/free=.built_always 
-
-# Provide JAVA Virtual Machine (the Darjeeling JVM)
-#CONFIGURED_APPS += vsn/jvm=.built_always 
+-include Make.dep

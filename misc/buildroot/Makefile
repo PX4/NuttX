@@ -122,7 +122,7 @@ $(NUTTX_DIR)/include/arch: $(NUTTX_DIR)
 $(STAGING_DIR)/$(REAL_GNU_TARGET_NAME)/include : $(STAGING_DIR) $(NUTTX_DIR)/include/arch
 	@mkdir -p $(STAGING_DIR)/$(REAL_GNU_TARGET_NAME)/include || \
 		{ echo "Failed to create $(STAGING_DIR)/$(REAL_GNU_TARGET_NAME)/include" ; exit 1 ; }
-	@cp -a $(NUTTX_DIR)/include/* $(STAGING_DIR)/$(REAL_GNU_TARGET_NAME)/include/. || \
+	@cp -aLf $(NUTTX_DIR)/include/* $(STAGING_DIR)/$(REAL_GNU_TARGET_NAME)/include/. || \
 		{ echo "Failed to copy Nuttx header files" ; exit 1 ; }
 
 $(TOOL_BUILD_DIR):
