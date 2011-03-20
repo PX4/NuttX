@@ -40,7 +40,7 @@ include $(APPDIR)/Make.defs
 # NSH Library
 
 ASRCS	=
-CSRCS	= nsh_main.c nsh_fscmds.c nsh_ddcmd.c nsh_proccmds.c nsh_mmcmds.c \
+CSRCS	= nsh_parse.c nsh_fscmds.c nsh_ddcmd.c nsh_proccmds.c nsh_mmcmds.c \
 		nsh_envcmds.c nsh_dbgcmds.c
 
 ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)

@@ -113,7 +113,7 @@ int nsh_romfsetc(void)
   ret = mount(MOUNT_DEVNAME, CONFIG_NSH_ROMFSMOUNTPT, "romfs", MS_RDONLY, NULL);
   if (ret < 0)
     {
-      dbg("nsh: mount(%s,%s,romfs) failed: %s\n",
+      dbg("nsh: mount(%s,%s,romfs) failed: %d\n",
           MOUNT_DEVNAME, CONFIG_NSH_ROMFSMOUNTPT, errno);
       return ERROR;
     }
