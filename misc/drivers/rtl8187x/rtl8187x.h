@@ -243,6 +243,24 @@
 #define RTL8225_ANAPARAM_OFF            0xa00beb59
 #define RTL8225_ANAPARAM2_OFF           0x840dec11
 
+/* Standard Helper Macros ***************************************************/
+
+#ifndef ARRAY_SIZE
+#  define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
+
+#ifndef MAX
+#  define MAX(a,b) (a > b ? a : b)
+#endif
+
+#ifndef MIN
+#  define MIN(a,b) (a < b ? a : b)
+#endif
+
+#ifndef NULL
+#  define NULL ((void*)0)
+#endif
+
 /****************************************************************************
  * Type Definitions
  ****************************************************************************/

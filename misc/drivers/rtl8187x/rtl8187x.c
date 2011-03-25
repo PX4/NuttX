@@ -178,7 +178,7 @@ struct rtl8187x_state_s
   uint16_t                   txpwr_base;
   uint8_t                    asicrev;
 
-  /* EEPROM fields (only really needed initially) */
+  /* EEPROM fields */
 
   uint8_t                    width;        /* EEPROM width (see PCI_EEPROM_WIDTH_* defines) */
   uint8_t                    datain;       /* Register field to indicate data input */
@@ -264,6 +264,10 @@ static int rtl8187x_iowrite32(struct rtl8187x_state_s *priv, uint16_t addr,
                               uint32_t val);
 
 static uint16_t rtl8187x_read(FAR struct rtl8187x_state_s *priv, uint8_t addr);
+static inline void rtl8187x_write_8051(FAR struct rtl8187x_state_s *priv,
+                                       uint8_t addr, uint16_t data);
+static inline void rtl8187x_write_bitbang(struct rtl8187x_state_s *priv,
+                                          uint8_t addr, uint16_t data);
 static void rtl8187x_write(FAR struct rtl8187x_state_s *priv, uint8_t addr,
                            uint16_t data);
 
@@ -295,25 +299,43 @@ static int rtl8187x_rmmac(struct uip_driver_s *dev, FAR const uint8_t *mac);
 
 /* EEPROM support */
 
+static inline void rtl8187x_eeprom_pulsehigh(FAR struct rtl8187x_state_s *priv);
+static inline void rtl8187x_eeprom_pulselow(FAR struct rtl8187x_state_s *priv);
+static void rtl8187x_eeprom_rdsetup(FAR struct rtl8187x_state_s *priv);
+static void rtl8187x_eeprom_wrsetup(FAR struct rtl8187x_state_s *priv);
+static void rtl8187x_eeprom_cleanup(FAR struct rtl8187x_state_s *priv);
+static void rtl8187x_eeprom_wrbits(FAR struct rtl8187x_state_s *priv,
+                                   uint16_t data, uint16_t count);
+static void rtl8187x_eeprom_rdbits(FAR struct rtl8187x_state_s *priv,
+                                   FAR uint16_t * data, uint16_t count);
 static void rtl8187x_eeprom_read(FAR struct rtl8187x_state_s *priv,
                                  uint8_t word, uint16_t *data);
 static void rtl8187x_eeprom_multiread(FAR struct rtl8187x_state_s *priv,
                                       uint8_t word, FAR uint16_t *data,
-                                      uint16_t words);
+                                      uint16_t nwords);
 
-/* RTL8187 Ethernet initialation and registration */
+/* PHY support */
 
+static void rtl8187x_wrphy(FAR struct rtl8187x_state_s *priv, uint8_t addr,
+                           uint32_t data);
+static inline void rtl8187x_wrphyofdm(FAR struct rtl8187x_state_s *priv,
+                                      uint8_t addr, uint32_t data);
+static inline void rtl8187x_wrphycck(FAR struct rtl8187x_state_s *priv,
+                                     uint8_t addr, uint32_t data);
+
+/* Chip-specific RF initialization and TX power setup */
+
+static void rtl8225_rfinit(FAR struct rtl8187x_state_s *priv);
+static void rtl8225z2_rfinit(FAR struct rtl8187x_state_s *priv);
+static void rtl8225_settxpower(FAR struct rtl8187x_state_s *priv, int channel);
+static void rtl8225z2_settxpower(FAR struct rtl8187x_state_s *priv, int channel);
+
+/* RTL8187 Ethernet initialization and registration */
 
 static int rtl8187x_reset(struct rtl8187x_state_s *priv);
 static void rtl8187x_setchannel(FAR struct rtl8187x_state_s *priv, int channel);
 static int rtl8187x_start(FAR struct rtl8187x_state_s *priv);
 static void rtl8187x_stop(FAR struct rtl8187x_state_s *priv);
-
-static void rtl8225_rfinit(FAR struct rtl8187x_state_s *priv);
-static void rtl8225_settxpower(FAR struct rtl8187x_state_s *priv, int channel);
-static void rtl8225z2_rfinit(FAR struct rtl8187x_state_s *priv);
-static void rtl8225z2_settxpower(FAR struct rtl8187x_state_s *priv, int channel);
-
 static inline int rtl8187x_setup(FAR struct rtl8187x_state_s *priv);
 static int rtl8187x_initialize(FAR struct rtl8187x_state_s *priv);
 static int rtl8187x_uninitialize(FAR struct rtl8187x_state_s *priv);
@@ -366,6 +388,143 @@ static const uint32_t g_chanselect[RTL8187X_NCHANNELS] =
 {
   0x085c, 0x08dc, 0x095c, 0x09dc, 0x0a5c, 0x0adc, 0x0b5c,
   0x0bdc, 0x0c5c, 0x0cdc, 0x0d5c, 0x0ddc, 0x0e5c, 0x0f72
+};
+
+/* RTL8225-specific settings */
+
+static const uint16_t g_rtl8225bcd_rxgain[] =
+{
+  0x0400, 0x0401, 0x0402, 0x0403, 0x0404, 0x0405, 0x0408, 0x0409,
+  0x040a, 0x040b, 0x0502, 0x0503, 0x0504, 0x0505, 0x0540, 0x0541,
+  0x0542, 0x0543, 0x0544, 0x0545, 0x0580, 0x0581, 0x0582, 0x0583,
+  0x0584, 0x0585, 0x0588, 0x0589, 0x058a, 0x058b, 0x0643, 0x0644,
+  0x0645, 0x0680, 0x0681, 0x0682, 0x0683, 0x0684, 0x0685, 0x0688,
+  0x0689, 0x068a, 0x068b, 0x068c, 0x0742, 0x0743, 0x0744, 0x0745,
+  0x0780, 0x0781, 0x0782, 0x0783, 0x0784, 0x0785, 0x0788, 0x0789,
+  0x078a, 0x078b, 0x078c, 0x078d, 0x0790, 0x0791, 0x0792, 0x0793,
+  0x0794, 0x0795, 0x0798, 0x0799, 0x079a, 0x079b, 0x079c, 0x079d,
+  0x07a0, 0x07a1, 0x07a2, 0x07a3, 0x07a4, 0x07a5, 0x07a8, 0x07a9,
+  0x07aa, 0x07ab, 0x07ac, 0x07ad, 0x07b0, 0x07b1, 0x07b2, 0x07b3,
+  0x07b4, 0x07b5, 0x07b8, 0x07b9, 0x07ba, 0x07bb, 0x07bb
+};
+
+static const uint8_t g_rtl8225_agc[] =
+{
+  0x9e, 0x9e, 0x9e, 0x9e, 0x9e, 0x9e, 0x9e, 0x9e,
+  0x9d, 0x9c, 0x9b, 0x9a, 0x99, 0x98, 0x97, 0x96,
+  0x95, 0x94, 0x93, 0x92, 0x91, 0x90, 0x8f, 0x8e,
+  0x8d, 0x8c, 0x8b, 0x8a, 0x89, 0x88, 0x87, 0x86,
+  0x85, 0x84, 0x83, 0x82, 0x81, 0x80, 0x3f, 0x3e,
+  0x3d, 0x3c, 0x3b, 0x3a, 0x39, 0x38, 0x37, 0x36,
+  0x35, 0x34, 0x33, 0x32, 0x31, 0x30, 0x2f, 0x2e,
+  0x2d, 0x2c, 0x2b, 0x2a, 0x29, 0x28, 0x27, 0x26,
+  0x25, 0x24, 0x23, 0x22, 0x21, 0x20, 0x1f, 0x1e,
+  0x1d, 0x1c, 0x1b, 0x1a, 0x19, 0x18, 0x17, 0x16,
+  0x15, 0x14, 0x13, 0x12, 0x11, 0x10, 0x0f, 0x0e,
+  0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07, 0x06,
+  0x05, 0x04, 0x03, 0x02, 0x01, 0x01, 0x01, 0x01,
+  0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+  0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01,
+  0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x01
+};
+static const uint8_t g_rtl8225_gain[] =
+{
+  0x23, 0x88, 0x7c, 0xa5,       /* -82dBm */
+  0x23, 0x88, 0x7c, 0xb5,       /* -82dBm */
+  0x23, 0x88, 0x7c, 0xc5,       /* -82dBm */
+  0x33, 0x80, 0x79, 0xc5,       /* -78dBm */
+  0x43, 0x78, 0x76, 0xc5,       /* -74dBm */
+  0x53, 0x60, 0x73, 0xc5,       /* -70dBm */
+  0x63, 0x58, 0x70, 0xc5,       /* -66dBm */
+};
+
+static const uint8_t g_rtl8225_threshold[] =
+{
+  0x8d, 0x8d, 0x8d, 0x8d, 0x9d, 0xad, 0xbd
+};
+
+static const uint8_t g_rtl8225_txgaincckofdm[] =
+{
+  0x02, 0x06, 0x0e, 0x1e, 0x3e, 0x7e
+};
+
+static const uint8_t g_rtl8225_txpowercck[] =
+{
+  0x18, 0x17, 0x15, 0x11, 0x0c, 0x08, 0x04, 0x02,
+  0x1b, 0x1a, 0x17, 0x13, 0x0e, 0x09, 0x04, 0x02,
+  0x1f, 0x1e, 0x1a, 0x15, 0x10, 0x0a, 0x05, 0x02,
+  0x22, 0x21, 0x1d, 0x18, 0x11, 0x0b, 0x06, 0x02,
+  0x26, 0x25, 0x21, 0x1b, 0x14, 0x0d, 0x06, 0x03,
+  0x2b, 0x2a, 0x25, 0x1e, 0x16, 0x0e, 0x07, 0x03
+};
+
+static const uint8_t g_rtl8225_txpowercckch14[] =
+{
+  0x18, 0x17, 0x15, 0x0c, 0x00, 0x00, 0x00, 0x00,
+  0x1b, 0x1a, 0x17, 0x0e, 0x00, 0x00, 0x00, 0x00,
+  0x1f, 0x1e, 0x1a, 0x0f, 0x00, 0x00, 0x00, 0x00,
+  0x22, 0x21, 0x1d, 0x11, 0x00, 0x00, 0x00, 0x00,
+  0x26, 0x25, 0x21, 0x13, 0x00, 0x00, 0x00, 0x00,
+  0x2b, 0x2a, 0x25, 0x15, 0x00, 0x00, 0x00, 0x00
+};
+
+static const uint8_t g_rtl8225_txpowerofdm[] =
+{
+  0x80, 0x90, 0xa2, 0xb5, 0xcb, 0xe4
+};
+
+/* RTL8225z2-Specific settings */
+
+static const uint8_t  g_rtl8225z2_txpowercckch14[] =
+{
+  0x36, 0x35, 0x2e, 0x1b, 0x00, 0x00, 0x00, 0x00
+};
+
+static const uint8_t g_rtl8225z2_txpowercck[] =
+{
+  0x36, 0x35, 0x2e, 0x25, 0x1c, 0x12, 0x09, 0x04
+};
+
+static const uint8_t g_rtl8225z2_txpowerofdm[] =
+{
+  0x42, 0x00, 0x40, 0x00, 0x40
+};
+
+static const uint8_t g_rtl8225z2_txgaincckofdm[] =
+{
+  0x00, 0x01, 0x02, 0x03, 0x04, 0x05,
+  0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
+  0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11,
+  0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+  0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d,
+  0x1e, 0x1f, 0x20, 0x21, 0x22, 0x23
+};
+
+static const uint16_t g_rtl8225z2_rxgain[] =
+{
+  0x0400, 0x0401, 0x0402, 0x0403, 0x0404, 0x0405, 0x0408, 0x0409,
+  0x040a, 0x040b, 0x0502, 0x0503, 0x0504, 0x0505, 0x0540, 0x0541,
+  0x0542, 0x0543, 0x0544, 0x0545, 0x0580, 0x0581, 0x0582, 0x0583,
+  0x0584, 0x0585, 0x0588, 0x0589, 0x058a, 0x058b, 0x0643, 0x0644,
+  0x0645, 0x0680, 0x0681, 0x0682, 0x0683, 0x0684, 0x0685, 0x0688,
+  0x0689, 0x068a, 0x068b, 0x068c, 0x0742, 0x0743, 0x0744, 0x0745,
+  0x0780, 0x0781, 0x0782, 0x0783, 0x0784, 0x0785, 0x0788, 0x0789,
+  0x078a, 0x078b, 0x078c, 0x078d, 0x0790, 0x0791, 0x0792, 0x0793,
+  0x0794, 0x0795, 0x0798, 0x0799, 0x079a, 0x079b, 0x079c, 0x079d,
+  0x07a0, 0x07a1, 0x07a2, 0x07a3, 0x07a4, 0x07a5, 0x07a8, 0x07a9,
+  0x03aa, 0x03ab, 0x03ac, 0x03ad, 0x03b0, 0x03b1, 0x03b2, 0x03b3,
+  0x03b4, 0x03b5, 0x03b8, 0x03b9, 0x03ba, 0x03bb, 0x03bb
+};
+
+static const uint8_t g_rtl8225z2_gainbg[] =
+{
+  0x23, 0x15, 0xa5,             /* -82-1dBm */
+  0x23, 0x15, 0xb5,             /* -82-2dBm */
+  0x23, 0x15, 0xc5,             /* -82-3dBm */
+  0x33, 0x15, 0xc5,             /* -78dBm */
+  0x43, 0x15, 0xc5,             /* -74dBm */
+  0x53, 0x15, 0xc5,             /* -70dBm */
+  0x63, 0x15, 0xc5              /* -66dBm */
 };
 
 /****************************************************************************
@@ -1405,6 +1564,222 @@ static int rtl8187x_iowrite32(struct rtl8187x_state_s *priv, uint16_t addr, uint
 }
 
 /****************************************************************************
+ * Function: rtl8187x_read
+ *
+ * Description:
+ *   Read RTL register value
+ *
+ * Parameters:
+ *   priv  - Reference to the driver state structure
+ *   addr  - Register address
+ *
+ * Returned Value:
+ *   Value
+ *
+ ****************************************************************************/
+
+static uint16_t rtl8187x_read(FAR struct rtl8187x_state_s *priv, uint8_t addr)
+{
+  uint16_t reg80;
+  uint16_t reg82;
+  uint16_t reg84;
+  uint16_t ret;
+  int i;
+
+  reg80 = rtl8187x_ioread16(priv, RTL8187X_ADDR_RFPINSOUTPUT);
+  reg82 = rtl8187x_ioread16(priv, RTL8187X_ADDR_RFPINSENABLE);
+  reg84 = rtl8187x_ioread16(priv, RTL8187X_ADDR_RFPINSSELECT);
+
+  reg80 &= ~0xf;
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSENABLE, reg82 | 0x000f);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSSELECT, reg84 | 0x000f);
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg80 | (1 << 2));
+  usleep(4);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg80);
+  usleep(5);
+
+  for (i = 4; i >= 0; i--)
+    {
+      uint16_t reg = reg80 | ((addr >> i) & 1);
+
+      if (!(i & 1))
+        {
+          rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg);
+          usleep(1);
+        }
+
+      rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg | (1 << 1));
+      usleep(2);
+      rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg | (1 << 1));
+      usleep(2);
+
+      if (i & 1)
+        {
+          rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg);
+          usleep(1);
+        }
+    }
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT,
+                    reg80 | (1 << 3) | (1 << 1));
+  usleep(2);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg80 | (1 << 3));
+  usleep(2);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg80 | (1 << 3));
+  usleep(2);
+
+  ret = 0;
+  for (i = 11; i >= 0; i--)
+    {
+      rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg80 | (1 << 3));
+      usleep(1);
+      rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT,
+                        reg80 | (1 << 3) | (1 << 1));
+      usleep(2);
+      rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT,
+                        reg80 | (1 << 3) | (1 << 1));
+      usleep(2);
+      rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT,
+                        reg80 | (1 << 3) | (1 << 1));
+      usleep(2);
+
+      if (rtl8187x_ioread16(priv, RTL8187X_ADDR_RFPINSINPUT) & (1 << 1))
+        ret |= 1 << i;
+
+      rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg80 | (1 << 3));
+      usleep(2);
+    }
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT,
+                    reg80 | (1 << 3) | (1 << 2));
+  usleep(2);
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSENABLE, reg82);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSSELECT, reg84);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, 0x03a0);
+
+  return ret;
+}
+
+/****************************************************************************
+ * Function: rtl8187x_write
+ *
+ * Description:
+ *   Write RTL register value
+ *
+ * Parameters:
+ *   priv  - Reference to the driver state structure
+ *   addr  - Register address
+ *
+ * Returned Value:
+ *   Value
+ *
+ ****************************************************************************/
+
+static inline void rtl8187x_write_8051(FAR struct rtl8187x_state_s *priv,
+                                       uint8_t addr, uint16_t data)
+{
+  struct usb_ctrlreq_s *ctrlreq;
+  uint16_t reg80;
+  uint16_t reg82;
+  uint16_t reg84;
+  int ret;
+
+  reg80 = rtl8187x_ioread16(priv, RTL8187X_ADDR_RFPINSOUTPUT);
+  reg82 = rtl8187x_ioread16(priv, RTL8187X_ADDR_RFPINSENABLE);
+  reg84 = rtl8187x_ioread16(priv, RTL8187X_ADDR_RFPINSSELECT);
+
+  reg80 &= ~(0x3 << 2);
+  reg84 &= ~0xf;
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSENABLE, reg82 | 0x0007);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSSELECT, reg84 | 0x0007);
+  usleep(10);
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg80 | (1 << 2));
+  usleep(2);
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg80);
+  usleep(10);
+
+  ctrlreq = priv->ctrlreq;
+  ctrlreq->type = (USB_REQ_DIR_OUT | USB_REQ_TYPE_VENDOR | USB_REQ_RECIPIENT_DEVICE);
+  ctrlreq->req  = 0x05;
+  rtl8187x_putle16(ctrlreq->value, addr);
+  rtl8187x_putle16(ctrlreq->index, 0x8225);
+  rtl8187x_putle16(ctrlreq->len, sizeof(uint16_t));
+
+  rtl8187x_putle16(priv->tbuffer, data);
+  ret = DRVR_CTRLOUT(priv->drvr, priv->ctrlreq, priv->tbuffer);
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg80 | (1 << 2));
+  usleep(10);
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg80 | (1 << 2));
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSSELECT, reg84);
+  usleep(2000);
+}
+
+static inline void rtl8187x_write_bitbang(struct rtl8187x_state_s *priv,
+                                          uint8_t addr, uint16_t data)
+{
+  uint16_t reg80, reg84, reg82;
+  uint32_t bangdata;
+  int i;
+
+  bangdata = (data << 4) | (addr & 0xf);
+
+  reg80 = rtl8187x_ioread16(priv, RTL8187X_ADDR_RFPINSOUTPUT) & 0xfff3;
+  reg82 = rtl8187x_ioread16(priv, RTL8187X_ADDR_RFPINSENABLE);
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSENABLE, reg82 | 0x7);
+
+  reg84 = rtl8187x_ioread16(priv, RTL8187X_ADDR_RFPINSSELECT);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSSELECT, reg84 | 0x7);
+  usleep(10);
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg80 | (1 << 2));
+  usleep(2);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg80);
+  usleep(10);
+
+  for (i = 15; i >= 0; i--)
+    {
+      uint16_t reg = reg80 | (bangdata & (1 << i)) >> i;
+
+      if (i & 1)
+        rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg);
+
+      rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg | (1 << 1));
+      rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg | (1 << 1));
+
+      if (!(i & 1))
+        rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg);
+    }
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg80 | (1 << 2));
+  usleep(10);
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, reg80 | (1 << 2));
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSSELECT, reg84);
+  usleep(2);
+}
+
+static void rtl8187x_write(FAR struct rtl8187x_state_s *priv, uint8_t addr, uint16_t data)
+{
+  if (priv->asicrev)
+    {
+      rtl8187x_write_8051(priv, addr, rtl8187x_host2le16(data));
+    }
+  else
+    {
+      rtl8187x_write_bitbang(priv, addr, data);
+    }
+}
+
+/****************************************************************************
  * Function: rtl8187x_transmit
  *
  * Description:
@@ -1847,6 +2222,912 @@ static int rtl8187x_rmmac(struct uip_driver_s *dev, FAR const uint8_t *mac)
   return OK;
 }
 #endif
+
+/****************************************************************************
+ * Function: Various low-level EEPROM Support functions
+ *
+ * Description:
+ *   NuttX Callback: Remove the specified MAC address from the hardware multicast
+ *   address filtering
+ *
+ * Parameters:
+ *   priv  - Reference to the NuttX driver state structure
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions:
+ *
+ ****************************************************************************/
+
+static inline void rtl8187x_eeprom_pulsehigh(FAR struct rtl8187x_state_s *priv)
+{
+  priv->dataclk = 1;
+  rtl8187x_eeprom_wrsetup(priv);
+
+  /* Add a short delay for the pulse to work. According to the specifications
+   * the "maximum minimum" time should be 450ns.
+   */
+
+  usleep(1);
+}
+
+static inline void rtl8187x_eeprom_pulselow(FAR struct rtl8187x_state_s *priv)
+{
+  priv->dataclk = 0;
+  rtl8187x_eeprom_wrsetup(priv);
+
+  /* Add a short delay for the pulse to work. According to the specifications
+   * the "maximum minimum" time should be 450ns.
+   */
+
+  usleep(1);
+}
+
+static void rtl8187x_eeprom_rdsetup(FAR struct rtl8187x_state_s *priv)
+{
+  uint8_t reg = rtl8187x_ioread8(priv, RTL8187X_ADDR_EEPROMCMD);
+
+  priv->datain  = reg & RTL8187X_EEPROMCMD_WRITE;
+  priv->dataout = reg & RTL8187X_EEPROMCMD_READ;
+  priv->dataclk = reg & RTL8187X_EEPROMCMD_CK;
+  priv->chipsel = reg & RTL8187X_EEPROMCMD_CS;
+}
+
+static void rtl8187x_eeprom_wrsetup(FAR struct rtl8187x_state_s *priv)
+{
+  uint8_t reg = RTL8187X_EEPROMCMD_PROGRAM;
+
+  if (priv->datain)
+    {
+        reg |= RTL8187X_EEPROMCMD_WRITE;
+    }
+
+  if (priv->dataout)
+    {
+        reg |= RTL8187X_EEPROMCMD_READ;
+    }
+
+  if (priv->dataclk)
+    {
+      reg |= RTL8187X_EEPROMCMD_CK;
+    }
+
+  if (priv->chipsel)
+    {
+      reg |= RTL8187X_EEPROMCMD_CS;
+    }
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, reg);
+  usleep(10);
+}
+
+static void rtl8187x_eeprom_cleanup(FAR struct rtl8187x_state_s *priv)
+{
+  /* Clear chip_select and data_in flags. */
+
+  rtl8187x_eeprom_rdsetup(priv);
+  priv->datain = 0;
+  priv->chipsel = 0;
+  rtl8187x_eeprom_wrsetup(priv);
+
+  /* Kick a pulse. */
+
+  rtl8187x_eeprom_pulsehigh(priv);
+  rtl8187x_eeprom_pulselow(priv);
+}
+
+static void rtl8187x_eeprom_wrbits(FAR struct rtl8187x_state_s *priv,
+                                   uint16_t data, uint16_t count)
+{
+  unsigned int i;
+
+  rtl8187x_eeprom_rdsetup(priv);
+
+  /* Clear data flags. */
+
+  priv->datain = 0;
+  priv->dataout = 0;
+
+  /* Start writing all bits. */
+
+  for (i = count; i > 0; i--)
+    {
+      /* Check if this bit needs to be set. */
+
+      priv->datain = ! !(data & (1 << (i - 1)));
+
+      /* Write the bit to the eeprom register. */
+
+      rtl8187x_eeprom_wrsetup(priv);
+
+      /* Kick a pulse. */
+
+      rtl8187x_eeprom_pulsehigh(priv);
+      rtl8187x_eeprom_pulselow(priv);
+    }
+
+  priv->datain = 0;
+  rtl8187x_eeprom_wrsetup(priv);
+}
+
+static void rtl8187x_eeprom_rdbits(FAR struct rtl8187x_state_s *priv,
+                                   FAR uint16_t * data, uint16_t count)
+{
+  unsigned int i;
+  uint16_t buf = 0;
+
+  rtl8187x_eeprom_rdsetup(priv);
+
+  /* Clear data flags. */
+
+  priv->datain  = 0;
+  priv->dataout = 0;
+
+  /* Start reading all bits. */
+
+  for (i = count; i > 0; i--)
+    {
+      rtl8187x_eeprom_pulsehigh(priv);
+
+      rtl8187x_eeprom_rdsetup(priv);
+
+      /* Clear data_in flag. */
+
+      priv->datain = 0;
+
+      /* Read if the bit has been set. */
+
+      if (priv->dataout)
+        {
+          buf |= (1 << (i - 1));
+        }
+
+      rtl8187x_eeprom_pulselow(priv);
+    }
+
+  *data = buf;
+}
+
+/****************************************************************************
+ * Function: rtl8187x_eeprom_read
+ *
+ * Description:
+ *   Read data from EEPROM
+ *
+ * Parameters:
+ *   priv  - Reference to the NuttX driver state structure
+ *   word  -
+ *   data  - Location for data to be written
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions:
+ *
+ ****************************************************************************/
+
+static void rtl8187x_eeprom_read(FAR struct rtl8187x_state_s *priv,
+                                 uint8_t word, uint16_t *data)
+{
+  uint16_t command;
+
+  /* Clear all flags, and enable chip select. */
+
+  rtl8187x_eeprom_rdsetup(priv);
+  priv->datain  = 0;
+  priv->dataout = 0;
+  priv->dataclk = 0;
+  priv->chipsel = 1;
+  rtl8187x_eeprom_wrsetup(priv);
+
+  /* Kick a pulse. */
+
+  rtl8187x_eeprom_pulsehigh(priv);
+  rtl8187x_eeprom_pulselow(priv);
+
+  /* Select the read opcode and the word to be read. */
+
+  command = (PCI_EEPROM_READ_OPCODE << priv->width) | word;
+  rtl8187x_eeprom_wrbits(priv, command, PCI_EEPROM_WIDTH_OPCODE + priv->width);
+
+  /* Read the requested 16 bits. */
+
+  rtl8187x_eeprom_rdbits(priv, data, 16);
+
+  /* Cleanup eeprom register. */
+
+  rtl8187x_eeprom_cleanup(priv);
+}
+
+/****************************************************************************
+ * Function: rtl8187x_eeprom_multiread
+ *
+ * Description:
+ *   A convenience wrapper around  rtl8187x_eeprom_read to obtain multiple
+ *   words from the EEPROM.
+ *
+ * Parameters:
+ *   priv   - Reference to the NuttX driver state structure
+ *   word   -
+ *   data   - Location for data to be written
+ *   nwords - The number of words to be read
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions:
+ *
+ ****************************************************************************/
+
+static void rtl8187x_eeprom_multiread(FAR struct rtl8187x_state_s *priv,
+                                      uint8_t word, FAR uint16_t *data,
+                                      uint16_t nwords)
+{
+  unsigned int i;
+  uint16_t tmp;
+
+  for (i = 0; i < nwords; i++)
+    {
+      tmp = 0;
+      rtl8187x_eeprom_read(priv, word + i, &tmp);
+      data[i] = rtl8187x_host2le16(tmp);
+    }
+}
+
+/****************************************************************************
+ * Function: PHY support functions
+ *
+ * Description:
+ *   Configure PHY
+ *
+ * Parameters:
+ *   priv - Private driver state information
+ *
+ * Returned Value:
+ *   OK on success; Negated errno on failure.
+ *
+ * Assumptions:
+ *
+ ****************************************************************************/
+
+static void rtl8187x_wrphy(FAR struct rtl8187x_state_s *priv, uint8_t addr,
+                           uint32_t data)
+{
+  data <<= 8;
+  data |= addr | 0x80;
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_PHY3, (data >> 24) & 0xff);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_PHY2, (data >> 16) & 0xff);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_PHY1, (data >> 8) & 0xff);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_PHY0, data & 0xff);
+
+  usleep(1000);
+}
+
+static inline void rtl8187x_wrphyofdm(FAR struct rtl8187x_state_s *priv,
+                                      uint8_t addr, uint32_t data)
+{
+  rtl8187x_wrphy(priv, addr, data);
+}
+
+static inline void rtl8187x_wrphycck(FAR struct rtl8187x_state_s *priv,
+                                     uint8_t addr, uint32_t data)
+{
+  rtl8187x_wrphy(priv, addr, data | 0x10000);
+}
+
+/****************************************************************************
+ * Function: rtl8225_rfinit and rtl8225z2_rfinit
+ *
+ * Description:
+ *   Chip-specific RF initialization
+ *
+ * Parameters:
+ *   priv - Private driver state information
+ *
+ * Returned Value:
+ *   OK on success; Negated errno on failure.
+ *
+ * Assumptions:
+ *
+ ****************************************************************************/
+
+static void rtl8225_rfinit(FAR struct rtl8187x_state_s *priv)
+{
+  unsigned int i;
+
+  uvdbg("rfinit");
+  rtl8187x_write(priv, 0x0, 0x067);
+  usleep(1000);
+  rtl8187x_write(priv, 0x1, 0xFE0);
+  usleep(1000);
+  rtl8187x_write(priv, 0x2, 0x44D);
+  usleep(1000);
+  rtl8187x_write(priv, 0x3, 0x441);
+  usleep(1000);
+  rtl8187x_write(priv, 0x4, 0x486);
+  usleep(1000);
+  rtl8187x_write(priv, 0x5, 0xBC0);
+  usleep(1000);
+  rtl8187x_write(priv, 0x6, 0xAE6);
+  usleep(1000);
+  rtl8187x_write(priv, 0x7, 0x82A);
+  usleep(1000);
+  rtl8187x_write(priv, 0x8, 0x01F);
+  usleep(1000);
+  rtl8187x_write(priv, 0x9, 0x334);
+  usleep(1000);
+  rtl8187x_write(priv, 0xA, 0xFD4);
+  usleep(1000);
+  rtl8187x_write(priv, 0xB, 0x391);
+  usleep(1000);
+  rtl8187x_write(priv, 0xC, 0x050);
+  usleep(1000);
+  rtl8187x_write(priv, 0xD, 0x6DB);
+  usleep(1000);
+  rtl8187x_write(priv, 0xE, 0x029);
+  usleep(1000);
+  rtl8187x_write(priv, 0xF, 0x914);
+  usleep(100000);
+
+  rtl8187x_write(priv, 0x2, 0xC4D);
+  usleep(200000);
+  rtl8187x_write(priv, 0x2, 0x44D);
+  usleep(200000);
+
+  if (!(rtl8187x_read(priv, 6) & (1 << 7)))
+    {
+      rtl8187x_write(priv, 0x02, 0x0c4d);
+      usleep(200000);
+      rtl8187x_write(priv, 0x02, 0x044d);
+      usleep(100000);
+      if (!(rtl8187x_read(priv, 6) & (1 << 7)))
+        {
+          udbg("RF Calibration Failed! %x\n", rtl8187x_read(priv, 6));
+        }
+    }
+
+  rtl8187x_write(priv, 0x0, 0x127);
+
+  for (i = 0; i < ARRAY_SIZE(g_rtl8225bcd_rxgain); i++)
+    {
+      rtl8187x_write(priv, 0x1, i + 1);
+      rtl8187x_write(priv, 0x2, g_rtl8225bcd_rxgain[i]);
+    }
+
+  rtl8187x_write(priv, 0x0, 0x027);
+  rtl8187x_write(priv, 0x0, 0x22F);
+
+  for (i = 0; i < ARRAY_SIZE(g_rtl8225_agc); i++)
+    {
+      rtl8187x_wrphyofdm(priv, 0xB, g_rtl8225_agc[i]);
+      usleep(1000);
+      rtl8187x_wrphyofdm(priv, 0xA, 0x80 + i);
+      usleep(1000);
+    }
+
+  usleep(1000);
+
+  rtl8187x_wrphyofdm(priv, 0x00, 0x01);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x01, 0x02);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x02, 0x42);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x03, 0x00);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x04, 0x00);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x05, 0x00);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x06, 0x40);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x07, 0x00);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x08, 0x40);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x09, 0xfe);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x0a, 0x09);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x0b, 0x80);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x0c, 0x01);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x0e, 0xd3);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x0f, 0x38);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x10, 0x84);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x11, 0x06);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x12, 0x20);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x13, 0x20);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x14, 0x00);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x15, 0x40);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x16, 0x00);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x17, 0x40);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x18, 0xef);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x19, 0x19);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x1a, 0x20);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x1b, 0x76);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x1c, 0x04);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x1e, 0x95);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x1f, 0x75);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x20, 0x1f);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x21, 0x27);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x22, 0x16);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x24, 0x46);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x25, 0x20);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x26, 0x90);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x27, 0x88);
+  usleep(1000);
+
+  rtl8187x_wrphyofdm(priv, 0x0d, g_rtl8225_gain[2 * 4]);
+  rtl8187x_wrphyofdm(priv, 0x1b, g_rtl8225_gain[2 * 4 + 2]);
+  rtl8187x_wrphyofdm(priv, 0x1d, g_rtl8225_gain[2 * 4 + 3]);
+  rtl8187x_wrphyofdm(priv, 0x23, g_rtl8225_gain[2 * 4 + 1]);
+
+  rtl8187x_wrphycck(priv, 0x00, 0x98);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x03, 0x20);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x04, 0x7e);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x05, 0x12);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x06, 0xfc);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x07, 0x78);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x08, 0x2e);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x10, 0x9b);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x11, 0x88);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x12, 0x47);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x13, 0xd0);
+  rtl8187x_wrphycck(priv, 0x19, 0x00);
+  rtl8187x_wrphycck(priv, 0x1a, 0xa0);
+  rtl8187x_wrphycck(priv, 0x1b, 0x08);
+  rtl8187x_wrphycck(priv, 0x40, 0x86);
+  rtl8187x_wrphycck(priv, 0x41, 0x8d);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x42, 0x15);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x43, 0x18);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x44, 0x1f);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x45, 0x1e);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x46, 0x1a);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x47, 0x15);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x48, 0x10);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x49, 0x0a);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x4a, 0x05);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x4b, 0x02);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x4c, 0x05);
+  usleep(1000);
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_TESTR, 0x0D);
+
+  rtl8225_settxpower(priv, 1);
+
+  /* RX antenna default to A */
+
+  rtl8187x_wrphycck(priv, 0x10, 0x9b);
+  usleep(1000);                 /* B: 0xDB */
+  rtl8187x_wrphyofdm(priv, 0x26, 0x90);
+  usleep(1000);                 /* B: 0x10 */
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_TXANTENNA, 0x03);        /* B: 0x00 */
+  usleep(1000);
+  rtl8187x_iowrite32(priv, 0xff94, 0x3dc00002);
+
+  /* Set sensitivity */
+
+  rtl8187x_write(priv, 0x0c, 0x50);
+  rtl8187x_wrphyofdm(priv, 0x0d, g_rtl8225_gain[2 * 4]);
+  rtl8187x_wrphyofdm(priv, 0x1b, g_rtl8225_gain[2 * 4 + 2]);
+  rtl8187x_wrphyofdm(priv, 0x1d, g_rtl8225_gain[2 * 4 + 3]);
+  rtl8187x_wrphyofdm(priv, 0x23, g_rtl8225_gain[2 * 4 + 1]);
+  rtl8187x_wrphycck(priv, 0x41, g_rtl8225_threshold[2]);
+}
+
+static void rtl8225z2_rfinit(FAR struct rtl8187x_state_s *priv)
+{
+  unsigned int i;
+
+  rtl8187x_write(priv, 0x0, 0x2BF);
+  usleep(1000);
+  rtl8187x_write(priv, 0x1, 0xEE0);
+  usleep(1000);
+  rtl8187x_write(priv, 0x2, 0x44D);
+  usleep(1000);
+  rtl8187x_write(priv, 0x3, 0x441);
+  usleep(1000);
+  rtl8187x_write(priv, 0x4, 0x8C3);
+  usleep(1000);
+  rtl8187x_write(priv, 0x5, 0xC72);
+  usleep(1000);
+  rtl8187x_write(priv, 0x6, 0x0E6);
+  usleep(1000);
+  rtl8187x_write(priv, 0x7, 0x82A);
+  usleep(1000);
+  rtl8187x_write(priv, 0x8, 0x03F);
+  usleep(1000);
+  rtl8187x_write(priv, 0x9, 0x335);
+  usleep(1000);
+  rtl8187x_write(priv, 0xa, 0x9D4);
+  usleep(1000);
+  rtl8187x_write(priv, 0xb, 0x7BB);
+  usleep(1000);
+  rtl8187x_write(priv, 0xc, 0x850);
+  usleep(1000);
+  rtl8187x_write(priv, 0xd, 0xCDF);
+  usleep(1000);
+  rtl8187x_write(priv, 0xe, 0x02B);
+  usleep(1000);
+  rtl8187x_write(priv, 0xf, 0x114);
+  usleep(100000);
+
+  rtl8187x_write(priv, 0x0, 0x1B7);
+
+  for (i = 0; i < ARRAY_SIZE(g_rtl8225z2_rxgain); i++)
+    {
+      rtl8187x_write(priv, 0x1, i + 1);
+      rtl8187x_write(priv, 0x2, g_rtl8225z2_rxgain[i]);
+    }
+
+  rtl8187x_write(priv, 0x3, 0x080);
+  rtl8187x_write(priv, 0x5, 0x004);
+  rtl8187x_write(priv, 0x0, 0x0B7);
+  rtl8187x_write(priv, 0x2, 0xc4D);
+
+  usleep(200000);
+  rtl8187x_write(priv, 0x2, 0x44D);
+  usleep(100000);
+
+  if (!(rtl8187x_read(priv, 6) & (1 << 7)))
+    {
+      rtl8187x_write(priv, 0x02, 0x0C4D);
+      usleep(200000);
+      rtl8187x_write(priv, 0x02, 0x044D);
+      usleep(100000);
+      if (!(rtl8187x_read(priv, 6) & (1 << 7)))
+        {
+          udbg("RF Calibration Failed! %x\n", rtl8187x_read(priv, 6));
+        }
+    }
+
+  usleep(200000);
+
+  rtl8187x_write(priv, 0x0, 0x2BF);
+
+  for (i = 0; i < ARRAY_SIZE(g_rtl8225_agc); i++)
+    {
+      rtl8187x_wrphyofdm(priv, 0xB, g_rtl8225_agc[i]);
+      usleep(1000);
+      rtl8187x_wrphyofdm(priv, 0xA, 0x80 + i);
+      usleep(1000);
+    }
+
+  usleep(1000);
+
+  rtl8187x_wrphyofdm(priv, 0x00, 0x01);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x01, 0x02);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x02, 0x42);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x03, 0x00);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x04, 0x00);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x05, 0x00);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x06, 0x40);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x07, 0x00);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x08, 0x40);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x09, 0xfe);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x0a, 0x08);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x0b, 0x80);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x0c, 0x01);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x0d, 0x43);
+  rtl8187x_wrphyofdm(priv, 0x0e, 0xd3);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x0f, 0x38);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x10, 0x84);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x11, 0x07);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x12, 0x20);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x13, 0x20);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x14, 0x00);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x15, 0x40);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x16, 0x00);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x17, 0x40);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x18, 0xef);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x19, 0x19);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x1a, 0x20);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x1b, 0x15);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x1c, 0x04);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x1d, 0xc5);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x1e, 0x95);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x1f, 0x75);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x20, 0x1f);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x21, 0x17);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x22, 0x16);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x23, 0x80);
+  usleep(1000);                 // FIXME: not needed?
+  rtl8187x_wrphyofdm(priv, 0x24, 0x46);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x25, 0x00);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x26, 0x90);
+  usleep(1000);
+  rtl8187x_wrphyofdm(priv, 0x27, 0x88);
+  usleep(1000);
+
+  rtl8187x_wrphyofdm(priv, 0x0b, g_rtl8225z2_gainbg[4 * 3]);
+  rtl8187x_wrphyofdm(priv, 0x1b, g_rtl8225z2_gainbg[4 * 3 + 1]);
+  rtl8187x_wrphyofdm(priv, 0x1d, g_rtl8225z2_gainbg[4 * 3 + 2]);
+  rtl8187x_wrphyofdm(priv, 0x21, 0x37);
+
+  rtl8187x_wrphycck(priv, 0x00, 0x98);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x03, 0x20);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x04, 0x7e);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x05, 0x12);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x06, 0xfc);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x07, 0x78);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x08, 0x2e);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x10, 0x9b);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x11, 0x88);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x12, 0x47);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x13, 0xd0);
+  rtl8187x_wrphycck(priv, 0x19, 0x00);
+  rtl8187x_wrphycck(priv, 0x1a, 0xa0);
+  rtl8187x_wrphycck(priv, 0x1b, 0x08);
+  rtl8187x_wrphycck(priv, 0x40, 0x86);
+  rtl8187x_wrphycck(priv, 0x41, 0x8d);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x42, 0x15);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x43, 0x18);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x44, 0x36);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x45, 0x35);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x46, 0x2e);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x47, 0x25);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x48, 0x1c);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x49, 0x12);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x4a, 0x09);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x4b, 0x04);
+  usleep(1000);
+  rtl8187x_wrphycck(priv, 0x4c, 0x05);
+  usleep(1000);
+
+  rtl8187x_iowrite8(priv, 0xff5B, 0x0D);
+  usleep(1000);
+
+  rtl8225z2_settxpower(priv, 1);
+
+  /* RX antenna default to A */
+
+  rtl8187x_wrphycck(priv, 0x10, 0x9b);
+  usleep(1000);                 /* B: 0xDB */
+  rtl8187x_wrphyofdm(priv, 0x26, 0x90);
+  usleep(1000);                 /* B: 0x10 */
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_TXANTENNA, 0x03);        /* B: 0x00 */
+  usleep(1000);
+  rtl8187x_iowrite32(priv, 0xff94, 0x3dc00002);
+}
+
+/****************************************************************************
+ * Function: rtl8225_settxpower and 
+ *
+ * Description:
+ *   Chip-specific TX power configuration
+ *
+ * Parameters:
+ *   priv - Private driver state information
+ *   channel - The selected channel
+ *
+ * Returned Value:
+ *   OK on success; Negated errno on failure.
+ *
+ * Assumptions:
+ *
+ ****************************************************************************/
+
+static void rtl8225_settxpower(FAR struct rtl8187x_state_s *priv, int channel)
+{
+  uint8_t cck_power, ofdm_power;
+  const uint8_t *tmp;
+  uint32_t regval;
+  int i;
+
+  cck_power = priv->channels[channel - 1].val & 0xf;
+  ofdm_power = priv->channels[channel - 1].val >> 4;
+
+  cck_power = MIN(cck_power, (uint8_t) 11);
+  ofdm_power = MIN(ofdm_power, (uint8_t) 35);
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_TXGAINCCK,
+                   g_rtl8225_txgaincckofdm[cck_power / 6] >> 1);
+
+  if (channel == 14)
+    {
+      tmp = &g_rtl8225_txpowercckch14[(cck_power % 6) * 8];
+    }
+  else
+    {
+      tmp = &g_rtl8225_txpowercck[(cck_power % 6) * 8];
+    }
+
+  for (i = 0; i < 8; i++)
+    {
+        rtl8187x_wrphycck(priv, 0x44 + i, *tmp++);
+    }
+  usleep(1000);                 // FIXME: optional?
+
+  /* anaparam2 on */
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_CONFIG);
+  regval = rtl8187x_ioread8(priv, RTL8187X_ADDR_CONFIG3);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
+                   regval | RTL8187X_CONFIG3_ANAPARAMWRITE);
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM2, RTL8225_ANAPARAM2_ON);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
+                   regval & ~RTL8187X_CONFIG3_ANAPARAMWRITE);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_NORMAL);
+
+  rtl8187x_wrphyofdm(priv, 2, 0x42);
+  rtl8187x_wrphyofdm(priv, 6, 0x00);
+  rtl8187x_wrphyofdm(priv, 8, 0x00);
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_TXGAINOFDM,
+                   g_rtl8225_txgaincckofdm[ofdm_power / 6] >> 1);
+
+  tmp = &g_rtl8225_txpowerofdm[ofdm_power % 6];
+
+  rtl8187x_wrphyofdm(priv, 5, *tmp);
+  rtl8187x_wrphyofdm(priv, 7, *tmp);
+
+  usleep(1000);
+}
+
+static void rtl8225z2_settxpower(FAR struct rtl8187x_state_s *priv, int channel)
+{
+  uint8_t cck_power;
+  uint8_t ofdm_power;
+  const uint8_t *tmp;
+  uint32_t regval;
+  int i;
+
+  cck_power  = priv->channels[channel - 1].val & 0xF;
+  ofdm_power = priv->channels[channel - 1].val >> 4;
+
+  cck_power  = MIN(cck_power, (uint8_t) 15);
+  cck_power += priv->txpwr_base & 0xF;
+  cck_power  = MIN(cck_power, (uint8_t) 35);
+
+  ofdm_power  = MIN(ofdm_power, (uint8_t) 15);
+  ofdm_power += priv->txpwr_base >> 4;
+  ofdm_power  = MIN(ofdm_power, (uint8_t) 35);
+
+  if (channel == 14)
+    {
+      tmp =  g_rtl8225z2_txpowercckch14;
+    }
+  else
+    {
+      tmp = g_rtl8225z2_txpowercck;
+    }
+
+  for (i = 0; i < 8; i++)
+    {
+      rtl8187x_wrphycck(priv, 0x44 + i, *tmp++);
+    }
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_TXGAINCCK,
+                   g_rtl8225z2_txgaincckofdm[cck_power]);
+  usleep(1000);
+
+  /* anaparam2 on */
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_CONFIG);
+  regval = rtl8187x_ioread8(priv, RTL8187X_ADDR_CONFIG3);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
+                    regval | RTL8187X_CONFIG3_ANAPARAMWRITE);
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM2, RTL8225_ANAPARAM2_ON);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
+                    regval & ~RTL8187X_CONFIG3_ANAPARAMWRITE);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_NORMAL);
+
+  rtl8187x_wrphyofdm(priv, 2, 0x42);
+  rtl8187x_wrphyofdm(priv, 5, 0x00);
+  rtl8187x_wrphyofdm(priv, 6, 0x40);
+  rtl8187x_wrphyofdm(priv, 7, 0x00);
+  rtl8187x_wrphyofdm(priv, 8, 0x40);
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_TXGAINOFDM,
+                    g_rtl8225z2_txgaincckofdm[ofdm_power]);
+  usleep(1000);
+}
 
 /****************************************************************************
  * Function: rtl8187x_reset
