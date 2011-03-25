@@ -60,13 +60,13 @@
 
 /* CSR Bit Field Definitions ************************************************/
 
-/* Refers to "cmd" field of "rtl818x_csr_s" struct */
+/* Refers to "cmd" field of "rtl8187x_csr_s" struct */
 
 #define RTL8187X_CMD_TXENABLE           (1 << 2)
 #define RTL8187X_CMD_RXENABLE           (1 << 3)
 #define RTL8187X_CMD_RESET              (1 << 4)
 
-/* Refers to "status" field of "rtl818x_csr_s" struct */
+/* Refers to "status" field of "rtl8187x_csr_s" struct */
 
 #define RTL8187X_INT_RXOK               (1 << 0)
 #define RTL8187X_INT_RXERR              (1 << 1)
@@ -85,7 +85,7 @@
 #define RTL8187X_INT_TIMEOUT            (1 << 14)
 #define RTL8187X_INT_TXFO               (1 << 15)
 
-/* Refers to "tx_conf" field of "rtl818x_csr_s" struct */
+/* Refers to "tx_conf" field of "rtl8187x_csr_s" struct */
 
 #define RTL8187X_TXCONF_LOOPBACKMAC     (1 << 17)
 #define RTL8187X_TXCONF_LOOPBACKCONT    (3 << 17)
@@ -104,7 +104,7 @@
 #define RTL8187X_TXCONF_HWSEQNUM        (1 << 30)
 #define RTL8187X_TXCONF_CWMIN           (1 << 31)
 
-/* Refers to "rx_conf" field of "rtl818x_csr_s" struct */
+/* Refers to "rx_conf" field of "rtl8187x_csr_s" struct */
 
 #define RTL8187X_RXCONF_MONITOR         (1 << 0)
 #define RTL8187X_RXCONF_NICMAC          (1 << 1)
@@ -122,7 +122,7 @@
 #define RTL8187X_RXCONF_CSDM2           (1 << 30)
 #define RTL8187X_RXCONF_ONLYERLPKT      (1 << 31)
 
-/* Refers to "eeprom_cmd" field of "rtl818x_csr_s" struct */
+/* Refers to "eeprom_cmd" field of "rtl8187x_csr_s" struct */
 
 #define RTL8187X_EEPROMCMD_READ         (1 << 0)
 #define RTL8187X_EEPROMCMD_WRITE        (1 << 1)
@@ -133,11 +133,11 @@
 #define RTL8187X_EEPROMCMD_PROGRAM      (2 << 6)
 #define RTL8187X_EEPROMCMD_CONFIG       (3 << 6)
 
-/* Refers to "config2" field of "rtl818x_csr_s" struct */
+/* Refers to "config2" field of "rtl8187x_csr_s" struct */
 
 #define RTL8187X_CONFIG2_ANTENNADIV     (1 << 6)
 
-/* Refers to "msr" field of "rtl818x_csr_s" struct */
+/* Refers to "msr" field of "rtl8187x_csr_s" struct */
 
 #define RTL8187X_MSR_NOLINK             (0 << 2)
 #define RTL8187X_MSR_ADHOC              (1 << 2)
@@ -145,36 +145,94 @@
 #define RTL8187X_MSR_MASTER             (3 << 2)
 #define RTL8187X_MSR_ENEDCA             (4 << 2)
 
-/* Refers to "config3" field of "rtl818x_csr_s" struct */
+/* Refers to "config3" field of "rtl8187x_csr_s" struct */
 
 #define RTL8187X_CONFIG3_ANAPARAMWRITE  (1 << 6)
 #define RTL8187X_CONFIG3_GNTSELECT      (1 << 7)
 
-/* Refers to "config4" field of "rtl818x_csr_s" struct */
+/* Refers to "config4" field of "rtl8187x_csr_s" struct */
 
 #define RTL8187X_CONFIG4_POWEROFF       (1 << 6)
 #define RTL8187X_CONFIG4_VCOOFF         (1 << 7)
 
-/* Refers to "tx_agc_ctl" field of "rtl818x_csr_s" struct */
+/* Refers to "tx_agc_ctl" field of "rtl8187x_csr_s" struct */
 
 #define RTL8187X_TXAGCCTL_PERPACKETGAINSHIFT    (1 << 0)
 #define RTL8187X_TXAGCCTL_PERPACKETANTSELSHIFT  (1 << 1)
 #define RTL8187X_TXAGCCTL_FEEDBACKANT           (1 << 2)
 
-/* Refers to "cw_conf" field of "rtl818x_csr_s" struct */
+/* Refers to "cw_conf" field of "rtl8187x_csr_s" struct */
 
 #define RTL8187X_CWCONF_PERPACKETCWSHIFT      (1 << 0)
 #define RTL8187X_CWCONF_PERPACKETRETRYSHIFT   (1 << 1)
 
-/* Refers to "rate_fallback" field of "rtl818x_csr_s" struct */
+/* Refers to "rate_fallback" field of "rtl8187x_csr_s" struct */
 
-#define RTL8187X_RATEFALLBACK_ENABLE   (1 << 7)
+#define RTL8187X_RATEFALLBACK_ENABLE    (1 << 7)
+
+/* TX/RX Descriptor Bit Field Definitions ***********************************/
+/* Tx/Rx flags are common between RTL818X chips */
+
+/* Refers to "flags" field of "rtl8187x_txdesc_s" struct */
+
+#define RTL8187X_TXDESC_FLAG_NOENC      (1 << 15) /* Disable hardware based encryption */
+#define RTL8187X_TXDESC_FLAG_TXOK       (1 << 15) /* TX frame was ACKed */
+#define RTL8187X_TXDESC_FLAG_SPLCP      (1 << 16) /* Use short preamble */
+#define RTL8187X_TXDESC_FLAG_RXUNDER    (1 << 16) 
+#define RTL8187X_TXDESC_FLAG_MOREFRAG   (1 << 17) /* More fragments follow */
+#define RTL8187X_TXDESC_FLAG_CTS        (1 << 18) /* Use CTS-to-self protection */
+#define RTL8187X_TXDESC_FLAG_RTS        (1 << 23) /* Use RTS/CTS protection */
+#define RTL8187X_TXDESC_FLAG_LS         (1 << 28) /* Last segment of the frame */
+#define RTL8187X_TXDESC_FLAG_FS         (1 << 29) /* First segment of the frame */
+#define RTL8187X_TXDESC_FLAG_DMA        (1 << 30)
+#define RTL8187X_TXDESC_FLAG_OWN        (1 << 31)
+
+/* Refers to "flags" field of "rtl8187x_rxdesc_s" struct */
+
+#define RTL8187X_RXDESC_FLAG_ICVERR     (1 << 12)
+#define RTL8187X_RXDESC_FLAG_CRC32ERR   (1 << 13)
+#define RTL8187X_RXDESC_FLAG_PM         (1 << 14)
+#define RTL8187X_RXDESC_FLAG_RXERR      (1 << 15)
+#define RTL8187X_RXDESC_FLAG_BCAST      (1 << 16)
+#define RTL8187X_RXDESC_FLAG_PAM        (1 << 17)
+#define RTL8187X_RXDESC_FLAG_MCAST      (1 << 18)
+#define RTL8187X_RXDESC_FLAG_QOS        (1 << 19) /* RTL8187(B) only */
+#define RTL8187X_RXDESC_FLAG_TRSW       (1 << 24) /* RTL8187(B) only */
+#define RTL8187X_RXDESC_FLAG_SPLCP      (1 << 25)
+#define RTL8187X_RXDESC_FLAG_FOF        (1 << 26)
+#define RTL8187X_RXDESC_FLAG_DMAFAIL    (1 << 27)
+#define RTL8187X_RXDESC_FLAG_LS         (1 << 28)
+#define RTL8187X_RXDESC_FLAG_FS         (1 << 29)
+#define RTL8187X_RXDESC_FLAG_EOR        (1 << 30)
+#define RTL8187X_RXDESC_FLAG_OWN        (1 << 31)
+
+/* TX descriptor rate values */
+
+#define RTL8187X_RATE_1                 0
+#define RTL8187X_RATE_2                 1
+#define RTL8187X_RATE_5p5               2
+#define RTL8187X_RATE_11                3
+#define RTL8187X_RATE_6                 4
+#define RTL8187X_RATE_9                 5
+#define RTL8187X_RATE_12                6
+#define RTL8187X_RATE_18                7
+#define RTL8187X_RATE_24                8
+#define RTL8187X_RATE_36                9
+#define RTL8187X_RATE_48                10
+#define RTL8187X_RATE_54                11
 
 /* Other RTL8187x Definitions **********************************************/
 
 /* Number of IEEE 802.11 Channels */
 
 #define RTL8187X_NCHANNELS              14
+
+/* Vendor-Specific Requests */
+
+#define RTL8187X_REQT_READ              0xc0
+#define RTL8187X_REQT_WRITE             0x40
+#define RTL8187X_REQ_GETREG             0x05
+#define RTL8187X_REQ_SETREG             0x05
 
 /* EEPROM Definitions */
 
@@ -362,50 +420,28 @@ struct rtl8187x_csr_s
   uint8_t   tally_sel;
 } __attribute__ ((packed));
 
-/* Numbers from ioregisters */
+/* RX and TX descriptors */
 
-enum rtl818x_r8187b_x_e
-{ 
-  RTL8187X_R8187B_B = 0,
-  RTL8187X_R8187B_D,
-  RTL8187X_R8187B_E
-};
-
-/* Tx/Rx flags are common between RTL818X chips */
-
-enum rtl818x_tx_desc_flags_e
+struct rtl8187x_rxdesc_s
 {
-  RTL8187X_TX_DESC_FLAG_NO_ENC     = (1 << 15), /* Disable hardware based encryption */
-  RTL8187X_TX_DESC_FLAG_TX_OK      = (1 << 15), /* TX frame was ACKed */
-  RTL8187X_TX_DESC_FLAG_SPLCP      = (1 << 16), /* Use short preamble */
-  RTL8187X_TX_DESC_FLAG_RX_UNDER   = (1 << 16), 
-  RTL8187X_TX_DESC_FLAG_MOREFRAG   = (1 << 17), /* More fragments follow */
-  RTL8187X_TX_DESC_FLAG_CTS        = (1 << 18), /* Use CTS-to-self protection */
-  RTL8187X_TX_DESC_FLAG_RTS        = (1 << 23), /* Use RTS/CTS protection */
-  RTL8187X_TX_DESC_FLAG_LS         = (1 << 28), /* Last segment of the frame */
-  RTL8187X_TX_DESC_FLAG_FS         = (1 << 29), /* First segment of the frame */
-  RTL8187X_TX_DESC_FLAG_DMA        = (1 << 30),
-  RTL8187X_TX_DESC_FLAG_OWN        = (1 << 31)
-};
- 
-enum rtl818x_rx_desc_flags_e 
+  uint32_t  flags;
+  uint8_t   noise;
+  uint8_t   signal;
+  uint8_t   agc;
+  uint8_t   reserved;
+  uint64_t  mactime;
+} __attribute__((packed));
+
+#define SIZEOF_RXDESC 16
+
+struct rtl8187x_txdesc_s
 {
-  RTL8187X_RX_DESC_FLAG_ICV_ERR    = (1 << 12),
-  RTL8187X_RX_DESC_FLAG_CRC32_ERR  = (1 << 13),
-  RTL8187X_RX_DESC_FLAG_PM         = (1 << 14),
-  RTL8187X_RX_DESC_FLAG_RX_ERR     = (1 << 15),
-  RTL8187X_RX_DESC_FLAG_BCAST      = (1 << 16),
-  RTL8187X_RX_DESC_FLAG_PAM        = (1 << 17),
-  RTL8187X_RX_DESC_FLAG_MCAST      = (1 << 18),
-  RTL8187X_RX_DESC_FLAG_QOS        = (1 << 19), /* RTL8187(B) only */
-  RTL8187X_RX_DESC_FLAG_TRSW       = (1 << 24), /* RTL8187(B) only */
-  RTL8187X_RX_DESC_FLAG_SPLCP      = (1 << 25),
-  RTL8187X_RX_DESC_FLAG_FOF        = (1 << 26),
-  RTL8187X_RX_DESC_FLAG_DMA_FAIL   = (1 << 27),
-  RTL8187X_RX_DESC_FLAG_LS         = (1 << 28),
-  RTL8187X_RX_DESC_FLAG_FS         = (1 << 29),
-  RTL8187X_RX_DESC_FLAG_EOR        = (1 << 30),
-  RTL8187X_RX_DESC_FLAG_OWN        = (1 << 31)
-};
+  uint32_t  flags;
+  uint16_t  rtsduration;
+  uint16_t  len;
+  uint32_t  retry;
+} __attribute__((packed));
+
+#define SIZEOF_TXDESC 12
 
 #endif /* __DRIVERS_NET_RTL8187X_H */
