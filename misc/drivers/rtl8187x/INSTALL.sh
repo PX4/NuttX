@@ -125,6 +125,7 @@ for file in ${files}; do
         { echo "ERROR: failed to remove ${nuttxdir}/${dest}/${file}"; exit 8; }
     else
       echo "Please remove that file and re-start the installation"
+      echo "Or use the -f option to force over writing of the file"
 	  exit 8
     fi
   fi

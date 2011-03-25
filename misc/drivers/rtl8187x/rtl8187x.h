@@ -47,8 +47,8 @@
  *
  ****************************************************************************/
 
-#ifndef __DRIVERS_NET_RTL818X_H
-#define __DRIVERS_NET_RTL818X_H
+#ifndef __DRIVERS_NET_RTL8187X_H
+#define __DRIVERS_NET_RTL8187X_H
 
 /****************************************************************************
  * Included Files
@@ -58,120 +58,190 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Set/clear a specific bit */
-
-#define set_bit(x) (1 << (x))
-#define clr_bit(x) (~(set_bit(x)))
+/* CSR Bit Field Definitions ************************************************/
 
 /* Refers to "cmd" field of "rtl818x_csr_s" struct */
 
-#define RTL818X_CMD_TX_ENABLE     set_bit(2)
-#define RTL818X_CMD_RX_ENABLE     set_bit(3)
-#define RTL818X_CMD_RESET         set_bit(4)
+#define RTL8187X_CMD_TXENABLE           (1 << 2)
+#define RTL8187X_CMD_RXENABLE           (1 << 3)
+#define RTL8187X_CMD_RESET              (1 << 4)
 
 /* Refers to "status" field of "rtl818x_csr_s" struct */
 
-#define RTL818X_INT_RX_OK         set_bit(0)
-#define RTL818X_INT_RX_ERR        set_bit(1)
-#define RTL818X_INT_TXL_OK        set_bit(2)
-#define RTL818X_INT_TXL_ERR       set_bit(3)
-#define RTL818X_INT_RX_DU         set_bit(4)
-#define RTL818X_INT_RX_FO         set_bit(5)
-#define RTL818X_INT_TXN_OK        set_bit(6)
-#define RTL818X_INT_TXN_ERR       set_bit(7)
-#define RTL818X_INT_TXH_OK        set_bit(8)
-#define RTL818X_INT_TXH_ERR       set_bit(9)
-#define RTL818X_INT_TXB_OK        set_bit(10)
-#define RTL818X_INT_TXB_ERR       set_bit(11)
-#define RTL818X_INT_ATIM          set_bit(12)
-#define RTL818X_INT_BEACON        set_bit(13)
-#define RTL818X_INT_TIME_OUT      set_bit(14)
-#define RTL818X_INT_TX_FO         set_bit(15)
+#define RTL8187X_INT_RXOK               (1 << 0)
+#define RTL8187X_INT_RXERR              (1 << 1)
+#define RTL8187X_INT_TXLOK              (1 << 2)
+#define RTL8187X_INT_TXLERR             (1 << 3)
+#define RTL8187X_INT_RXDU               (1 << 4)
+#define RTL8187X_INT_RXFO               (1 << 5)
+#define RTL8187X_INT_TXNOK              (1 << 6)
+#define RTL8187X_INT_TXNERR             (1 << 7)
+#define RTL8187X_INT_TXHOK              (1 << 8)
+#define RTL8187X_INT_TXHERR             (1 << 9)
+#define RTL8187X_INT_TXBOK              (1 << 10)
+#define RTL8187X_INT_TXBERR             (1 << 11)
+#define RTL8187X_INT_ATIM               (1 << 12)
+#define RTL8187X_INT_BEACON             (1 << 13)
+#define RTL8187X_INT_TIMEOUT            (1 << 14)
+#define RTL8187X_INT_TXFO               (1 << 15)
 
 /* Refers to "tx_conf" field of "rtl818x_csr_s" struct */
 
-#define RTL818X_TX_CONF_LOOPBACK_MAC    set_bit(17)
-#define RTL818X_TX_CONF_LOOPBACK_CONT   (3 << 17)
-#define RTL818X_TX_CONF_NO_ICV          set_bit(19)
-#define RTL818X_TX_CONF_DISCW           set_bit(20)
-#define RTL818X_TX_CONF_SAT_HWPLCP      set_bit(24)
-#define RTL818X_TX_CONF_R8180_ABCD      (2 << 25)
-#define RTL818X_TX_CONF_R8180_F         (3 << 25)
-#define RTL818X_TX_CONF_R8185_ABC       (4 << 25)
-#define RTL818X_TX_CONF_R8185_D         (5 << 25)
-#define RTL818X_TX_CONF_R8187vD         (5 << 25)
-#define RTL818X_TX_CONF_R8187vD_B       (6 << 25)
-#define RTL818X_TX_CONF_HWVER_MASK      (7 << 25)
-#define RTL818X_TX_CONF_DISREQQSIZE     set_bit(28)
-#define RTL818X_TX_CONF_PROBE_DTS       set_bit(29)
-#define RTL818X_TX_CONF_HW_SEQNUM       set_bit(30)
-#define RTL818X_TX_CONF_CW_MIN          set_bit(31)
+#define RTL8187X_TXCONF_LOOPBACKMAC     (1 << 17)
+#define RTL8187X_TXCONF_LOOPBACKCONT    (3 << 17)
+#define RTL8187X_TXCONF_NOICV           (1 << 19)
+#define RTL8187X_TXCONF_DISCW           (1 << 20)
+#define RTL8187X_TXCONF_SATHWPLCP       (1 << 24)
+#define RTL8187X_TXCONF_R8180ABCD       (2 << 25)
+#define RTL8187X_TXCONF_R8180F          (3 << 25)
+#define RTL8187X_TXCONF_R8185ABC        (4 << 25)
+#define RTL8187X_TXCONF_R8185D          (5 << 25)
+#define RTL8187X_TXCONF_R8187VD         (5 << 25)
+#define RTL8187X_TXCONF_R8187VDB        (6 << 25)
+#define RTL8187X_TXCONF_HWVERMASK       (7 << 25)
+#define RTL8187X_TXCONF_DISREQQSIZE     (1 << 28)
+#define RTL8187X_TXCONF_PROBEDTS        (1 << 29)
+#define RTL8187X_TXCONF_HWSEQNUM        (1 << 30)
+#define RTL8187X_TXCONF_CWMIN           (1 << 31)
 
 /* Refers to "rx_conf" field of "rtl818x_csr_s" struct */
 
-#define RTL818X_RX_CONF_MONITOR         set_bit(0)
-#define RTL818X_RX_CONF_NICMAC          set_bit(1)
-#define RTL818X_RX_CONF_MULTICAST       set_bit(2)
-#define RTL818X_RX_CONF_BROADCAST       set_bit(3)
-#define RTL818X_RX_CONF_FCS             set_bit(5)
-#define RTL818X_RX_CONF_DATA            set_bit(18)
-#define RTL818X_RX_CONF_CTRL            set_bit(19)
-#define RTL818X_RX_CONF_MGMT            set_bit(20)
-#define RTL818X_RX_CONF_ADDR3           set_bit(21)
-#define RTL818X_RX_CONF_PM              set_bit(22)
-#define RTL818X_RX_CONF_BSSID           set_bit(23)
-#define RTL818X_RX_CONF_RX_AUTORESETPHY set_bit(28)
-#define RTL818X_RX_CONF_CSDM1           set_bit(29)
-#define RTL818X_RX_CONF_CSDM2           set_bit(30)
-#define RTL818X_RX_CONF_ONLYERLPKT      set_bit(31)
+#define RTL8187X_RXCONF_MONITOR         (1 << 0)
+#define RTL8187X_RXCONF_NICMAC          (1 << 1)
+#define RTL8187X_RXCONF_MULTICAST       (1 << 2)
+#define RTL8187X_RXCONF_BROADCAST       (1 << 3)
+#define RTL8187X_RXCONF_FCS             (1 << 5)
+#define RTL8187X_RXCONF_DATA            (1 << 18)
+#define RTL8187X_RXCONF_CTRL            (1 << 19)
+#define RTL8187X_RXCONF_MGMT            (1 << 20)
+#define RTL8187X_RXCONF_ADDR3           (1 << 21)
+#define RTL8187X_RXCONF_PM              (1 << 22)
+#define RTL8187X_RXCONF_BSSID           (1 << 23)
+#define RTL8187X_RXCONF_RXAUTORESETPHY  (1 << 28)
+#define RTL8187X_RXCONF_CSDM1           (1 << 29)
+#define RTL8187X_RXCONF_CSDM2           (1 << 30)
+#define RTL8187X_RXCONF_ONLYERLPKT      (1 << 31)
 
 /* Refers to "eeprom_cmd" field of "rtl818x_csr_s" struct */
 
-#define RTL818X_EEPROM_CMD_READ         set_bit(0)
-#define RTL818X_EEPROM_CMD_WRITE        set_bit(1)
-#define RTL818X_EEPROM_CMD_CK           set_bit(2)
-#define RTL818X_EEPROM_CMD_CS           set_bit(3)
-#define RTL818X_EEPROM_CMD_NORMAL       (0 << 6)
-#define RTL818X_EEPROM_CMD_LOAD         (1 << 6)
-#define RTL818X_EEPROM_CMD_PROGRAM      (2 << 6)
-#define RTL818X_EEPROM_CMD_CONFIG       (3 << 6)
+#define RTL8187X_EEPROMCMD_READ         (1 << 0)
+#define RTL8187X_EEPROMCMD_WRITE        (1 << 1)
+#define RTL8187X_EEPROMCMD_CK           (1 << 2)
+#define RTL8187X_EEPROMCMD_CS           (1 << 3)
+#define RTL8187X_EEPROMCMD_NORMAL       (0 << 6)
+#define RTL8187X_EEPROMCMD_LOAD         (1 << 6)
+#define RTL8187X_EEPROMCMD_PROGRAM      (2 << 6)
+#define RTL8187X_EEPROMCMD_CONFIG       (3 << 6)
 
 /* Refers to "config2" field of "rtl818x_csr_s" struct */
 
-#define RTL818X_CONFIG2_ANTENNA_DIV     set_bit(6)
+#define RTL8187X_CONFIG2_ANTENNADIV     (1 << 6)
 
 /* Refers to "msr" field of "rtl818x_csr_s" struct */
 
-#define RTL818X_MSR_NO_LINK       (0 << 2)
-#define RTL818X_MSR_ADHOC         (1 << 2)
-#define RTL818X_MSR_INFRA         (2 << 2)
-#define RTL818X_MSR_MASTER        (3 << 2)
-#define RTL818X_MSR_ENEDCA        (4 << 2)
+#define RTL8187X_MSR_NOLINK             (0 << 2)
+#define RTL8187X_MSR_ADHOC              (1 << 2)
+#define RTL8187X_MSR_INFRA              (2 << 2)
+#define RTL8187X_MSR_MASTER             (3 << 2)
+#define RTL8187X_MSR_ENEDCA             (4 << 2)
 
 /* Refers to "config3" field of "rtl818x_csr_s" struct */
 
-#define RTL818X_CONFIG3_ANAPARAM_WRITE  set_bit(6)
-#define RTL818X_CONFIG3_GNT_SELECT      set_bit(7)
+#define RTL8187X_CONFIG3_ANAPARAMWRITE  (1 << 6)
+#define RTL8187X_CONFIG3_GNTSELECT      (1 << 7)
 
 /* Refers to "config4" field of "rtl818x_csr_s" struct */
 
-#define RTL818X_CONFIG4_POWEROFF  set_bit(6)
-#define RTL818X_CONFIG4_VCOOFF    set_bit(7)
+#define RTL8187X_CONFIG4_POWEROFF       (1 << 6)
+#define RTL8187X_CONFIG4_VCOOFF         (1 << 7)
 
 /* Refers to "tx_agc_ctl" field of "rtl818x_csr_s" struct */
 
-#define RTL818X_TX_AGC_CTL_PERPACKET_GAIN_SHIFT    set_bit(0)
-#define RTL818X_TX_AGC_CTL_PERPACKET_ANTSEL_SHIFT  set_bit(1)
-#define RTL818X_TX_AGC_CTL_FEEDBACK_ANT            set_bit(2)
+#define RTL8187X_TXAGCCTL_PERPACKETGAINSHIFT    (1 << 0)
+#define RTL8187X_TXAGCCTL_PERPACKETANTSELSHIFT  (1 << 1)
+#define RTL8187X_TXAGCCTL_FEEDBACKANT           (1 << 2)
 
 /* Refers to "cw_conf" field of "rtl818x_csr_s" struct */
 
-#define RTL818X_CW_CONF_PERPACKET_CW_SHIFT      set_bit(0)
-#define RTL818X_CW_CONF_PERPACKET_RETRY_SHIFT   set_bit(1)
+#define RTL8187X_CWCONF_PERPACKETCWSHIFT      (1 << 0)
+#define RTL8187X_CWCONF_PERPACKETRETRYSHIFT   (1 << 1)
 
 /* Refers to "rate_fallback" field of "rtl818x_csr_s" struct */
 
-#define RTL818X_RATE_FALLBACK_ENABLE    set_bit(7)
+#define RTL8187X_RATEFALLBACK_ENABLE   (1 << 7)
+
+/* Other RTL8187x Definitions **********************************************/
+
+/* Number of IEEE 802.11 Channels */
+
+#define RTL8187X_NCHANNELS              14
+
+/* EEPROM Definitions */
+
+#define PCI_EEPROM_WIDTH_93C46          6
+#define PCI_EEPROM_WIDTH_93C56          8
+#define PCI_EEPROM_WIDTH_93C66          8
+#define PCI_EEPROM_WIDTH_OPCODE         3
+#define PCI_EEPROM_WRITE_OPCODE         0x05
+#define PCI_EEPROM_READ_OPCODE          0x06
+#define PCI_EEPROM_EWDS_OPCODE          0x10
+#define PCI_EEPROM_EWEN_OPCODE          0x13
+
+#define RTL8187X_EEPROM_TXPWRBASE       0x05
+#define RTL8187X_EEPROM_MACADDR         0x07
+#define RTL8187X_EEPROM_TXPWRCHAN1      0x16  /* 3 channels */
+#define RTL8187X_EEPROM_TXPWRCHAN6      0x1b  /* 2 channels */
+#define RTL8187X_EEPROM_TXPWRCHAN4      0x3d  /* 2 channels */
+
+/* RT8187x Register Addresses ***********************************************/
+
+#define RTL8187X_ADDR_RXCONF            0xff44
+#define RTL8187X_ADDR_EEPROMCMD         0xff50
+#define RTL8187X_ADDR_PGSELECT          0xff5e
+#define RTL8187X_ADDR_RFPINSOUTPUT      0xff80
+#define RTL8187X_ADDR_RFPINSENABLE      0xff82
+#define RTL8187X_ADDR_RFPINSSELECT      0xff84
+#define RTL8187X_ADDR_RFPINSINPUT       0xff86
+#define RTL8187X_ADDR_TESTR             0xff5b
+#define RTL8187X_ADDR_TXANTENNA         0xff9f
+#define RTL8187X_ADDR_PHY3              0xff7f
+#define RTL8187X_ADDR_PHY2              0xff7e
+#define RTL8187X_ADDR_PHY1              0xff7d
+#define RTL8187X_ADDR_PHY0              0xff7c
+#define RTL8187X_ADDR_TXGAINCCK         0xff9d
+#define RTL8187X_ADDR_CONFIG3           0xff59
+#define RTL8187X_ADDR_ANAPARAM2         0xff60
+#define RTL8187X_ADDR_TXGAINOFDM        0xff9e
+
+#define RTL8187X_ADDR_ANAPARAM          0xff54
+#define RTL8187X_ADDR_INTMASK           0xff3c
+#define RTL8187X_ADDR_CMD               0xff37
+#define RTL8187X_ADDR_GPIO              0xff91
+#define RTL8187X_ADDR_GPENABLE          0xff90
+#define RTL8187X_ADDR_CONFIG1           0xff52
+#define RTL8187X_ADDR_INTTIMEOUT        0xff48
+#define RTL8187X_ADDR_WPACONF           0xffb0
+#define RTL8187X_ADDR_RATEFALLBACK      0xffbe
+#define RTL8187X_ADDR_RESPRATE          0xff34
+#define RTL8187X_ADDR_BRSR              0xff2c
+#define RTL8187X_ADDR_RFTIMING          0xff8c
+#define RTL8187X_ADDR_RFPARA            0xff88
+#define RTL8187X_ADDR_TALLYSEL          0xfffc
+#define RTL8187X_ADDR_INTMASK           0xff3c
+#define RTL8187X_ADDR_MAR0              0xff08
+#define RTL8187X_ADDR_MAR1              0xff0c
+#define RTL8187X_ADDR_CWCONF            0xffbc
+#define RTL8187X_ADDR_TXAGCCTL          0xff9c
+#define RTL8187X_ADDR_TXCONF            0xff40
+#define RTL8187X_ADDR_CMD               0xff37
+#define RTL8187X_ADDR_CONFIG4           0xff5a
+
+/* Other RTL8187x Register Values ******************************************/
+
+#define RTL8225_ANAPARAM_ON             0xa0000a59
+#define RTL8225_ANAPARAM2_ON            0x860c7312
+#define RTL8225_ANAPARAM_OFF            0xa00beb59
+#define RTL8225_ANAPARAM2_OFF           0x840dec11
 
 /****************************************************************************
  * Type Definitions
@@ -179,7 +249,7 @@
 
  /* RTL-818x mapping struct */
 
-struct rtl818x_csr_s 
+struct rtl8187x_csr_s 
 {
   uint8_t   mac[6];
   uint8_t   reserved_0[2];
@@ -278,58 +348,46 @@ struct rtl818x_csr_s
 
 enum rtl818x_r8187b_x_e
 { 
-  RTL818X_R8187B_B = 0,
-  RTL818X_R8187B_D,
-  RTL818X_R8187B_E
+  RTL8187X_R8187B_B = 0,
+  RTL8187X_R8187B_D,
+  RTL8187X_R8187B_E
 };
 
-struct ieee80211_conf_s;
-struct ieee80211_bssconf_s;
-struct rtl818x_rfops_s
-{
-  char    *name;
-  void    (*init)    (struct ieee80211_hw_s *);
-  void    (*stop)    (struct ieee80211_hw_s *);
-  void    (*setchan) (struct ieee80211_hw_s *, struct ieee80211_conf_s *);
-  void    (*conferp) (struct ieee80211_hw_s *, struct ieee80211_bssconf_s *);
-  uint8_t (*calcrssi)(uint8_t agc, uint8_t sq);
-};
- 
 /* Tx/Rx flags are common between RTL818X chips */
 
 enum rtl818x_tx_desc_flags_e
 {
-  RTL818X_TX_DESC_FLAG_NO_ENC     = set_bit(15), /* Disable hardware based encryption */
-  RTL818X_TX_DESC_FLAG_TX_OK      = set_bit(15), /* TX frame was ACKed */
-  RTL818X_TX_DESC_FLAG_SPLCP      = set_bit(16), /* Use short preamble */
-  RTL818X_TX_DESC_FLAG_RX_UNDER   = set_bit(16), 
-  RTL818X_TX_DESC_FLAG_MOREFRAG   = set_bit(17), /* More fragments follow */
-  RTL818X_TX_DESC_FLAG_CTS        = set_bit(18), /* Use CTS-to-self protection */
-  RTL818X_TX_DESC_FLAG_RTS        = set_bit(23), /* Use RTS/CTS protection */
-  RTL818X_TX_DESC_FLAG_LS         = set_bit(28), /* Last segment of the frame */
-  RTL818X_TX_DESC_FLAG_FS         = set_bit(29), /* First segment of the frame */
-  RTL818X_TX_DESC_FLAG_DMA        = set_bit(30),
-  RTL818X_TX_DESC_FLAG_OWN        = set_bit(31)
+  RTL8187X_TX_DESC_FLAG_NO_ENC     = (1 << 15), /* Disable hardware based encryption */
+  RTL8187X_TX_DESC_FLAG_TX_OK      = (1 << 15), /* TX frame was ACKed */
+  RTL8187X_TX_DESC_FLAG_SPLCP      = (1 << 16), /* Use short preamble */
+  RTL8187X_TX_DESC_FLAG_RX_UNDER   = (1 << 16), 
+  RTL8187X_TX_DESC_FLAG_MOREFRAG   = (1 << 17), /* More fragments follow */
+  RTL8187X_TX_DESC_FLAG_CTS        = (1 << 18), /* Use CTS-to-self protection */
+  RTL8187X_TX_DESC_FLAG_RTS        = (1 << 23), /* Use RTS/CTS protection */
+  RTL8187X_TX_DESC_FLAG_LS         = (1 << 28), /* Last segment of the frame */
+  RTL8187X_TX_DESC_FLAG_FS         = (1 << 29), /* First segment of the frame */
+  RTL8187X_TX_DESC_FLAG_DMA        = (1 << 30),
+  RTL8187X_TX_DESC_FLAG_OWN        = (1 << 31)
 };
  
 enum rtl818x_rx_desc_flags_e 
 {
-  RTL818X_RX_DESC_FLAG_ICV_ERR    = set_bit(12),
-  RTL818X_RX_DESC_FLAG_CRC32_ERR  = set_bit(13),
-  RTL818X_RX_DESC_FLAG_PM         = set_bit(14),
-  RTL818X_RX_DESC_FLAG_RX_ERR     = set_bit(15),
-  RTL818X_RX_DESC_FLAG_BCAST      = set_bit(16),
-  RTL818X_RX_DESC_FLAG_PAM        = set_bit(17),
-  RTL818X_RX_DESC_FLAG_MCAST      = set_bit(18),
-  RTL818X_RX_DESC_FLAG_QOS        = set_bit(19), /* RTL8187(B) only */
-  RTL818X_RX_DESC_FLAG_TRSW       = set_bit(24), /* RTL8187(B) only */
-  RTL818X_RX_DESC_FLAG_SPLCP      = set_bit(25),
-  RTL818X_RX_DESC_FLAG_FOF        = set_bit(26),
-  RTL818X_RX_DESC_FLAG_DMA_FAIL   = set_bit(27),
-  RTL818X_RX_DESC_FLAG_LS         = set_bit(28),
-  RTL818X_RX_DESC_FLAG_FS         = set_bit(29),
-  RTL818X_RX_DESC_FLAG_EOR        = set_bit(30),
-  RTL818X_RX_DESC_FLAG_OWN        = set_bit(31)
+  RTL8187X_RX_DESC_FLAG_ICV_ERR    = (1 << 12),
+  RTL8187X_RX_DESC_FLAG_CRC32_ERR  = (1 << 13),
+  RTL8187X_RX_DESC_FLAG_PM         = (1 << 14),
+  RTL8187X_RX_DESC_FLAG_RX_ERR     = (1 << 15),
+  RTL8187X_RX_DESC_FLAG_BCAST      = (1 << 16),
+  RTL8187X_RX_DESC_FLAG_PAM        = (1 << 17),
+  RTL8187X_RX_DESC_FLAG_MCAST      = (1 << 18),
+  RTL8187X_RX_DESC_FLAG_QOS        = (1 << 19), /* RTL8187(B) only */
+  RTL8187X_RX_DESC_FLAG_TRSW       = (1 << 24), /* RTL8187(B) only */
+  RTL8187X_RX_DESC_FLAG_SPLCP      = (1 << 25),
+  RTL8187X_RX_DESC_FLAG_FOF        = (1 << 26),
+  RTL8187X_RX_DESC_FLAG_DMA_FAIL   = (1 << 27),
+  RTL8187X_RX_DESC_FLAG_LS         = (1 << 28),
+  RTL8187X_RX_DESC_FLAG_FS         = (1 << 29),
+  RTL8187X_RX_DESC_FLAG_EOR        = (1 << 30),
+  RTL8187X_RX_DESC_FLAG_OWN        = (1 << 31)
 };
 
-#endif /* __DRIVERS_NET_RTL818X_H */
+#endif /* __DRIVERS_NET_RTL8187X_H */

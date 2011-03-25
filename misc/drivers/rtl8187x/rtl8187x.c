@@ -53,6 +53,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <semaphore.h>
 #include <time.h>
@@ -72,6 +73,8 @@
 #include <net/uip/uip.h>
 #include <net/uip/uip-arp.h>
 #include <net/uip/uip-arch.h>
+
+#include "rtl8187x.h"
 
 #if defined(CONFIG_USBHOST) && defined(CONFIG_NET) && defined(CONFIG_NET_WLAN)
 
@@ -102,22 +105,14 @@
 
 #define USBHOST_MAX_CREFS   0x7fff
 
-/* CONFIG_WLAN_NINTERFACES determines the number of physical interfaces
- * that will be supported.
- */
-
-#ifndef CONFIG_WLAN_NINTERFACES
-# define CONFIG_WLAN_NINTERFACES 1
-#endif
-
 /* TX poll delay = 1 seconds. CLK_TCK is the number of clock ticks per second */
 
-#define WLAN_WDDELAY   (1*CLK_TCK)
-#define WLAN_POLLHSEC  (1*2)
+#define RTL8187X_WDDELAY    (1*CLK_TCK)
+#define RTL8187X_POLLHSEC   (1*2)
 
 /* TX timeout = 1 minute */
 
-#define WLAN_TXTIMEOUT (60*CLK_TCK)
+#define RTL8187X_TXTIMEOUT  (60*CLK_TCK)
 
 /* This is a helper pointer for accessing the contents of the WLAN header */
 
@@ -127,6 +122,18 @@
  * Private Types
  ****************************************************************************/
 
+/* Describes one IEEE 802.11 Channel */
+
+struct ieee80211_channel_s
+{
+  uint16_t                  chan;        /* Channel number (IEEE 802.11) */
+  uint16_t                  freq;        /* Frequency in MHz */
+  uint32_t                  val;         /* HW specific value for the channel */
+  uint32_t                  flag;        /* Flag for hostapd use (IEEE80211_CHAN_*) */
+  uint8_t                   pwrlevel;
+  uint8_t                   antmax;
+};
+
 /* This structure contains the internal, private state of the USB host class
  * driver.
  */
@@ -135,32 +142,53 @@ struct rtl8187x_state_s
 {
   /* This is the externally visible portion of the USB class state */
 
-  struct usbhost_class_s  class;
+  struct usbhost_class_s     class;
 
   /* This is an instance of the USB host controller driver bound to this class instance */
 
-  struct usbhost_driver_s *drvr;
+  struct usbhost_driver_s   *drvr;
 
   /* The following fields support the USB class driver */
   
-  char                      devchar;      /* Character identifying the /dev/wlan[n] device */
-  volatile bool             disconnected; /* TRUE: Device has been disconnected */
-  bool                      bifup;        /* TRUE: Ethernet interface is up */
-  uint8_t                   ifno;         /* Interface number */
-  int16_t                   crefs;        /* Reference count on the driver instance */
-  sem_t                     exclsem;      /* Used to maintain mutual exclusive access */
-  struct work_s             work;         /* For interacting with the worker thread */
-  FAR struct usb_ctrlreq_s *ctrlreq;      /* The allocated request buffer */
-  FAR uint8_t              *tbuffer;      /* The allocated transfer buffer */
-  size_t                    tbuflen;      /* Size of the allocated transfer buffer */
-  usbhost_ep_t              epin;         /* IN endpoint */
-  usbhost_ep_t              epout;        /* OUT endpoint */
-  WDOG_ID                   txpoll;       /* Ethernet TX poll timer */
-  WDOG_ID                   txtimeout;    /* Ethernet TX timeout timer */
+  char                       devchar;      /* Character identifying the /dev/wlan[n] device */
+  volatile bool              disconnected; /* TRUE: Device has been disconnected */
+  bool                       bifup;        /* TRUE: Ethernet interface is up */
+  uint8_t                    ifno;         /* Interface number */
+  int16_t                    crefs;        /* Reference count on the driver instance */
+  sem_t                      exclsem;      /* Used to maintain mutual exclusive access */
+  struct work_s              work;         /* For interacting with the worker thread */
+  FAR struct usb_ctrlreq_s  *ctrlreq;      /* The allocated request buffer */
+  FAR uint8_t               *tbuffer;      /* The allocated transfer buffer */
+  size_t                     tbuflen;      /* Size of the allocated transfer buffer */
+  usbhost_ep_t               epin;         /* IN endpoint */
+  usbhost_ep_t               epout;        /* OUT endpoint */
+  WDOG_ID                    txpoll;       /* Ethernet TX poll timer */
+  WDOG_ID                    txtimeout;    /* Ethernet TX timeout timer */
+
+  /* RTL8187-specific information */
+
+  FAR struct rtl8187x_csr_s *map;
+  void                       (*rfinit)(FAR struct rtl8187x_state_s *);
+  void                       (*settxpower)(FAR struct rtl8187x_state_s *priv, int channel);
+  int                        mode;
+  int                        if_id;
+
+  struct ieee80211_channel_s channels[RTL8187X_NCHANNELS];
+  uint32_t                   rx_conf;
+  uint16_t                   txpwr_base;
+  uint8_t                    asicrev;
+
+  /* EEPROM fields (only really needed initially) */
+
+  uint8_t                    width;        /* EEPROM width (see PCI_EEPROM_WIDTH_* defines) */
+  uint8_t                    datain;       /* Register field to indicate data input */
+  uint8_t                    dataout;      /* Register field to indicate data output */
+  uint8_t                    dataclk;      /* Register field to set the data clock */
+  uint8_t                    chipsel;      /* Register field to set the chip select */
 
   /* This holds the information visible to uIP/NuttX */
 
-  struct uip_driver_s       ethdev;       /* Interface understood by uIP */
+  struct uip_driver_s        ethdev;       /* Interface understood by uIP */
  };
 
 /****************************************************************************
@@ -228,6 +256,17 @@ static uint8_t rtl8187x_ioread8(struct rtl8187x_state_s *priv, uint16_t addr);
 static uint16_t rtl8187x_ioread16(struct rtl8187x_state_s *priv, uint16_t addr);
 static uint32_t rtl8187x_ioread32(struct rtl8187x_state_s *priv, uint16_t addr);
 
+static int rtl8187x_iowrite8(struct rtl8187x_state_s *priv, uint16_t addr,
+                             uint8_t val);
+static int rtl8187x_iowrite16(struct rtl8187x_state_s *priv, uint16_t addr,
+                              uint16_t val);
+static int rtl8187x_iowrite32(struct rtl8187x_state_s *priv, uint16_t addr,
+                              uint32_t val);
+
+static uint16_t rtl8187x_read(FAR struct rtl8187x_state_s *priv, uint8_t addr);
+static void rtl8187x_write(FAR struct rtl8187x_state_s *priv, uint8_t addr,
+                           uint16_t data);
+
 /* Ethernet driver methods **************************************************/
 /* Common TX logic */
 
@@ -254,8 +293,28 @@ static int rtl8187x_addmac(struct uip_driver_s *dev, FAR const uint8_t *mac);
 static int rtl8187x_rmmac(struct uip_driver_s *dev, FAR const uint8_t *mac);
 #endif
 
-/* Register and unregister network device */
+/* EEPROM support */
 
+static void rtl8187x_eeprom_read(FAR struct rtl8187x_state_s *priv,
+                                 uint8_t word, uint16_t *data);
+static void rtl8187x_eeprom_multiread(FAR struct rtl8187x_state_s *priv,
+                                      uint8_t word, FAR uint16_t *data,
+                                      uint16_t words);
+
+/* RTL8187 Ethernet initialation and registration */
+
+
+static int rtl8187x_reset(struct rtl8187x_state_s *priv);
+static void rtl8187x_setchannel(FAR struct rtl8187x_state_s *priv, int channel);
+static int rtl8187x_start(FAR struct rtl8187x_state_s *priv);
+static void rtl8187x_stop(FAR struct rtl8187x_state_s *priv);
+
+static void rtl8225_rfinit(FAR struct rtl8187x_state_s *priv);
+static void rtl8225_settxpower(FAR struct rtl8187x_state_s *priv, int channel);
+static void rtl8225z2_rfinit(FAR struct rtl8187x_state_s *priv);
+static void rtl8225z2_settxpower(FAR struct rtl8187x_state_s *priv, int channel);
+
+static inline int rtl8187x_setup(FAR struct rtl8187x_state_s *priv);
 static int rtl8187x_initialize(FAR struct rtl8187x_state_s *priv);
 static int rtl8187x_uninitialize(FAR struct rtl8187x_state_s *priv);
 
@@ -289,6 +348,25 @@ static struct usbhost_registry_s g_wlan =
 /* This is a bitmap that is used to allocate device names /dev/wlana-z. */
 
 static uint32_t g_devinuse;
+
+/* Default values for IEEE 802.11 channels */
+
+static const struct ieee80211_channel_s g_channels[RTL8187X_NCHANNELS] =
+{
+  { 1, 2412, 0, 0, 0, 0}, { 2, 2417, 0, 0, 0, 0},
+  { 3, 2422, 0, 0, 0, 0}, { 4, 2427, 0, 0, 0, 0},
+  { 5, 2432, 0, 0, 0, 0}, { 6, 2437, 0, 0, 0, 0},
+  { 7, 2442, 0, 0, 0, 0}, { 8, 2447, 0, 0, 0, 0},
+  { 9, 2452, 0, 0, 0, 0}, {10, 2457, 0, 0, 0, 0},
+  {11, 2462, 0, 0, 0, 0}, {12, 2467, 0, 0, 0, 0},
+  {13, 2472, 0, 0, 0, 0}, {14, 2484, 0, 0, 0, 0}
+};
+
+static const uint32_t g_chanselect[RTL8187X_NCHANNELS] =
+{
+  0x085c, 0x08dc, 0x095c, 0x09dc, 0x0a5c, 0x0adc, 0x0b5c,
+  0x0bdc, 0x0c5c, 0x0cdc, 0x0d5c, 0x0ddc, 0x0e5c, 0x0f72
+};
 
 /****************************************************************************
  * Private Functions
@@ -1361,7 +1439,7 @@ static int rtl8187x_transmit(FAR struct rtl8187x_state_s *priv)
 
   /* Setup the TX timeout watchdog (perhaps restarting the timer) */
 
-  (void)wd_start(priv->txtimeout, WLAN_TXTIMEOUT, rtl8187x_txtimeout, 1, (uint32_t)priv);
+  (void)wd_start(priv->txtimeout, RTL8187X_TXTIMEOUT, rtl8187x_txtimeout, 1, (uint32_t)priv);
   return OK;
 }
 
@@ -1576,11 +1654,11 @@ static void rtl8187x_polltimer(int argc, uint32_t arg, ...)
    * we will missing TCP time state updates?
    */
 
-  (void)uip_timer(&priv->ethdev, rtl8187x_uiptxpoll, WLAN_POLLHSEC);
+  (void)uip_timer(&priv->ethdev, rtl8187x_uiptxpoll, RTL8187X_POLLHSEC);
 
   /* Setup the watchdog poll timer again */
 
-  (void)wd_start(priv->txpoll, WLAN_WDDELAY, rtl8187x_polltimer, 1, arg);
+  (void)wd_start(priv->txpoll, RTL8187X_WDDELAY, rtl8187x_polltimer, 1, arg);
 }
 
 /****************************************************************************
@@ -1603,21 +1681,27 @@ static void rtl8187x_polltimer(int argc, uint32_t arg, ...)
 static int rtl8187x_ifup(struct uip_driver_s *dev)
 {
   FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)dev->d_private;
+  int ret;
 
   ndbg("Bringing up: %d.%d.%d.%d\n",
        dev->d_ipaddr & 0xff, (dev->d_ipaddr >> 8) & 0xff,
        (dev->d_ipaddr >> 16) & 0xff, dev->d_ipaddr >> 24 );
 
-  /* Initialize PHYs, the WLAN interface, and setup up WLAN interrupts */
+  /* Initialize PHYs and the WLAN interface */
 
-  /* Set and activate a timer process */
+  ret = rtl8187x_start(priv);
+  if (ret == OK)
+    {
+      /* Set and activate a timer process */
 
-  (void)wd_start(priv->txpoll, WLAN_WDDELAY, rtl8187x_polltimer, 1, (uint32_t)priv);
+      (void)wd_start(priv->txpoll, RTL8187X_WDDELAY, rtl8187x_polltimer, 1, (uint32_t)priv);
 
-  /* Enable the WLAN interrupt */
+      /* Mark the interface as up */
 
-  priv->bifup = true;
-  return OK;
+      priv->bifup = true;
+    }
+
+  return ret;
 }
 
 /****************************************************************************
@@ -1647,10 +1731,12 @@ static int rtl8187x_ifdown(struct uip_driver_s *dev)
   wd_cancel(priv->txpoll);
   wd_cancel(priv->txtimeout);
 
-  /* Put the the EMAC is its reset, non-operational state.  This should be
-   * a known configuration that will guarantee the rtl8187x_ifup() always
+  /* Put the the EMAC is its non-operational state.  This should be a known
+   * configuration that will guarantee the rtl8187x_ifup() always successfully
    * successfully brings the interface back up.
    */
+
+  rtl8187x_stop(priv);
 
   /* Mark the device "down" */
 
@@ -1763,6 +1849,418 @@ static int rtl8187x_rmmac(struct uip_driver_s *dev, FAR const uint8_t *mac)
 #endif
 
 /****************************************************************************
+ * Function: rtl8187x_reset
+ *
+ * Description:
+ *   Reset and initialize hardware
+ *
+ * Parameters:
+ *   priv - Private driver state information
+ *
+ * Returned Value:
+ *   OK on success; Negated errno on failure.
+ *
+ * Assumptions:
+ *
+ ****************************************************************************/
+
+static int rtl8187x_reset(struct rtl8187x_state_s *priv)
+{
+  uint8_t regval;
+  int i;
+
+  /* reset */
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_CONFIG);
+  regval = rtl8187x_ioread8(priv, RTL8187X_ADDR_CONFIG3);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
+                   regval | RTL8187X_CONFIG3_ANAPARAMWRITE);
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM, RTL8225_ANAPARAM_ON);
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM2, RTL8225_ANAPARAM2_ON);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
+                   regval & ~RTL8187X_CONFIG3_ANAPARAMWRITE);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_NORMAL);
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_INTMASK, 0);
+
+  usleep(200000);
+  rtl8187x_iowrite8(priv, 0xfe18, 0x10);
+  rtl8187x_iowrite8(priv, 0xfe18, 0x11);
+  rtl8187x_iowrite8(priv, 0xfe18, 0x00);
+  usleep(200000);
+
+  regval = rtl8187x_ioread8(priv, RTL8187X_ADDR_CMD);
+  regval &= (1 << 1);
+  regval |= RTL8187X_CMD_RESET;
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CMD, regval);
+
+  i = 10;
+  do
+    {
+      usleep(2000);
+      if (!(rtl8187x_ioread8(priv, RTL8187X_ADDR_CMD) & RTL8187X_CMD_RESET))
+        break;
+    }
+  while (--i);
+
+  if (!i)
+    {
+      udbg("Reset timeout!\n");
+      return -ETIMEDOUT;
+    }
+
+  /* Reload registers from eeprom */
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_LOAD);
+
+  i = 10;
+  do
+    {
+      usleep(4000);
+      if (!(rtl8187x_ioread8(priv, RTL8187X_ADDR_EEPROMCMD) &
+            RTL8187X_EEPROMCMD_CONFIG))
+        break;
+    }
+  while (--i);
+
+  if (!i)
+    {
+      udbg("%s: eeprom reset timeout!\n");
+      return -ETIMEDOUT;
+    }
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_CONFIG);
+  regval = rtl8187x_ioread8(priv, RTL8187X_ADDR_CONFIG3);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
+                    regval | RTL8187X_CONFIG3_ANAPARAMWRITE);
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM, RTL8225_ANAPARAM_ON);
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM2, RTL8225_ANAPARAM2_ON);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
+                    regval & ~RTL8187X_CONFIG3_ANAPARAMWRITE);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_NORMAL);
+
+  /* Setup card */
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSSELECT, 0);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_GPIO, 0);
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSSELECT, (4 << 8));
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_GPIO, 1);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_GPENABLE, 0);
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_CONFIG);
+
+  rtl8187x_iowrite16(priv, 0xffF4, 0xffFF);
+  regval = rtl8187x_ioread8(priv, RTL8187X_ADDR_CONFIG1);
+  regval &= 0x3F;
+  regval |= 0x80;
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG1, regval);
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_NORMAL);
+
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_INTTIMEOUT, 0);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_WPACONF, 0);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_RATEFALLBACK, 0x81);
+
+  // TODO: set RESP_RATE and BRSR properly
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_RESPRATE, (8 << 4) | 0);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_BRSR, 0x01F3);
+
+  /* host_usb_init */
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSSELECT, 0);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_GPIO, 0);
+  regval = rtl8187x_ioread8(priv, 0xfe53);
+  rtl8187x_iowrite8(priv, 0xfe53, regval | (1 << 7));
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSSELECT, (4 << 8));
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_GPIO, 0x20);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_GPENABLE, 0);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, 0x80);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSSELECT, 0x80);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSENABLE, 0x80);
+
+  usleep(100000);
+
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_RFTIMING, 0x000a8008);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_BRSR, 0xffFF);
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_RFPARA, 0x00100044);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_CONFIG);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3, 0x44);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_NORMAL);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSENABLE, 0x1FF7);
+  usleep(100000);
+
+  priv->rfinit(priv);
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_BRSR, 0x01F3);
+  regval = rtl8187x_ioread8(priv, RTL8187X_ADDR_PGSELECT) & ~1;
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_PGSELECT, regval | 1);
+  rtl8187x_iowrite16(priv, 0xffFE, 0x10);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_TALLYSEL, 0x80);
+  rtl8187x_iowrite8(priv, 0xffFF, 0x60);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_PGSELECT, regval);
+
+  return OK;
+}
+
+/****************************************************************************
+ * Function: rtl8187x_setchannel
+ *
+ * Description:
+ *   Select the specified channel
+ *
+ * Parameters:
+ *   priv - Private driver state information
+ *
+ * Returned Value:
+ *   OK on success; Negated errno on failure.
+ *
+ * Assumptions:
+ *
+ ****************************************************************************/
+
+static void rtl8187x_setchannel(FAR struct rtl8187x_state_s *priv, int channel)
+{
+  uint32_t regval;
+
+  regval = rtl8187x_ioread32(priv, RTL8187X_ADDR_TXCONF);
+
+  /* Enable TX loopback on MAC level to avoid TX during channel changes, as
+   * this has be seen to causes problems and the card will stop work until next 
+   * reset
+   */
+
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_TXCONF,
+                     regval | RTL8187X_TXCONF_LOOPBACKMAC);
+  usleep(10000);
+
+  priv->settxpower(priv, channel);
+
+  rtl8187x_write(priv, 0x7, g_chanselect[channel - 1]);
+  usleep(20000);
+
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_TXCONF, regval);
+}
+
+/****************************************************************************
+ * Function: rtl8187_start
+ *
+ * Description:
+ *   Bring up the RTL8187
+ *
+ * Parameters:
+ *   priv - Private driver state information
+ *
+ * Returned Value:
+ *   OK on success; Negated errno on failure.
+ *
+ * Assumptions:
+ *
+ ****************************************************************************/
+
+static int rtl8187x_start(FAR struct rtl8187x_state_s *priv)
+{
+  uint32_t regval;
+  int ret;
+
+  /* Reset and initialize the hardware */
+
+  ret = rtl8187x_reset(priv);
+  if (ret != OK)
+    {
+      return ret;
+    }
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_INTMASK, 0xffff);
+
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_MAR0, ~0);
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_MAR1, ~0);
+
+  regval = RTL8187X_RXCONF_ONLYERLPKT | RTL8187X_RXCONF_RXAUTORESETPHY | RTL8187X_RXCONF_BSSID |
+        RTL8187X_RXCONF_MGMT | RTL8187X_RXCONF_DATA | RTL8187X_RXCONF_CTRL |
+        (7 << 13 /* RX fifo threshold none */ ) |
+        (7 << 10 /* MAX RX DMA */ ) |
+        RTL8187X_RXCONF_BROADCAST | RTL8187X_RXCONF_NICMAC | RTL8187X_RXCONF_MONITOR;
+
+  priv->rx_conf = regval;
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_RXCONF, regval);
+
+  regval  = rtl8187x_ioread8(priv, RTL8187X_ADDR_CWCONF);
+  regval &= ~RTL8187X_CWCONF_PERPACKETCWSHIFT;
+  regval |= RTL8187X_CWCONF_PERPACKETRETRYSHIFT;
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CWCONF, regval);
+
+  regval  = rtl8187x_ioread8(priv, RTL8187X_ADDR_TXAGCCTL);
+  regval &= ~RTL8187X_TXAGCCTL_PERPACKETGAINSHIFT;
+  regval &= ~RTL8187X_TXAGCCTL_PERPACKETANTSELSHIFT;
+  regval &= ~RTL8187X_TXAGCCTL_FEEDBACKANT;
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_TXAGCCTL, regval);
+
+  regval = RTL8187X_TXCONF_CWMIN | (7 << 21 /* MAX TX DMA */ ) | RTL8187X_TXCONF_NOICV;
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_TXCONF, regval);
+
+  regval  = rtl8187x_ioread8(priv, RTL8187X_ADDR_CMD);
+  regval |= RTL8187X_CMD_TXENABLE;
+  regval |= RTL8187X_CMD_RXENABLE;
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CMD, regval);
+
+  return OK;
+}
+
+/****************************************************************************
+ * Function: rtl8187x_stop
+ *
+ * Description:
+ *   Bring down the RTL8187
+ *
+ * Parameters:
+ *   priv - Private driver state information
+ *
+ * Returned Value:
+ *   OK on success; Negated errno on failure.
+ *
+ * Assumptions:
+ *
+ ****************************************************************************/
+
+static void rtl8187x_stop(FAR struct rtl8187x_state_s *priv)
+{
+  uint32_t regval;
+
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_INTMASK, 0);
+
+  regval  = rtl8187x_ioread8(priv, RTL8187X_ADDR_CMD);
+  regval &= ~RTL8187X_CMD_TXENABLE;
+  regval &= ~RTL8187X_CMD_RXENABLE;
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CMD, regval);
+
+  rtl8187x_write(priv, 0x4, 0x1f);
+  usleep(1000);
+
+  /* RF stop */
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_CONFIG);
+  regval = rtl8187x_ioread8(priv, RTL8187X_ADDR_CONFIG3);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
+                   regval | RTL8187X_CONFIG3_ANAPARAMWRITE);
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM2, RTL8225_ANAPARAM2_OFF);
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM, RTL8225_ANAPARAM_OFF);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
+                   regval & ~RTL8187X_CONFIG3_ANAPARAMWRITE);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_NORMAL);
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_CONFIG);
+  regval = rtl8187x_ioread8(priv, RTL8187X_ADDR_CONFIG4);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG4, regval | RTL8187X_CONFIG4_VCOOFF);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_NORMAL);
+}
+
+/****************************************************************************
+ * Function: rtl8187_setup
+ *
+ * Description:
+ *   Configure the RTL8187
+ *
+ * Parameters:
+ *   priv - Private driver state information
+ *
+ * Returned Value:
+ *   OK on success; Negated errno on failure.
+ *
+ * Assumptions:
+ *
+ ****************************************************************************/
+
+static int rtl8187x_setup(FAR struct rtl8187x_state_s *priv)
+{
+  struct ieee80211_channel_s *channel;
+  uint16_t permaddr[3];
+  uint16_t txpwr, regval;
+  int i;
+
+  /* Copy the default channel information */
+
+  memcpy(priv->channels, g_channels, RTL8187X_NCHANNELS*sizeof(struct ieee80211_channel_s));
+  priv->map = (FAR struct rtl8187x_csr_s *)0xff00;
+
+  /* Get the EEPROM width */
+
+  if (rtl8187x_ioread32(priv, RTL8187X_ADDR_RXCONF) & (1 << 6))
+    {
+      priv->width = PCI_EEPROM_WIDTH_93C66;
+    }
+  else
+    {
+      priv->width = PCI_EEPROM_WIDTH_93C46;
+    }
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_CONFIG);
+  usleep(10);
+
+  rtl8187x_eeprom_multiread(priv, RTL8187X_EEPROM_MACADDR, permaddr, 3);
+
+  udbg("%.4x%.4x%.4x", permaddr[0], permaddr[1], permaddr[2]);
+
+  channel = priv->channels;
+  for (i = 0; i < 3; i++)
+    {
+      rtl8187x_eeprom_read(priv, RTL8187X_EEPROM_TXPWRCHAN1 + i, &txpwr);
+      (*channel++).val = txpwr & 0xff;
+      (*channel++).val = txpwr >> 8;
+    }
+
+  for (i = 0; i < 2; i++)
+    {
+      rtl8187x_eeprom_read(priv, RTL8187X_EEPROM_TXPWRCHAN4 + i, &txpwr);
+      (*channel++).val = txpwr & 0xff;
+      (*channel++).val = txpwr >> 8;
+    }
+
+  for (i = 0; i < 2; i++)
+    {
+      rtl8187x_eeprom_read(priv, RTL8187X_EEPROM_TXPWRCHAN6 + i, &txpwr);
+      (*channel++).val = txpwr & 0xff;
+      (*channel++).val = txpwr >> 8;
+    }
+
+  rtl8187x_eeprom_read(priv, RTL8187X_EEPROM_TXPWRBASE, &priv->txpwr_base);
+
+  regval = rtl8187x_ioread8(priv, RTL8187X_ADDR_PGSELECT) & ~1;
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_PGSELECT, regval | 1);
+
+  /* 0 means asic B-cut, we should use SW 3 wire bit-by-bit banging for radio.
+   * 1 means we can use USB specific request to write radio registers
+   */
+
+  priv->asicrev = rtl8187x_ioread8(priv, 0xffFE) & 0x3;
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_PGSELECT, regval);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_NORMAL);
+
+  rtl8187x_write(priv, 0, 0x1b7);
+
+  if (rtl8187x_read(priv, 8) != 0x588 || rtl8187x_read(priv, 9) != 0x700)
+    {
+      priv->rfinit     = rtl8225_rfinit;
+      priv->settxpower = rtl8225_settxpower;
+    }
+  else
+    {
+      priv->rfinit     = rtl8225z2_rfinit;
+      priv->settxpower = rtl8225z2_settxpower;
+
+    }
+
+  rtl8187x_write(priv, 0, 0x0b7);
+
+  udbg("hwaddr %.4x%.4x%.4x, rtl8187 V%d + %s\n",
+       permaddr[0], permaddr[1], permaddr[2],
+       priv->asicrev,
+       priv->rfinit == rtl8225_rfinit ? "rtl8225" : "rtl8225z2");
+
+  return 0;
+}
+
+/****************************************************************************
  * Function: rtl8187x_initialize
  *
  * Description:
@@ -1781,6 +2279,8 @@ static int rtl8187x_rmmac(struct uip_driver_s *dev, FAR const uint8_t *mac)
 
 static int rtl8187x_initialize(FAR struct rtl8187x_state_s *priv)
 {
+  int ret;
+
   /* Initialize the driver structure */
 
   priv->ethdev.d_ifup    = rtl8187x_ifup;     /* I/F down callback */
@@ -1797,13 +2297,19 @@ static int rtl8187x_initialize(FAR struct rtl8187x_state_s *priv)
   priv->txpoll           = wd_create();       /* Create periodic poll timer */
   priv->txtimeout        = wd_create();       /* Create TX timeout timer */
 
-  /* Put the interface in the down state. */
+  /* Initialize the RTL8187x */
 
-  rtl8187x_ifdown(&priv->ethdev);
+  ret = rtl8187x_setup(priv);
+  if (ret == OK)
+    {
+      /* Put the interface in the down state. */
 
-  /* Register the device with the OS so that socket IOCTLs can be performed */
+      rtl8187x_ifdown(&priv->ethdev);
 
-  (void)netdev_register(&priv->ethdev);
+      /* Register the device with the OS so that socket IOCTLs can be performed */
+
+      (void)netdev_register(&priv->ethdev);
+    }
   return OK;
 }
 
