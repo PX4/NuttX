@@ -45,12 +45,16 @@ usage="USAGE: $0 [-d|h] <NuttX-path>"
 
 unset nuttxdir
 unset debug
+unset force
 
 while [ ! -z "$1" ]; do
   case "$1" in
     -d )
       set -x
 	  debug="-d"
+      ;;
+    -f )
+	  force="-f"
       ;;
     -h )
       echo "$usage"
@@ -93,5 +97,5 @@ for dir in "$DRIVERS"; do
 
   # Run the driver install script
 
-  ${dir}/INSTALL.sh $debug -t "${wd}/${dir}" -n "${nuttxdir}"
+  ${dir}/INSTALL.sh $debug $force -t "${wd}/${dir}" -n "${nuttxdir}"
 done

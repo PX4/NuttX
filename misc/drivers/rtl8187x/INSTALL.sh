@@ -44,15 +44,19 @@ dest="drivers/usbhost"
 
 # Parse command arguments
 
-usage="USAGE: $0 [-d|h] -t <driver-dir> -n <nuttx-dir>"
+usage="USAGE: $0 [-d|f|h] -t <driver-dir> -n <nuttx-dir>"
 
 unset topdir
 unset nuttxdir
+unset force
 
 while [ ! -z "$1" ]; do
   case "$1" in
     -d )
       set -x
+      ;;
+    -f )
+      force=y
       ;;
     -t )
 	  shift
@@ -115,8 +119,14 @@ for file in ${files}; do
   fi
   if [ -f ${nuttxdir}/${dest}/${file} ]; then
     echo "Driver file ${nuttxdir}/${dest}/${file} already exists"
-    echo "Please remove that file and re-start the installation"
-	exit 8
+    if [ "X${force}" = "Xy" ]; then
+      echo "Removing old file ${nuttxdir}/${dest}/${file}"
+      rm -f ${nuttxdir}/${dest}/${file} || \
+        { echo "ERROR: failed to remove ${nuttxdir}/${dest}/${file}"; exit 8; }
+    else
+      echo "Please remove that file and re-start the installation"
+	  exit 8
+    fi
   fi
   cp ${topdir}/${file} ${nuttxdir}/${dest}/${file} || \
     { echo "ERROR: failed to copy ${topdir}/${file} to ${nuttxdir}/${dest}/${file}"; exit 9; }

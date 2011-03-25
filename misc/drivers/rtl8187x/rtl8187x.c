@@ -1,11 +1,35 @@
 /****************************************************************************
- * drivers/usbhost/usbhost_rtl8187.c
+ * drivers/usbhost/rtl8187x_rtl8187.c
  *
  *   Copyright (C) 2011 Gregory Nutt. All rights reserved.
  *   Authors: Rafael Noronha <rafael@pdsolucoes.com.br>
  *            Gregory Nutt <spudmonkey@racsa.co.cr>
  *
- * Portions of the logic in this file derives from the Linux RTL8187x driver
+ * Portions of the logic in this file derives from the KisMAC RTL8187x driver
+ *
+ *    Created by pr0gg3d on 02/24/08.
+ *
+ * Which, in turn, came frm the SourceForge rt2x00 project:
+ *
+ *   Copyright (C) 2004 - 2006 rt2x00 SourceForge Project
+ *   <http://rt2x00.serialmonkey.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the
+ * Free Software Foundation, Inc.,
+ * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ *
+ * There are probably also pieces from the Linux RTL8187x driver
  * 
  *   Copyright 2007 Michael Wu <flamingice@sourmilk.net>
  *   Copyright 2007 Andrea Merello <andreamrl@tiscali.it>
@@ -19,19 +43,20 @@
  *
  ****************************************************************************/
 
-/* @TODO REMOVE LATER!!! */
-#define CONFIG_WLAN_IRQ 1
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
 
+#include <stdint.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <semaphore.h>
+#include <time.h>
+#include <wdog.h>
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
@@ -39,28 +64,16 @@
 #include <nuttx/fs.h>
 #include <nuttx/arch.h>
 #include <nuttx/wqueue.h>
+#include <nuttx/irq.h>
 
 #include <nuttx/usb/usb.h>
 #include <nuttx/usb/usbhost.h>
-
-#if defined(CONFIG_NET) && defined(CONFIG_NET_WLAN)
-
-#include <stdint.h>
-#include <stdbool.h>
-#include <time.h>
-#include <string.h>
-#include <debug.h>
-#include <wdog.h>
-#include <errno.h>
-
-#include <nuttx/irq.h>
-#include <nuttx/arch.h>
 
 #include <net/uip/uip.h>
 #include <net/uip/uip-arp.h>
 #include <net/uip/uip-arch.h>
 
-#endif /* CONFIG_NET && CONFIG_NET_WLAN */
+#if defined(CONFIG_USBHOST) && defined(CONFIG_NET) && defined(CONFIG_NET_WLAN)
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -73,15 +86,14 @@
 #endif
 
 /* Driver support ***********************************************************/
-/* This format is used to construct the /dev/skel[n] device driver path.  It
+/* This format is used to construct the /dev/wlan[n] device driver path.  It
  * defined here so that it will be used consistently in all places.
  */
 
 #define DEV_FORMAT          "/dev/wlan%c"
 #define DEV_NAMELEN         12
 
-
-/* Used in usbhost_cfgdesc() */
+/* Used in rtl8187x_cfgdesc() */
 
 #define USBHOST_IFFOUND     0x01
 #define USBHOST_BINFOUND    0x02
@@ -90,7 +102,6 @@
 
 #define USBHOST_MAX_CREFS   0x7fff
 
-#if defined(CONFIG_NET) && defined(CONFIG_NET_WLAN)
 /* CONFIG_WLAN_NINTERFACES determines the number of physical interfaces
  * that will be supported.
  */
@@ -110,9 +121,7 @@
 
 /* This is a helper pointer for accessing the contents of the WLAN header */
 
-#define BUF ((struct uip_eth_hdr *)wlan->wl_dev.d_buf)
-
-#endif /* CONFIG_NET && CONFIG_NET_WLAN */
+#define BUF ((struct uip_eth_hdr *)priv->ethdev.d_buf)
 
 /****************************************************************************
  * Private Types
@@ -122,140 +131,133 @@
  * driver.
  */
 
-struct usbhost_state_s
+struct rtl8187x_state_s
 {
-  /* This is the externally visible portion of the state */
+  /* This is the externally visible portion of the USB class state */
 
   struct usbhost_class_s  class;
 
-  /* This is an instance of the USB host driver bound to this class instance */
+  /* This is an instance of the USB host controller driver bound to this class instance */
 
   struct usbhost_driver_s *drvr;
 
-  /* The remainder of the fields are provide to the class driver */
+  /* The following fields support the USB class driver */
   
-  char                    devchar;      /* Character identifying the /dev/wlan[n] device */
-  volatile bool           disconnected; /* TRUE: Device has been disconnected */
-  uint8_t                 ifno;         /* Interface number */
-  int16_t                 crefs;        /* Reference count on the driver instance */
-  sem_t                   exclsem;      /* Used to maintain mutual exclusive access */
-  struct work_s           work;         /* For interacting with the worker thread */
-  FAR uint8_t            *tbuffer;      /* The allocated transfer buffer */
-  size_t                  tbuflen;      /* Size of the allocated transfer buffer */
-  usbhost_ep_t            epin;         /* IN endpoint */
-  usbhost_ep_t            epout;        /* OUT endpoint */
-};
+  char                      devchar;      /* Character identifying the /dev/wlan[n] device */
+  volatile bool             disconnected; /* TRUE: Device has been disconnected */
+  bool                      bifup;        /* TRUE: Ethernet interface is up */
+  uint8_t                   ifno;         /* Interface number */
+  int16_t                   crefs;        /* Reference count on the driver instance */
+  sem_t                     exclsem;      /* Used to maintain mutual exclusive access */
+  struct work_s             work;         /* For interacting with the worker thread */
+  FAR struct usb_ctrlreq_s *ctrlreq;      /* The allocated request buffer */
+  FAR uint8_t              *tbuffer;      /* The allocated transfer buffer */
+  size_t                    tbuflen;      /* Size of the allocated transfer buffer */
+  usbhost_ep_t              epin;         /* IN endpoint */
+  usbhost_ep_t              epout;        /* OUT endpoint */
+  WDOG_ID                   txpoll;       /* Ethernet TX poll timer */
+  WDOG_ID                   txtimeout;    /* Ethernet TX timeout timer */
 
-#if defined(CONFIG_NET) && defined(CONFIG_NET_WLAN)
+  /* This holds the information visible to uIP/NuttX */
 
- /* The wlan_driver_s encapsulates all state information for a single hardware
-  * interface
-  */
-
- struct wlan_driver_s
- {
-   bool wl_bifup;               /* true:ifup false:ifdown */
-   WDOG_ID wl_txpoll;           /* TX poll timer */
-   WDOG_ID wl_txtimeout;        /* TX timeout timer */
-
-   /* This holds the information visible to uIP/NuttX */
-
-   struct uip_driver_s wl_dev;  /* Interface understood by uIP */
+  struct uip_driver_s       ethdev;       /* Interface understood by uIP */
  };
-
-#endif /* CONFIG_NET && CONFIG_NET_WLAN */
 
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
 
+/* General Utility Functions ************************************************/
 /* Semaphores */
 
-static void usbhost_takesem(sem_t *sem);
-#define usbhost_givesem(s) sem_post(s);
+static void rtl8187x_takesem(sem_t *sem);
+#define rtl8187x_givesem(s) sem_post(s);
 
 /* Memory allocation services */
 
-static inline FAR struct usbhost_state_s *usbhost_allocclass(void);
-static inline void usbhost_freeclass(FAR struct usbhost_state_s *class);
+static inline FAR struct rtl8187x_state_s *rtl8187x_allocclass(void);
+static inline void rtl8187x_freeclass(FAR struct rtl8187x_state_s *class);
 
 /* Device name management */
 
-static int usbhost_allocdevno(FAR struct usbhost_state_s *priv);
-static void usbhost_freedevno(FAR struct usbhost_state_s *priv);
-static inline void usbhost_mkdevname(FAR struct usbhost_state_s *priv, char *devname);
+static int rtl8187x_allocdevno(FAR struct rtl8187x_state_s *priv);
+static void rtl8187x_freedevno(FAR struct rtl8187x_state_s *priv);
+static inline void rtl8187x_mkdevname(FAR struct rtl8187x_state_s *priv, char *devname);
 
+/* Standard USB host class functions ****************************************/
 /* Worker thread actions */
 
-static void usbhost_destroy(FAR void *arg);
+static void rtl8187x_destroy(FAR void *arg);
 
-/* Helpers for usbhost_connect() */
+/* Helpers for rtl8187x_connect() */
 
-static inline int usbhost_cfgdesc(FAR struct usbhost_state_s *priv,
+static inline int rtl8187x_cfgdesc(FAR struct rtl8187x_state_s *priv,
                                   FAR const uint8_t *configdesc, int desclen,
                                   uint8_t funcaddr);
-static inline int usbhost_devinit(FAR struct usbhost_state_s *priv);
+static inline int rtl8187x_devinit(FAR struct rtl8187x_state_s *priv);
 
 /* (Little Endian) Data helpers */
 
-static inline uint16_t usbhost_getle16(const uint8_t *val);
-static inline void usbhost_putle16(uint8_t *dest, uint16_t val);
-static inline uint32_t usbhost_getle32(const uint8_t *val);
-static void usbhost_putle32(uint8_t *dest, uint32_t val);
+static inline uint16_t rtl8187x_host2le16(uint16_t val);
+static inline uint32_t rtl8187x_host2le32(uint32_t val);
+static inline uint16_t rtl8187x_getle16(const uint8_t *val);
+static inline uint32_t rtl8187x_getle32(const uint8_t *val);
+static inline void rtl8187x_putle16(uint8_t *dest, uint16_t val);
+static void rtl8187x_putle32(uint8_t *dest, uint32_t val);
 
 /* Transfer descriptor memory management */
 
-static inline int usbhost_talloc(FAR struct usbhost_state_s *priv);
-static inline int usbhost_tfree(FAR struct usbhost_state_s *priv);
+static inline int rtl8187x_talloc(FAR struct rtl8187x_state_s *priv);
+static inline int rtl8187x_tfree(FAR struct rtl8187x_state_s *priv);
 
 /* struct usbhost_registry_s methods */
  
-static struct usbhost_class_s *usbhost_create(FAR struct usbhost_driver_s *drvr,
-                                              FAR const struct usbhost_id_s *id);
+static struct usbhost_class_s *rtl8187x_create(FAR struct usbhost_driver_s *drvr,
+                                               FAR const struct usbhost_id_s *id);
 
 /* struct usbhost_class_s methods */
 
-static int usbhost_connect(FAR struct usbhost_class_s *class,
+static int rtl8187x_connect(FAR struct usbhost_class_s *class,
                            FAR const uint8_t *configdesc, int desclen,
                            uint8_t funcaddr);
-static int usbhost_disconnected(FAR struct usbhost_class_s *class);
+static int rtl8187x_disconnected(FAR struct usbhost_class_s *class);
 
-/* Driver methods -- depend upon the type of NuttX driver interface exported */
+/* Vendor-Specific USB host support *****************************************/
 
-#if defined(CONFIG_NET) && defined(CONFIG_NET_WLAN)
+static uint8_t rtl8187x_ioread8(struct rtl8187x_state_s *priv, uint16_t addr);
+static uint16_t rtl8187x_ioread16(struct rtl8187x_state_s *priv, uint16_t addr);
+static uint32_t rtl8187x_ioread32(struct rtl8187x_state_s *priv, uint16_t addr);
 
+/* Ethernet driver methods **************************************************/
 /* Common TX logic */
 
-static int  wlan_transmit(FAR struct wlan_driver_s *wlan);
-static int  wlan_uiptxpoll(struct uip_driver_s *dev);
+static int  rtl8187x_transmit(FAR struct rtl8187x_state_s *priv);
+static int  rtl8187x_uiptxpoll(struct uip_driver_s *dev);
 
-/* Interrupt handling */
+/* RX/EX event handling */
 
-static void wlan_receive(FAR struct wlan_driver_s *wlan);
-static void wlan_txdone(FAR struct wlan_driver_s *wlan);
-static int  wlan_interrupt(int irq, FAR void *context);
+static void rtl8187x_receive(FAR struct rtl8187x_state_s *priv);
+static void rtl8187x_txdone(FAR struct rtl8187x_state_s *priv);
 
 /* Watchdog timer expirations */
 
-static void wlan_polltimer(int argc, uint32_t arg, ...);
-static void wlan_txtimeout(int argc, uint32_t arg, ...);
+static void rtl8187x_polltimer(int argc, uint32_t arg, ...);
+static void rtl8187x_txtimeout(int argc, uint32_t arg, ...);
 
 /* NuttX callback functions */
 
-static int wlan_ifup(struct uip_driver_s *dev);
-static int wlan_ifdown(struct uip_driver_s *dev);
-static int wlan_txavail(struct uip_driver_s *dev);
+static int rtl8187x_ifup(struct uip_driver_s *dev);
+static int rtl8187x_ifdown(struct uip_driver_s *dev);
+static int rtl8187x_txavail(struct uip_driver_s *dev);
 #ifdef CONFIG_NET_IGMP
-static int wlan_addmac(struct uip_driver_s *dev, FAR const uint8_t *mac);
-static int wlan_rmmac(struct uip_driver_s *dev, FAR const uint8_t *mac);
+static int rtl8187x_addmac(struct uip_driver_s *dev, FAR const uint8_t *mac);
+static int rtl8187x_rmmac(struct uip_driver_s *dev, FAR const uint8_t *mac);
 #endif
 
 /* Register and unregister network device */
 
-static int wlan_initialize(int intf);
-static int wlan_uninitialize(int intf);
-
-#endif /* CONFIG_NET && CONFIG_NET_WLAN */
+static int rtl8187x_initialize(FAR struct rtl8187x_state_s *priv);
+static int rtl8187x_uninitialize(FAR struct rtl8187x_state_s *priv);
 
 /****************************************************************************
  * Private Data
@@ -279,7 +281,7 @@ static const const struct usbhost_id_s g_id =
 static struct usbhost_registry_s g_wlan =
 {
   NULL,                   /* flink    */
-  usbhost_create,         /* create   */
+  rtl8187x_create,        /* create   */
   1,                      /* nids     */
   &g_id                   /* id[]     */
 };
@@ -288,18 +290,12 @@ static struct usbhost_registry_s g_wlan =
 
 static uint32_t g_devinuse;
 
-#if defined(CONFIG_NET) && defined(CONFIG_NET_WLAN)
-
-static struct wlan_driver_s g_wlan1[CONFIG_WLAN_NINTERFACES];
-
-#endif /* CONFIG_NET && CONFIG_NET_WLAN */
-
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: usbhost_takesem
+ * Name: rtl8187x_takesem
  *
  * Description:
  *   This is just a wrapper to handle the annoying behavior of semaphore
@@ -307,7 +303,7 @@ static struct wlan_driver_s g_wlan1[CONFIG_WLAN_NINTERFACES];
  *
  ****************************************************************************/
 
-static void usbhost_takesem(sem_t *sem)
+static void rtl8187x_takesem(sem_t *sem)
 {
   /* Take the semaphore (perhaps waiting) */
 
@@ -322,7 +318,7 @@ static void usbhost_takesem(sem_t *sem)
 }
 
 /****************************************************************************
- * Name: usbhost_allocclass
+ * Name: rtl8187x_allocclass
  *
  * Description:
  *   This is really part of the logic that implements the create() method
@@ -340,21 +336,21 @@ static void usbhost_takesem(sem_t *sem)
  *
  ****************************************************************************/
 
-static inline FAR struct usbhost_state_s *usbhost_allocclass(void)
+static inline FAR struct rtl8187x_state_s *rtl8187x_allocclass(void)
 {
-  FAR struct usbhost_state_s *priv;
+  FAR struct rtl8187x_state_s *priv;
 
   DEBUGASSERT(!up_interrupt_context());
-  priv = (FAR struct usbhost_state_s *)malloc(sizeof(struct usbhost_state_s));
+  priv = (FAR struct rtl8187x_state_s *)malloc(sizeof(struct rtl8187x_state_s));
   uvdbg("Allocated: %p\n", priv);;
   return priv;
 }
 
 /****************************************************************************
- * Name: usbhost_freeclass
+ * Name: rtl8187x_freeclass
  *
  * Description:
- *   Free a class instance previously allocated by usbhost_allocclass().
+ *   Free a class instance previously allocated by rtl8187x_allocclass().
  *
  * Input Parameters:
  *   class - A reference to the class instance to be freed.
@@ -364,7 +360,7 @@ static inline FAR struct usbhost_state_s *usbhost_allocclass(void)
  *
  ****************************************************************************/
 
-static inline void usbhost_freeclass(FAR struct usbhost_state_s *class)
+static inline void rtl8187x_freeclass(FAR struct rtl8187x_state_s *class)
 {
   DEBUGASSERT(class != NULL);
 
@@ -384,7 +380,7 @@ static inline void usbhost_freeclass(FAR struct usbhost_state_s *class)
  *
  ****************************************************************************/
 
-static int usbhost_allocdevno(FAR struct usbhost_state_s *priv)
+static int rtl8187x_allocdevno(FAR struct rtl8187x_state_s *priv)
 {
   irqstate_t flags;
   int devno;
@@ -406,7 +402,7 @@ static int usbhost_allocdevno(FAR struct usbhost_state_s *priv)
   return -EMFILE;
 }
 
-static void usbhost_freedevno(FAR struct usbhost_state_s *priv)
+static void rtl8187x_freedevno(FAR struct rtl8187x_state_s *priv)
 {
   int devno = 'a' - priv->devchar;
 
@@ -418,13 +414,13 @@ static void usbhost_freedevno(FAR struct usbhost_state_s *priv)
     }
 }
 
-static inline void usbhost_mkdevname(FAR struct usbhost_state_s *priv, char *devname)
+static inline void rtl8187x_mkdevname(FAR struct rtl8187x_state_s *priv, char *devname)
 {
   (void)snprintf(devname, DEV_NAMELEN, DEV_FORMAT, priv->devchar);
 }
 
 /****************************************************************************
- * Name: usbhost_destroy
+ * Name: rtl8187x_destroy
  *
  * Description:
  *   The USB device has been disconnected and the refernce count on the USB
@@ -439,9 +435,9 @@ static inline void usbhost_mkdevname(FAR struct usbhost_state_s *priv, char *dev
  *
  ****************************************************************************/
 
-static void usbhost_destroy(FAR void *arg)
+static void rtl8187x_destroy(FAR void *arg)
 {
-  FAR struct usbhost_state_s *priv = (FAR struct usbhost_state_s *)arg;
+  FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)arg;
 
   DEBUGASSERT(priv != NULL);
   uvdbg("crefs: %d\n", priv->crefs);
@@ -450,11 +446,13 @@ static void usbhost_destroy(FAR void *arg)
 
   /* Release the device name used by this connection */
 
-  usbhost_freedevno(priv);
+  rtl8187x_freedevno(priv);
 
   /* Free the endpoints */
 
   /* Free any transfer buffers */
+
+  rtl8187x_tfree(priv);
 
   /* Destroy the semaphores */
 
@@ -468,11 +466,11 @@ static void usbhost_destroy(FAR void *arg)
    * queue, it should not longer be accessed by the worker thread.
    */
 
-  usbhost_freeclass(priv);
+  rtl8187x_freeclass(priv);
 }
 
 /****************************************************************************
- * Name: usbhost_cfgdesc
+ * Name: rtl8187x_cfgdesc
  *
  * Description:
  *   This function implements the connect() method of struct
@@ -496,9 +494,9 @@ static void usbhost_destroy(FAR void *arg)
  *
  ****************************************************************************/
 
-static inline int usbhost_cfgdesc(FAR struct usbhost_state_s *priv,
-                                  FAR const uint8_t *configdesc, int desclen,
-                                  uint8_t funcaddr)
+static inline int rtl8187x_cfgdesc(FAR struct rtl8187x_state_s *priv,
+                                   FAR const uint8_t *configdesc, int desclen,
+                                   uint8_t funcaddr)
 {
   FAR struct usb_cfgdesc_s *cfgdesc;
   FAR struct usb_desc_s *desc;
@@ -524,7 +522,7 @@ static inline int usbhost_cfgdesc(FAR struct usbhost_state_s *priv,
    * It might be a good check to get the number of interfaces here too.
   */
 
-  remaining = (int)usbhost_getle16(cfgdesc->totallen);
+  remaining = (int)rtl8187x_getle16(cfgdesc->totallen);
 
   /* Skip to the next entry descriptor */
 
@@ -598,7 +596,7 @@ static inline int usbhost_cfgdesc(FAR struct usbhost_state_s *priv,
                     boutdesc.funcaddr     = funcaddr;
                     boutdesc.xfrtype      = USB_EP_ATTR_XFER_BULK;
                     boutdesc.interval     = epdesc->interval;
-                    boutdesc.mxpacketsize = usbhost_getle16(epdesc->mxpacketsize);
+                    boutdesc.mxpacketsize = rtl8187x_getle16(epdesc->mxpacketsize);
                     uvdbg("Bulk OUT EP addr:%d mxpacketsize:%d\n",
                           boutdesc.addr, boutdesc.mxpacketsize);
                   }
@@ -625,7 +623,7 @@ static inline int usbhost_cfgdesc(FAR struct usbhost_state_s *priv,
                     bindesc.funcaddr     = funcaddr;
                     bindesc.xfrtype      = USB_EP_ATTR_XFER_BULK;
                     bindesc.interval     = epdesc->interval;
-                    bindesc.mxpacketsize = usbhost_getle16(epdesc->mxpacketsize);
+                    bindesc.mxpacketsize = rtl8187x_getle16(epdesc->mxpacketsize);
                     uvdbg("Bulk IN EP addr:%d mxpacketsize:%d\n",
                           bindesc.addr, bindesc.mxpacketsize);
                   }
@@ -687,7 +685,7 @@ static inline int usbhost_cfgdesc(FAR struct usbhost_state_s *priv,
 }
 
 /****************************************************************************
- * Name: usbhost_devinit
+ * Name: rtl8187x_devinit
  *
  * Description:
  *   The USB device has been successfully connected.  This completes the
@@ -705,13 +703,13 @@ static inline int usbhost_cfgdesc(FAR struct usbhost_state_s *priv,
  *
  ****************************************************************************/
 
-static inline int usbhost_devinit(FAR struct usbhost_state_s *priv)
+static inline int rtl8187x_devinit(FAR struct rtl8187x_state_s *priv)
 {
   int ret = OK;
 
   /* Set aside a transfer buffer for exclusive use by the class driver */
 
-  /* Increment the reference count.  This will prevent usbhost_destroy() from
+  /* Increment the reference count.  This will prevent rtl8187x_destroy() from
    * being called asynchronously if the device is removed.
    */
 
@@ -727,8 +725,8 @@ static inline int usbhost_devinit(FAR struct usbhost_state_s *priv)
       char devname[DEV_NAMELEN];
 
       uvdbg("Register block driver\n");
-      usbhost_mkdevname(priv, devname);
-      ret = wlan_initialize(0);
+      rtl8187x_mkdevname(priv, devname);
+      ret = rtl8187x_initialize(priv);
       // ret = register_blockdriver(devname, &g_bops, 0, priv);
     }
 
@@ -739,7 +737,7 @@ static inline int usbhost_devinit(FAR struct usbhost_state_s *priv)
 
   if (ret == OK)
     {
-      usbhost_takesem(&priv->exclsem);
+      rtl8187x_takesem(&priv->exclsem);
       DEBUGASSERT(priv->crefs >= 2);
 
       /* Handle a corner case where (1) open() has been called so the
@@ -762,7 +760,7 @@ static inline int usbhost_devinit(FAR struct usbhost_state_s *priv)
 
           uvdbg("Successfully initialized\n");
           priv->crefs--;
-          usbhost_givesem(&priv->exclsem);
+          rtl8187x_givesem(&priv->exclsem);
         }
     }
 
@@ -771,14 +769,52 @@ static inline int usbhost_devinit(FAR struct usbhost_state_s *priv)
   if (ret != OK)
     {
       udbg("ERROR! Aborting: %d\n", ret);
-      usbhost_destroy(priv);
+      rtl8187x_destroy(priv);
     }
 
   return ret;
 }
 
 /****************************************************************************
- * Name: usbhost_getle16
+ * Name: rtl8187x_host2le16 and rtl8187x_host2le32
+ *
+ * Description:
+ *   Convert a 16/32-bit value in host byte order to little endian byte order.
+ *
+ * Input Parameters:
+ *   val - A pointer to the first byte of the little endian value.
+ *
+ * Returned Values:
+ *   A uint16_t representing the whole 16-bit integer value
+ *
+ ****************************************************************************/
+
+static inline uint16_t rtl8187x_host2le16(uint16_t val)
+{
+#ifdef CONFIG_ENDIAN_BIG
+  uint16_t ret = ((val & 0x00ff) << 8) |
+                 ((val)) >> 8) & 0x00ff))
+  return ret
+#else
+  return val;
+#endif
+}
+
+static inline uint32_t rtl8187x_host2le32(uint32_t val)
+{
+#ifdef CONFIG_ENDIAN_BIG
+  uint32_t ret = ((val & 0x000000ffL) << 24) |
+                 ((val & 0x0000ff00L) <<  8) |
+                 ((val & 0x00ff0000L) >>  8) |
+                 ((val & 0xff000000L) >> 24))
+  return ret
+#else
+  return val;
+#endif
+}
+
+/****************************************************************************
+ * Name: rtl8187x_getle16 and rtl8187x_getle32
  *
  * Description:
  *   Get a (possibly unaligned) 16-bit little endian value.
@@ -791,16 +827,25 @@ static inline int usbhost_devinit(FAR struct usbhost_state_s *priv)
  *
  ****************************************************************************/
 
-static inline uint16_t usbhost_getle16(const uint8_t *val)
+static inline uint16_t rtl8187x_getle16(const uint8_t *val)
 {
+  /* Little endian means LS byte first in byte stream */
+
   return (uint16_t)val[1] << 8 | (uint16_t)val[0];
 }
 
+static inline uint32_t rtl8187x_getle32(const uint8_t *val)
+{
+ /* Little endian means LS halfword first in byte stream */
+
+  return (uint32_t)rtl8187x_getle16(&val[2]) << 16 | (uint32_t)rtl8187x_getle16(val);
+}
+
 /****************************************************************************
- * Name: usbhost_putle16
+ * Name: rtl8187x_putle16 and  rtl8187x_putle32
  *
  * Description:
- *   Put a (possibly unaligned) 16-bit little endian value.
+ *   Put a (possibly unaligned) 16/32-bit little endian value.
  *
  * Input Parameters:
  *   dest - A pointer to the first byte to save the little endian value.
@@ -811,59 +856,24 @@ static inline uint16_t usbhost_getle16(const uint8_t *val)
  *
  ****************************************************************************/
 
-static void usbhost_putle16(uint8_t *dest, uint16_t val)
+static void rtl8187x_putle16(uint8_t *dest, uint16_t val)
 {
+  /* Little endian means LS byte first in byte stream */
+
   dest[0] = val & 0xff; /* Little endian means LS byte first in byte stream */
   dest[1] = val >> 8;
 }
 
-/****************************************************************************
- * Name: usbhost_getle32
- *
- * Description:
- *   Get a (possibly unaligned) 32-bit little endian value.
- *
- * Input Parameters:
- *   dest - A pointer to the first byte to save the big endian value.
- *   val - The 32-bit value to be saved.
- *
- * Returned Values:
- *   None
- *
- ****************************************************************************/
-
-static inline uint32_t usbhost_getle32(const uint8_t *val)
-{
- /* Little endian means LS halfword first in byte stream */
-
-  return (uint32_t)usbhost_getle16(&val[2]) << 16 | (uint32_t)usbhost_getle16(val);
-}
-
-/****************************************************************************
- * Name: usbhost_putle32
- *
- * Description:
- *   Put a (possibly unaligned) 32-bit little endian value.
- *
- * Input Parameters:
- *   dest - A pointer to the first byte to save the little endian value.
- *   val - The 32-bit value to be saved.
- *
- * Returned Values:
- *   None
- *
- ****************************************************************************/
-
-static void usbhost_putle32(uint8_t *dest, uint32_t val)
+static void rtl8187x_putle32(uint8_t *dest, uint32_t val)
 {
   /* Little endian means LS halfword first in byte stream */
 
-  usbhost_putle16(dest, (uint16_t)(val & 0xffff));
-  usbhost_putle16(dest+2, (uint16_t)(val >> 16));
+  rtl8187x_putle16(dest, (uint16_t)(val & 0xffff));
+  rtl8187x_putle16(dest+2, (uint16_t)(val >> 16));
 }
 
 /****************************************************************************
- * Name: usbhost_talloc
+ * Name: rtl8187x_talloc
  *
  * Description:
  *   Allocate transfer buffer memory.
@@ -877,14 +887,34 @@ static void usbhost_putle32(uint8_t *dest, uint32_t val)
  *
  ****************************************************************************/
 
-static inline int usbhost_talloc(FAR struct usbhost_state_s *priv)
+static inline int rtl8187x_talloc(FAR struct rtl8187x_state_s *priv)
 {
-  DEBUGASSERT(priv && priv->tbuffer == NULL);
-  return DRVR_ALLOC(priv->drvr, &priv->tbuffer, &priv->tbuflen);
+  size_t maxlen;
+  int ret;
+
+  DEBUGASSERT(priv && priv->ctrlreq == NULL && priv->tbuffer == NULL);
+
+  /* Allocate TD buffers for use in this driver.  We will need two:  One for
+   * the request and one for the data buffer.
+   */
+
+  ret = DRVR_ALLOC(priv->drvr, (FAR uint8_t **)&priv->ctrlreq, &maxlen);
+  if (ret != OK)
+    {
+      uvdbg("DRVR_ALLOC(ctrlreq) failed: %d\n", ret);
+      return ret;
+    }
+
+  ret = DRVR_ALLOC(priv->drvr, &priv->tbuffer, &priv->tbuflen);
+  if (ret != OK)
+    {
+      uvdbg("DRVR_ALLOC(tbuffer) failed: %d\n", ret);
+    }
+  return ret;
 }
 
 /****************************************************************************
- * Name: usbhost_tfree
+ * Name: rtl8187x_tfree
  *
  * Description:
  *   Free transfer buffer memory.
@@ -898,19 +928,26 @@ static inline int usbhost_talloc(FAR struct usbhost_state_s *priv)
  *
  ****************************************************************************/
 
-static inline int usbhost_tfree(FAR struct usbhost_state_s *priv)
+static inline int rtl8187x_tfree(FAR struct rtl8187x_state_s *priv)
 {
-  int result = OK;
   DEBUGASSERT(priv);
 
-  if (priv->tbuffer)
+  if (priv->ctrlreq)
     {
-      DEBUGASSERT(priv->drvr);
-      result         = DRVR_FREE(priv->drvr, priv->tbuffer);
+      DEBUGASSERT(priv->drvr && priv->tbuffer);
+
+      /* Free the allocated control request */
+
+      (void)DRVR_FREE(priv->drvr, (FAR uint8_t *)priv->ctrlreq);
+      priv->ctrlreq = NULL;
+      
+      /* Free the allocated buffer */
+
+      (void)DRVR_FREE(priv->drvr, priv->tbuffer);
       priv->tbuffer = NULL;
       priv->tbuflen = 0;
     }
-  return result;
+  return OK;
 }
 
 /****************************************************************************
@@ -918,7 +955,7 @@ static inline int usbhost_tfree(FAR struct usbhost_state_s *priv)
  ****************************************************************************/
 
 /****************************************************************************
- * Name: usbhost_create
+ * Name: rtl8187x_create
  *
  * Description:
  *   This function implements the create() method of struct usbhost_registry_s. 
@@ -944,28 +981,38 @@ static inline int usbhost_tfree(FAR struct usbhost_state_s *priv)
  *
  ****************************************************************************/
 
-static FAR struct usbhost_class_s *usbhost_create(FAR struct usbhost_driver_s *drvr,
+static FAR struct usbhost_class_s *rtl8187x_create(FAR struct usbhost_driver_s *drvr,
                                                   FAR const struct usbhost_id_s *id)
 {
-  FAR struct usbhost_state_s *priv;
+  FAR struct rtl8187x_state_s *priv;
+  int ret;
 
   /* Allocate a USB host class instance */
 
-  priv = usbhost_allocclass();
+  priv = rtl8187x_allocclass();
   if (priv)
     {
       /* Initialize the allocated storage class instance */
 
-      memset(priv, 0, sizeof(struct usbhost_state_s));
+      memset(priv, 0, sizeof(struct rtl8187x_state_s));
+
+      /* Allocate buffering */
+
+      ret = rtl8187x_talloc(priv);
+      if (ret != OK)
+        {
+          udbg("ERROR: Failed to allocate buffers: %d\n", ret);
+          goto errout;
+        }
 
       /* Assign a device number to this class instance */
 
-      if (usbhost_allocdevno(priv) == OK)
+      if (rtl8187x_allocdevno(priv) == OK)
         {
          /* Initialize class method function pointers */
 
-          priv->class.connect      = usbhost_connect;
-          priv->class.disconnected = usbhost_disconnected;
+          priv->class.connect      = rtl8187x_connect;
+          priv->class.disconnected = rtl8187x_disconnected;
 
           /* The initial reference count is 1... One reference is held by the driver */
 
@@ -987,9 +1034,10 @@ static FAR struct usbhost_class_s *usbhost_create(FAR struct usbhost_driver_s *d
 
   /* An error occurred. Free the allocation and return NULL on all failures */
 
+errout:
   if (priv)
     {
-      usbhost_freeclass(priv);
+      rtl8187x_freeclass(priv);
     }
   return NULL;
 }
@@ -998,7 +1046,7 @@ static FAR struct usbhost_class_s *usbhost_create(FAR struct usbhost_driver_s *d
  * struct usbhost_class_s methods
  ****************************************************************************/
 /****************************************************************************
- * Name: usbhost_connect
+ * Name: rtl8187x_connect
  *
  * Description:
  *   This function implements the connect() method of struct
@@ -1024,11 +1072,11 @@ static FAR struct usbhost_class_s *usbhost_create(FAR struct usbhost_driver_s *d
  *
  ****************************************************************************/
 
-static int usbhost_connect(FAR struct usbhost_class_s *class,
+static int rtl8187x_connect(FAR struct usbhost_class_s *class,
                            FAR const uint8_t *configdesc, int desclen,
                            uint8_t funcaddr)
 {
-  FAR struct usbhost_state_s *priv = (FAR struct usbhost_state_s *)class;
+  FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)class;
   int ret;
 
   DEBUGASSERT(priv != NULL && 
@@ -1037,19 +1085,19 @@ static int usbhost_connect(FAR struct usbhost_class_s *class,
 
   /* Parse the configuration descriptor to get the endpoints */
 
-  ret = usbhost_cfgdesc(priv, configdesc, desclen, funcaddr);
+  ret = rtl8187x_cfgdesc(priv, configdesc, desclen, funcaddr);
   if (ret != OK)
     {
-      udbg("usbhost_cfgdesc() failed: %d\n", ret);
+      udbg("rtl8187x_cfgdesc() failed: %d\n", ret);
     }
   else
     {
       /* Now configure the device and register the NuttX driver */
 
-      ret = usbhost_devinit(priv);
+      ret = rtl8187x_devinit(priv);
       if (ret != OK)
         {
-          udbg("usbhost_devinit() failed: %d\n", ret);
+          udbg("rtl8187x_devinit() failed: %d\n", ret);
         }
     }
  
@@ -1057,7 +1105,7 @@ static int usbhost_connect(FAR struct usbhost_class_s *class,
 }
 
 /****************************************************************************
- * Name: usbhost_disconnected
+ * Name: rtl8187x_disconnected
  *
  * Description:
  *   This function implements the disconnected() method of struct
@@ -1078,9 +1126,9 @@ static int usbhost_connect(FAR struct usbhost_class_s *class,
  *
  ****************************************************************************/
 
-static int usbhost_disconnected(struct usbhost_class_s *class)
+static int rtl8187x_disconnected(struct usbhost_class_s *class)
 {
-  FAR struct usbhost_state_s *priv = (FAR struct usbhost_state_s *)class;
+  FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)class;
   irqstate_t flags;
 
   DEBUGASSERT(priv != NULL);
@@ -1110,37 +1158,183 @@ static int usbhost_disconnected(struct usbhost_class_s *class)
         {
           /* Destroy the instance on the worker thread. */
 
-          uvdbg("Queuing destruction: worker %p->%p\n", priv->work.worker, usbhost_destroy);
+          uvdbg("Queuing destruction: worker %p->%p\n", priv->work.worker, rtl8187x_destroy);
           DEBUGASSERT(priv->work.worker == NULL);
-          (void)work_queue(&priv->work, usbhost_destroy, priv, 0);
+          (void)work_queue(&priv->work, rtl8187x_destroy, priv, 0);
        }
       else
         {
           /* Do the work now */
 
-          usbhost_destroy(priv);
+          rtl8187x_destroy(priv);
         }
     }
 
   /* Unregister WLAN network interface */
 
-  wlan_uninitialize(0);
+  rtl8187x_uninitialize(0);
 
   irqrestore(flags);  
   return OK;
 }
 
-#if defined(CONFIG_NET) && defined(CONFIG_NET_WLAN)
+/****************************************************************************
+ * Function: rtl8187x_ioread8/16/32
+ *
+ * Description:
+ *   Read 8, 16, or 32 bits from the RTL8187x.
+ *
+ * Parameters:
+ *   priv  - Reference to the driver state structure
+ *   addr  - Device addresses
+ *
+ * Returned Value:
+ *   The value read from the the RTL8187x (no error indication returned).
+ *
+ * Assumptions:
+ *   Not called from an interrupt handler.
+ *
+ ****************************************************************************/
+
+static uint8_t rtl8187x_ioread8(struct rtl8187x_state_s *priv, uint16_t addr)
+{
+  FAR struct usb_ctrlreq_s *ctrlreq = priv->ctrlreq;
+  int ret;
+
+  DEBUGASSERT(ctrlreq && priv->tbuffer);
+  ctrlreq->type = (USB_REQ_DIR_IN | USB_REQ_TYPE_VENDOR | USB_REQ_RECIPIENT_DEVICE);
+  ctrlreq->req  = 0x05;
+  rtl8187x_putle16(ctrlreq->value, addr);
+  rtl8187x_putle16(ctrlreq->index, 0);
+  rtl8187x_putle16(ctrlreq->len, sizeof(uint8_t));
+
+  ret = DRVR_CTRLIN(priv->drvr, priv->ctrlreq, priv->tbuffer);
+  if (ret != OK)
+    {
+      udbg("ERROR: DRVR_CTRLIN returned %d\n", ret);
+      return 0;
+    }
+
+  return *((uint8_t*)priv->tbuffer);
+}
+
+static uint16_t rtl8187x_ioread16(struct rtl8187x_state_s*priv, uint16_t addr)
+{
+  FAR struct usb_ctrlreq_s *ctrlreq = priv->ctrlreq;
+  int ret;
+
+  DEBUGASSERT(ctrlreq && priv->tbuffer);
+  ctrlreq->type = (USB_REQ_DIR_IN | USB_REQ_TYPE_VENDOR | USB_REQ_RECIPIENT_DEVICE);
+  ctrlreq->req  = 0x05;
+  rtl8187x_putle16(ctrlreq->value, addr);
+  rtl8187x_putle16(ctrlreq->index, 0);
+  rtl8187x_putle16(ctrlreq->len, sizeof(uint16_t));
+
+  ret = DRVR_CTRLIN(priv->drvr, priv->ctrlreq, priv->tbuffer);
+  if (ret != OK)
+    {
+      udbg("ERROR: DRVR_CTRLIN returned %d\n", ret);
+      return 0;
+    }
+
+  return rtl8187x_getle16(priv->tbuffer);
+}
+
+static uint32_t rtl8187x_ioread32(struct rtl8187x_state_s*priv, uint16_t addr)
+{
+  FAR struct usb_ctrlreq_s *ctrlreq = priv->ctrlreq;
+  int ret;
+
+  DEBUGASSERT(ctrlreq && priv->tbuffer);
+  ctrlreq->type = (USB_REQ_DIR_IN | USB_REQ_TYPE_VENDOR | USB_REQ_RECIPIENT_DEVICE);
+  ctrlreq->req  = 0x05;
+  rtl8187x_putle16(ctrlreq->value, addr);
+  rtl8187x_putle16(ctrlreq->index, 0);
+  rtl8187x_putle16(ctrlreq->len, sizeof(uint32_t));
+
+  ret = DRVR_CTRLIN(priv->drvr, priv->ctrlreq, priv->tbuffer);
+  if (ret != OK)
+    {
+      udbg("ERROR: DRVR_CTRLIN returned %d\n", ret);
+      return 0;
+    }
+
+  return rtl8187x_getle32(priv->tbuffer);
+}
 
 /****************************************************************************
- * Function: wlan_transmit
+ * Function: rtl8187x_iowrite8/16/32
+ *
+ * Description:
+ *   Write a 8, 16, or 32 bits to the RTL8187x.
+ *
+ * Parameters:
+ *   priv  - Reference to the driver state structure
+ *   addr  - Device addresses
+ *   val   - The value to write
+ *
+ * Returned Value:
+ *   OK on success; a negated errno on failure
+ *
+ * Assumptions:
+ *   Not called from an interrupt handler.
+ *
+ ****************************************************************************/
+
+static int rtl8187x_iowrite8(struct rtl8187x_state_s *priv, uint16_t addr, uint8_t val)
+{
+  FAR struct usb_ctrlreq_s *ctrlreq = priv->ctrlreq;
+
+  DEBUGASSERT(ctrlreq && priv->tbuffer);
+  ctrlreq->type = (USB_REQ_DIR_OUT | USB_REQ_TYPE_VENDOR | USB_REQ_RECIPIENT_DEVICE);
+  ctrlreq->req  = 0x05;
+  rtl8187x_putle16(ctrlreq->value, addr);
+  rtl8187x_putle16(ctrlreq->index, 0);
+  rtl8187x_putle16(ctrlreq->len, sizeof(uint8_t));
+
+  priv->tbuffer[0] = val;
+  return DRVR_CTRLOUT(priv->drvr, priv->ctrlreq, priv->tbuffer);
+}
+
+static int rtl8187x_iowrite16(struct rtl8187x_state_s *priv, uint16_t addr, uint16_t val)
+{
+  FAR struct usb_ctrlreq_s *ctrlreq = priv->ctrlreq;
+
+  DEBUGASSERT(ctrlreq && priv->tbuffer);
+  ctrlreq->type = (USB_REQ_DIR_OUT | USB_REQ_TYPE_VENDOR | USB_REQ_RECIPIENT_DEVICE);
+  ctrlreq->req  = 0x05;
+  rtl8187x_putle16(ctrlreq->value, addr);
+  rtl8187x_putle16(ctrlreq->index, 0);
+  rtl8187x_putle16(ctrlreq->len, sizeof(uint16_t));
+
+  rtl8187x_putle16(priv->tbuffer, val);
+  return DRVR_CTRLOUT(priv->drvr, priv->ctrlreq, priv->tbuffer);
+}
+
+static int rtl8187x_iowrite32(struct rtl8187x_state_s *priv, uint16_t addr, uint32_t val)
+{
+  FAR struct usb_ctrlreq_s *ctrlreq = priv->ctrlreq;
+
+  DEBUGASSERT(ctrlreq && priv->tbuffer);
+  ctrlreq->type = (USB_REQ_DIR_OUT | USB_REQ_TYPE_VENDOR | USB_REQ_RECIPIENT_DEVICE);
+  ctrlreq->req  = 0x05;
+  rtl8187x_putle16(ctrlreq->value, addr);
+  rtl8187x_putle16(ctrlreq->index, 0);
+  rtl8187x_putle16(ctrlreq->len, sizeof(uint32_t));
+
+  rtl8187x_putle32(priv->tbuffer, val);
+  return DRVR_CTRLOUT(priv->drvr, priv->ctrlreq, priv->tbuffer);
+}
+
+/****************************************************************************
+ * Function: rtl8187x_transmit
  *
  * Description:
  *   Start hardware transmission.  Called either from the txdone interrupt
  *   handling or from watchdog based polling.
  *
  * Parameters:
- *   wlan  - Reference to the driver state structure
+ *   priv  - Reference to the driver state structure
  *
  * Returned Value:
  *   OK on success; a negated errno on failure
@@ -1152,7 +1346,7 @@ static int usbhost_disconnected(struct usbhost_class_s *class)
  *
  ****************************************************************************/
 
-static int wlan_transmit(FAR struct wlan_driver_s *wlan)
+static int rtl8187x_transmit(FAR struct rtl8187x_state_s *priv)
 {
   /* Verify that the hardware is ready to send another packet.  If we get
    * here, then we are committed to sending a packet; Higher level logic
@@ -1161,18 +1355,18 @@ static int wlan_transmit(FAR struct wlan_driver_s *wlan)
 
   /* Increment statistics */
 
-  /* Send the packet: address=wlan->wl_dev.d_buf, length=wlan->wl_dev.d_len */
+  /* Send the packet: address=priv->ethdev.d_buf, length=priv->ethdev.d_len */
 
   /* Enable Tx interrupts */
 
   /* Setup the TX timeout watchdog (perhaps restarting the timer) */
 
-  (void)wd_start(wlan->wl_txtimeout, WLAN_TXTIMEOUT, wlan_txtimeout, 1, (uint32_t)wlan);
+  (void)wd_start(priv->txtimeout, WLAN_TXTIMEOUT, rtl8187x_txtimeout, 1, (uint32_t)priv);
   return OK;
 }
 
 /****************************************************************************
- * Function: wlan_uiptxpoll
+ * Function: rtl8187x_uiptxpoll
  *
  * Description:
  *   The transmitter is available, check if uIP has any outgoing packets ready
@@ -1195,18 +1389,18 @@ static int wlan_transmit(FAR struct wlan_driver_s *wlan)
  *
  ****************************************************************************/
 
-static int wlan_uiptxpoll(struct uip_driver_s *dev)
+static int rtl8187x_uiptxpoll(struct uip_driver_s *dev)
 {
-  FAR struct wlan_driver_s *wlan = (FAR struct wlan_driver_s *)dev->d_private;
+  FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)dev->d_private;
 
   /* If the polling resulted in data that should be sent out on the network,
    * the field d_len is set to a value > 0.
    */
 
-  if (wlan->wl_dev.d_len > 0)
+  if (priv->ethdev.d_len > 0)
     {
-      uip_arp_out(&wlan->wl_dev);
-      wlan_transmit(wlan);
+      uip_arp_out(&priv->ethdev);
+      rtl8187x_transmit(priv);
 
       /* Check if there is room in the device to hold another packet. If not,
        * return a non-zero value to terminate the poll.
@@ -1221,13 +1415,13 @@ static int wlan_uiptxpoll(struct uip_driver_s *dev)
 }
 
 /****************************************************************************
- * Function: wlan_receive
+ * Function: rtl8187x_receive
  *
  * Description:
  *   An interrupt was received indicating the availability of a new RX packet
  *
  * Parameters:
- *   wlan  - Reference to the driver state structure
+ *   priv  - Reference to the driver state structure
  *
  * Returned Value:
  *   None
@@ -1237,7 +1431,7 @@ static int wlan_uiptxpoll(struct uip_driver_s *dev)
  *
  ****************************************************************************/
 
-static void wlan_receive(FAR struct wlan_driver_s *wlan)
+static void rtl8187x_receive(FAR struct rtl8187x_state_s *priv)
 {
   do
     {
@@ -1245,8 +1439,8 @@ static void wlan_receive(FAR struct wlan_driver_s *wlan)
 
       /* Check if the packet is a valid size for the uIP buffer configuration */
 
-      /* Copy the data data from the hardware to wlan->wl_dev.d_buf.  Set
-       * amount of data in wlan->wl_dev.d_len
+      /* Copy the data data from the hardware to priv->ethdev.d_buf.  Set
+       * amount of data in priv->ethdev.d_len
        */
 
       /* We only accept IP packets of the configured type and ARP packets */
@@ -1257,30 +1451,30 @@ static void wlan_receive(FAR struct wlan_driver_s *wlan)
       if (BUF->type == HTONS(UIP_ETHTYPE_IP))
 #endif
         {
-          uip_arp_ipin(&wlan->wl_dev);
-          uip_input(&wlan->wl_dev);
+          uip_arp_ipin(&priv->ethdev);
+          uip_input(&priv->ethdev);
 
           /* If the above function invocation resulted in data that should be
            * sent out on the network, the field  d_len will set to a value > 0.
            */
 
-          if (wlan->wl_dev.d_len > 0)
+          if (priv->ethdev.d_len > 0)
            {
-             uip_arp_out(&wlan->wl_dev);
-             wlan_transmit(wlan);
+             uip_arp_out(&priv->ethdev);
+             rtl8187x_transmit(priv);
            }
         }
       else if (BUF->type == htons(UIP_ETHTYPE_ARP))
         {
-          uip_arp_arpin(&wlan->wl_dev);
+          uip_arp_arpin(&priv->ethdev);
 
           /* If the above function invocation resulted in data that should be
            * sent out on the network, the field  d_len will set to a value > 0.
            */
 
-          if (wlan->wl_dev.d_len > 0)
+          if (priv->ethdev.d_len > 0)
             {
-              wlan_transmit(wlan);
+              rtl8187x_transmit(priv);
             }
         }
     }
@@ -1288,13 +1482,13 @@ static void wlan_receive(FAR struct wlan_driver_s *wlan)
 }
 
 /****************************************************************************
- * Function: wlan_txdone
+ * Function: rtl8187x_txdone
  *
  * Description:
  *   An interrupt was received indicating that the last TX packet(s) is done
  *
  * Parameters:
- *   wlan  - Reference to the driver state structure
+ *   priv  - Reference to the driver state structure
  *
  * Returned Value:
  *   None
@@ -1304,7 +1498,7 @@ static void wlan_receive(FAR struct wlan_driver_s *wlan)
  *
  ****************************************************************************/
 
-static void wlan_txdone(FAR struct wlan_driver_s *wlan)
+static void rtl8187x_txdone(FAR struct rtl8187x_state_s *priv)
 {
   /* Check for errors and update statistics */
 
@@ -1312,54 +1506,15 @@ static void wlan_txdone(FAR struct wlan_driver_s *wlan)
    * disable further Tx interrupts.
    */
 
-  wd_cancel(wlan->wl_txtimeout);
+  wd_cancel(priv->txtimeout);
 
   /* Then poll uIP for new XMIT data */
 
-  (void)uip_poll(&wlan->wl_dev, wlan_uiptxpoll);
+  (void)uip_poll(&priv->ethdev, rtl8187x_uiptxpoll);
 }
 
 /****************************************************************************
- * Function: wlan_interrupt
- *
- * Description:
- *   Hardware interrupt handler
- *
- * Parameters:
- *   irq     - Number of the IRQ that generated the interrupt
- *   context - Interrupt register state save info (architecture-specific)
- *
- * Returned Value:
- *   OK on success
- *
- * Assumptions:
- *
- ****************************************************************************/
-
-static int wlan_interrupt(int irq, FAR void *context)
-{
-  register FAR struct wlan_driver_s *wlan = &g_wlan1[0];
-
-  /* Get and clear interrupt status bits */
-
-  /* Handle interrupts according to status bit settings */
-
-  /* Check if we received an incoming packet, if so, call wlan_receive() */
-
-  wlan_receive(wlan);
-
-  /* Check is a packet transmission just completed.  If so, call wlan_txdone.
-   * This may disable further Tx interrupts if there are no pending
-   * tansmissions.
-   */
-
-  wlan_txdone(wlan);
-
-  return OK;
-}
-
-/****************************************************************************
- * Function: wlan_txtimeout
+ * Function: rtl8187x_txtimeout
  *
  * Description:
  *   Our TX watchdog timed out.  Called from the timer interrupt handler.
@@ -1377,9 +1532,9 @@ static int wlan_interrupt(int irq, FAR void *context)
  *
  ****************************************************************************/
 
-static void wlan_txtimeout(int argc, uint32_t arg, ...)
+static void rtl8187x_txtimeout(int argc, uint32_t arg, ...)
 {
-  FAR struct wlan_driver_s *wlan = (FAR struct wlan_driver_s *)arg;
+  FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)arg;
 
   /* Increment statistics and dump debug info */
 
@@ -1387,11 +1542,11 @@ static void wlan_txtimeout(int argc, uint32_t arg, ...)
 
   /* Then poll uIP for new XMIT data */
 
-  (void)uip_poll(&wlan->wl_dev, wlan_uiptxpoll);
+  (void)uip_poll(&priv->ethdev, rtl8187x_uiptxpoll);
 }
 
 /****************************************************************************
- * Function: wlan_polltimer
+ * Function: rtl8187x_polltimer
  *
  * Description:
  *   Periodic timer handler.  Called from the timer interrupt handler.
@@ -1408,9 +1563,9 @@ static void wlan_txtimeout(int argc, uint32_t arg, ...)
  *
  ****************************************************************************/
 
-static void wlan_polltimer(int argc, uint32_t arg, ...)
+static void rtl8187x_polltimer(int argc, uint32_t arg, ...)
 {
-  FAR struct wlan_driver_s *wlan = (FAR struct wlan_driver_s *)arg;
+  FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)arg;
 
   /* Check if there is room in the send another TX packet.  We cannot perform
    * the TX poll if he are unable to accept another packet for transmission.
@@ -1421,15 +1576,15 @@ static void wlan_polltimer(int argc, uint32_t arg, ...)
    * we will missing TCP time state updates?
    */
 
-  (void)uip_timer(&wlan->wl_dev, wlan_uiptxpoll, WLAN_POLLHSEC);
+  (void)uip_timer(&priv->ethdev, rtl8187x_uiptxpoll, WLAN_POLLHSEC);
 
   /* Setup the watchdog poll timer again */
 
-  (void)wd_start(wlan->wl_txpoll, WLAN_WDDELAY, wlan_polltimer, 1, arg);
+  (void)wd_start(priv->txpoll, WLAN_WDDELAY, rtl8187x_polltimer, 1, arg);
 }
 
 /****************************************************************************
- * Function: wlan_ifup
+ * Function: rtl8187x_ifup
  *
  * Description:
  *   NuttX Callback: Bring up the WLAN interface when an IP address is
@@ -1445,9 +1600,9 @@ static void wlan_polltimer(int argc, uint32_t arg, ...)
  *
  ****************************************************************************/
 
-static int wlan_ifup(struct uip_driver_s *dev)
+static int rtl8187x_ifup(struct uip_driver_s *dev)
 {
-  FAR struct wlan_driver_s *wlan = (FAR struct wlan_driver_s *)dev->d_private;
+  FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)dev->d_private;
 
   ndbg("Bringing up: %d.%d.%d.%d\n",
        dev->d_ipaddr & 0xff, (dev->d_ipaddr >> 8) & 0xff,
@@ -1457,17 +1612,16 @@ static int wlan_ifup(struct uip_driver_s *dev)
 
   /* Set and activate a timer process */
 
-  (void)wd_start(wlan->wl_txpoll, WLAN_WDDELAY, wlan_polltimer, 1, (uint32_t)wlan);
+  (void)wd_start(priv->txpoll, WLAN_WDDELAY, rtl8187x_polltimer, 1, (uint32_t)priv);
 
   /* Enable the WLAN interrupt */
 
-  wlan->wl_bifup = true;
-  up_enable_irq(CONFIG_WLAN_IRQ);
+  priv->bifup = true;
   return OK;
 }
 
 /****************************************************************************
- * Function: wlan_ifdown
+ * Function: rtl8187x_ifdown
  *
  * Description:
  *   NuttX Callback: Stop the interface.
@@ -1482,35 +1636,31 @@ static int wlan_ifup(struct uip_driver_s *dev)
  *
  ****************************************************************************/
 
-static int wlan_ifdown(struct uip_driver_s *dev)
+static int rtl8187x_ifdown(struct uip_driver_s *dev)
 {
-  FAR struct wlan_driver_s *wlan = (FAR struct wlan_driver_s *)dev->d_private;
+  FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)dev->d_private;
   irqstate_t flags;
-
-  /* Disable the WLAN interrupt */
-
-  flags = irqsave();
-  up_disable_irq(CONFIG_WLAN_IRQ);
 
   /* Cancel the TX poll timer and TX timeout timers */
 
-  wd_cancel(wlan->wl_txpoll);
-  wd_cancel(wlan->wl_txtimeout);
+  flags = irqsave();
+  wd_cancel(priv->txpoll);
+  wd_cancel(priv->txtimeout);
 
   /* Put the the EMAC is its reset, non-operational state.  This should be
-   * a known configuration that will guarantee the wlan_ifup() always
+   * a known configuration that will guarantee the rtl8187x_ifup() always
    * successfully brings the interface back up.
    */
 
   /* Mark the device "down" */
 
-  wlan->wl_bifup = false;
+  priv->bifup = false;
   irqrestore(flags);
   return OK;
 }
 
 /****************************************************************************
- * Function: wlan_txavail
+ * Function: rtl8187x_txavail
  *
  * Description:
  *   Driver callback invoked when new TX data is available.  This is a
@@ -1528,9 +1678,9 @@ static int wlan_ifdown(struct uip_driver_s *dev)
  *
  ****************************************************************************/
 
-static int wlan_txavail(struct uip_driver_s *dev)
+static int rtl8187x_txavail(struct uip_driver_s *dev)
 {
-  FAR struct wlan_driver_s *wlan = (FAR struct wlan_driver_s *)dev->d_private;
+  FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)dev->d_private;
   irqstate_t flags;
 
   /* Disable interrupts because this function may be called from interrupt
@@ -1541,13 +1691,13 @@ static int wlan_txavail(struct uip_driver_s *dev)
 
   /* Ignore the notification if the interface is not yet up */
 
-  if (wlan->wl_bifup)
+  if (priv->bifup)
     {
       /* Check if there is room in the hardware to hold another outgoing packet. */
 
       /* If so, then poll uIP for new XMIT data */
 
-      (void)uip_poll(&wlan->wl_dev, wlan_uiptxpoll);
+      (void)uip_poll(&priv->ethdev, rtl8187x_uiptxpoll);
     }
 
   irqrestore(flags);
@@ -1555,7 +1705,7 @@ static int wlan_txavail(struct uip_driver_s *dev)
 }
 
 /****************************************************************************
- * Function: wlan_addmac
+ * Function: rtl8187x_addmac
  *
  * Description:
  *   NuttX Callback: Add the specified MAC address to the hardware multicast
@@ -1573,9 +1723,9 @@ static int wlan_txavail(struct uip_driver_s *dev)
  ****************************************************************************/
 
 #ifdef CONFIG_NET_IGMP
-static int wlan_addmac(struct uip_driver_s *dev, FAR const uint8_t *mac)
+static int rtl8187x_addmac(struct uip_driver_s *dev, FAR const uint8_t *mac)
 {
-  FAR struct wlan_driver_s *wlan = (FAR struct wlan_driver_s *)dev->d_private;
+  FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)dev->d_private;
 
   /* Add the MAC address to the hardware multicast routing table */
 
@@ -1584,7 +1734,7 @@ static int wlan_addmac(struct uip_driver_s *dev, FAR const uint8_t *mac)
 #endif
 
 /****************************************************************************
- * Function: wlan_rmmac
+ * Function: rtl8187x_rmmac
  *
  * Description:
  *   NuttX Callback: Remove the specified MAC address from the hardware multicast
@@ -1602,9 +1752,9 @@ static int wlan_addmac(struct uip_driver_s *dev, FAR const uint8_t *mac)
  ****************************************************************************/
 
 #ifdef CONFIG_NET_IGMP
-static int wlan_rmmac(struct uip_driver_s *dev, FAR const uint8_t *mac)
+static int rtl8187x_rmmac(struct uip_driver_s *dev, FAR const uint8_t *mac)
 {
-  FAR struct wlan_driver_s *wlan = (FAR struct wlan_driver_s *)dev->d_private;
+  FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)dev->d_private;
 
   /* Add the MAC address to the hardware multicast routing table */
 
@@ -1613,7 +1763,7 @@ static int wlan_rmmac(struct uip_driver_s *dev, FAR const uint8_t *mac)
 #endif
 
 /****************************************************************************
- * Function: wlan_initialize
+ * Function: rtl8187x_initialize
  *
  * Description:
  *   Initialize the WLAN controller and driver
@@ -1629,59 +1779,36 @@ static int wlan_rmmac(struct uip_driver_s *dev, FAR const uint8_t *mac)
  *
  ****************************************************************************/
 
-static int wlan_initialize(int intf)
+static int rtl8187x_initialize(FAR struct rtl8187x_state_s *priv)
 {
-  struct wlan_driver_s *priv;
-
-  /* Get the interface structure associated with this interface number. */
-
-  DEBUGASSERT(intf < CONFIG_WLAN_NINTERFACES);
-  priv = &g_wlan1[intf];
-
-  /* Check if a WLAN chip is recognized at its I/O base */
-
-  /* Attach the IRQ to the driver */
-
-#if 0 /* @TODO resolve this */
-  if (irq_attach(CONFIG_WLAN_IRQ, wlan_interrupt))
-    {
-      /* We could not attach the ISR to the the interrupt */
-
-      return -EAGAIN;
-    }
-#endif
-
   /* Initialize the driver structure */
 
-  memset(priv, 0, sizeof(struct wlan_driver_s));
-  priv->wl_dev.d_ifup    = wlan_ifup;     /* I/F down callback */
-  priv->wl_dev.d_ifdown  = wlan_ifdown;   /* I/F up (new IP address) callback */
-  priv->wl_dev.d_txavail = wlan_txavail;  /* New TX data callback */
+  priv->ethdev.d_ifup    = rtl8187x_ifup;     /* I/F down callback */
+  priv->ethdev.d_ifdown  = rtl8187x_ifdown;   /* I/F up (new IP address) callback */
+  priv->ethdev.d_txavail = rtl8187x_txavail;  /* New TX data callback */
 #ifdef CONFIG_NET_IGMP
-  priv->wl_dev.d_addmac  = wlan_addmac;   /* Add multicast MAC address */
-  priv->wl_dev.d_rmmac   = wlan_rmmac;    /* Remove multicast MAC address */
+  priv->ethdev.d_addmac  = rtl8187x_addmac;   /* Add multicast MAC address */
+  priv->ethdev.d_rmmac   = rtl8187x_rmmac;    /* Remove multicast MAC address */
 #endif
-  priv->wl_dev.d_private = (void*)g_wlan1; /* Used to recover private state from dev */
+  priv->ethdev.d_private = (void*)priv;       /* Used to recover private state from dev */
 
   /* Create a watchdog for timing polling for and timing of transmisstions */
 
-  priv->wl_txpoll       = wd_create();   /* Create periodic poll timer */
-  priv->wl_txtimeout    = wd_create();   /* Create TX timeout timer */
+  priv->txpoll           = wd_create();       /* Create periodic poll timer */
+  priv->txtimeout        = wd_create();       /* Create TX timeout timer */
 
-  /* Put the interface in the down state.  This usually amounts to resetting
-   * the device and/or calling wlan_ifdown().
-   */
+  /* Put the interface in the down state. */
 
-  /* Read the MAC address from the hardware into priv->wl_dev.d_mac.ether_addr_octet */
+  rtl8187x_ifdown(&priv->ethdev);
 
   /* Register the device with the OS so that socket IOCTLs can be performed */
 
-  (void)netdev_register(&priv->wl_dev);
+  (void)netdev_register(&priv->ethdev);
   return OK;
 }
 
 /****************************************************************************
- * Function: wlan_initialize
+ * Function: rtl8187x_initialize
  *
  * Description:
  *   Initialize the WLAN controller and driver
@@ -1697,33 +1824,13 @@ static int wlan_initialize(int intf)
  *
  ****************************************************************************/
 
-static int wlan_uninitialize(int intf)
+static int rtl8187x_uninitialize(FAR struct rtl8187x_state_s *priv)
 {
-  struct wlan_driver_s *priv;
-
-  /* Get the interface structure associated with this interface number. */
-
-  DEBUGASSERT(intf < CONFIG_WLAN_NINTERFACES);
-  priv = &g_wlan1[intf];
-
-  /* Check if a WLAN chip is recognized at its I/O base */
-
-  /* Detach the IRQ from the driver */
-
-//  irq_detach(CONFIG_WLAN_IRQ); /* @TODO enable this code */
-
   /* Unregister the device */
 
-//  (void)netdev_unregister(&priv->wl_dev); /* @TODO implement this */
-
-  /* Uninitialize the driver structure */
-
-  memset(priv, 0, sizeof(struct wlan_driver_s));
-
+  (void)netdev_unregister(&priv->ethdev);
   return OK;
 }
-
-#endif /* CONFIG_NET && CONFIG_NET_WLAN */
 
 /****************************************************************************
  * Public Functions
@@ -1754,4 +1861,7 @@ int usbhost_wlaninit(void)
 
   return usbhost_registerclass(&g_wlan);
 }
+
+#endif /* CONFIG_USBHOST && CONFIG_NET && CONFIG_NET_WLAN */
+
 
