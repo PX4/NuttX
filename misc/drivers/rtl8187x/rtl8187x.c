@@ -209,7 +209,6 @@ struct rtl8187x_state_s
   struct work_s              wkrxpoll;     /* Perform RX poll on work thread */
   FAR struct usb_ctrlreq_s  *ctrlreq;      /* The allocated request buffer */
   FAR uint8_t               *tbuffer;      /* The allocated transfer buffer */
-  FAR uint8_t               *iobuffer;     /* The allocated I/O buffer */
   size_t                     tbuflen;      /* Size of the allocated transfer buffer */
   usbhost_ep_t               epin;         /* IN endpoint */
   usbhost_ep_t               epout;        /* OUT endpoint */
@@ -234,8 +233,8 @@ struct rtl8187x_state_s
   /* This holds the information visible to uIP/NuttX */
 
   struct uip_driver_s        ethdev;       /* Interface understood by uIP */
-  uint8_t rxbuf[CONFIG_NET_BUFSIZE + 2];
-  uint8_t txbuf[CONFIG_NET_BUFSIZE + 2];
+  FAR uint8_t               *txbuffer;     /* The allocated TX I/O buffer */
+  FAR uint8_t               *rxbuffer;     /* The allocated RX I/O buffer */
 };
 
 /****************************************************************************
@@ -1169,15 +1168,26 @@ static inline int rtl8187x_allocbuffers(FAR struct rtl8187x_state_s *priv)
       return ret;
     }
 
-  /* Allocate one I/O buffer big enough to hold one full packet plus
-   * the larger of the TX or RX descriptor.
+  /* Allocate one TX I/O buffer big enough to hold one full packet plus
+   * the TX descriptor.
    */
 
-  buflen = CONFIG_NET_BUFSIZE + 2 + MAX(SIZEOF_RXDESC, SIZEOF_TXDESC);
-  ret = DRVR_IOALLOC(priv->hcd, &priv->iobuffer, buflen);
+  buflen = CONFIG_NET_BUFSIZE + 2 + SIZEOF_TXDESC;
+  ret = DRVR_IOALLOC(priv->hcd, &priv->txbuffer, buflen);
   if (ret != OK)
     {
-      uvdbg("DRVR_ALLOC(iobuffer) failed: %d\n", ret);
+      uvdbg("DRVR_ALLOC(txbuffer) failed: %d\n", ret);
+    }
+
+  /* Allocate one RX I/O buffer big enough to hold one full packet plus
+   * the RX descriptor.
+   */
+
+  buflen = CONFIG_NET_BUFSIZE + 2 + SIZEOF_RXDESC;
+  ret = DRVR_IOALLOC(priv->hcd, &priv->rxbuffer, buflen);
+  if (ret != OK)
+    {
+      uvdbg("DRVR_ALLOC(rxbuffer) failed: %d\n", ret);
     }
 
   return ret;
@@ -1838,7 +1848,7 @@ static int rtl8187x_transmit(FAR struct rtl8187x_state_s *priv)
 
   /* Get exclusive access to the USB controller interface */
 
-  DEBUGASSERT(priv && priv->iobuffer);
+  DEBUGASSERT(priv && priv->txbuffer);
   rtl8187x_takesem(&priv->exclsem);
 
   /* Check if the RTL8187 is still connected */
@@ -1861,7 +1871,7 @@ static int rtl8187x_transmit(FAR struct rtl8187x_state_s *priv)
     }
   else
     {
-      FAR struct rtl8187x_txdesc_s *txdesc = (FAR struct rtl8187x_txdesc_s *)priv->iobuffer;
+      FAR struct rtl8187x_txdesc_s *txdesc = (FAR struct rtl8187x_txdesc_s *)priv->txbuffer;
       unsigned int datlen = priv->ethdev.d_len;
       uint32_t flags;
       uint32_t retry;
@@ -1870,7 +1880,9 @@ static int rtl8187x_transmit(FAR struct rtl8187x_state_s *priv)
 
       RTL8187X_STATS(priv, transmitted);
 
-      /* Construct the TX descriptor at the beginning of the IO buffer */
+      /* Construct the TX descriptor at the beginning of the IO buffer.  This
+       * memory was previously reserved just for this use.
+       */
 
       flags               = datlen | RTL8187X_TXDESC_FLAG_NOENC | RTL8187X_RATE_11 << 24;
       txdesc->flags       = rtl8187x_host2le32(flags);
@@ -1881,13 +1893,9 @@ static int rtl8187x_transmit(FAR struct rtl8187x_state_s *priv)
                             (0 << 8);               /* retry lim */
       txdesc->retry       = rtl8187x_host2le32(retry);
 
-      /* Then copy the packet to send into the I/O buffer after the TX descriptor */
-
-      memcpy(&priv->iobuffer[SIZEOF_TXDESC], priv->ethdev.d_buf, datlen);
-
       /* And transfer the packet */
 
-      ret = DRVR_TRANSFER(priv->hcd, priv->epout, priv->iobuffer, datlen + SIZEOF_TXDESC);
+      ret = DRVR_TRANSFER(priv->hcd, priv->epout, priv->txbuffer, datlen + SIZEOF_TXDESC);
       if (ret != OK)
         {
           RTL8187X_STATS(priv, txfailed);
@@ -1984,9 +1992,12 @@ static void rtl8187x_txpollwork(FAR void *arg)
       hsecs          = (priv->lastpoll - now + CLK_TCK / 4) / (CLK_TCK / 2);
       priv->lastpoll = now;
 
-      /* Update TCP timing states and poll uIP for new XMIT data. */
+      /* Update TCP timing states and poll uIP for new XMIT data. Pass an
+       * offset address into the txbuffer, reserving space for the TX
+       * descriptor at the beginning of the buffer.
+       */
 
-      priv->ethdev.d_buf = priv->txbuf;
+      priv->ethdev.d_buf = &priv->txbuffer[SIZEOF_TXDESC];
       (void)uip_timer(&priv->ethdev, rtl8187x_uiptxpoll, (int)hsecs);
       uip_unlock(lock);
     }
@@ -2047,8 +2058,7 @@ static void rtl8187x_txpolltimer(int argc, uint32_t arg, ...)
  *
  * Description:
  *   Called upon receipt of a new USB packet on the epin endpoint.  Analyzes
- *   the RX header, copies the packet into priv->rxbuf, and returns the
- *   packet length
+ *   the RX header in priv->rxbuffer and returns the packet length
  *
  * Parameters:
  *   priv  - Reference to the driver state structure
@@ -2089,7 +2099,7 @@ static inline int rtl8187x_receive(FAR struct rtl8187x_state_s *priv,
 
   /* The RX descriptor lies at the end of the IO buffer */
 
-  rxdesc = (struct rtl8187x_rxdesc_s *)(priv->iobuffer + (iolen - SIZEOF_RXDESC));
+  rxdesc = (struct rtl8187x_rxdesc_s *)(priv->rxbuffer + (iolen - SIZEOF_RXDESC));
   flags  = rtl8187x_le2host32(rxdesc->flags);
   if (flags & RTL8187X_RXDESC_FLAG_CRC32ERR)
     {
@@ -2150,9 +2160,10 @@ static inline int rtl8187x_receive(FAR struct rtl8187x_state_s *priv,
       return -EINVAL;
     }
 
-  /* Copy the frame into the uIP RX buffer and return the packet length */
+  /* Return the packet length.  This is the length of the value packet
+   * data at the beginning of the buffer (we no longer need the RX descriptor)
+   */
 
-  memcpy(priv->rxbuf, priv->iobuffer, rxlen);
   *pktlen = rxlen;
   return OK;
 }
@@ -2161,8 +2172,8 @@ static inline int rtl8187x_receive(FAR struct rtl8187x_state_s *priv,
  * Function: rtl8187x_rxdispatch
  *
  * Description:
- *   Analyzes the ethernet header of the received packet (in priv->rxbuf) and
- *   fowards valid Ethernet packets to uIP.
+ *   Analyzes the ethernet header of the received packet (in priv->rxbuffer)
+ *   and fowards valid Ethernet packets to uIP.
  *
  * Parameters:
  *   priv  - Reference to the driver state structure
@@ -2179,13 +2190,13 @@ static inline int rtl8187x_receive(FAR struct rtl8187x_state_s *priv,
 static inline void rtl8187x_rxdispatch(FAR struct rtl8187x_state_s *priv,
                                        unsigned int pktlen)
 {
-  FAR struct uip_eth_hdr *ethhdr = (FAR struct uip_eth_hdr *)priv->rxbuf;
+  FAR struct uip_eth_hdr *ethhdr = (FAR struct uip_eth_hdr *)priv->rxbuffer;
   uip_lock_t lock;
 
   /* Get exclusive access to uIP */
 
   lock               = uip_lock();
-  priv->ethdev.d_buf = priv->rxbuf;
+  priv->ethdev.d_buf = priv->rxbuffer;
   priv->ethdev.d_len = pktlen;
 
   /* We only accept IP packets of the configured type and ARP packets */
@@ -2256,9 +2267,11 @@ static void rtl8187x_rxpollwork(FAR void *arg)
 {
   FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)arg;
   
-  /* Get exclusive access to the USB controller interface and the iobuffer */
+  /* Get exclusive access to the USB controller interface and the device
+   * structure
+   */
 
-  DEBUGASSERT(priv && priv->iobuffer);
+  DEBUGASSERT(priv && priv->rxbuffer);
   rtl8187x_takesem(&priv->exclsem);
 
   /* Verify that the RTL8187 is still connected and that the interface is up */
@@ -2270,7 +2283,7 @@ static void rtl8187x_rxpollwork(FAR void *arg)
 
       /* Attempt to read from the bulkin endpoint */
 
-      ret = DRVR_TRANSFER(priv->hcd, priv->epin, priv->iobuffer,
+      ret = DRVR_TRANSFER(priv->hcd, priv->epin, priv->rxbuffer,
                           CONFIG_NET_BUFSIZE + SIZEOF_RXDESC + 2);
 
       /* How dow we get the length of the transfer? */
@@ -2286,7 +2299,9 @@ static void rtl8187x_rxpollwork(FAR void *arg)
           ret = rtl8187x_receive(priv, iolen, &pktlen);
           if (ret == OK)
             {
-              /* Now we can relinquish the USB interface and iobuffer */
+              /* Now we can relinquish the USB interface and device
+               * structure.
+               */
 
               rtl8187x_givesem(&priv->exclsem);
 
@@ -2467,10 +2482,13 @@ static int rtl8187x_txavail(struct uip_driver_s *dev)
     {
       uip_lock_t lock;
 
-      /* If so, then poll uIP for new XMIT data */
+      /* If so, then poll uIP for new XMIT data.  Pass the offset address
+       * into the txbuffer, reserving space for the TX descriptor at the
+       * beginning of the buffer.
+       */
 
       lock = uip_lock();
-      priv->ethdev.d_buf = priv->txbuf;
+      priv->ethdev.d_buf = &priv->txbuffer[SIZEOF_TXDESC];
       (void)uip_poll(&priv->ethdev, rtl8187x_uiptxpoll);
       uip_unlock(lock);
     }
