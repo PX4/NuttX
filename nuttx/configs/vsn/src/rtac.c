@@ -1,9 +1,10 @@
 /****************************************************************************
- * apps/nshlib/nsh_apps.c
+ * config/vsn/src/rtac.c
+ * arch/arm/src/board/rtac.c
  *
- *   Copyright (C) 2011 Gregory Nutt. All rights reserved.
  *   Copyright (C) 2011 Uros Platise. All rights reserved.
- *   Author: Uros Platise <uros.platise@isotel.eu>
+ *
+ *   Authors: Uros Platise <uros.platise@isotel.eu>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,43 +35,26 @@
  *
  ****************************************************************************/
 
-/****************************************************************************
- * Included Files
- ****************************************************************************/
-
-#include <nuttx/config.h>
-
-#ifdef CONFIG_SCHED_WAITPID
-#  include <sys/wait.h>
-#endif
-
-#include <stdbool.h>
-#include <errno.h>
-
-#include <apps/apps.h>
-
-#include "nsh.h"
-
-#ifdef CONFIG_NSH_BUILTIN_APPS
+/** \file
+ *  \author Uros Platise
+ *  \brief Real Time Alarm Clock
+ * 
+ * Implementation of the Real-Time Alarm Clock as per SNP Specifications.
+ * It provides real-time and phase controlled timer module while it 
+ * cooperates with hardware RTC for low-power operation.
+ * 
+ * It provides a replacement for a system 32-bit UTC time/date counter.
+ * 
+ * It runs at maximum STM32 allowed precision of 16384 Hz, providing 
+ * resolution of 61 us, required by the Sensor Network Protocol.
+ */
 
 /****************************************************************************
  * Definitions
  ****************************************************************************/
 
 /****************************************************************************
- * Private Types
- ****************************************************************************/
-
-/****************************************************************************
- * Private Function Prototypes
- ****************************************************************************/
-
-/****************************************************************************
  * Private Data
- ****************************************************************************/
-
-/****************************************************************************
- * Public Data
  ****************************************************************************/
 
 /****************************************************************************
@@ -81,59 +65,18 @@
  * Public Functions
  ****************************************************************************/
 
-/****************************************************************************
- * Name: nsh_execute
- ****************************************************************************/
-
-int nsh_execapp(FAR struct nsh_vtbl_s *vtbl, FAR const char *cmd,
-                FAR char *argv[])
+/** Execute from a group of events
+ **/
+int rtac_execg(int group)
 {
-   int ret = OK;
-   FAR const char * name;
-
-   /* Try to find command within pre-built application list. */
-
-   ret = exec_nuttapp(cmd, argv);
-   if (ret < 0)
-     {
-       int err = -errno;
-       int i;
-
-       /* On failure, list the set of available built-in commands */
-
-       nsh_output(vtbl, "Builtin Apps: ");
-       for (i = 0; (name = nuttapp_getname(i)) != NULL; i++)
-         {
-           nsh_output(vtbl, "%s ", name);
-         }
-       nsh_output(vtbl, "\nand type 'help' for more NSH commands.\n\n");
-
-       /* If the failing command was '?', then do not report an error */
-       
-       if (strcmp(cmd, "?") != 0)
-         {
-           return err;
-         }
-
-       return OK;
-     }
-
-#ifdef CONFIG_SCHED_WAITPID
-   if (vtbl->np.np_bg == false)
-     {
-       waitpid(ret, NULL, 0);
-     }
-   else
-#endif
-     {
-       struct sched_param param;
-       sched_getparam(0, &param);
-       nsh_output(vtbl, "%s [%d:%d]\n", cmd, ret, param.sched_priority);
-     }
-
-   return OK;
+    // called by each thread to spawn its apps given by its ID or group ID of
+    // multiple threads, when group parameter is set.
 }
 
-#endif /* CONFIG_NSH_BUILTIN_APPS */
 
-
+/** Wait and execute from a group of events
+ **/
+int rtac_waitg(int group, int time)
+{
+    // blocking variant of rtac_exec with timeout if specified
+}
