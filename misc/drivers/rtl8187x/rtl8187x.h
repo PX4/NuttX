@@ -445,3 +445,4 @@ struct rtl8187x_txdesc_s
 #define SIZEOF_TXDESC 12
 
 #endif /* __DRIVERS_NET_RTL8187X_H */
+

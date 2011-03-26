@@ -63,6 +63,7 @@
 #include <debug.h>
 
 #include <nuttx/fs.h>
+#include <nuttx/clock.h>
 #include <nuttx/arch.h>
 #include <nuttx/wqueue.h>
 #include <nuttx/irq.h>
@@ -83,6 +84,14 @@
  ****************************************************************************/
 
 /* Configuration ************************************************************/
+
+#ifndef CONFIG_NET_NOINTS
+#  warning "CONFIG_NET_NOINTS must be set"
+#endif
+
+#ifndef CONFIG_NET_MULTIBUFFER
+#  warning "CONFIG_NET_MULTIBUFFER must be set"
+#endif
 
 #ifndef CONFIG_SCHED_WORKQUEUE
 #  warning "Worker thread support is required (CONFIG_SCHED_WORKQUEUE)"
@@ -107,16 +116,16 @@
 
 /* TX poll delay = 1 seconds. CLK_TCK is the number of clock ticks per second */
 
-#define RTL8187X_WDDELAY    (1*CLK_TCK)
-#define RTL8187X_POLLHSEC   (1*2)
+#define RTL8187X_TXDELAY    (1*CLK_TCK)
+#define RTL8187X_RETRYDELAY (CLK_TCK/2)
+
+/* RX poll delay = 100 millseconds. */
+
+#define RTL8187X_RXDELAY    (CLK_TCK / 10)
 
 /* TX timeout = 1 minute */
 
 #define RTL8187X_TXTIMEOUT  (60*CLK_TCK)
-
-/* This is a helper pointer for accessing the contents of the WLAN header */
-
-#define BUF ((struct uip_eth_hdr *)priv->ethdev.d_buf)
 
 /* Statistics helper */
 
@@ -192,15 +201,19 @@ struct rtl8187x_state_s
   uint8_t                    signal;       /* Estimated signal strength */
   int8_t                     crefs;        /* >0: The driver is busy and cannot be destoryed */
   uint16_t                   rxpwrbase;    /* RX power base */
+  uint32_t                   lastpoll;     /* Time of last poll */
   sem_t                      exclsem;      /* Used to maintain mutual exclusive access */
-  struct work_s              work;         /* For interacting with the worker thread */
+  struct work_s              wkdisconn;    /* For performing disconnect on the worker thread */
+  struct work_s              wktxpoll;     /* Perform TX poll on work thread */
+  struct work_s              wkrxpoll;     /* Perform RX poll on work thread */
   FAR struct usb_ctrlreq_s  *ctrlreq;      /* The allocated request buffer */
   FAR uint8_t               *tbuffer;      /* The allocated transfer buffer */
   FAR uint8_t               *iobuffer;     /* The allocated I/O buffer */
   size_t                     tbuflen;      /* Size of the allocated transfer buffer */
   usbhost_ep_t               epin;         /* IN endpoint */
   usbhost_ep_t               epout;        /* OUT endpoint */
-  WDOG_ID                    txpoll;       /* Ethernet TX poll timer */
+  WDOG_ID                    wdtxpoll;     /* TX poll timer */
+  WDOG_ID                    wdrxpoll;     /* RX poll timer */
 
   /* Chip-specific function pointers  */
 
@@ -220,7 +233,9 @@ struct rtl8187x_state_s
   /* This holds the information visible to uIP/NuttX */
 
   struct uip_driver_s        ethdev;       /* Interface understood by uIP */
- };
+  uint8_t rxbuf[CONFIG_NET_BUFSIZE + 2];
+  uint8_t txbuf[CONFIG_NET_BUFSIZE + 2];
+};
 
 /****************************************************************************
  * Private Function Prototypes
@@ -309,16 +324,17 @@ static void rtl8187x_write(FAR struct rtl8187x_state_s *priv, uint8_t addr,
 
 static int rtl8187x_transmit(FAR struct rtl8187x_state_s *priv);
 static int rtl8187x_uiptxpoll(struct uip_driver_s *dev);
+static void rtl8187x_txpollwork(FAR void *arg);
+static void rtl8187x_txpolltimer(int argc, uint32_t arg, ...);
 
 /* RX logic */
 
-static int rtl8187x_receive(FAR struct rtl8187x_state_s *priv, unsigned int iolen);
+static inline int rtl8187x_receive(FAR struct rtl8187x_state_s *priv, unsigned int iolen, unsigned int *pktlen);
+static inline int rtl8187x_rxdispatch(FAR struct rtl8187x_state_s *priv, unsigned int pktlen);
+static void rtl8187x_rxpollwork(FAR void *arg);
+static void rtl8187x_rxpolltimer(int argc, uint32_t arg, ...);
 
-/* Watchdog timer expirations */
-
-static void rtl8187x_polltimer(int argc, uint32_t arg, ...);
-
-/* NuttX callback functions */
+/* Network callback functions */
 
 static int rtl8187x_ifup(struct uip_driver_s *dev);
 static int rtl8187x_ifdown(struct uip_driver_s *dev);
@@ -1317,9 +1333,10 @@ static FAR struct usbhost_class_s *rtl8187x_create(FAR struct usbhost_driver_s *
 
       if (rtl8187x_allocdevno(priv) == OK)
         {
-          /* Create a watchdog for timing polling for and timing of transmisstions */
+          /* Create a watchdog for timed polling for and timing of transfers */
 
-          priv->txpoll             = wd_create();       /* Create periodic poll timer */
+          priv->wdtxpoll            = wd_create();       /* Create periodic TX poll timer */
+          priv->wdrxpoll            = wd_create();       /* Create periodic RX poll timer */
 
          /* Initialize class method function pointers */
 
@@ -1463,25 +1480,13 @@ static int rtl8187x_disconnected(struct usbhost_class_s *class)
   ullvdbg("crefs: %d\n", priv->crefs);
   if (--priv->crefs <= 0)
     {
-      /* Destroy the class instance.  If we are executing from an interrupt
-       * handler, then defer the destruction to the worker thread.
-       * Otherwise, destroy the instance now.
+      /* Destroy the class instance.  Defer the destruction to the worker thread.
+       * (in case we were callded from an interrupt handler).
        */
 
-      if (up_interrupt_context())
-        {
-          /* Destroy the instance on the worker thread. */
-
-          uvdbg("Queuing destruction: worker %p->%p\n", priv->work.worker, rtl8187x_destroy);
-          DEBUGASSERT(priv->work.worker == NULL);
-          (void)work_queue(&priv->work, rtl8187x_destroy, priv, 0);
-       }
-      else
-        {
-          /* Do the work now */
-
-          rtl8187x_destroy(priv);
-        }
+      ullvdbg("Queuing destruction: worker %p->%p\n", priv->wkdisconn.worker, rtl8187x_destroy);
+      DEBUGASSERT(priv->wkdisconn.worker == NULL);
+      (void)work_queue(&priv->wkdisconn, rtl8187x_destroy, priv, 0);
     }
 
   /* Unregister WLAN network interface */
@@ -1885,13 +1890,13 @@ static int rtl8187x_transmit(FAR struct rtl8187x_state_s *priv)
   DEBUGASSERT(priv && priv->iobuffer);
   rtl8187x_takesem(&priv->exclsem);
 
-  /* Check if the mass storage device is still connected */
+  /* Check if the RTL8187 is still connected */
 
   if (priv->disconnected)
     {
-      /* No... the block driver is no longer bound to the class.  That means that
-       * the USB storage device is no longer connected.  Refuse any attempt to
-       * write to the device.
+      /* No... the wan driver is no longer bound to the class.  That means that
+       * the USB device is no longer connected.  Refuse any attempt to write to
+       * the device.
        */
 
       ret = -ENODEV;
@@ -1936,8 +1941,8 @@ static int rtl8187x_transmit(FAR struct rtl8187x_state_s *priv)
         {
           RTL8187X_STATS(priv, txfailed);
         }
-      rtl8187x_givesem(&priv->exclsem);
     }
+  rtl8187x_givesem(&priv->exclsem);
 
   return ret;
 }
@@ -1960,9 +1965,9 @@ static int rtl8187x_transmit(FAR struct rtl8187x_state_s *priv)
  *   OK on success; a negated errno on failure
  *
  * Assumptions:
- *   May or may not be called from an interrupt handler.  In either case,
- *   global interrupts are disabled, either explicitly or indirectly through
- *   interrupt handling logic.
+ *  Never called from an interrupt handler.  The polling process was
+ *  initiated by a normal thread (possibly the worker thread).  The initiator
+ *  has called uip_lock() to assure that we have exclusive access to uIP.
  *
  ****************************************************************************/
 
@@ -1978,10 +1983,6 @@ static int rtl8187x_uiptxpoll(struct uip_driver_s *dev)
     {
       uip_arp_out(&priv->ethdev);
       rtl8187x_transmit(priv);
-
-      /* Check if there is room in the device to hold another packet. If not,
-       * return a non-zero value to terminate the poll.
-       */
     }
 
   /* If zero is returned, the polling will continue until all connections have
@@ -1992,28 +1993,132 @@ static int rtl8187x_uiptxpoll(struct uip_driver_s *dev)
 }
 
 /****************************************************************************
- * Function: rtl8187x_receive
+ * Function: rtl8187x_txpollwork
  *
  * Description:
- *   Called upon receipt of a new USB packet on the epin endpoint
+ *   Periodic timer handler.  The poll occurs on the worker thread. The
+ *   poll work was scheduled by rtl8187x_txpolltimer when the poll timer
+ *   expired.
  *
  * Parameters:
- *   priv  - Reference to the driver state structure
- *   iolen - The sized of the received USB packet
+ *   arg  - The passed argument (priv)
  *
  * Returned Value:
  *   None
  *
  * Assumptions:
- *   Global interrupts are disabled by interrupt handling logic.
+ *   Global interrupts are disabled by the watchdog logic.
  *
  ****************************************************************************/
 
-static int rtl8187x_receive(FAR struct rtl8187x_state_s *priv, unsigned int iolen)
+static void rtl8187x_txpollwork(FAR void *arg)
+{
+  FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)arg;
+  
+  /* Verify that the RTL8187 is still connected and that the interface is up */
+
+  if (!priv->disconnected && priv->bifup)
+    {
+      uip_lock_t lock;
+      uint32_t   now;
+      uint32_t   hsecs;
+
+      /* Get exclusive access to uIP */
+
+      lock = uip_lock();
+
+      /* Estimate the elapsed time in hsecs since the last poll */
+
+      now            = g_system_timer;
+      hsecs          = (priv->lastpoll - now + CLK_TCK / 4) / (CLK_TCK / 2);
+      priv->lastpoll = now;
+
+      /* Update TCP timing states and poll uIP for new XMIT data. */
+
+      priv->ethdev.d_buf = priv->txbuf;
+      (void)uip_timer(&priv->ethdev, rtl8187x_uiptxpoll, (int)hsecs);
+      uip_unlock(lock);
+    }
+}
+
+/****************************************************************************
+ * Function: rtl8187x_txpolltimer
+ *
+ * Description:
+ *   Periodic timer handler.  Called from the timer interrupt handler. The
+ *   actually polling is performed by on the work threader thread by
+ *   rtl8187x_txpollwork().
+ *
+ * Parameters:
+ *   argc - The number of available arguments
+ *   arg  - The first argument
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions:
+ *   Global interrupts are disabled by the watchdog logic.
+ *
+ ****************************************************************************/
+
+static void rtl8187x_txpolltimer(int argc, uint32_t arg, ...)
+{
+  FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)arg;
+  uint32_t delay = RTL8187X_TXDELAY;
+
+  /* Verify that the RTL8187 is still connected and that the interface is up */
+
+  if (!priv->disconnected && priv->bifup)
+    {
+      /* Check for over-run... What if the last queued poll work has not yet ran?
+       * That could be the case if the system were too busy, if we are polling to
+       * rapidly, or if something is hung.
+       */
+
+      if (priv->wktxpoll.worker != NULL)
+        {
+          ulldbg("ERROR: TX work overrun!\n");
+          delay = RTL8187X_RETRYDELAY;
+        }
+      else
+        {
+          (void)work_queue(&priv->wktxpoll, rtl8187x_txpollwork, priv, 0);
+        }
+    }
+
+  /* Setup the watchdog poll timer again -- possibly using a shorter retry delay */
+
+  (void)wd_start(priv->wdtxpoll, delay, rtl8187x_txpolltimer, 1, arg);
+}
+
+/****************************************************************************
+ * Function: rtl8187x_receive
+ *
+ * Description:
+ *   Called upon receipt of a new USB packet on the epin endpoint.  Analyzes
+ *   the RX header, copies the packet into priv->rxbuf, and returns the
+ *   packet length
+ *
+ * Parameters:
+ *   priv  - Reference to the driver state structure
+ *   iolen - The size of the received USB packet
+ *   pktlen - The returned size of the packet
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions:
+ *   The caller holds the exclsem and has exclusive access to the USB
+ *   interface.
+ *
+ ****************************************************************************/
+
+static inline int rtl8187x_receive(FAR struct rtl8187x_state_s *priv,
+                                   unsigned int iolen, unsigned int *pktlen)
 {
   struct rtl8187x_rxdesc_s *rxdesc;
   uint32_t flags;
-  uint16_t pktlen;
+  uint16_t rxlen;
   int      signal;
 
   /* Increment statistics */
@@ -2045,7 +2150,7 @@ static int rtl8187x_receive(FAR struct rtl8187x_state_s *priv, unsigned int iole
 
   /* Get the actual packet length and rate from the RX descriptor flags */
 
-  pktlen     = (flags & 0xfff) - 4;
+  rxlen     = (flags & 0xfff) - 4;
   priv->rate = (flags >> 20) & 0xf;
 
   /* Perform signal strength calculation */
@@ -2094,21 +2199,53 @@ static int rtl8187x_receive(FAR struct rtl8187x_state_s *priv, unsigned int iole
       return -EINVAL;
     }
 
-  /* Copy the frame into the uIP buffer */
+  /* Copy the frame into the uIP RX buffer and return the packet length */
 
-  
-  memcpy(priv->ethdev.d_buf, priv->iobuffer, pktlen);
+  memcpy(priv->rxbuf, priv->iobuffer, rxlen);
+  *pktlen = rxlen;
+  return OK;
+}
+
+/****************************************************************************
+ * Function: rtl8187x_rxdispatch
+ *
+ * Description:
+ *   Analyzes the ethernet header of the received packet (in priv->rxbuf) and
+ *   fowards valid Ethernet packets to uIP.
+ *
+ * Parameters:
+ *   priv  - Reference to the driver state structure
+ *   pktlen - Returned size of the packet
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions:
+ *   Global interrupts are disabled by interrupt handling logic.
+ *
+ ****************************************************************************/
+
+static inline int rtl8187x_rxdispatch(FAR struct rtl8187x_state_s *priv,
+                                      unsigned int pktlen)
+{
+  FAR struct uip_eth_hdr *ethhdr = (FAR struct uip_eth_hdr *)priv->rxbuf;
+  uip_lock_t lock;
+
+  /* Get exclusive access to uIP */
+
+  lock               = uip_lock();
+  priv->ethdev.d_buf = priv->rxbuf;
   priv->ethdev.d_len = pktlen;
 
   /* We only accept IP packets of the configured type and ARP packets */
 
 #ifdef CONFIG_NET_IPv6
-  if (BUF->type == HTONS(UIP_ETHTYPE_IP6))
+  if (ethhdr->type == HTONS(UIP_ETHTYPE_IP6))
 #else
-  if (BUF->type == HTONS(UIP_ETHTYPE_IP))
+  if (ethhdr->type == HTONS(UIP_ETHTYPE_IP))
 #endif
     {
-      RTL8187X_STATS(priv, rxippackets);   
+      RTL8187X_STATS(priv, rxippackets);
       uip_arp_ipin(&priv->ethdev);
       uip_input(&priv->ethdev);
 
@@ -2119,10 +2256,10 @@ static int rtl8187x_receive(FAR struct rtl8187x_state_s *priv, unsigned int iole
       if (priv->ethdev.d_len > 0)
         {
           uip_arp_out(&priv->ethdev);
-             rtl8187x_transmit(priv);
+          rtl8187x_transmit(priv);
         }
     }
-  else if (BUF->type == htons(UIP_ETHTYPE_ARP))
+  else if (ethhdr->type == htons(UIP_ETHTYPE_ARP))
     {
       RTL8187X_STATS(priv, rxarppackets);   
       uip_arp_arpin(&priv->ethdev);
@@ -2141,14 +2278,84 @@ static int rtl8187x_receive(FAR struct rtl8187x_state_s *priv, unsigned int iole
       RTL8187X_STATS(priv, rxbadproto);
       RTL8187X_STATS(priv, rxdropped);
     }
+
+  uip_unlock(lock);
   return OK;
 }
 
 /****************************************************************************
- * Function: rtl8187x_polltimer
+ * Function: rtl8187x_rxpollwork
  *
  * Description:
- *   Periodic timer handler.  Called from the timer interrupt handler.
+ *   Periodic timer handler.  The poll occurs on the worker thread. The
+ *   poll work was scheduled by rtl8187x_rxpolltimer when the poll timer
+ *   expired.
+ *
+ * Parameters:
+ *   arg  - The passed argument (priv)
+ *
+ * Returned Value:
+ *   None
+ *
+ * Assumptions:
+ *   Global interrupts are disabled by the watchdog logic.
+ *
+ ****************************************************************************/
+
+static void rtl8187x_rxpollwork(FAR void *arg)
+{
+  FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)arg;
+  
+  /* Get exclusive access to the USB controller interface and the iobuffer */
+
+  DEBUGASSERT(priv && priv->iobuffer);
+  rtl8187x_takesem(&priv->exclsem);
+
+  /* Verify that the RTL8187 is still connected and that the interface is up */
+
+  if (!priv->disconnected && priv->bifup)
+    {
+      unsigned int iolen;
+      int ret;
+
+      /* Attempt to read from the bulkin endpoint */
+
+      ret = DRVR_TRANSFER(priv->drvr, priv->epin, priv->iobuffer,
+                          CONFIG_NET_BUFSIZE + SIZEOF_RXDESC + 2);
+
+      /* How dow we get the length of the transfer? */
+#warning "Missing logic"
+      iolen = 0;
+
+      if (ret == OK)
+        {
+          unsigned int pktlen;
+
+          /* Analyze the packet and copy it into the RX buffer */
+
+          rtl8187x_receive(priv, iolen, &pktlen);
+
+          /* Now we can relinquish the USB interface and iobuffer */
+
+          rtl8187x_givesem(&priv->exclsem);
+
+          /* Send the packet to uIP */
+
+          rtl8187x_rxdispatch(priv, pktlen);
+          return;
+        }
+    }
+
+  rtl8187x_givesem(&priv->exclsem);
+}
+
+/****************************************************************************
+ * Function: rtl8187x_rxpolltimer
+ *
+ * Description:
+ *   Periodic timer handler.  Called from the timer interrupt handler. The
+ *   actually polling is performed by on the work threader thread by
+ *   rtl8187x_rxpollwork().
  *
  * Parameters:
  *   argc - The number of available arguments
@@ -2162,24 +2369,32 @@ static int rtl8187x_receive(FAR struct rtl8187x_state_s *priv, unsigned int iole
  *
  ****************************************************************************/
 
-static void rtl8187x_polltimer(int argc, uint32_t arg, ...)
+static void rtl8187x_rxpolltimer(int argc, uint32_t arg, ...)
 {
   FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)arg;
 
-  /* Check if there is room in the send another TX packet.  We cannot perform
-   * the TX poll if he are unable to accept another packet for transmission.
-   */
+  /* Verify that the RTL8187 is still connected and that the interface is up */
 
-  /* If so, update TCP timing states and poll uIP for new XMIT data. Hmmm..
-   * might be bug here.  Does this mean if there is a transmit in progress,
-   * we will missing TCP time state updates?
-   */
+  if (!priv->disconnected && priv->bifup)
+    {
+      /* Check for over-run... What if the last queued poll work has not yet ran?
+       * That could be the case if the system were too busy, if we are polling to
+       * rapidly, or if something is hung.
+       */
 
-  (void)uip_timer(&priv->ethdev, rtl8187x_uiptxpoll, RTL8187X_POLLHSEC);
+      if (priv->wkrxpoll.worker != NULL)
+        {
+          ulldbg("ERROR: RX work overrun!\n");
+        }
+      else
+        {
+          (void)work_queue(&priv->wkrxpoll, rtl8187x_rxpollwork, priv, 0);
+        }
+    }
 
-  /* Setup the watchdog poll timer again */
+  /* Setup the watchdog poll timer again -- possibly using a shorter retry delay */
 
-  (void)wd_start(priv->txpoll, RTL8187X_WDDELAY, rtl8187x_polltimer, 1, arg);
+  (void)wd_start(priv->wdrxpoll, RTL8187X_RXDELAY, rtl8187x_rxpolltimer, 1, arg);
 }
 
 /****************************************************************************
@@ -2213,11 +2428,16 @@ static int rtl8187x_ifup(struct uip_driver_s *dev)
   ret = rtl8187x_start(priv);
   if (ret == OK)
     {
-      /* Set and activate a timer process */
+      /* Set up and activate TX timer processes */
 
-      (void)wd_start(priv->txpoll, RTL8187X_WDDELAY, rtl8187x_polltimer, 1, (uint32_t)priv);
+      (void)wd_start(priv->wdtxpoll, RTL8187X_TXDELAY, rtl8187x_txpolltimer, 1, (uint32_t)priv);
+      priv->lastpoll = g_system_timer;
 
-      /* Mark the interface as up */
+      /* Set up and activate RX timer processes */
+
+      (void)wd_start(priv->wdrxpoll, RTL8187X_RXDELAY, rtl8187x_rxpolltimer, 1, (uint32_t)priv);
+
+      /* Mark the interface as up. */
 
       priv->bifup = true;
     }
@@ -2246,10 +2466,11 @@ static int rtl8187x_ifdown(struct uip_driver_s *dev)
   FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)dev->d_private;
   irqstate_t flags;
 
-  /* Cancel the TX poll timer and TX timeout timers */
+  /* Cancel the TX and RX poll timer. */
 
   flags = irqsave();
-  wd_cancel(priv->txpoll);
+  wd_cancel(priv->wdtxpoll);
+  wd_cancel(priv->wdrxpoll);
 
   /* Put the the EMAC is its non-operational state.  This should be a known
    * configuration that will guarantee the rtl8187x_ifup() always successfully
@@ -2287,26 +2508,21 @@ static int rtl8187x_ifdown(struct uip_driver_s *dev)
 static int rtl8187x_txavail(struct uip_driver_s *dev)
 {
   FAR struct rtl8187x_state_s *priv = (FAR struct rtl8187x_state_s *)dev->d_private;
-  irqstate_t flags;
-
-  /* Disable interrupts because this function may be called from interrupt
-   * level processing.
-   */
-
-  flags = irqsave();
 
   /* Ignore the notification if the interface is not yet up */
 
   if (priv->bifup)
     {
-      /* Check if there is room in the hardware to hold another outgoing packet. */
+      uip_lock_t lock;
 
       /* If so, then poll uIP for new XMIT data */
 
+      lock = uip_lock();
+      priv->ethdev.d_buf = priv->txbuf;
       (void)uip_poll(&priv->ethdev, rtl8187x_uiptxpoll);
+      uip_unlock(lock);
     }
 
-  irqrestore(flags);
   return OK;
 }
 
@@ -3742,10 +3958,11 @@ static int rtl8187x_netuninitialize(FAR struct rtl8187x_state_s *priv)
 {
   irqstate_t flags;
 
-  /* Cancel the TX poll timer and TX timeout timers */
+  /* Cancel the TX and RX poll timers */
 
   flags = irqsave();
-  wd_cancel(priv->txpoll);
+  wd_cancel(priv->wdtxpoll);
+  wd_cancel(priv->wdrxpoll);
 
   /* Mark the device "down" */
 
