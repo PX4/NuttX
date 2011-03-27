@@ -811,6 +811,10 @@ static inline int rtl8187x_cfgdesc(FAR struct rtl8187x_state_s *priv,
 
             /* Check for a bulk endpoint. */
 
+#warning "Review needed"
+/* For RTL8187B, the Linux driver hardcodes EP 3 for receiving and EP 2 for transmitting.
+ * Otherwise, it uses EP 1 receiving and some other EP for transmitting (maybe 12).
+ */
             if ((epdesc->attr & USB_EP_ATTR_XFERTYPE_MASK) == USB_EP_ATTR_XFER_BULK)
               {
                 /* Yes.. it is a bulk endpoint.  IN or OUT? */
@@ -1893,6 +1897,11 @@ static int rtl8187x_transmit(FAR struct rtl8187x_state_s *priv)
                             (0 << 8);               /* retry lim */
       txdesc->retry       = rtl8187x_host2le32(retry);
 
+#ifdef CONFIG_RTL8187B
+#warning "This number is bogus"
+      txdesc->txduration  = 40;
+#endif
+
       /* And transfer the packet */
 
       ret = DRVR_TRANSFER(priv->hcd, priv->epout, priv->txbuffer, datlen + SIZEOF_TXDESC);
@@ -2115,6 +2124,19 @@ static inline int rtl8187x_receive(FAR struct rtl8187x_state_s *priv,
   priv->rate = (flags >> 20) & 0xf;
 
   /* Perform signal strength calculation */
+
+#ifdef CONFIG_RTL8187B
+/* Linux has this:
+ *      signal = -4 - ((27 * hdr->agc) >> 6);
+ *      antenna = (hdr->signal >> 7) & 1;
+ *      mactime = le64_to_cpu(hdr->mac_time)
+ * Otherwise
+ *      signal = 14 - hdr->agc / 2;
+ *      antenna = (hdr->rssi >> 7) & 1;
+ *      mactime = le64_to_cpu(hdr->mac_time
+ */
+#warning "Signal computations must change for RTL8187B"
+#endif
 
   signal = rxdesc->agc >> 1;
   if (priv->rate)
@@ -3328,6 +3350,81 @@ static void rtl8225z2_rfinit(FAR struct rtl8187x_state_s *priv)
 }
 
 /****************************************************************************
+ * Function: rtl8187x_anaparam2on and rtl8187x_anaparamon
+ *
+ * Description:
+ *   Chip-specific TX power configuration
+ *
+ * Parameters:
+ *   priv - Private driver state information
+ *   channel - The selected channel
+ *
+ * Returned Value:
+ *   OK on success; Negated errno on failure.
+ *
+ * Assumptions:
+ *
+ ****************************************************************************/
+
+static void rtl8187x_anaparam2on(FAR struct rtl8187x_state_s *priv)
+{
+  uint8_t regval;
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_CONFIG);
+  regval = rtl8187x_ioread8(priv, RTL8187X_ADDR_CONFIG3);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3, regval | RTL8187X_CONFIG3_ANAPARAMWRITE);
+#ifdef CONFIG_RTL8187B
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM2, RTL8187B_RTL8225_ANAPARAM2_ON);
+#else
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM2, RTL8187X_RTL8225_ANAPARAM2_ON);
+#endif
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3, regval & ~RTL8187X_CONFIG3_ANAPARAMWRITE);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_NORMAL);
+}
+
+static void rtl8187x_anaparamon(FAR struct rtl8187x_state_s *priv)
+{
+  uint8_t regval;
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_CONFIG);
+  regval = rtl8187x_ioread8(priv, RTL8187X_ADDR_CONFIG3);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3, regval | RTL8187X_CONFIG3_ANAPARAMWRITE);
+
+#ifdef CONFIG_RTL8187B
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM, RTL8187B_RTL8225_ANAPARAM_ON);
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM2, RTL8187B_RTL8225_ANAPARAM2_ON);
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM3, RTL8187B_RTL8225_ANAPARAM3_ON);
+#else
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM, RTL8187X_RTL8225_ANAPARAM_ON);
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM2, RTL8187X_RTL8225_ANAPARAM2_ON);
+#endif
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3, regval & ~RTL8187X_CONFIG3_ANAPARAMWRITE);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_NORMAL);
+}
+
+static void rtl8187x_anaparamoff(FAR struct rtl8187x_state_s *priv)
+{
+  uint8_t regval;
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_CONFIG);
+  regval = rtl8187x_ioread8(priv, RTL8187X_ADDR_CONFIG3);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3, regval | RTL8187X_CONFIG3_ANAPARAMWRITE);
+
+#ifdef CONFIG_RTL8187B
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM, RTL8187B_RTL8225_ANAPARAM_OFF);
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM2, RTL8187B_RTL8225_ANAPARAM2_OFF);
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM3, RTL8187B_RTL8225_ANAPARAM3_OFF);
+#else
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM, RTL8187X_RTL8225_ANAPARAM_OFF);
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM2, RTL8187X_RTL8225_ANAPARAM2_OFF);
+#endif
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3, regval & ~RTL8187X_CONFIG3_ANAPARAMWRITE);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_NORMAL);
+}
+
+/****************************************************************************
  * Function: rtl8225_settxpower and 
  *
  * Description:
@@ -3377,14 +3474,7 @@ static void rtl8225_settxpower(FAR struct rtl8187x_state_s *priv, int channel)
 
   /* anaparam2 on */
 
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_CONFIG);
-  regval = rtl8187x_ioread8(priv, RTL8187X_ADDR_CONFIG3);
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
-                   regval | RTL8187X_CONFIG3_ANAPARAMWRITE);
-  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM2, RTL8225_ANAPARAM2_ON);
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
-                   regval & ~RTL8187X_CONFIG3_ANAPARAMWRITE);
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_NORMAL);
+  rtl8187x_anaparam2on(priv);
 
   rtl8187x_wrphyofdm(priv, 2, 0x42);
   rtl8187x_wrphyofdm(priv, 6, 0x00);
@@ -3440,14 +3530,7 @@ static void rtl8225z2_settxpower(FAR struct rtl8187x_state_s *priv, int channel)
 
   /* anaparam2 on */
 
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_CONFIG);
-  regval = rtl8187x_ioread8(priv, RTL8187X_ADDR_CONFIG3);
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
-                    regval | RTL8187X_CONFIG3_ANAPARAMWRITE);
-  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM2, RTL8225_ANAPARAM2_ON);
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
-                    regval & ~RTL8187X_CONFIG3_ANAPARAMWRITE);
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_NORMAL);
+  rtl8187x_anaparam2on(priv);
 
   rtl8187x_wrphyofdm(priv, 2, 0x42);
   rtl8187x_wrphyofdm(priv, 5, 0x00);
@@ -3481,17 +3564,122 @@ static int rtl8187x_reset(struct rtl8187x_state_s *priv)
   uint8_t regval;
   int i;
 
+#ifdef CONFIG_RTL8187B
+  int ret;
+
+  /* Turn on ANAPARAM */
+
+  rtl8187x_anaparamon(priv)
+
+  /* Reset PLL sequence on 8187B. Realtek note: reduces power
+   * consumption about 30 mA
+   */
+
+  rtl8187x_iowrite8(priv, (uint8_t *)0xFF61, 0x10);
+  regval = rtl818x_ioread8(priv, (uint8_t *)0xFF62);
+  rtl8187x_iowrite8(priv, (uint8_t *)0xFF62, regval & ~(1 << 5));
+  rtl8187x_iowrite8(priv, (uint8_t *)0xFF62, regval | (1 << 5));
+
+  ret = rtl8187_cmd_reset(dev);
+  if (ret != 0)
+          return ret;
+
+  rtl8187x_anaparamon(priv)
+
+  /* BRSR (Basic Rate Set Register) on 8187B looks to be the same as
+   * RESP_RATE on 8187L in Realtek sources: each bit should be each
+   * one of the 12 rates, all are enabled */
+  rtl8187x_iowrite16(priv, (__le16 *)0xFF34, 0x0FFF);
+
+  regval = rtl818x_ioread8(priv, &priv->map->CW_CONF);
+  regval |= RTL818X_CW_CONF_PERPACKET_RETRY_SHIFT;
+  rtl8187x_iowrite8(priv, &priv->map->CW_CONF, regval);
+
+  /* Auto Rate Fallback Register (ARFR): 1M-54M setting */
+  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFFE0, 0x0FFF, 1);
+  rtl8187x_iowrite8_idx(priv, (uint8_t *)0xFFE2, 0x00, 1);
+
+  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFFD4, 0xFFFF, 1);
+
+  rtl8187x_iowrite8(priv, &priv->map->EEPROM_CMD,
+                   RTL818X_EEPROM_CMD_CONFIG);
+  regval = rtl818x_ioread8(priv, &priv->map->CONFIG1);
+  rtl8187x_iowrite8(priv, &priv->map->CONFIG1, (regval & 0x3F) | 0x80);
+  rtl8187x_iowrite8(priv, &priv->map->EEPROM_CMD,
+                   RTL818X_EEPROM_CMD_NORMAL);
+
+  rtl8187x_iowrite8(priv, &priv->map->WPA_CONF, 0);
+  for (i = 0; i < ARRAY_SIZE(rtl8187b_reg_table); i++) {
+          rtl8187x_iowrite8_idx(priv,
+                              (uint8_t *)(uintptr_t)
+                               (rtl8187b_reg_table[i][0] | 0xFF00),
+                               rtl8187b_reg_table[i][1],
+                               rtl8187b_reg_table[i][2]);
+  }
+
+  rtl8187x_iowrite16(priv, &priv->map->TID_AC_MAP, 0xFA50);
+  rtl8187x_iowrite16(priv, &priv->map->INT_MIG, 0);
+
+  rtl8187x_iowrite32_idx(priv, (__le32 *)0xFFF0, 0, 1);
+  rtl8187x_iowrite32_idx(priv, (__le32 *)0xFFF4, 0, 1);
+  rtl8187x_iowrite8_idx(priv, (uint8_t *)0xFFF8, 0, 1);
+
+  rtl8187x_iowrite32(priv, &priv->map->RF_TIMING, 0x00004001);
+
+  /* RFSW_CTRL register */
+
+  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFF72, 0x569A, 2);
+
+  rtl8187x_iowrite16(priv, &priv->map->RFPinsOutput, 0x0480);
+  rtl8187x_iowrite16(priv, &priv->map->RFPinsSelect, 0x2488);
+  rtl8187x_iowrite16(priv, &priv->map->RFPinsEnable, 0x1FFF);
+  msleep(100);
+
+  priv->rf->init(dev);
+
+  regval = RTL818X_CMD_TX_ENABLE | RTL818X_CMD_RX_ENABLE;
+  rtl8187x_iowrite8(priv, &priv->map->CMD, regval);
+  rtl8187x_iowrite16(priv, &priv->map->INT_MASK, 0xFFFF);
+
+  rtl8187x_iowrite8(priv, (uint8_t *)0xFE41, 0xF4);
+  rtl8187x_iowrite8(priv, (uint8_t *)0xFE40, 0x00);
+  rtl8187x_iowrite8(priv, (uint8_t *)0xFE42, 0x00);
+  rtl8187x_iowrite8(priv, (uint8_t *)0xFE42, 0x01);
+  rtl8187x_iowrite8(priv, (uint8_t *)0xFE40, 0x0F);
+  rtl8187x_iowrite8(priv, (uint8_t *)0xFE42, 0x00);
+  rtl8187x_iowrite8(priv, (uint8_t *)0xFE42, 0x01);
+
+  regval = rtl818x_ioread8(priv, (uint8_t *)0xFFDB);
+  rtl8187x_iowrite8(priv, (uint8_t *)0xFFDB, regval | (1 << 2));
+  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFF72, 0x59FA, 3);
+  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFF74, 0x59D2, 3);
+  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFF76, 0x59D2, 3);
+  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFF78, 0x19FA, 3);
+  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFF7A, 0x19FA, 3);
+  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFF7C, 0x00D0, 3);
+  rtl8187x_iowrite8(priv, (uint8_t *)0xFF61, 0);
+  rtl8187x_iowrite8_idx(priv, (uint8_t *)0xFF80, 0x0F, 1);
+  rtl8187x_iowrite8_idx(priv, (uint8_t *)0xFF83, 0x03, 1);
+  rtl8187x_iowrite8(priv, (uint8_t *)0xFFDA, 0x10);
+  rtl8187x_iowrite8_idx(priv, (uint8_t *)0xFF4D, 0x08, 2);
+
+  rtl8187x_iowrite32(priv, &priv->map->HSSI_PARA, 0x0600321B);
+  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFFEC, 0x0800, 1);
+
+  priv->slot_time = 0x9;
+  priv->aifsn[0] = 2; /* AIFSN[AC_VO] */
+  priv->aifsn[1] = 2; /* AIFSN[AC_VI] */
+  priv->aifsn[2] = 7; /* AIFSN[AC_BK] */
+  priv->aifsn[3] = 3; /* AIFSN[AC_BE] */
+  rtl8187x_iowrite8(priv, &priv->map->ACM_CONTROL, 0);
+
+  /* ENEDCA flag must always be set, transmit issues? */
+  rtl8187x_iowrite8(priv, &priv->map->MSR, RTL818X_MSR_ENEDCA);
+#else
+
   /* reset */
 
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_CONFIG);
-  regval = rtl8187x_ioread8(priv, RTL8187X_ADDR_CONFIG3);
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
-                   regval | RTL8187X_CONFIG3_ANAPARAMWRITE);
-  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM, RTL8225_ANAPARAM_ON);
-  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM2, RTL8225_ANAPARAM2_ON);
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
-                   regval & ~RTL8187X_CONFIG3_ANAPARAMWRITE);
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_NORMAL);
+  rtl8187x_anaparamon(priv);
 
   rtl8187x_iowrite16(priv, RTL8187X_ADDR_INTMASK, 0);
 
@@ -3541,15 +3729,7 @@ static int rtl8187x_reset(struct rtl8187x_state_s *priv)
       return -ETIMEDOUT;
     }
 
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_CONFIG);
-  regval = rtl8187x_ioread8(priv, RTL8187X_ADDR_CONFIG3);
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
-                    regval | RTL8187X_CONFIG3_ANAPARAMWRITE);
-  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM, RTL8225_ANAPARAM_ON);
-  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM2, RTL8225_ANAPARAM2_ON);
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
-                    regval & ~RTL8187X_CONFIG3_ANAPARAMWRITE);
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_NORMAL);
+  rtl8187x_anaparamon(priv);
 
   /* Setup card */
 
@@ -3611,6 +3791,7 @@ static int rtl8187x_reset(struct rtl8187x_state_s *priv)
   rtl8187x_iowrite8(priv, RTL8187X_ADDR_TALLYSEL, 0x80);
   rtl8187x_iowrite8(priv, 0xffFF, 0x60);
   rtl8187x_iowrite8(priv, RTL8187X_ADDR_PGSELECT, regval);
+#endif
 
   return OK;
 }
@@ -3683,6 +3864,29 @@ static int rtl8187x_start(FAR struct rtl8187x_state_s *priv)
       return ret;
     }
 
+#ifdef CONFIG_RTL8187B
+
+  regval = RTL818X_RXCONF_MGMT | RTL818X_RXCONF_DATA | RTL818X_RXCONF_BROADCAST |
+           RTL818X_RXCONF_NICMAC | RTL818X_RX_ONF_BSSID |
+           (7 << 13 /* RX FIFO threshold NONE */) |
+           (7 << 10 /* MAX RX DMA */) |
+           RTL818X_RXCONF_RX_AUTORESETPHY | RTL818X_RXCONF_ONLYERLPKT | RTL818X_RXCONF_MULTICAST;
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_RXCONF, regval);
+
+  regval  = rtl8187x_ioread8(priv, RTL8187X_ADDR_TXAGCCTL);
+  regval &= ~RTL8187X_TXAGCCTL_PERPACKETGAINSHIFT;
+  regval &= ~RTL8187X_TXAGCCTL_PERPACKETANTSELSHIFT;
+  regval &= ~RTL8187X_TXAGCCTL_FEEDBACKANT;
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_TXAGCCTL, regval);
+
+  regval = RTL818X_TXCONF_HWSEQNUM | RTL818X_TXCONF_DISREQQSIZE |
+           (7 << 8  /* short retry limit */) |
+           (7 << 0  /* long retry limit */) |
+           (7 << 21 /* MAX TX DMA */);
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_TXCONF, regval);
+
+#else
+
   rtl8187x_iowrite16(priv, RTL8187X_ADDR_INTMASK, 0xffff);
 
   rtl8187x_iowrite32(priv, RTL8187X_ADDR_MAR0, ~0);
@@ -3713,7 +3917,7 @@ static int rtl8187x_start(FAR struct rtl8187x_state_s *priv)
   regval |= RTL8187X_CMD_TXENABLE;
   regval |= RTL8187X_CMD_RXENABLE;
   rtl8187x_iowrite8(priv, RTL8187X_ADDR_CMD, regval);
-
+#endif
   return OK;
 }
 
@@ -3749,15 +3953,7 @@ static void rtl8187x_stop(FAR struct rtl8187x_state_s *priv)
 
   /* RF stop */
 
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_CONFIG);
-  regval = rtl8187x_ioread8(priv, RTL8187X_ADDR_CONFIG3);
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
-                   regval | RTL8187X_CONFIG3_ANAPARAMWRITE);
-  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM2, RTL8225_ANAPARAM2_OFF);
-  rtl8187x_iowrite32(priv, RTL8187X_ADDR_ANAPARAM, RTL8225_ANAPARAM_OFF);
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG3,
-                   regval & ~RTL8187X_CONFIG3_ANAPARAMWRITE);
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_NORMAL);
+  rtl8187x_anaparamoff(priv);
 
   rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL8187X_EEPROMCMD_CONFIG);
   regval = rtl8187x_ioread8(priv, RTL8187X_ADDR_CONFIG4);
@@ -3810,6 +4006,10 @@ static int rtl8187x_setup(FAR struct rtl8187x_state_s *priv)
 
   udbg("%.4x%.4x%.4x", permaddr[0], permaddr[1], permaddr[2]);
 
+#define RTL8187X_EEPROM_TXPWRCHAN1      0x16  /* 3 channels */
+#define RTL8187X_EEPROM_TXPWRCHAN6      0x1b  /* 2 channels */
+#define RTL8187X_EEPROM_TXPWRCHAN4      0x3d  /* 2 channels */
+
   channel = priv->channels;
   for (i = 0; i < 3; i++)
     {
@@ -3825,12 +4025,28 @@ static int rtl8187x_setup(FAR struct rtl8187x_state_s *priv)
       (*channel++).val = txpwr >> 8;
     }
 
+#ifdef CONFIG_RTL8187B
+
+  rtl8187x_eeprom_read(&priv, RTL8187_EEPROM_TXPWR_CHAN_6, &txpwr);
+  (*channel++).val = txpwr & 0xff;
+
+  rtl8187x_eeprom_read(&priv, 0x0a, &txpwr);
+  (*channel++).val = txpwr & 0xff;
+
+  rtl8187x_eeprom_read(&priv, 0x1c, &txpwr);
+  (*channel++).val = txpwr & 0xff;
+  (*channel++).val= txpwr
+
+#else
+
   for (i = 0; i < 2; i++)
     {
       rtl8187x_eeprom_read(priv, RTL8187X_EEPROM_TXPWRCHAN6 + i, &txpwr);
       (*channel++).val = txpwr & 0xff;
       (*channel++).val = txpwr >> 8;
     }
+
+#endif
 
   rtl8187x_eeprom_read(priv, RTL8187X_EEPROM_TXPWRBASE, &priv->rxpwrbase);
 

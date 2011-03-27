@@ -253,53 +253,59 @@
 
 /* RT8187x Register Addresses ***********************************************/
 
+#define RTL8187X_ADDR_MAR0              0xff08
+#define RTL8187X_ADDR_MAR1              0xff0c
+#define RTL8187X_ADDR_BRSR              0xff2c
+#define RTL8187X_ADDR_RESPRATE          0xff34
+#define RTL8187X_ADDR_CMD               0xff37
+#define RTL8187X_ADDR_INTMASK           0xff3c
+#define RTL8187X_ADDR_TXCONF            0xff40
 #define RTL8187X_ADDR_RXCONF            0xff44
+#define RTL8187X_ADDR_INTTIMEOUT        0xff48
 #define RTL8187X_ADDR_EEPROMCMD         0xff50
+#define RTL8187X_ADDR_CONFIG1           0xff52
+#define RTL8187X_ADDR_ANAPARAM          0xff54
+#define RTL8187X_ADDR_CONFIG3           0xff59
+#define RTL8187X_ADDR_CONFIG4           0xff5a
+#define RTL8187X_ADDR_TESTR             0xff5b
 #define RTL8187X_ADDR_PGSELECT          0xff5e
+#define RTL8187X_ADDR_ANAPARAM2         0xff60
+#define RTL8187X_ADDR_PHY0              0xff7c
+#define RTL8187X_ADDR_PHY1              0xff7d
+#define RTL8187X_ADDR_PHY2              0xff7e
+#define RTL8187X_ADDR_PHY3              0xff7f
 #define RTL8187X_ADDR_RFPINSOUTPUT      0xff80
 #define RTL8187X_ADDR_RFPINSENABLE      0xff82
 #define RTL8187X_ADDR_RFPINSSELECT      0xff84
 #define RTL8187X_ADDR_RFPINSINPUT       0xff86
-#define RTL8187X_ADDR_TESTR             0xff5b
-#define RTL8187X_ADDR_TXANTENNA         0xff9f
-#define RTL8187X_ADDR_PHY3              0xff7f
-#define RTL8187X_ADDR_PHY2              0xff7e
-#define RTL8187X_ADDR_PHY1              0xff7d
-#define RTL8187X_ADDR_PHY0              0xff7c
-#define RTL8187X_ADDR_TXGAINCCK         0xff9d
-#define RTL8187X_ADDR_CONFIG3           0xff59
-#define RTL8187X_ADDR_ANAPARAM2         0xff60
-#define RTL8187X_ADDR_TXGAINOFDM        0xff9e
-
-#define RTL8187X_ADDR_ANAPARAM          0xff54
-#define RTL8187X_ADDR_INTMASK           0xff3c
-#define RTL8187X_ADDR_CMD               0xff37
-#define RTL8187X_ADDR_GPIO              0xff91
-#define RTL8187X_ADDR_GPENABLE          0xff90
-#define RTL8187X_ADDR_CONFIG1           0xff52
-#define RTL8187X_ADDR_INTTIMEOUT        0xff48
-#define RTL8187X_ADDR_WPACONF           0xffb0
-#define RTL8187X_ADDR_RATEFALLBACK      0xffbe
-#define RTL8187X_ADDR_RESPRATE          0xff34
-#define RTL8187X_ADDR_BRSR              0xff2c
-#define RTL8187X_ADDR_RFTIMING          0xff8c
 #define RTL8187X_ADDR_RFPARA            0xff88
-#define RTL8187X_ADDR_TALLYSEL          0xfffc
-#define RTL8187X_ADDR_INTMASK           0xff3c
-#define RTL8187X_ADDR_MAR0              0xff08
-#define RTL8187X_ADDR_MAR1              0xff0c
-#define RTL8187X_ADDR_CWCONF            0xffbc
+#define RTL8187X_ADDR_RFTIMING          0xff8c
+#define RTL8187X_ADDR_GPENABLE          0xff90
+#define RTL8187X_ADDR_GPIO              0xff91
 #define RTL8187X_ADDR_TXAGCCTL          0xff9c
-#define RTL8187X_ADDR_TXCONF            0xff40
-#define RTL8187X_ADDR_CMD               0xff37
-#define RTL8187X_ADDR_CONFIG4           0xff5a
+#define RTL8187X_ADDR_TXGAINCCK         0xff9d
+#define RTL8187X_ADDR_TXGAINOFDM        0xff9e
+#define RTL8187X_ADDR_TXANTENNA         0xff9f
+#define RTL8187X_ADDR_WPACONF           0xffb0
+#define RTL8187X_ADDR_CWCONF            0xffbc
+#define RTL8187X_ADDR_CWVAL             0xffbd
+#define RTL8187X_ADDR_RATEFALLBACK      0xffbe
+#define RTL8187X_ADDR_ANAPARAM3         0xffee
+#define RTL8187X_ADDR_TALLYSEL          0xfffc
 
 /* Other RTL8187x Register Values ******************************************/
 
-#define RTL8225_ANAPARAM_ON             0xa0000a59
-#define RTL8225_ANAPARAM2_ON            0x860c7312
-#define RTL8225_ANAPARAM_OFF            0xa00beb59
-#define RTL8225_ANAPARAM2_OFF           0x840dec11
+#define RTL8187X_RTL8225_ANAPARAM_ON    0xa0000a59
+#define RTL8187X_RTL8225_ANAPARAM2_ON   0x860c7312
+#define RTL8187X_RTL8225_ANAPARAM_OFF   0xa00beb59
+#define RTL8187X_RTL8225_ANAPARAM2_OFF  0x840dec11
+
+#define RTL8187B_RTL8225_ANAPARAM_ON    0x45090658
+#define RTL8187B_RTL8225_ANAPARAM2_ON   0x727f3f52
+#define RTL8187B_RTL8225_ANAPARAM3_ON   0x00
+#define RTL8187B_RTL8225_ANAPARAM_OFF   0x55480658
+#define RTL8187B_RTL8225_ANAPARAM2_OFF  0x72003f50
+#define RTL8187B_RTL8225_ANAPARAM3_OFF  0x00
 
 /* Standard Helper Macros ***************************************************/
 
@@ -323,101 +329,104 @@
  * Type Definitions
  ****************************************************************************/
 
- /* RTL-818x mapping struct */
+ /* Linux RTL-818x mapping struct.  This structure is not used in this driver
+  * and will, eventually, be removed. It is retained here now for reference.
+  * See the RTL8187x_ADDR_* definitions above.
+  */
 
 struct rtl8187x_csr_s 
 {
-  uint8_t   mac[6];
-  uint8_t   reserved_0[2];
-  uint32_t  mar[2];
-  uint8_t   rx_fifo_count;
-  uint8_t   reserved_1;
-  uint8_t   tx_fifo_count;
-  uint8_t   bqreq;
-  uint8_t   reserved_2[4];
-  uint32_t  tsft[2];
-  uint32_t  tlpda;
-  uint32_t  tnpda;
-  uint32_t  thpda;
-  uint16_t  brsr;
-  uint8_t   bssid[6];
-  uint8_t   resp_rate;
-  uint8_t   eifs;
-  uint8_t   reserved_3[1];
-  uint8_t   cmd;
-  uint8_t   reserved_4[4];
-  uint16_t  int_mask;
-  uint16_t  int_status;
-  uint32_t  tx_conf;
-  uint32_t  rx_conf;
-  uint32_t  int_timeout;
-  uint32_t  tbda;
-  uint8_t   eeprom_cmd;
-  uint8_t   config0;
-  uint8_t   config1;
-  uint8_t   config2;
-  uint32_t  anaparam;
-  uint8_t   msr;
-  uint8_t   config3;
-  uint8_t   config4;
-  uint8_t   testr;
-  uint8_t   reserved_9[2];
-  uint8_t   pgselect;
-  uint8_t   security;
-  uint32_t  anaparam2;
-  uint8_t   reserved_10[12];
-  uint16_t  beacon_interval;
-  uint16_t  atim_wnd;
-  uint16_t  beacon_interval_time;
-  uint16_t  atimtr_interval;
-  uint8_t   phy_delay;
-  uint8_t   carrier_sense_counter;
-  uint8_t   reserved_11[2];
-  uint8_t   phy[4];
-  uint16_t  rfpinsoutput;
-  uint16_t  rfpinsenable;
-  uint16_t  rfpinsselect;
-  uint16_t  rfpinsinput;
-  uint32_t  rf_para;
-  uint32_t  rf_timing;
-  uint8_t   gp_enable;
-  uint8_t   gpio0;
-  uint8_t   gpio1;
-  uint8_t   reserved_12;
-  uint32_t  hssi_para;
-  uint8_t   reserved_13[4];
-  uint8_t   tx_agc_ctl;
-  uint8_t   tx_gain_cck;
-  uint8_t   tx_gain_ofdm;
-  uint8_t   tx_antenna;
-  uint8_t   reserved_14[16];
-  uint8_t   wpa_conf;
-  uint8_t   reserved_15[3];
-  uint8_t   sifs;
-  uint8_t   difs;
-  uint8_t   slot;
-  uint8_t   reserved_16[5];
-  uint8_t   cw_conf;
-  uint8_t   cw_val;
-  uint8_t   rate_fallback;
-  uint8_t   acm_control;
-  uint8_t   reserved_17[24];
-  uint8_t   config5;
-  uint8_t   tx_dma_polling;
-  uint8_t   reserved_18[2];
-  uint16_t  cwr;
-  uint8_t   retry_ctr;
-  uint8_t   reserved_19[3];
-  uint16_t  int_mig;
-  uint32_t  rdsar;
-  uint16_t  tid_ac_map;
-  uint8_t   reserved_20[4];
-  uint8_t   anaparam3;
-  uint8_t   reserved_21[5];
-  uint16_t  femr;
-  uint8_t   reserved_22[4];
-  uint16_t  tally_cnt;
-  uint8_t   tally_sel;
+  uint8_t   mac[6];                /*                            0xff00-0xff05 */
+  uint8_t   reserved_0[2];         /*                            0xff06-0xff07 */
+  uint32_t  mar[2];                /* RTL8187X_ADDR_MARn         0xff08-0xff0f */
+  uint8_t   rx_fifo_count;         /*                            0xff10        */
+  uint8_t   reserved_1;            /*                            0xff11        */
+  uint8_t   tx_fifo_count;         /*                            0xff12        */
+  uint8_t   bqreq;                 /*                            0xff13        */
+  uint8_t   reserved_2[4];         /*                            0xff14-0xff17 */
+  uint32_t  tsft[2];               /*                            0xff18-0xff1f */
+  uint32_t  tlpda;                 /*                            0xff20        */
+  uint32_t  tnpda;                 /*                            0xff24        */
+  uint32_t  thpda;                 /*                            0xff28        */
+  uint16_t  brsr;                  /* RTL8187X_ADDR_BRSR         0xff2c        */
+  uint8_t   bssid[6];              /*                            0xff2e-0xff33 */
+  uint8_t   resp_rate;             /* RTL8187X_ADDR_RESPRATE     0xff34        */
+  uint8_t   eifs;                  /*                            0xff35        */
+  uint8_t   reserved_3[1];         /*                            0xff36        */
+  uint8_t   cmd;                   /* RTL8187X_ADDR_CMD          0xff37        */
+  uint8_t   reserved_4[4];         /*                            0xff38-0xff3b */
+  uint16_t  int_mask;              /* RTL8187X_ADDR_INTMASK      0xff3c        */
+  uint16_t  int_status;            /*                            0xff3e        */
+  uint32_t  tx_conf;               /* RTL8187X_ADDR_TXCONF       0xff40        */
+  uint32_t  rx_conf;               /* RTL8187X_ADDR_RXCONF       0xff44        */
+  uint32_t  int_timeout;           /* RTL8187X_ADDR_INTTIMEOUT   0xff48        */
+  uint32_t  tbda;                  /*                            0xff4c        */
+  uint8_t   eeprom_cmd;            /* RTL8187X_ADDR_EEPROMCMD    0xff50        */
+  uint8_t   config0;               /*                            0xff51        */
+  uint8_t   config1;               /* RTL8187X_ADDR_CONFIG1      0xff52        */
+  uint8_t   config2;               /*                            0xff53        */
+  uint32_t  anaparam;              /* RTL8187X_ADDR_ANAPARAM     0xff54        */
+  uint8_t   msr;                   /*                            0xff58        */
+  uint8_t   config3;               /* RTL8187X_ADDR_CONFIG3      0xff59        */
+  uint8_t   config4;               /* RTL8187X_ADDR_CONFIG4      0xff5a        */
+  uint8_t   testr;                 /* RTL8187X_ADDR_TESTR        0xff5b        */
+  uint8_t   reserved_9[2];         /*                            0xff5c-0xff5d */
+  uint8_t   pgselect;              /* RTL8187X_ADDR_PGSELECT     0xff5e        */
+  uint8_t   security;              /*                            0xff5f        */
+  uint32_t  anaparam2;             /* RTL8187X_ADDR_ANAPARAM2    0xff60        */
+  uint8_t   reserved_10[12];       /*                            0xff64-0xff6f */
+  uint16_t  beacon_interval;       /*                            0xff70        */
+  uint16_t  atim_wnd;              /*                            0xff72        */
+  uint16_t  beacon_interval_time;  /*                            0xff74        */
+  uint16_t  atimtr_interval;       /*                            0xff76        */
+  uint8_t   phy_delay;             /*                            0xff78        */
+  uint8_t   carrier_sense_counter; /*                            0xff79        */
+  uint8_t   reserved_11[2];        /*                            0xff7a-0xff7b */
+  uint8_t   phy[4];                /* RTL8187X_ADDR_PHYn         0xff7c-0xff7f */
+  uint16_t  rfpinsoutput;          /* RTL8187X_ADDR_RFPINSOUTPUT 0xff80        */
+  uint16_t  rfpinsenable;          /* RTL8187X_ADDR_RFPINSENABLE 0xff82        */
+  uint16_t  rfpinsselect;          /* RTL8187X_ADDR_RFPINSSELECT 0xff84        */
+  uint16_t  rfpinsinput;           /* RTL8187X_ADDR_RFPINSINPUT  0xff86        */
+  uint32_t  rf_para;               /* RTL8187X_ADDR_RFPARA       0xff88        */
+  uint32_t  rf_timing;             /* RTL8187X_ADDR_RFTIMING     0xff8c        */
+  uint8_t   gp_enable;             /* RTL8187X_ADDR_GPENABLE     0xff90        */
+  uint8_t   gpio0;                 /* RTL8187X_ADDR_GPIO         0xff91        */
+  uint8_t   gpio1;                 /*                            0xff92        */
+  uint8_t   reserved_12;           /*                            0xff93        */
+  uint32_t  hssi_para;             /*                            0xff94        */
+  uint8_t   reserved_13[4];        /*                            0xff98-0xff9d */
+  uint8_t   tx_agc_ctl;            /* RTL8187X_ADDR_TXAGCCTL     0xff9c        */
+  uint8_t   tx_gain_cck;           /* RTL8187X_ADDR_TXGAINCCK    0xff9d        */
+  uint8_t   tx_gain_ofdm;          /* RTL8187X_ADDR_TXGAINOFDM   0xff9e        */
+  uint8_t   tx_antenna;            /* RTL8187X_ADDR_TXANTENNA    0xff9f        */
+  uint8_t   reserved_14[16];       /*                            0xffa0-0xffaf */
+  uint8_t   wpa_conf;              /* RTL8187X_ADDR_WPACONF      0xffb0        */
+  uint8_t   reserved_15[3];        /*                            0xffb1-0xffb3 */
+  uint8_t   sifs;                  /*                            0xffb4        */
+  uint8_t   difs;                  /*                            0xffb5        */
+  uint8_t   slot;                  /*                            0xffb6        */
+  uint8_t   reserved_16[5];        /*                            0xffb7-0xffbb */
+  uint8_t   cw_conf;               /* RTL8187X_ADDR_CWCONF       0xffbc        */
+  uint8_t   cw_val;                /* RTL8187X_ADDR_CWVAL        0xffbd        */
+  uint8_t   rate_fallback;         /* RTL8187X_ADDR_RATEFALLBACK 0xffbe        */
+  uint8_t   acm_control;           /*                            0xffbf        */
+  uint8_t   reserved_17[24];       /*                            0xffc0-ffd7   */
+  uint8_t   config5;               /*                            0xffd8        */
+  uint8_t   tx_dma_polling;        /*                            0xffd9        */
+  uint8_t   reserved_18[2];        /*                            0xffda-0xffdb */
+  uint16_t  cwr;                   /*                            0xffdc        */
+  uint8_t   retry_ctr;             /*                            0xffde        */
+  uint8_t   reserved_19[3];        /*                            0xffdf-0xffe1 */
+  uint16_t  int_mig;               /*                            0xffe2        */
+  uint32_t  rdsar;                 /*                            0xffe4        */
+  uint16_t  tid_ac_map;            /*                            0xffe8        */
+  uint8_t   reserved_20[4];        /*                            0xffea-0xffed */
+  uint8_t   anaparam3;             /* RTL8187X_ADDR_ANAPARAM3    0xffee        */
+  uint8_t   reserved_21[5];        /*                            0xffef-0xfff3 */
+  uint16_t  femr;                  /*                            0xfff4        */
+  uint8_t   reserved_22[4];        /*                            0xfff6-0xfff9 */
+  uint16_t  tally_cnt;             /*                            0xfffa        */
+  uint8_t   tally_sel;             /* RTL8187X_ADDR_TALLYSEL     0xfffc        */
 } __attribute__ ((packed));
 
 /* RX and TX descriptors */
@@ -434,6 +443,23 @@ struct rtl8187x_rxdesc_s
 
 #define SIZEOF_RXDESC 16
 
+#ifdef CONFIG_RTL8187B
+struct rtl8187x_txdesc_s
+{
+  uint32_t flags;
+  uint16_t rtsduration;
+  uint16_t len;
+  uint32_t unused1;
+  uint16_t unused2;
+  uint16_t txduration;
+  uint32_t unused3;
+  uint32_t retry;
+  uint32_t unused4[2];
+} __attribute__((packed));
+
+#define SIZEOF_TXDESC 32
+
+#else
 struct rtl8187x_txdesc_s
 {
   uint32_t  flags;
@@ -443,6 +469,7 @@ struct rtl8187x_txdesc_s
 } __attribute__((packed));
 
 #define SIZEOF_TXDESC 12
+#endif
 
 #endif /* __DRIVERS_NET_RTL8187X_H */
 
