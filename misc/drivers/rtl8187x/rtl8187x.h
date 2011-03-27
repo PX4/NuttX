@@ -229,8 +229,8 @@
 
 /* Vendor-Specific Requests */
 
-#define RTL8187X_REQT_READ              0xc0
-#define RTL8187X_REQT_WRITE             0x40
+#define RTL8187X_REQT_READ              0xc0 /* DIR=IN  TYPE=VENDOR RECIPIENT=DEVICE */
+#define RTL8187X_REQT_WRITE             0x40 /* DIR=OUT TYPE=VENDOR RECIPIENT=DEVICE */
 #define RTL8187X_REQ_GETREG             0x05
 #define RTL8187X_REQ_SETREG             0x05
 
