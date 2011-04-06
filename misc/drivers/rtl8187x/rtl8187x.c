@@ -62,6 +62,7 @@
 #include <errno.h>
 #include <debug.h>
 
+#include <nuttx/kmalloc.h>
 #include <nuttx/fs.h>
 #include <nuttx/clock.h>
 #include <nuttx/arch.h>
@@ -628,7 +629,7 @@ static inline FAR struct rtl8187x_state_s *rtl8187x_allocclass(void)
   FAR struct rtl8187x_state_s *priv;
 
   DEBUGASSERT(!up_interrupt_context());
-  priv = (FAR struct rtl8187x_state_s *)malloc(sizeof(struct rtl8187x_state_s));
+  priv = (FAR struct rtl8187x_state_s *)kmalloc(sizeof(struct rtl8187x_state_s));
   uvdbg("Allocated: %p\n", priv);;
   return priv;
 }
@@ -656,7 +657,7 @@ static inline void rtl8187x_freeclass(FAR struct rtl8187x_state_s *class)
    */
 
   uvdbg("Freeing: %p\n", class);
-  free(class);
+  kfree(class);
 }
 
 /****************************************************************************
@@ -3454,7 +3455,6 @@ static void rtl8225_settxpower(FAR struct rtl8187x_state_s *priv, int channel)
 {
   uint8_t cck_power, ofdm_power;
   const uint8_t *tmp;
-  uint32_t regval;
   int i;
 
   cck_power = priv->channels[channel - 1].val & 0xf;
@@ -3505,7 +3505,6 @@ static void rtl8225z2_settxpower(FAR struct rtl8187x_state_s *priv, int channel)
   uint8_t cck_power;
   uint8_t ofdm_power;
   const uint8_t *tmp;
-  uint32_t regval;
   int i;
 
   cck_power  = priv->channels[channel - 1].val & 0xF;
