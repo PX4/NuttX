@@ -389,13 +389,22 @@ static int rtl8187x_netuninitialize(FAR struct rtl8187x_state_s *priv);
  * used to associate the USB class driver to a connected USB device.
  */
 
-static const const struct usbhost_id_s g_id =
+static const const struct usbhost_id_s g_id[2] =
 {
-  USB_CLASS_VENDOR_SPEC,  /* base */
-  0xff,                   /* subclass */
-  0xff,                   /* proto */
-  CONFIG_USB_WLAN_VID,    /* vid */
-  CONFIG_USB_WLAN_PID     /* pid */
+  {
+    USB_CLASS_VENDOR_SPEC,  /* base */
+    0xff,                   /* subclass */
+    0xff,                   /* proto */
+    CONFIG_USB_WLAN_VID,    /* vid */
+    CONFIG_USB_WLAN_PID     /* pid */
+  },
+  {
+    0,                      /* base */
+    0,                      /* subclass */
+    0,                      /* proto */
+    CONFIG_USB_WLAN_VID,    /* vid */
+    CONFIG_USB_WLAN_PID     /* pid */  
+  }
 };
 
 /* This is the USB host wireless LAN class's registry entry */
@@ -404,8 +413,8 @@ static struct usbhost_registry_s g_wlan =
 {
   NULL,                   /* flink    */
   rtl8187x_create,        /* create   */
-  1,                      /* nids     */
-  &g_id                   /* id[]     */
+  2,                      /* nids     */
+  g_id                    /* id[]     */
 };
 
 /* This is a bitmap that is used to allocate device names /dev/wlana-z. */

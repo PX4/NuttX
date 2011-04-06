@@ -1,9 +1,8 @@
 /****************************************************************************
- * apps/nshlib/nsh_apps.c
+ * arch/arm/src/cortexm3/up_memfault.c
  *
  *   Copyright (C) 2011 Gregory Nutt. All rights reserved.
- *   Copyright (C) 2011 Uros Platise. All rights reserved.
- *   Author: Uros Platise <uros.platise@isotel.eu>
+ *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -40,31 +39,27 @@
 
 #include <nuttx/config.h>
 
-#ifdef CONFIG_SCHED_WAITPID
-#  include <sys/wait.h>
+#include <assert.h>
+#include <debug.h>
+
+#include <arch/irq.h>
+
+#include "up_arch.h"
+#include "os_internal.h"
+#include "nvic.h"
+#include "up_internal.h"
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+#undef DEBUG_MEMFAULTS         /* Define to debug memory management faults */
+
+#ifdef DEBUG_MEMFAULTS
+# define mfdbg(format, arg...) lldbg(format, ##arg)
+#else
+# define mfdbg(x...)
 #endif
-
-#include <stdbool.h>
-#include <errno.h>
-#include <string.h>
-
-#include <apps/apps.h>
-
-#include "nsh.h"
-
-#ifdef CONFIG_NSH_BUILTIN_APPS
-
-/****************************************************************************
- * Definitions
- ****************************************************************************/
-
-/****************************************************************************
- * Private Types
- ****************************************************************************/
-
-/****************************************************************************
- * Private Function Prototypes
- ****************************************************************************/
 
 /****************************************************************************
  * Private Data
@@ -83,64 +78,33 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: nsh_execute
+ * Name: up_memfault
+ *
+ * Description:
+ *   This is Memory Management Fault exception handler.  Normally we get here
+ *   when the Cortex M3 MPU is enabled and an MPU fault is detected.  However,
+ *   I understand that there are other error conditions that can also generate
+ *   memory management faults.
+ *
  ****************************************************************************/
 
-int nsh_execapp(FAR struct nsh_vtbl_s *vtbl, FAR const char *cmd,
-                FAR char *argv[])
+int up_memfault(int irq, FAR void *context)
 {
-#ifndef CONFIG_APPS_BINDIR
-   FAR const char * name;
-#endif
-   int ret = OK;
+  /* Dump some memory management fault info */
 
-   /* Try to find command within pre-built application list. */
+  (void)irqsave();
+  lldbg("PANIC!!! Memory Management Fault:\n");
+  mfdbg("  IRQ: %d context: %p\n", irq, regs);
+  lldbg("  CFAULTS: %08x MMFAR: %08x\n",
+        getreg32(NVIC_CFAULTS), getreg32(NVIC_MEMMANAGE_ADDR));
+  mfdbg("  R0: %08x %08x %08x %08x %08x %08x %08x %08x\n",
+        regs[REG_R0],  regs[REG_R1],  regs[REG_R2],  regs[REG_R3],
+        regs[REG_R4],  regs[REG_R5],  regs[REG_R6],  regs[REG_R7]);
+  mfdbg("  R8: %08x %08x %08x %08x %08x %08x %08x %08x\n",
+        regs[REG_R8],  regs[REG_R9],  regs[REG_R10], regs[REG_R11],
+        regs[REG_R12], regs[REG_R13], regs[REG_R14], regs[REG_R15]);
+  mfdbg("  PSR=%08x\n", regs[REG_XPSR]);
 
-   ret = exec_namedapp(cmd, argv);
-   if (ret < 0)
-     {
-       int err = -errno;
-#ifndef CONFIG_APPS_BINDIR
-       int i;
-       
-       /* On failure, list the set of available built-in commands */
-
-       nsh_output(vtbl, "Builtin Apps: ");
-       for (i = 0; (name = namedapp_getname(i)) != NULL; i++)
-         {
-           nsh_output(vtbl, "%s ", name);
-         }
-       nsh_output(vtbl, "\nand type 'help' for more NSH commands.\n\n");
-
-       /* If the failing command was '?', then do not report an error */
-       
-       if (strcmp(cmd, "?") != 0)
-         {
-           return err;
-         }
-
-       return OK;
-#else
-       return err;
-#endif
-     }
-
-#ifdef CONFIG_SCHED_WAITPID
-   if (vtbl->np.np_bg == false)
-     {
-       waitpid(ret, NULL, 0);
-     }
-   else
-#endif
-     {
-       struct sched_param param;
-       sched_getparam(0, &param);
-       nsh_output(vtbl, "%s [%d:%d]\n", cmd, ret, param.sched_priority);
-     }
-
-   return OK;
+  PANIC(OSERR_UNEXPECTEDISR);
+  return OK;
 }
-
-#endif /* CONFIG_NSH_BUILTIN_APPS */
-
-
