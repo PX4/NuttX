@@ -94,5 +94,6 @@ buildroot-1.10 2011-xx-xx <spudmonkey@racsa.co.cr>
 	* toolchain/nxflat/nxflat.mk and Makefile - Fix include paths.
 	* toolchain/gcc/3.3.6 - Added a patch to fixed compilation error on Ubuntu
 	  9.10.
+	* toolchain/nxflat/Makefile - Correct static library link order.
 
 
