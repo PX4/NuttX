@@ -1,8 +1,9 @@
 ############################################################################
-# arch/arm/src/stm32/Make.defs
+# Makefile
 #
-#   Copyright (C) 2009, 2011 Gregory Nutt. All rights reserved.
-#   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
+#   Copyright (C) 2011 Uros Platise. All rights reserved.
+#   Author: Uros Platise <uros.platise@isotel.eu>
+#           Gregory Nutt <spudmonkey@racsa.co.cr>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -33,20 +34,81 @@
 #
 ############################################################################
 
-HEAD_ASRC	= stm32_vectors.S
+# TODO, this makefile should run make under the app dirs, instead of
+# sourcing the Make.defs!
 
-CMN_ASRCS	= up_saveusercontext.S up_fullcontextrestore.S up_switchcontext.S
-CMN_CSRCS	= up_allocateheap.c up_assert.c up_blocktask.c up_copystate.c \
-		  up_createstack.c up_mdelay.c up_udelay.c up_exit.c \
-		  up_initialize.c up_initialstate.c up_interruptcontext.c \
-		  up_memfault.c up_modifyreg8.c up_modifyreg16.c up_modifyreg32.c \
-		  up_releasepending.c up_releasestack.c up_reprioritizertr.c \
-		  up_schedulesigaction.c up_sigdeliver.c up_unblocktask.c \
-		  up_usestack.c up_doirq.c up_hardfault.c up_svcall.c
+-include $(TOPDIR)/.config
+-include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
-CHIP_ASRCS	= 
-CHIP_CSRCS	= stm32_start.c stm32_rcc.c stm32_gpio.c stm32_idle.c \
-		  stm32_irq.c stm32_timerisr.c stm32_dma.c stm32_lowputc.c \
-		  stm32_serial.c stm32_spi.c stm32_usbdev.c stm32_sdio.c \
-		  stm32_tim.c stm32_i2c.c stm32_pwr.c stm32_rtc.c stm32_waste.c
+ifeq ($(WINTOOL),y)
+INCDIROPT	= -w
+endif
 
+# Hello Application
+# TODO: appname can be automatically extracted from the directory name
+
+APPNAME		= sysinfo
+PRIORITY	= SCHED_PRIORITY_DEFAULT
+STACKSIZE	= 768
+
+ASRCS		=
+CSRCS		= sysinfo.c
+
+AOBJS		= $(ASRCS:.S=$(OBJEXT))
+COBJS		= $(CSRCS:.c=$(OBJEXT))
+
+SRCS		= $(ASRCS) $(CSRCS)
+OBJS		= $(AOBJS) $(COBJS)
+
+ifeq ($(WINTOOL),y)
+  BIN		= "${shell cygpath -w  $(APPDIR)/libapps$(LIBEXT)}"
+else
+  BIN		= "$(APPDIR)/libapps$(LIBEXT)"
+endif
+
+ROOTDEPPATH	= --dep-path .
+
+# Common build
+
+VPATH		= 
+
+all:	.built
+.PHONY: context depend clean distclean
+
+$(AOBJS): %$(OBJEXT): %.S
+	$(call ASSEMBLE, $<, $@)
+
+$(COBJS): %$(OBJEXT): %.c
+	$(call COMPILE, $<, $@)
+
+.built: $(OBJS)
+	@( for obj in $(OBJS) ; do \
+		$(call ARCHIVE, $(BIN), $${obj}); \
+	done ; )
+	@touch .built
+
+# Register application
+
+.context:
+	$(call REGISTER,$(APPNAME),$(PRIORITY),$(STACKSIZE),$(APPNAME)_main)
+	@touch $@
+
+context: .context
+
+# Create dependencies
+
+.depend: Makefile $(SRCS)
+	@$(MKDEP) $(ROOTDEPPATH) $(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
+	@touch $@
+
+depend: .depend
+
+clean:
+	@rm -f *.o *~ .*.swp .built
+	$(call CLEAN)
+
+distclean: clean
+	@rm -f .context Make.dep .depend
+
+-include Make.dep

@@ -1,5 +1,5 @@
-/************************************************************************************
- * arch/arm/src/stm32/stm32_rtc.h
+/****************************************************************************
+ * sysinfo/sysinfo.c
  *
  *   Copyright (C) 2011 Uros Platise. All rights reserved.
  *   Author: Uros Platise <uros.platise@isotel.eu>
@@ -31,50 +31,39 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ************************************************************************************/
-
-/************************************************************************************
- * Included Files
- ************************************************************************************/
-
-#ifndef __ARCH_ARM_SRC_STM32_STM32_RTC_H
-#define __ARCH_ARM_SRC_STM32_STM32_RTC_H
+ ****************************************************************************/
+ 
+/** \file
+ *  \brief System Information
+ *  \author Uros Platise
+ * 
+ * Collects and reports system information.
+ * 
+ * \todo Gather information also from low-level devices, kernel/sched, clock,
+ *   and further reporting as: sysinfo rtc, or sysinfo sched, ... with 
+ *   sysinfo help to report all of the options.
+ *
+ **/
 
 #include <nuttx/config.h>
+#include <nuttx/version.h>
+#include <time.h>
 
-#include "chip.h"
-#include "chip/stm32_rtc.h"
-#include "chip/stm32_bkp.h"
+#include <stdio.h>
+#include <stdlib.h>
 
-/************************************************************************************
- * Pre-processor Definitions
- ************************************************************************************/
 
-#define STM32_RTC_PRESCALER_SECOND      32767   /** Default prescaler to get a second base */
-#define STM32_RTC_PRESCALER_MIN         1       /** Maximum speed of 16384 Hz */
-
-#ifndef __ASSEMBLY__
-
-#undef EXTERN
-#if defined(__cplusplus)
-#define EXTERN extern "C"
-extern "C" {
-#else
-#define EXTERN extern
+int sysinfo_main(int argc, char *argv[])
+{
+	printf("System Information:\n");
+    
+    printf("\tNuttX Version:\t" CONFIG_VERSION_STRING " Build: %d\n", CONFIG_VERSION_BUILD);
+    
+    printf("\tSystem Time:\t%d [s] UTC "
+#ifdef CONFIG_RTC
+        "Hardware RTC Support"
 #endif
+        "\n", time(NULL) );
 
-/************************************************************************************
- * Public Functions
- ************************************************************************************/
-
-/** Set alarm output pin */
-EXTERN void stm32_rtc_settalarmpin(bool activate);
-
-
-/** \} */
-#undef EXTERN
-#if defined(__cplusplus)
+	return 0;
 }
-#endif
-#endif /* __ASSEMBLY__ */
-#endif /* __ARCH_ARM_SRC_STM32_STM32_RTC_H */
