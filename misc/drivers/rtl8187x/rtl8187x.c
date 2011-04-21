@@ -4011,12 +4011,7 @@ static int rtl8187x_setup(FAR struct rtl8187x_state_s *priv)
   usleep(10);
 
   rtl8187x_eeprom_multiread(priv, RTL8187X_EEPROM_MACADDR, permaddr, 3);
-
-  udbg("%.4x%.4x%.4x", permaddr[0], permaddr[1], permaddr[2]);
-
-#define RTL8187X_EEPROM_TXPWRCHAN1      0x16  /* 3 channels */
-#define RTL8187X_EEPROM_TXPWRCHAN6      0x1b  /* 2 channels */
-#define RTL8187X_EEPROM_TXPWRCHAN4      0x3d  /* 2 channels */
+  udbg("MAC address: %04x.%04x.%04x", permaddr[0], permaddr[1], permaddr[2]);
 
   channel = priv->channels;
   for (i = 0; i < 3; i++)
@@ -4084,9 +4079,22 @@ static int rtl8187x_setup(FAR struct rtl8187x_state_s *priv)
     }
 
   rtl8187x_write(priv, 0, 0x0b7);
+  
+  /* Save the MAC address in the device structure */
 
-  udbg("hwaddr %.4x%.4x%.4x, rtl8187 V%d + %s\n",
-       permaddr[0], permaddr[1], permaddr[2],
+  priv->ethdev.d_mac.ether_addr_octet[0] = permaddr[0] & 0xff;
+  priv->ethdev.d_mac.ether_addr_octet[1] = permaddr[0] >> 8;
+  priv->ethdev.d_mac.ether_addr_octet[2] = permaddr[1] & 0xff;
+  priv->ethdev.d_mac.ether_addr_octet[3] = permaddr[1] >> 8;
+  priv->ethdev.d_mac.ether_addr_octet[4] = permaddr[2] & 0xff;
+  priv->ethdev.d_mac.ether_addr_octet[5] = permaddr[2] >> 8;
+
+  /* Provide information about the RTL device */
+
+  udbg("hwaddr %02x.%02x.%02x.%02x.%02x.%02x, rtl8187 V%d + %s\n",
+       priv->ethdev.d_mac.ether_addr_octet[0], priv->ethdev.d_mac.ether_addr_octet[1],
+       priv->ethdev.d_mac.ether_addr_octet[2], priv->ethdev.d_mac.ether_addr_octet[3],
+       priv->ethdev.d_mac.ether_addr_octet[4], priv->ethdev.d_mac.ether_addr_octet[5],
        priv->asicrev,
        priv->rfinit == rtl8225_rfinit ? "rtl8225" : "rtl8225z2");
 
