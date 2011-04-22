@@ -781,7 +781,7 @@ static inline int rtl8187x_cfgdesc(FAR struct rtl8187x_state_s *priv,
   configdesc += cfgdesc->len;
   remaining  -= cfgdesc->len;
 
-  /* Loop where there are more dscriptors to examine */
+  /* Loop while there are more descriptors to examine */
 
   while (remaining >= sizeof(struct usb_desc_s))
     {
@@ -3583,106 +3583,107 @@ static int rtl8187x_reset(struct rtl8187x_state_s *priv)
    * consumption about 30 mA
    */
 
-  rtl8187x_iowrite8(priv, (uint8_t *)0xFF61, 0x10);
-  regval = rtl818x_ioread8(priv, (uint8_t *)0xFF62);
-  rtl8187x_iowrite8(priv, (uint8_t *)0xFF62, regval & ~(1 << 5));
-  rtl8187x_iowrite8(priv, (uint8_t *)0xFF62, regval | (1 << 5));
+  rtl8187x_iowrite8(priv, (uint8_t*)0xff61, 0x10);
+  regval = rtl818x_ioread8(priv, (uint8_t*)0xff62);
+  rtl8187x_iowrite8(priv, (uint8_t*)0xff62, regval & ~(1 << 5));
+  rtl8187x_iowrite8(priv, (uint8_t*)0xff62, regval | (1 << 5));
 
   ret = rtl8187_cmd_reset(dev);
   if (ret != 0)
-          return ret;
-
+    {
+      return ret;
+    }
   rtl8187x_anaparamon(priv)
 
   /* BRSR (Basic Rate Set Register) on 8187B looks to be the same as
    * RESP_RATE on 8187L in Realtek sources: each bit should be each
-   * one of the 12 rates, all are enabled */
-  rtl8187x_iowrite16(priv, (__le16 *)0xFF34, 0x0FFF);
+   * one of the 12 rates, all are enabled
+   */
 
-  regval = rtl818x_ioread8(priv, &priv->map->CW_CONF);
+  rtl8187x_iowrite16(priv, (uint16_t*)0xff34, 0x0fff);
+
+  regval = rtl818x_ioread8(priv, RTL8187X_ADDR_CWCONF);
   regval |= RTL818X_CW_CONF_PERPACKET_RETRY_SHIFT;
-  rtl8187x_iowrite8(priv, &priv->map->CW_CONF, regval);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CWCONF, regval);
 
   /* Auto Rate Fallback Register (ARFR): 1M-54M setting */
-  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFFE0, 0x0FFF, 1);
-  rtl8187x_iowrite8_idx(priv, (uint8_t *)0xFFE2, 0x00, 1);
 
-  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFFD4, 0xFFFF, 1);
+  rtl8187x_iowrite16_idx(priv, (uint16_t*)0xffe0, 0x0fff, 1);
+  rtl8187x_iowrite8_idx(priv, (uint8_t*)0xffe2, 0x00, 1);
+  rtl8187x_iowrite16_idx(priv, (uint16_t*)0xffd4, 0xffff, 1);
 
-  rtl8187x_iowrite8(priv, &priv->map->EEPROM_CMD,
-                   RTL818X_EEPROM_CMD_CONFIG);
-  regval = rtl818x_ioread8(priv, &priv->map->CONFIG1);
-  rtl8187x_iowrite8(priv, &priv->map->CONFIG1, (regval & 0x3F) | 0x80);
-  rtl8187x_iowrite8(priv, &priv->map->EEPROM_CMD,
-                   RTL818X_EEPROM_CMD_NORMAL);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL818X_EEPROMCMD_CONFIG);
+  regval = rtl818x_ioread8(priv, RTL8187X_ADDR_CONFIG1);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG1, (regval & 0x3F) | 0x80);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL818X_EEPROMCMD_NORMAL);
 
-  rtl8187x_iowrite8(priv, &priv->map->WPA_CONF, 0);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_WPACONF, 0);
   for (i = 0; i < ARRAY_SIZE(rtl8187b_reg_table); i++) {
           rtl8187x_iowrite8_idx(priv,
-                              (uint8_t *)(uintptr_t)
-                               (rtl8187b_reg_table[i][0] | 0xFF00),
+                               (uint8_t*)(uintptr_t)
+                               (rtl8187b_reg_table[i][0] | 0xff00),
                                rtl8187b_reg_table[i][1],
                                rtl8187b_reg_table[i][2]);
   }
 
-  rtl8187x_iowrite16(priv, &priv->map->TID_AC_MAP, 0xFA50);
-  rtl8187x_iowrite16(priv, &priv->map->INT_MIG, 0);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_TIDACMAP, 0xFA50);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_INTMIG, 0);
 
-  rtl8187x_iowrite32_idx(priv, (__le32 *)0xFFF0, 0, 1);
-  rtl8187x_iowrite32_idx(priv, (__le32 *)0xFFF4, 0, 1);
-  rtl8187x_iowrite8_idx(priv, (uint8_t *)0xFFF8, 0, 1);
+  rtl8187x_iowrite32_idx(priv, (uint32_t*)0xfff0, 0, 1);
+  rtl8187x_iowrite32_idx(priv, (uint32_t*)0xfff4, 0, 1);
+  rtl8187x_iowrite8_idx(priv, (uint8_t*)0xfff8, 0, 1);
 
-  rtl8187x_iowrite32(priv, &priv->map->RF_TIMING, 0x00004001);
+  rtl8187x_iowrite32(priv, RTL8187X_ADDR_RFTIMING, 0x00004001);
 
   /* RFSW_CTRL register */
 
-  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFF72, 0x569A, 2);
-
-  rtl8187x_iowrite16(priv, &priv->map->RFPinsOutput, 0x0480);
-  rtl8187x_iowrite16(priv, &priv->map->RFPinsSelect, 0x2488);
-  rtl8187x_iowrite16(priv, &priv->map->RFPinsEnable, 0x1FFF);
+  rtl8187x_iowrite16_idx(priv, (uint16_t*)0xFF72, 0x569A, 2);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, 0x0480);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSSELECT, 0x2488);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSENABLE, 0x1fff);
   msleep(100);
 
   priv->rf->init(dev);
 
   regval = RTL818X_CMD_TX_ENABLE | RTL818X_CMD_RX_ENABLE;
-  rtl8187x_iowrite8(priv, &priv->map->CMD, regval);
-  rtl8187x_iowrite16(priv, &priv->map->INT_MASK, 0xFFFF);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CMD, regval);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_INTMASK, 0xffff);
 
-  rtl8187x_iowrite8(priv, (uint8_t *)0xFE41, 0xF4);
-  rtl8187x_iowrite8(priv, (uint8_t *)0xFE40, 0x00);
-  rtl8187x_iowrite8(priv, (uint8_t *)0xFE42, 0x00);
-  rtl8187x_iowrite8(priv, (uint8_t *)0xFE42, 0x01);
-  rtl8187x_iowrite8(priv, (uint8_t *)0xFE40, 0x0F);
-  rtl8187x_iowrite8(priv, (uint8_t *)0xFE42, 0x00);
-  rtl8187x_iowrite8(priv, (uint8_t *)0xFE42, 0x01);
+  rtl8187x_iowrite8(priv, (uint8_t*)0xfe41, 0xf4);
+  rtl8187x_iowrite8(priv, (uint8_t*)0xfe40, 0x00);
+  rtl8187x_iowrite8(priv, (uint8_t*)0xfe42, 0x00);
+  rtl8187x_iowrite8(priv, (uint8_t*)0xfe42, 0x01);
+  rtl8187x_iowrite8(priv, (uint8_t*)0xfe40, 0x0f);
+  rtl8187x_iowrite8(priv, (uint8_t*)0xfe42, 0x00);
+  rtl8187x_iowrite8(priv, (uint8_t*)0xfe42, 0x01);
 
-  regval = rtl818x_ioread8(priv, (uint8_t *)0xFFDB);
-  rtl8187x_iowrite8(priv, (uint8_t *)0xFFDB, regval | (1 << 2));
-  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFF72, 0x59FA, 3);
-  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFF74, 0x59D2, 3);
-  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFF76, 0x59D2, 3);
-  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFF78, 0x19FA, 3);
-  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFF7A, 0x19FA, 3);
-  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFF7C, 0x00D0, 3);
-  rtl8187x_iowrite8(priv, (uint8_t *)0xFF61, 0);
-  rtl8187x_iowrite8_idx(priv, (uint8_t *)0xFF80, 0x0F, 1);
-  rtl8187x_iowrite8_idx(priv, (uint8_t *)0xFF83, 0x03, 1);
-  rtl8187x_iowrite8(priv, (uint8_t *)0xFFDA, 0x10);
-  rtl8187x_iowrite8_idx(priv, (uint8_t *)0xFF4D, 0x08, 2);
+  regval = rtl818x_ioread8(priv, (uint8_t*)0xffdb);
+  rtl8187x_iowrite8(priv, (uint8_t*)0xffdb, regval | (1 << 2));
+  rtl8187x_iowrite16_idx(priv, (uint16_t*)0xff72, 0x59fa, 3);
+  rtl8187x_iowrite16_idx(priv, (uint16_t*)0xff74, 0x59d2, 3);
+  rtl8187x_iowrite16_idx(priv, (uint16_t*)0xff76, 0x59d2, 3);
+  rtl8187x_iowrite16_idx(priv, (uint16_t*)0xff78, 0x19fa, 3);
+  rtl8187x_iowrite16_idx(priv, (uint16_t*)0xff7a, 0x19fa, 3);
+  rtl8187x_iowrite16_idx(priv, (uint16_t*)0xff7c, 0x00d0, 3);
+  rtl8187x_iowrite8(priv, (uint8_t*)0xff61, 0);
+  rtl8187x_iowrite8_idx(priv, (uint8_t*)0xff80, 0x0f, 1);
+  rtl8187x_iowrite8_idx(priv, (uint8_t*)0xff83, 0x03, 1);
+  rtl8187x_iowrite8(priv, (uint8_t*)0xffda, 0x10);
+  rtl8187x_iowrite8_idx(priv, (uint8_t*)0xff4d, 0x08, 2);
 
-  rtl8187x_iowrite32(priv, &priv->map->HSSI_PARA, 0x0600321B);
-  rtl8187x_iowrite16_idx(priv, (__le16 *)0xFFEC, 0x0800, 1);
+  rtl8187x_iowrite32(priv, rtl8187x_addr_hssipara, 0x0600321b);
+  rtl8187x_iowrite16_idx(priv, (uint16_t*)0xffec, 0x0800, 1);
 
   priv->slot_time = 0x9;
   priv->aifsn[0] = 2; /* AIFSN[AC_VO] */
   priv->aifsn[1] = 2; /* AIFSN[AC_VI] */
   priv->aifsn[2] = 7; /* AIFSN[AC_BK] */
   priv->aifsn[3] = 3; /* AIFSN[AC_BE] */
-  rtl8187x_iowrite8(priv, &priv->map->ACM_CONTROL, 0);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_ACMCONTROL, 0);
 
   /* ENEDCA flag must always be set, transmit issues? */
-  rtl8187x_iowrite8(priv, &priv->map->MSR, RTL818X_MSR_ENEDCA);
+
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_MSR, RTL818X_MSR_ENEDCA);
 #else
 
   /* reset */
