@@ -3614,7 +3614,7 @@ static int rtl8187x_reset(struct rtl8187x_state_s *priv)
 
   rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL818X_EEPROMCMD_CONFIG);
   regval = rtl818x_ioread8(priv, RTL8187X_ADDR_CONFIG1);
-  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG1, (regval & 0x3F) | 0x80);
+  rtl8187x_iowrite8(priv, RTL8187X_ADDR_CONFIG1, (regval & 0x3f) | 0x80);
   rtl8187x_iowrite8(priv, RTL8187X_ADDR_EEPROMCMD, RTL818X_EEPROMCMD_NORMAL);
 
   rtl8187x_iowrite8(priv, RTL8187X_ADDR_WPACONF, 0);
@@ -3626,7 +3626,7 @@ static int rtl8187x_reset(struct rtl8187x_state_s *priv)
                                rtl8187b_reg_table[i][2]);
   }
 
-  rtl8187x_iowrite16(priv, RTL8187X_ADDR_TIDACMAP, 0xFA50);
+  rtl8187x_iowrite16(priv, RTL8187X_ADDR_TIDACMAP, 0xfa50);
   rtl8187x_iowrite16(priv, RTL8187X_ADDR_INTMIG, 0);
 
   rtl8187x_iowrite32_idx(priv, (uint32_t*)0xfff0, 0, 1);
@@ -3637,7 +3637,7 @@ static int rtl8187x_reset(struct rtl8187x_state_s *priv)
 
   /* RFSW_CTRL register */
 
-  rtl8187x_iowrite16_idx(priv, (uint16_t*)0xFF72, 0x569A, 2);
+  rtl8187x_iowrite16_idx(priv, (uint16_t*)0xff72, 0x569a, 2);
   rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSOUTPUT, 0x0480);
   rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSSELECT, 0x2488);
   rtl8187x_iowrite16(priv, RTL8187X_ADDR_RFPINSENABLE, 0x1fff);
