@@ -29,6 +29,11 @@ GCC_DIR:=$(TOOL_BUILD_DIR)/gcc-$(GCC_OFFICIAL_VER)
 GCC_CAT:=$(BZCAT)
 GCC_STRIP_HOST_BINARIES:=true
 
+# gcc 4.6.x quadmath requires wchar
+ifneq ($(BR2_TOOLCHAIN_BUILDROOT_WCHAR),y)
+GCC_QUADMATH=--disable-libquadmath
+endif
+
 #############################################################
 #
 # Setup some initial stuff
@@ -36,8 +41,6 @@ GCC_STRIP_HOST_BINARIES:=true
 #############################################################
 
 GCC_TARGET_LANGUAGES:=c
-GCC_TARGET_PREREQ=
-GCC_STAGING_PREREQ=
 
 ifeq ($(BR2_INSTALL_LIBSTDCPP),y)
 GCC_TARGET_LANGUAGES:=$(GCC_TARGET_LANGUAGES),c++
@@ -60,7 +63,6 @@ GCC_SHARED_LIBGCC:=--disable-shared
 ifneq ($(BR2_ENABLE_LOCALE),y)
 GCC_ENABLE_CLOCALE:=--disable-clocale
 endif
-
 
 #############################################################
 #
@@ -100,7 +102,7 @@ endif
 endif
 	touch $@
 
-$(GCC_BUILD_DIR)/.configured: $(GCC_DIR)/.patched $(GCC_STAGING_PREREQ)
+$(GCC_BUILD_DIR)/.configured: $(GCC_DIR)/.patched
 	mkdir -p $(GCC_BUILD_DIR)
 	# Important!  Required for limits.h to be fixed.
 	ln -snf ../include/ $(STAGING_DIR)/$(REAL_GNU_TARGET_NAME)/sys-include

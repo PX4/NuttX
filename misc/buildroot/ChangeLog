@@ -89,11 +89,17 @@ buildroot-1.10 2011-xx-xx <spudmonkey@racsa.co.cr>
 	  .exe files).  That is probably not usable for most NuttX targets.
 	  Instead, you should use this i486-elf-gcc to generate true ELF binaries
 	  under Cygwin.
-	* Makefile - Alter copy arguements to avoid permissions problems when
+	* Makefile - Alter copy arguments to avoid permissions problems when
 	  copying NuttX header files.
 	* toolchain/nxflat/nxflat.mk and Makefile - Fix include paths.
 	* toolchain/gcc/3.3.6 - Added a patch to fixed compilation error on Ubuntu
 	  9.10.
 	* toolchain/nxflat/Makefile - Correct static library link order.
+	* configs/arm920t-defconfig-4.3.3 - Enable support for NXFLAT tools.
+	* toolchain/binutils/2.21 and toolchain/gcc/4.5.2 - Add support for GCC
+	  4.5.2 with binutils 2.21.
+	* configs/cortex-eabi-defconfig-4.5.2 - Add a configuration to build a
+	  GCC 4.5.2 EABI ARM toolchain for the Cortex-M3.
+
 
 

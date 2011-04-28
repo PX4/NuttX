@@ -8,22 +8,10 @@ BINUTILS_VERSION:=$(strip $(subst ",, $(BR2_BINUTILS_VERSION)))
 
 EXTRA_BINUTILS_CONFIG_OPTIONS=$(strip $(subst ",, $(BR2_EXTRA_BINUTILS_CONFIG_OPTIONS)))
 #"))
-BINUTILS_SITE:=ftp://ftp.kernel.org/pub/linux/devel/binutils
-ifeq ($(BINUTILS_VERSION),2.19.1)
-BINUTILS_SITE:=ftp://ftp.gnu.org/gnu/binutils/
-endif
-ifeq ($(BINUTILS_VERSION),2.19)
-BINUTILS_SITE:=ftp://ftp.gnu.org/gnu/binutils/
-endif
-ifeq ($(BINUTILS_VERSION),2.17)
-BINUTILS_SITE:=ftp://ftp.gnu.org/gnu/binutils/
-endif
+BINUTILS_SITE:=ftp://ftp.gnu.org/gnu/binutils
 
 # NOTE: Unlike the original buildroot binutils.mk, this version always relies on
 # the system libgmp and libmpfr which must be installed for certain binutils versions.
-
-BINUTILS_HOST_PREREQ:=
-BINUTILS_TARGET_PREREQ:=
 
 BINUTILS_SOURCE:=binutils-$(BINUTILS_VERSION).tar.bz2
 BINUTILS_DIR:=$(TOOL_BUILD_DIR)/binutils-$(BINUTILS_VERSION)
@@ -71,7 +59,7 @@ $(BINUTILS_DIR1)/binutils/objdump: $(BINUTILS_DIR1)/.configured
 $(STAGING_DIR)/$(REAL_GNU_TARGET_NAME)/bin/ld: $(BINUTILS_DIR1)/binutils/objdump
 	$(MAKE) -C $(BINUTILS_DIR1) install
 
-binutils: dependencies $(BINUTILS_HOST_PREREQ) $(STAGING_DIR)/$(REAL_GNU_TARGET_NAME)/bin/ld
+binutils: dependencies $(STAGING_DIR)/$(REAL_GNU_TARGET_NAME)/bin/ld
 
 binutils-source: $(DL_DIR)/$(BINUTILS_SOURCE)
 
@@ -124,7 +112,7 @@ $(TARGET_DIR)/usr/bin/ld: $(BINUTILS_DIR2)/binutils/objdump
 	-$(STRIP) $(TARGET_DIR)/usr/$(REAL_GNU_TARGET_NAME)/bin/* > /dev/null 2>&1
 	-$(STRIP) $(TARGET_DIR)/usr/bin/* > /dev/null 2>&1
 
-binutils_target: $(BINUTILS_TARGET_PREREQ) $(TARGET_DIR)/usr/bin/ld
+binutils_target: $(TARGET_DIR)/usr/bin/ld
 
 binutils_target-clean:
 	(cd $(TARGET_DIR)/usr/bin; \

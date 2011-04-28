@@ -46,7 +46,7 @@ avr-defconfig-4.3.3
 	is intended to support the NuttX ATmega128 port.
 
 cortexm3-defconfig-4.3.3
-	Builds an ARM toolchain for the Cortex-M3 using gcc 4.3.3.
+	Builds an OABI ARM toolchain for the Cortex-M3 using gcc 4.3.3.
 	This configuration builds gcc, g++ and the NXFLAT toolchain.
 
 cortexm3-defconfig-nxflat
@@ -54,6 +54,10 @@ arm926t-defconfig-nxflat
 	This configuration build an NXFLAT toolchain (only) for
 	use with the Cortex-M3 or ARM9 (untested on ARM9 as of this
 	writing).
+
+cortexm3-eabi-defconfig-4.5.2
+	Builds an EABI ARM toolchain for the Cortex-M3 using gcc 4.5.2.
+	This configuration builds gcc, g++ and the NXFLAT toolchain.
 
 bfin-defconfig-4.2.4
 	Builds an Blackfin toolchain using gcc 4.2.4
@@ -121,6 +125,8 @@ GENERAL BUILD STEPS
      sure that you have installed both the libraries and the header files.
      They may be located in separate packages."
 
+   Version 4.5.x and beyond also require the MPC package.
+ 
    You should try your package manager for whatever Linux version you are using
    first.  The header files are normally included in versions of the packages that
    have "-devel" in the package name.
