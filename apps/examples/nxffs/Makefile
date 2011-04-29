@@ -1,5 +1,5 @@
 ############################################################################
-# fs/nxffs/Make.defs
+# apps/examples/nxffs/Makefile
 #
 #   Copyright (C) 2011 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -14,7 +14,7 @@
 #    notice, this list of conditions and the following disclaimer in
 #    the documentation and/or other materials provided with the
 #    distribution.
-# 3. Neither the name Nuttx nor the names of its contributors may be
+# 3. Neither the name NuttX nor the names of its contributors may be
 #    used to endorse or promote products derived from this software
 #    without specific prior written permission.
 #
@@ -33,14 +33,61 @@
 #
 ############################################################################
 
-ifeq ($(CONFIG_FS_NXFFS),y)
-ASRCS +=
-CSRCS += nxffs_block.c nxffs_blockstats.c nxffs_cache.c nxffs_dirent.c \
-		 nxffs_initialize.c nxffs_inode.c nxffs_ioctl.c nxffs_open.c \
-		 nxffs_read.c nxffs_reformat.c nxffs_stat.c nxffs_unlink.c \
-		 nxffs_util.c nxffs_write.c
+-include $(TOPDIR)/.config
+-include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
-# Argument for dependency checking
+# Hello, World! Example
 
-NXFFSDEPPATH = --dep-path nxffs
+ASRCS		=
+CSRCS		= nxffs_main.c
+
+AOBJS		= $(ASRCS:.S=$(OBJEXT))
+COBJS		= $(CSRCS:.c=$(OBJEXT))
+
+SRCS		= $(ASRCS) $(CSRCS)
+OBJS		= $(AOBJS) $(COBJS)
+
+ifeq ($(WINTOOL),y)
+  BIN		= "${shell cygpath -w  $(APPDIR)/libapps$(LIBEXT)}"
+else
+  BIN		= "$(APPDIR)/libapps$(LIBEXT)"
 endif
+
+ROOTDEPPATH	= --dep-path .
+
+# Common build
+
+VPATH		= 
+
+all: .built
+.PHONY: clean depend distclean
+
+$(AOBJS): %$(OBJEXT): %.S
+	$(call ASSEMBLE, $<, $@)
+
+$(COBJS): %$(OBJEXT): %.c
+	$(call COMPILE, $<, $@)
+
+.built: $(OBJS)
+	@( for obj in $(OBJS) ; do \
+		$(call ARCHIVE, $(BIN), $${obj}); \
+	done ; )
+	@touch .built
+
+context:
+
+.depend: Makefile $(SRCS)
+	@$(MKDEP) $(ROOTDEPPATH) $(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
+	@touch $@
+
+depend: .depend
+
+clean:
+	@rm -f *.o *~ .*.swp .built
+	$(call CLEAN)
+
+distclean: clean
+	@rm -f Make.dep .depend
+
+-include Make.dep
