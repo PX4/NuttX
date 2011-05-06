@@ -1,8 +1,8 @@
-ReleaseNotes v0.1.9:
-^^^^^^^^^^^^^^^^^^^
+ReleaseNotes v0.1.10:
+^^^^^^^^^^^^^^^^^^^^^
 
 This is a highly hacked up version of the buildroot (see
-http://buildroot.uclibc.org/ . It has been hacked so that it
+http://buildroot.uclibc.org/). It has been hacked so that it
 can be used to build the following NuttX-compatible toolchains:
 
   o arm-elf toolchain needed for use with the TI C5471 (ARM7TDMI),
@@ -12,9 +12,9 @@ can be used to build the following NuttX-compatible toolchains:
 
     NXFLAT toolchain for use with the ARM7 and ARM9.
 
-  o arm-elf (thumb2) toolchain needed for use with the Luminary
-    LM3S6918 (ARM Cortex-M3) and STM32 ports provided with the
-    NuttX releases.
+  o arm-elf ARM Cortex-M3 (thumb2) toolchain needed for use with
+    the Luminary LM3Sxxx, NXP 17xxxx, Atmel SAM3u, and STMicor
+    STM32 ports provided with the NuttX releases.
 
     NXFLAT toolchain for use with the ARM Cortex-M3.
 
@@ -58,6 +58,7 @@ Supported tool versions include:
   o gcc-3.4.6 + binutils-2.17
   o gcc-4.2.4 + binutils-2.19
   o gcc-4.3.3 + binutils-2.19.1
+  o gcc-4.5.2 + binutils-2.21
 
 See the ChangeLog of features/architectures added in v0.1.9.
 
@@ -86,4 +87,3 @@ select omit building GCC with and only build the NXFLAT toolchain
 for use with your own GCC toolchain.
 
 NFFLAT is only available for ARM and Cortex-M3 architectures.
-
