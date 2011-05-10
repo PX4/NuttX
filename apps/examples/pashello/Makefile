@@ -39,13 +39,6 @@ include $(APPDIR)/Make.defs
 
 # Pascal Add-On Example
 
-ifeq ($(WINTOOL),y)
-INCDIROPT	= -w
-endif
-
-CFLAGS		+= ${shell $(TOPDIR)/tools/incdir.sh $(INCDIROPT) "$(CC)" $(TOPDIR)/pcode/include }
-CFLAGS		+= ${shell $(TOPDIR)/tools/incdir.sh $(INCDIROPT) "$(CC)" $(TOPDIR)/pcode/insn/include}
-
 ASRCS		=
 CSRCS		= pashello.c device.c
 

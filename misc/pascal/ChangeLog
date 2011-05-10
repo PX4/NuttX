@@ -22,4 +22,10 @@ pascal-2.0 2009-12-21 Gregory Nutt <spudmonkey@racsa.co.cr>
 	  stdbool.h.  This change was necessary for compatibility
 	  with NuttX-5.0 (any beyond).
 
-pascal-2.1 2010-xx-xx Gregory Nutt <spudmonkey@racsa.co.cr>
+pascal-3.0 2010-xx-xx Gregory Nutt <spudmonkey@racsa.co.cr>
+
+	* nuttx/:  The Pascal add-on module now installs and builds under the
+	  apps/interpreters directory.  This means that the pascal-3.0 module is
+	  incompatible with will all releases of NuttX prior to nuttx-6.0 where the 
+	  apps/ module was introduced.
+

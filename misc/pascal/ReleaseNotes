@@ -25,3 +25,16 @@ The release version was bumped to 2.0 because these changes introduce
 typing incompatibilies with earlier versions.
 
 This tarball contains a complete CVS snapshot from December 21, 2009.
+
+pascal-3.0
+^^^^^^^^^^
+
+This release moves the Pascal installation location from the nuttx/
+source to the apps/ source tree.  Specifically, the Pascall runtime now
+builds under apps/interpreters.
+
+This means that the pascal-3.0 module is incompatible with will all
+releases of NuttX prior to nuttx-6.0 where the apps/ module was
+introduced. The release version was bumped to 3.0 because these changes
+introduces installation incompatibilies with earlier versions.
+

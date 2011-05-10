@@ -18,5 +18,8 @@ Installing the NuttX Runtime P-Code Interpreter
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
   cd <pascal-directory>/nuttx
-  ./INSTALL.sh <nuttx-directory>
+  ./INSTALL.sh <apps-directory>
+
+See <pascal-directory>/nuttx/README.txt for additional information.
+
 

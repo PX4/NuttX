@@ -1,7 +1,7 @@
 ############################################################################
-# pcode/Makefile
+# apps/interpreters/pcode/Makefile
 #
-#   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
+#   Copyright (C) 2008-2009, 2011 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,36 +33,63 @@
 #
 ############################################################################
 
--include $(TOPDIR)/Make.defs
+PCODEDIR := ${shell pwd | sed -e 's/ /\\ /g'}
 
-COMPILER	= ${shell basename $(CC)}
-ifeq ($(COMPILER),zneocc.exe)
-USRINCLUDES     = -usrinc:'.;$(WTOPDIR)\pcode\include;$(WTOPDIR)\pcode\insn\include'
-INCLUDES        = $(ARCHSTDINCLUDES) $(USRINCLUDES)
-else
-USRINCLUDES     = -I$(TOPDIR)/pcode/include -I$(TOPDIR)/pcode/insn/include
-INCLUDES        = $(ARCHINCLUDES) $(USRINCLUDES)
+-include $(TOPDIR)/.config
+-include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
+
+# Default tools
+
+ifeq ($(DIRLINK),)
+DIRLINK = $(TOPDIR)/tools/link.sh
+DIRUNLINK = $(TOPDIR)/tools/unlink.sh
+INCDIR = $(TOPDIR)/tools/incdir.sh
 endif
-CFLAGS          = $(ARCHWARNINGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(INCLUDES) $(ARCHDEFINES)
+
+ifeq ($(WINTOOL),y)
+INCDIROPT = -w
+endif
+
+USRINCLUDES = ${shell $(INCDIR) $(INCDIROPT) "$(CC)" $(PCODEDIR)/include $(PCODEDIR)/insn/include}
+
+COMPILER = ${shell basename $(CC)}
+ifeq ($(COMPILER),zneocc.exe)
+INCLUDES = $(ARCHSTDINCLUDES) $(USRINCLUDES)
+else
+INCLUDES = $(ARCHINCLUDES) $(USRINCLUDES)
+endif
+
+CFLAGS = $(ARCHWARNINGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(INCLUDES) $(ARCHDEFINES)
 
 include insn/prun/Make.defs
 include libpoff/Make.defs
 include libpas/Make.defs
 
-ASRCS		= $(PRUN_ASRCS) $(POFF_ASRCS) $(PAS_ASRCS)
-AOBJS		= $(ASRCS:.S=$(OBJEXT))
+ASRCS = $(PRUN_ASRCS) $(POFF_ASRCS) $(PAS_ASRCS)
+AOBJS = $(ASRCS:.S=$(OBJEXT))
 
-CSRCS		= $(PRUN_CSRCS) $(POFF_CSRCS) $(PAS_CSRCS)
-COBJS		= $(CSRCS:.c=$(OBJEXT))
+CSRCS = $(PRUN_CSRCS) $(POFF_CSRCS) $(PAS_CSRCS)
+COBJS = $(CSRCS:.c=$(OBJEXT))
 
-SRCS		= $(ASRCS) $(CSRCS)
-OBJS		= $(AOBJS) $(COBJS)
+SRCS = $(ASRCS) $(CSRCS)
+OBJS = $(AOBJS) $(COBJS)
 
-BIN		= libpcode$(LIBEXT)
+ifeq ($(WINTOOL),y)
+  BIN		= "${shell cygpath -w  $(APPDIR)/libapps$(LIBEXT)}"
+else
+  BIN		= "$(APPDIR)/libapps$(LIBEXT)"
+endif
 
-VPATH		= insn/prun:libpoff:libpas
+ROOTDEPPATH	= --dep-path .
+PRUNDEPPATH	= --dep-path insn/prun
+POFFDEPPATH = --dep-path libpoff
+PASDEPPATH  = --dep-path libpas
 
-all:	$(BIN)
+VPATH = insn/prun:libpoff:libpas
+
+all: .built
+.PHONY: context depend clean distclean
 
 $(AOBJS): %$(OBJEXT): %.S
 ifeq ($(COMPILER),zneocc.exe)
@@ -78,23 +105,34 @@ else
 	$(call COMPILE, $<, $@)
 endif
 
-$(BIN):	$(OBJS)
+$(APPDIR)/include/pcode: include
+	@$(DIRLINK) $(PCODEDIR)/include $(APPDIR)/include/pcode
+
+$(APPDIR)/include/pcode/insn: $(APPDIR)/include/pcode insn/include
+	@$(DIRLINK) $(PCODEDIR)/insn/include $(APPDIR)/include/pcode/insn
+
+.built: $(APPDIR)/include/pcode $(APPDIR)/include/pcode/insn $(OBJS)
 	@( for obj in $(OBJS) ; do \
-		$(call ARCHIVE, $@, $${obj}); \
+		$(call ARCHIVE, $(BIN), $${obj}); \
 	done ; )
+	@touch .built
+
+context: $(APPDIR)/include/pcode $(APPDIR)/include/pcode/insn
 
 .depend: Makefile $(SRCS)
-	@$(MKDEP) --dep-path . --dep-path insn/prun --dep-path libpoff --dep-path libpas \
+	@$(MKDEP) $(ROOTDEPPATH) $(PRUNDEPPATH) $(POFFDEPPATH) $(PASDEPPATH) \
 		$(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
 	@touch $@
 
 depend: .depend
 
 clean:
-	@rm -f $(BIN) *~ .*.swp
+	@rm -f *.o *~ .*.swp .built
 	$(call CLEAN)
 
 distclean: clean
 	@rm -f Make.dep .depend
+	@$(DIRUNLINK) $(APPDIR)/include/pcode/insn
+	@$(DIRUNLINK) $(APPDIR)/include/pcode
 
 -include Make.dep

@@ -1,5 +1,5 @@
 ############################################################################
-# configs/z16f2800100zcog/pashello/appconfig
+# apps/interpreters/Makefile
 #
 #   Copyright (C) 2011 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -33,10 +33,38 @@
 #
 ############################################################################
 
-# Path to example in apps/examples containing the user_start entry point
+-include $(TOPDIR)/.config	# Current configuration
 
-CONFIGURED_APPS += examples/pashello
+# Sub-directories containing interpreter runtime
 
-# Path to the Pascal p-code runtime interpreter module
+SUBDIRS = pcode
 
-CONFIGURED_APPS += interpreters/pcode
+# Create the list of installed runtime modules (INSTALLED_DIRS)
+
+define ADD_DIRECTORY
+INSTALLED_DIRS  += ${shell if [ -r $1/Makefile ]; then echo "$1"; fi}
+endef
+
+$(foreach DIR, $(SUBDIRS), $(eval $(call ADD_DIRECTORY,$(DIR))))
+
+all: nothing
+.PHONY: nothing context depend clean distclean
+
+nothing:
+
+context:
+
+depend:
+	@for dir in $(INSTALLED_DIRS) ; do \
+		$(MAKE) -C $$dir depend TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"; \
+	done
+
+clean:
+	@for dir in $(INSTALLED_DIRS) ; do \
+		$(MAKE) -C $$dir clean TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"; \
+	done
+
+distclean: clean
+	@for dir in $(INSTALLED_DIRS) ; do \
+		$(MAKE) -C $$dir distclean TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"; \
+	done
