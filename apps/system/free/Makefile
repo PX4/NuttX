@@ -1,8 +1,9 @@
 ############################################################################
-# configs/vsn/nsh/appconfig
+# apps/system/free/Makefile
 #
-#   Copyright (C) 2011 Gregory Nutt. All rights reserved.
-#   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
+#   Copyright (C) 2011 Uros Platise. All rights reserved.
+#   Author: Uros Platise <uros.platise@isotel.eu>
+#           Gregory Nutt <spudmonkey@racsa.co.cr>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -33,50 +34,77 @@
 #
 ############################################################################
 
-########################################################################
-#
-# Applications to be included within the NuttX binary as described
-# under the apps/README.txt
-#
-# Set thi config parameter above to: CONFIG_TASK_NAME_SIZE=16
-# In order to enable argv[0]=<task name> argument set the option
-# CONFIG_TASK_NAME_SIZE=16
-#
+# TODO, this makefile should run make under the app dirs, instead of
+# sourcing the Make.defs!
 
-# Path to example in apps/examples containing the user_start entry point
-CONFIGURED_APPS += examples/nsh
+-include $(TOPDIR)/.config
+-include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
-# Invoke the following application after NuttX starts
-#CONFIG_BUILTIN_APP_START="hello"
+ifeq ($(WINTOOL),y)
+INCDIROPT	= -w
+endif
 
-# Application Libraries
-CONFIGURED_APPS += nshlib
+# Hello Application
+# TODO: appname can be automatically extracted from the directory name
 
-# Individual selection of built-in applications:
+APPNAME		= free
+PRIORITY	= SCHED_PRIORITY_DEFAULT
+STACKSIZE	= 768
 
-# Hello world provide a simple skeleton/demo application
-CONFIGURED_APPS += vsn/hello
+ASRCS		=
+CSRCS		= free.c
 
-# Provide poweroff command to switch off the board
-CONFIGURED_APPS += vsn/poweroff
+AOBJS		= $(ASRCS:.S=$(OBJEXT))
+COBJS		= $(CSRCS:.c=$(OBJEXT))
 
-# Provide SDcard tool
-CONFIGURED_APPS += vsn/sdcard
+SRCS		= $(ASRCS) $(CSRCS)
+OBJS		= $(AOBJS) $(COBJS)
 
-# Provide RAMTRON tool
-CONFIGURED_APPS += vsn/ramtron
+BIN	    	= $(APPDIR)/libapps$(LIBEXT)
 
-# Provide System Information Utilityu
-CONFIGURED_APPS += vsn/sysinfo
+ROOTDEPPATH	= --dep-path .
 
-# Provide JAVA Virtual Machine (the Darjeeling JVM)
-#CONFIGURED_APPS += vsn/jvm
+# Common build
 
-# Provide UNIX style free
-CONFIGURED_APPS += system/free
+VPATH		= 
 
-# Provide FLASH program installation support
-CONFIGURED_APPS += system/install
+all:	.built
+.PHONY: context depend clean distclean
 
+$(AOBJS): %$(OBJEXT): %.S
+	$(call ASSEMBLE, $<, $@)
 
+$(COBJS): %$(OBJEXT): %.c
+	$(call COMPILE, $<, $@)
 
+.built: $(OBJS)
+	@( for obj in $(OBJS) ; do \
+		$(call ARCHIVE, $(BIN), $${obj}); \
+	done ; )
+	@touch .built
+
+# Register application
+
+.context:
+	$(call REGISTER,$(APPNAME),$(PRIORITY),$(STACKSIZE),$(APPNAME)_main)
+	@touch $@
+
+context: .context
+
+# Create dependencies
+
+.depend: Makefile $(SRCS)
+	@$(MKDEP) $(ROOTDEPPATH) $(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
+	@touch $@
+
+depend: .depend
+
+clean:
+	@rm -f *.o *~ .*.swp .built
+	$(call CLEAN)
+
+distclean: clean
+	@rm -f .context Make.dep .depend
+
+-include Make.dep

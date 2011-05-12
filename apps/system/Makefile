@@ -1,5 +1,5 @@
 ############################################################################
-# configs/vsn/nsh/appconfig
+# apps/system/Makefile
 #
 #   Copyright (C) 2011 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -33,50 +33,38 @@
 #
 ############################################################################
 
-########################################################################
-#
-# Applications to be included within the NuttX binary as described
-# under the apps/README.txt
-#
-# Set thi config parameter above to: CONFIG_TASK_NAME_SIZE=16
-# In order to enable argv[0]=<task name> argument set the option
-# CONFIG_TASK_NAME_SIZE=16
-#
+-include $(TOPDIR)/.config	# Current configuration
 
-# Path to example in apps/examples containing the user_start entry point
-CONFIGURED_APPS += examples/nsh
+# Sub-directories containing system task
 
-# Invoke the following application after NuttX starts
-#CONFIG_BUILTIN_APP_START="hello"
+SUBDIRS = free install
 
-# Application Libraries
-CONFIGURED_APPS += nshlib
+# Create the list of installed runtime modules (INSTALLED_DIRS)
 
-# Individual selection of built-in applications:
+define ADD_DIRECTORY
+INSTALLED_DIRS  += ${shell if [ -r $1/Makefile ]; then echo "$1"; fi}
+endef
 
-# Hello world provide a simple skeleton/demo application
-CONFIGURED_APPS += vsn/hello
+$(foreach DIR, $(SUBDIRS), $(eval $(call ADD_DIRECTORY,$(DIR))))
 
-# Provide poweroff command to switch off the board
-CONFIGURED_APPS += vsn/poweroff
+all: nothing
+.PHONY: nothing context depend clean distclean
 
-# Provide SDcard tool
-CONFIGURED_APPS += vsn/sdcard
+nothing:
 
-# Provide RAMTRON tool
-CONFIGURED_APPS += vsn/ramtron
+context:
 
-# Provide System Information Utilityu
-CONFIGURED_APPS += vsn/sysinfo
+depend:
+	@for dir in $(INSTALLED_DIRS) ; do \
+		$(MAKE) -C $$dir depend TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"; \
+	done
 
-# Provide JAVA Virtual Machine (the Darjeeling JVM)
-#CONFIGURED_APPS += vsn/jvm
+clean:
+	@for dir in $(INSTALLED_DIRS) ; do \
+		$(MAKE) -C $$dir clean TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"; \
+	done
 
-# Provide UNIX style free
-CONFIGURED_APPS += system/free
-
-# Provide FLASH program installation support
-CONFIGURED_APPS += system/install
-
-
-
+distclean: clean
+	@for dir in $(INSTALLED_DIRS) ; do \
+		$(MAKE) -C $$dir distclean TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"; \
+	done
