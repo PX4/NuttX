@@ -1,5 +1,5 @@
 ############################################################################
-# apps/examples/Makefile
+# arch/rgmp/src/Makefile
 #
 #   Copyright (C) 2011 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -33,35 +33,61 @@
 #
 ############################################################################
 
--include $(TOPDIR)/.config	# Current configuration
+-include $(TOPDIR)/Make.defs
 
-# Sub-directories
 
-SUBDIRS = dhcpd hello helloxx hidkbd igmp mm mount nettest nsh null nx \
-	  nxflat ostest pashello pipe poll rgmp romfs sendmail serloop thttpd \
-	  udp uip usbserial usbstorage wget wlan
+CFLAGS		+= -I$(TOPDIR)/sched -I$(TOPDIR)/fs
 
-all: nothing
-.PHONY: nothing context depend clean distclean
+ASRCS		= sigentry.S
+AOBJS		= $(ASRCS:.S=$(OBJEXT))
+CSRCS		= nuttx.c rgmp.c bridge.c com.c
+COBJS		= $(CSRCS:.c=$(OBJEXT))
 
-nothing:
+SRCS		= $(ASRCS) $(CSRCS)
+OBJS		= $(AOBJS) $(COBJS)
 
-context:
+LDFLAGS		+= -T$(RGMPLKSCPT)
+LDPATHS		= $(addprefix -L$(TOPDIR)/,$(dir $(LINKLIBS)))
+LDLIBS		= $(patsubst lib%,-l%,$(basename $(notdir $(LINKLIBS))))
+LDPATHS		+= -L$(RGMPLIBDIR)
+LDLIBS		+= -lrgmp -lm -ltest /usr/lib/gcc/$(shell gcc -dumpmachine)/$(shell gcc -dumpversion)/libgcc.a
 
-depend:
-	@for dir in $(SUBDIRS) ; do \
-		$(MAKE) -C $$dir depend TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"; \
-	done
+all: libarch$(LIBEXT)
+.PHONY: clean distclean depend
+
+$(AOBJS): %$(OBJEXT): %.S
+	$(call ASSEMBLE, $<, $@)
+
+$(COBJS) $(LINKOBJS): %$(OBJEXT): %.c
+	$(call COMPILE, $<, $@)
+
+# The architecture-specific library
+libarch$(LIBEXT): $(OBJS)
+	@( for obj in $(OBJS) ; do \
+		$(call ARCHIVE, $@, $${obj}); \
+	done ; )
+
+# Generate the final NuttX binary by linking the host-specific objects with the NuttX
+# specific objects (with munged names)
+
+nuttx$(EXEEXT):
+	@echo "LD:  nuttx$(EXEEXT)"
+	@$(LD) $(LDFLAGS) $(LDPATHS) --start-group $(LDLIBS) --end-group -o $(TOPDIR)/$@
+	@$(OBJDUMP) -S $(TOPDIR)/$@ > $(TOPDIR)/nuttx.asm
+	@$(NM) -n $(TOPDIR)/$@ > $(TOPDIR)/nuttx.sym
+	@$(OBJCOPY) -S -O binary $(TOPDIR)/$@ nuttx.img
+
+.depend: Makefile $(SRCS)
+	@$(MKDEP) $(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
+	@touch $@
+
+depend: .depend
 
 clean:
-	@for dir in $(SUBDIRS) ; do \
-		$(MAKE) -C $$dir clean TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"; \
-	done
+	@rm -f libarch$(LIBEXT) *~ .*.swp
+	$(call CLEAN)
 
 distclean: clean
-	@for dir in $(SUBDIRS) ; do \
-		$(MAKE) -C $$dir distclean TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"; \
-	done
+	@rm -f Make.dep .depend
 
 -include Make.dep
-

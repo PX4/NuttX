@@ -1,5 +1,5 @@
 ############################################################################
-# apps/examples/Makefile
+# configs/rgmp/nsh/appconfig
 #
 #   Copyright (C) 2011 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -33,35 +33,11 @@
 #
 ############################################################################
 
--include $(TOPDIR)/.config	# Current configuration
+# Path to example in apps/examples containing the user_start entry point
 
-# Sub-directories
+CONFIGURED_APPS += examples/nsh
 
-SUBDIRS = dhcpd hello helloxx hidkbd igmp mm mount nettest nsh null nx \
-	  nxflat ostest pashello pipe poll rgmp romfs sendmail serloop thttpd \
-	  udp uip usbserial usbstorage wget wlan
+# The NSH Library
 
-all: nothing
-.PHONY: nothing context depend clean distclean
-
-nothing:
-
-context:
-
-depend:
-	@for dir in $(SUBDIRS) ; do \
-		$(MAKE) -C $$dir depend TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"; \
-	done
-
-clean:
-	@for dir in $(SUBDIRS) ; do \
-		$(MAKE) -C $$dir clean TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"; \
-	done
-
-distclean: clean
-	@for dir in $(SUBDIRS) ; do \
-		$(MAKE) -C $$dir distclean TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"; \
-	done
-
--include Make.dep
+CONFIGURED_APPS += nshlib
 
