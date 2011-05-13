@@ -986,36 +986,33 @@ static inline int rtl8187x_devinit(FAR struct rtl8187x_state_s *priv)
     {
       rtl8187x_takesem(&priv->exclsem);
 
+      /* Decrement the reference count */
+
+      priv->crefs--;
+
       /* Handle a corner case where (1) open() has been called so the
-       * reference count is > 2, but the device has been disconnected.
+       * reference count was > 2, but the device has been disconnected.
        * In this case, the class instance needs to persist until close()
        * is called.
        */
 
-      if (priv->crefs <= 2 && priv->disconnected)
+      if (priv->crefs <= 1 && priv->disconnected)
         {
-          /* We don't have to give the semaphore because it will be
-           * destroyed when usb_destroy is called.
+          /* The will cause the enumeration logic to disconnect
+           * the class driver.
            */
-  
+
           ret = -ENODEV;
         }
-      else
-        {
-          /* Ready for normal operation as a network device */
 
-          uvdbg("Successfully initialized\n");
-          priv->crefs--;
-          rtl8187x_givesem(&priv->exclsem);
-        }
-    }
+      /* Release the semaphore... there is a race condition here.
+       * Decrementing the reference count and releasing the semaphore
+       * allows usbhost_destroy() to execute (on the worker thread);
+       * the class driver instance could get destoryed before we are
+       * ready to handle it!
+       */
 
-  /* Disconnect on any errors detected during volume initialization */
-
-  if (ret != OK)
-    {
-      udbg("ERROR! Aborting: %d\n", ret);
-      rtl8187x_destroy(priv);
+      rtl8187x_givesem(&priv->exclsem);
     }
 
   return ret;
@@ -1374,6 +1371,10 @@ errout:
  * Returned Values:
  *   On success, zero (OK) is returned. On a failure, a negated errno value is
  *   returned indicating the nature of the failure
+ *
+ *   NOTE that the class instance remains valid upon return with a failure.  It is
+ *   the responsibility of the higher level enumeration logic to call
+ *   CLASS_DISCONNECTED to free up the class driver resources.
  *
  * Assumptions:
  *   - This function will *not* be called from an interrupt handler.
