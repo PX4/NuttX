@@ -103,4 +103,7 @@ buildroot-1.10 2011-05-06 <spudmonkey@racsa.co.cr>
 
 buildroot-1.11 2011-xx-xx <spudmonkey@racsa.co.cr>
 
+	* configs/avr-defconfig-4.3.3 - Added --enable-long-long as a GCC
+	  option.
+	* configs/avr-defconfig-4.5.2 - New configuration.
 
