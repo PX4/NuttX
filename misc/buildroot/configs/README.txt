@@ -41,7 +41,8 @@ arm7tdmi-defconfig-4.3.3
 	(armv4t).  These are udates to *-defconfig-4.2.4 (see notes above).
 
 avr-defconfig-4.3.3
-	Builds an AVR toolchain using gcc 4.3.3.  This configuration
+avr-defconfig-5.4.2
+	Builds an AVR toolchain using gcc 4.3.3 or 4.5.2.  This configuration
 	builds both gcc and g++ for the AVR (armv4t). This toolchain
 	is intended to support the NuttX ATmega128 port.
 
