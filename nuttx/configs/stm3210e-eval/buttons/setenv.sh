@@ -1,5 +1,5 @@
-############################################################################
-# apps/examples/Makefile
+#!/bin/bash
+# configs/stm3210e-eval/buttons/setenv.sh
 #
 #   Copyright (C) 2011 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -31,37 +31,17 @@
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 #
-############################################################################
 
--include $(TOPDIR)/.config	# Current configuration
+if [ "$(basename $0)" = "setenv.sh" ] ; then
+  echo "You must source this script, not run it!" 1>&2
+  exit 1
+fi
 
-# Sub-directories
+if [ -z "${PATH_ORIG}" ]; then export PATH_ORIG="${PATH}"; fi
 
-SUBDIRS = buttons dhcpd ftpc hello helloxx hidkbd igmp mm mount nettest \
-	  nsh null nx nxffs nxflat ostest pashello pipe poll rgmp romfs \
-      sendmail serloop thttpd udp uip usbserial usbstorage wget wlan
+WD=`pwd`
+export RIDE_BIN="/cygdrive/c/Program Files/Raisonance/Ride/arm-gcc/bin"
+export BUILDROOT_BIN="${WD}/../buildroot/build_arm_nofpu/staging_dir/bin"
+export PATH="${BUILDROOT_BIN}:${RIDE_BIN}:/sbin:/usr/sbin:${PATH_ORIG}"
 
-all: nothing
-.PHONY: nothing context depend clean distclean
-
-nothing:
-
-context:
-
-depend:
-	@for dir in $(SUBDIRS) ; do \
-		$(MAKE) -C $$dir depend TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"; \
-	done
-
-clean:
-	@for dir in $(SUBDIRS) ; do \
-		$(MAKE) -C $$dir clean TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"; \
-	done
-
-distclean: clean
-	@for dir in $(SUBDIRS) ; do \
-		$(MAKE) -C $$dir distclean TOPDIR="$(TOPDIR)" APPDIR="$(APPDIR)"; \
-	done
-
--include Make.dep
-
+echo "PATH : ${PATH}"
