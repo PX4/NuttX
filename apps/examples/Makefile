@@ -40,7 +40,7 @@
 SUBDIRS = buttons dhcpd ftpc hello helloxx hidkbd igmp lcdrw mm mount \
 	nettest nsh null nx nxffs nxflat nxhello nximage nxlines \
 	nxtext ostest pashello pipe poll rgmp romfs sendmail serloop \
-	thttpd tiff udp uip usbserial usbstorage usbterm wget wlan
+	thttpd tiff touchscreen udp uip usbserial usbstorage usbterm wget wlan
 
 # Sub-directories that might need context setup
 
@@ -66,6 +66,9 @@ CNTXTDIRS +=  nxtext
 endif
 ifeq ($(CONFIG_EXAMPLES_TIFF_BUILTIN),y)
 CNTXTDIRS +=  tiff
+endif
+ifeq ($(CONFIG_EXAMPLES_TOUCHSCREEN_BUILTIN),y)
+CNTXTDIRS +=  touchscreen
 endif
 ifeq ($(CONFIG_EXAMPLES_USBSTRG_BUILTIN),y)
 CNTXTDIRS +=  usbstorage
