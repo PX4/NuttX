@@ -106,4 +106,6 @@ buildroot-1.11 2011-xx-xx <spudmonkey@racsa.co.cr>
 	* configs/avr-defconfig-4.3.3 - Added --enable-long-long as a GCC
 	  option.
 	* configs/avr-defconfig-4.5.2 - New configuration.
+	* Config.in and almost all configurations in configs/ - Changed the
+	  default nuttx path to $(TOPDIR)/../../nuttx
 

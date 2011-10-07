@@ -311,7 +311,7 @@ config BR2_STAGING_DIR
 
 config BR2_NUTTX_DIR
 	string "Path to the NuttX root directory"
-	default "../nuttx"
+	default "$(TOPDIR)/../../nuttx"
 	help
 	  This is the location where the NuttX source tree is located.
 
