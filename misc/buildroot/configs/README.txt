@@ -1,3 +1,15 @@
+README
+^^^^^^
+
+CONTENTS
+^^^^^^^^
+
+  o AVAILABLE CONFIGURATIONS
+  o GENERAL BUILD STEPS
+  o FAQ
+  o Cygwin GCC BUILD NOTES
+  o Building GDB Under Cygwin 
+
 AVAILABLE CONFIGURATIONS
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -197,6 +209,47 @@ A: This was reported on Fedora F14.  The cause of the problem is that some host
 Q: How do I build the NuttX toolchain under Cygwin?
 
 A: See below...
+
+Q: NuttX directory ../../nuttx does not exist
+
+A: The default path to the nuttx directory is $(TOPDIR)/../../nuttx where
+   TOPDIR holds the path to the buildroot directory.  If you checkout the
+   entire SVN tree then that will be the correct location of the nuttx
+   directory.
+
+   If you see this error, it just means that nuttx is not in that expected,
+   default location.  In that case, use 'make config' or 'make menuconfig'
+   to edit the configuration.  Find the option to set the path to NuttX
+   and set it to the correct location for your build environment.
+
+Q: Some of my libraries like GMP and MPFR are in non-standard locations the
+   GCC build can't file them:
+
+     checking for correct version of mpfr.h... no
+     configure: error: Building GCC requires GMP 4.1+ and MPFR 2.3.0+.
+
+A: http://tech.groups.yahoo.com/group/nuttx/message/1160
+
+   "I think that you can specify the path to GMP and MPFR. I think that GCC
+    has some special configuration command line options to support this. I
+    can't remember exactly and I don't have an unpacked version of GCC at
+    hand.
+
+   "Try this: Go to the buildroot/toolchain_build_nofpu_arm/gcc-x.x directory
+    and type:
+
+      ./configure --help
+
+   "That should list all of the GCC configuration options. I bet you will see
+    (near the bottom) some options to set the path to these tools.
+
+   "What you will have to do then is to modify the script at:
+
+       buildroot/toolchain/gcc/gcc-nuttx-4.x.mk
+
+   "You will see that there are several places where $(GCC_DIR)/configure is
+    invoked. I think you would have to hard code those path options into those
+    configure commands."
 
 Cygwin GCC BUILD NOTES
 ^^^^^^^^^^^^^^^^^^^^^^
