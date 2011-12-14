@@ -1,8 +1,8 @@
 ############################################################################
-# configs/stm3240g-eval/src/Makefile
+# apps/examples/touchscreen/Makefile
 #
 #   Copyright (C) 2011 Gregory Nutt. All rights reserved.
-#   Author: Gregory Nutt <gnutt@nuttx.org>
+#   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -33,54 +33,70 @@
 #
 ############################################################################
 
+-include $(TOPDIR)/.config
 -include $(TOPDIR)/Make.defs
+include $(APPDIR)/Make.defs
 
-CFLAGS		+= -I$(TOPDIR)/sched
+# NuttX NX Graphics Example.
 
-ASRCS		= 
+ASRCS		=
+CSRCS		= adc_main.c
+
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
-
-CSRCS		= up_boot.c up_leds.c up_buttons.c up_spi.c
-
-ifeq ($(CONFIG_ADC),y)
-CSRCS		+= up_adc.c
-endif
-
 COBJS		= $(CSRCS:.c=$(OBJEXT))
 
 SRCS		= $(ASRCS) $(CSRCS)
 OBJS		= $(AOBJS) $(COBJS)
 
-ARCH_SRCDIR	= $(TOPDIR)/arch/$(CONFIG_ARCH)/src
 ifeq ($(WINTOOL),y)
-  CFLAGS	+= -I "${shell cygpath -w $(ARCH_SRCDIR)/chip}" \
-  		   -I "${shell cygpath -w $(ARCH_SRCDIR)/common}" \
-  		   -I "${shell cygpath -w $(ARCH_SRCDIR)/armv7-m}"
+  BIN		= "${shell cygpath -w  $(APPDIR)/libapps$(LIBEXT)}"
 else
-  CFLAGS	+= -I$(ARCH_SRCDIR)/chip -I$(ARCH_SRCDIR)/common -I$(ARCH_SRCDIR)/armv7-m
+  BIN		= "$(APPDIR)/libapps$(LIBEXT)"
 endif
 
-all: libboard$(LIBEXT)
+ROOTDEPPATH	= --dep-path .
+
+# Touchscreen built-in application info
+
+APPNAME		= adc
+PRIORITY	= SCHED_PRIORITY_DEFAULT
+STACKSIZE	= 2048
+
+# Common build
+
+VPATH		= 
+
+all: .built
+.PHONY: context clean depend distclean
 
 $(AOBJS): %$(OBJEXT): %.S
 	$(call ASSEMBLE, $<, $@)
 
-$(COBJS) $(LINKOBJS): %$(OBJEXT): %.c
+$(COBJS): %$(OBJEXT): %.c
 	$(call COMPILE, $<, $@)
 
-libboard$(LIBEXT): $(OBJS)
+.built: $(OBJS)
 	@( for obj in $(OBJS) ; do \
-		$(call ARCHIVE, $@, $${obj}); \
+		$(call ARCHIVE, $(BIN), $${obj}); \
 	done ; )
+	@touch .built
+
+.context:
+ifeq ($(CONFIG_NSH_BUILTIN_APPS),y)
+	$(call REGISTER,$(APPNAME),$(PRIORITY),$(STACKSIZE),$(APPNAME)_main)
+	@touch $@
+endif
+
+context: .context
 
 .depend: Makefile $(SRCS)
-	@$(MKDEP) $(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
+	@$(MKDEP) $(ROOTDEPPATH) $(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
 	@touch $@
 
 depend: .depend
 
 clean:
-	@rm -f libboard$(LIBEXT) *~ .*.swp
+	@rm -f *.o *~ .*.swp .built
 	$(call CLEAN)
 
 distclean: clean
