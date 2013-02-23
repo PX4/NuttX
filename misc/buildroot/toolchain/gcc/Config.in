@@ -10,8 +10,8 @@ config BR2_PACKAGE_GCC
 
 choice
 	prompt "GCC compiler Version"
-	default BR2_GCC_VERSION_4_3_3 if BR2_cortex_m3
-	default BR2_GCC_VERSION_4_2_4 if !BR2_avr32 && !BR2_cortex_m3 && !BR2_m9s12x
+	default BR2_GCC_VERSION_4_3_3 if BR2_cortex_m3 || BR2_cortex_m0
+	default BR2_GCC_VERSION_4_2_4 if !BR2_avr32 && !BR2_cortex_m3 && !BR2_cortex_m0 && !BR2_m9s12x
 	default BR2_GCC_VERSION_3_4_6 if BR2_avr32
 	default BR2_GCC_VERSION_3_3_6 if BR2_m9s12x
 	depends on BR2_PACKAGE_GCC
@@ -23,11 +23,11 @@ choice
 		bool "gcc 3.3.6"
 
     config BR2_GCC_VERSION_3_4_6
-		depends on !BR2_m32c && !BR2_cortex_m3 && !BR2_m9s12x
+		depends on !BR2_m32c && !BR2_cortex_m3 && !BR2_cortex_m0 && !BR2_m9s12x
 		bool "gcc 3.4.6"
 
 	config BR2_GCC_VERSION_4_2_4
-		depends on !BR2_avr32 && !BR2_nios2 && !BR2_cortex_m3 && !BR2_m9s12x
+		depends on !BR2_avr32 && !BR2_nios2 && !BR2_cortex_m3 && !BR2_cortex_m0 && !BR2_m9s12x
 		select BR2_GCC_SUPPORTS_SYSROOT
 		bool "gcc 4.2.4"
 

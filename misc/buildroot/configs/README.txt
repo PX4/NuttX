@@ -14,117 +14,124 @@ AVAILABLE CONFIGURATIONS
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 arm-defconfig
-	Builds an OABI ARM toolchain using gcc 3.4.6
+  Builds an OABI ARM toolchain using gcc 3.4.6
 
 arm7tdmi-defconfig-4.2.4
 arm920t-defconfig-4.2.4
 arm926t-defconfig-4.2.4
-	Builds an OABI ARM toolchain using gcc 4.2.4.  This configuration
-	builds both gcc and g++.  There are three versions: one for 
-	arm7tdmi (armv4t), arm920t (armv4t) and arm926t (arv5t) because
-	of differences in the way that soft floating is handled in between
-	the armv4t and arm5t architectures.
+  Builds an OABI ARM toolchain using gcc 4.2.4.  This configuration
+  builds both gcc and g++.  There are three versions: one for 
+  arm7tdmi (armv4t), arm920t (armv4t) and arm926t (arv5t) because
+  of differences in the way that soft floating is handled in between
+  the armv4t and arm5t architectures.
 
-	NOTE: The newer versions of GCC generate new sections and can
-	cause some problems for NuttX configurations developed under older
-	toolchains.  In particular, arm-elf-objcopy may fail with strange
-	errors.  If this occurs, try adding the following arguments to the
-	arm-elf-objcopy command "-R .note -R .note.gnu.build-id -R .comment"
+  NOTE: The newer versions of GCC generate new sections and can
+  cause some problems for NuttX configurations developed under older
+  toolchains.  In particular, arm-elf-objcopy may fail with strange
+  errors.  If this occurs, try adding the following arguments to the
+  arm-elf-objcopy command "-R .note -R .note.gnu.build-id -R .comment"
 
-	This logic is several configuration Make.defs files:
+  This logic is several configuration Make.defs files:
 
-	HOSTOS			=  ${shell uname -o}
+  HOSTOS =  ${shell uname -o}
 
-	ARCHCCVERSION		= ${shell $(CC) -v 2>&1 | sed -n '/^gcc version/p' | sed -e 's/^gcc version \([0-9\.]\)/\1/g' -e 's/[-\ ].*//g' -e '1q'}
-	ARCHCCMAJOR		= ${shell echo $(ARCHCCVERSION) | cut -d'.' -f1}
+  ARCHCCVERSION = ${shell $(CC) -v 2>&1 | sed -n '/^gcc version/p' | sed -e 's/^gcc version \([0-9\.]\)/\1/g' -e 's/[-\ ].*//g' -e '1q'}
+  ARCHCCMAJOR= ${shell echo $(ARCHCCVERSION) | cut -d'.' -f1}
 
-	ifeq ($(ARCHCCMAJOR),4)
-	ifneq ($(HOSTOS),Cygwin)
-	OBJCOPYARGS		= -R .note -R .note.gnu.build-id -R .comment
-	endif
-	endif
+  ifeq ($(ARCHCCMAJOR),4)
+  ifneq ($(HOSTOS),Cygwin)
+  OBJCOPYARGS = -R .note -R .note.gnu.build-id -R .comment
+  endif
+  endif
 
-	This change probably applies to other architectures as well (?)
+  This change probably applies to other architectures as well (?)
 
 arm920t-defconfig-4.3.3
 arm7tdmi-defconfig-4.3.3
-	Builds an OABI ARM toolchain using gcc 4.3.3.  These configurations
-	builds both gcc and g++ for the arm7tdmi (armv4t) or the arm920t
-	(armv4t).  These are udates to *-defconfig-4.2.4 (see notes above).
+  Builds an OABI ARM toolchain using gcc 4.3.3.  These configurations
+  builds both gcc and g++ for the arm7tdmi (armv4t) or the arm920t
+  (armv4t).  These are udates to *-defconfig-4.2.4 (see notes above).
+
+arm926t-defconfig-nxflat
+  This configuration build an NXFLAT toolchain (only) for
+  use with the ARM9.
 
 avr-defconfig-4.3.3
 avr-defconfig-5.4.2
-	Builds an AVR toolchain using gcc 4.3.3 or 4.5.2.  This configuration
-	builds both gcc and g++ for the AVR (armv4t). This toolchain
-	is intended to support the NuttX ATmega128 port.
+  Builds an AVR toolchain using gcc 4.3.3 or 4.5.2.  This configuration
+  builds both gcc and g++ for the AVR (armv4t). This toolchain
+  is intended to support the NuttX ATmega128 port.
+
+cortexm0-eabi-defconfig-4.6.3
+  Builds an EABI ARM toolchain for the Cortex-M0 using gcc 4.6.3.
+  This configuration builds gcc and g++ (NXFLAT is not currently
+  supported for the Cortex-M0).
 
 cortexm3-defconfig-4.3.3
-	Builds an OABI ARM toolchain for the Cortex-M3 using gcc 4.3.3.
-	This configuration builds gcc, g++ and the NXFLAT toolchain.
-
-cortexm3-eabi-defconfig-4.6.3
-        Builds an EABI ARM toolchain for the Cortex-M3 using gcc 4.6.3.
-        This configuration builds gcc, g++ and the NXFLAT toolchain.
-
-cortexm3-defconfig-nxflat
-arm926t-defconfig-nxflat
-	This configuration build an NXFLAT toolchain (only) for
-	use with the Cortex-M3 or ARM9 (untested on ARM9 as of this
-	writing).
+  Builds an OABI ARM toolchain for the Cortex-M3 using gcc 4.3.3.
+  This configuration builds gcc, g++ and the NXFLAT toolchain.
 
 cortexm3-eabi-defconfig-4.5.2
-	Builds an EABI ARM toolchain for the Cortex-M3 using gcc 4.5.2.
-	This configuration builds gcc, g++ and the NXFLAT toolchain.
+  Builds an EABI ARM toolchain for the Cortex-M3 using gcc 4.5.2.
+  This configuration builds gcc, g++ and the NXFLAT toolchain.
+
+cortexm3-eabi-defconfig-4.6.3
+  Builds an EABI ARM toolchain for the Cortex-M3 using gcc 4.6.3.
+  This configuration builds gcc, g++ and the NXFLAT toolchain.
+
+cortexm3-defconfig-nxflat
+  This configuration build an NXFLAT toolchain (only) for
+  use with the Cortex-M3.
 
 bfin-defconfig-4.2.4
-	Builds an Blackfin toolchain using gcc 4.2.4
+  Builds an Blackfin toolchain using gcc 4.2.4
 
 h8300_config
-	Builds an H8/300 toolchain using gcc 3.4.6
+  Builds an H8/300 toolchain using gcc 3.4.6
 
 i486-defconfig-4.3.3
-	Builds an i486 cross development toolchain using gcc 4.3.3.  Why would
-	you want such a thing?  On Linux, of course, such a thing is not needed
-	because you can use the installed GCC to build i486 ELF binaries.  But
-	that will not work under Cygwin!  The Cygwin toolchain (and probably
-	MinGW), build DOS MZ format executables (i.e., .exe files).  That is
-	probably not usable for most NuttX targets.  Instead, you should use this
-	i486-elf-gcc to generate true ELF binaries under Cygwin.
+  Builds an i486 cross development toolchain using gcc 4.3.3.  Why would
+  you want such a thing?  On Linux, of course, such a thing is not needed
+  because you can use the installed GCC to build i486 ELF binaries.  But
+  that will not work under Cygwin!  The Cygwin toolchain (and probably
+  MinGW), build DOS MZ format executables (i.e., .exe files).  That is
+  probably not usable for most NuttX targets.  Instead, you should use this
+  i486-elf-gcc to generate true ELF binaries under Cygwin.
 
 m32c_defconfig_4.2.4
 m32c_defconfig_4.3.3
-	Build a toolchain for use with the M16C port using eith gcc 4.2.4 or 4.3.3
+  Build a toolchain for use with the M16C port using eith gcc 4.2.4 or 4.3.3
 
 m68hc11-config
 m68hc12-config-3.4.6
-	Builds an hc11/hc12 toolchain using gcc 3.4.6 .  NOT RECOMMENDED for hcs12;
+  Builds an hc11/hc12 toolchain using gcc 3.4.6 .  NOT RECOMMENDED for hcs12;
     Use m9s12x_config_3.3.6
 
 m68hc12-config-4.3.3
-	Builds an hc11/hc12 toolchain using gcc 4.3.3.NOT RECOMMENDED for hcs12;
+  Builds an hc11/hc12 toolchain using gcc 4.3.3.NOT RECOMMENDED for hcs12;
     Use m9s12x_config_3.3.6
  
-	This configuration fails to build with the following error:
+  This configuration fails to build with the following error:
 
-	make[3]: Entering directory `blabla/buildroot/toolchain_build_m68hc12/gcc-4.3.3-build/m68hc12-elf/libgcc'
-	...
-	blabla/buildroot/toolchain_build_m68hc12/gcc-4.3.3/libgcc/../gcc/libgcc2.c:566: internal compiler error: in init_move_cost, at regclass.c:323
-	Please submit a full bug report,
-	with preprocessed source if appropriate.
-	See <http://gcc.gnu.org/bugs.html> for instructions.
-	make[3]: *** [_muldi3.o] Error 1
-	make[3]: Leaving directory `blabla/buildroot/toolchain_build_m68hc12/gcc-4.3.3-build/m68hc12-elf/libgcc'
+  make[3]: Entering directory `blabla/buildroot/toolchain_build_m68hc12/gcc-4.3.3-build/m68hc12-elf/libgcc'
+  ...
+  blabla/buildroot/toolchain_build_m68hc12/gcc-4.3.3/libgcc/../gcc/libgcc2.c:566: internal compiler error: in init_move_cost, at regclass.c:323
+  Please submit a full bug report,
+  with preprocessed source if appropriate.
+  See <http://gcc.gnu.org/bugs.html> for instructions.
+  make[3]: *** [_muldi3.o] Error 1
+  make[3]: Leaving directory `blabla/buildroot/toolchain_build_m68hc12/gcc-4.3.3-build/m68hc12-elf/libgcc'
 
-	Use m68hc12-config-3.4.6
+  Use m68hc12-config-3.4.6
 
 m9s12x_config_3.3.6
-	Builds a hcs12 toolchain using gcc 3.3.6 and extensive m9x12x-specific patches.
+  Builds a hcs12 toolchain using gcc 3.3.6 and extensive m9x12x-specific patches.
 
 m68k-config
-	Builds an M68K toolchain using gcc 3.4.6
+  Builds an M68K toolchain using gcc 3.4.6
 
 sh-defconfig
-	Builds an SH-1/2 toolchain using gcc 3.4.6
+  Builds an SH-1/2 toolchain using gcc 3.4.6
 
 GENERAL BUILD STEPS
 ^^^^^^^^^^^^^^^^^^^
@@ -282,14 +289,14 @@ Cygwin GCC BUILD NOTES
    and, apparently, the make variable "exeext" is set incorrectly.  A work around after the
    above occurs is:
 
-      cd toolchain_build_<arch>/gcc-4.2.4-build/gcc	# Go to the directory where error occurred
-      mv cc1-dummy.exe cc1-dummy			# Rename the executable without .exe
-      rm cc1-checksum.c					# Get rid of the bad generated file
+      cd toolchain_build_<arch>/gcc-4.2.4-build/gcc  # Go to the directory where error occurred
+      mv cc1-dummy.exe cc1-dummy         # Rename the executable without .exe
+      rm cc1-checksum.c                  # Get rid of the bad generated file
 
    Then resume the buildroot make:
 
-      cd -						# Back to the buildroot make directory
-      make						# Restart the build
+      cd -                               # Back to the buildroot make directory
+      make                               # Restart the build
 
    If you build g++, you will see another similar error:
 
@@ -300,14 +307,14 @@ Cygwin GCC BUILD NOTES
 
    The fix is similar:
 
-      cd toolchain_build_<arch>/gcc-4.2.4-build/gcc	# Go to the directory where error occurred
-      mv cc1plus-dummy.exe cc1plus-dummy		# Rename the executable without .exe
-      rm cc1plus-checksum.c				# Get rid of the bad generated file
+      cd toolchain_build_<arch>/gcc-4.2.4-build/gcc  # Go to the directory where error occurred
+      mv cc1plus-dummy.exe cc1plus-dummy # Rename the executable without .exe
+      rm cc1plus-checksum.c              # Get rid of the bad generated file
 
    Then resume the buildroot make:
 
-      cd -						# Back to the buildroot make directory
-      make						# Restart the build
+      cd -                               # Back to the buildroot make directory
+      make                               # Restart the build
 
  o Once I had problems building the toolchain on Cygwin.  In this case, I
    would occasioinally get "Permission denied" errors will trying to configure

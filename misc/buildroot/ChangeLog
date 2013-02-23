@@ -131,3 +131,5 @@ buildroot-1.12 2011-xx-xx <gnutt@nuttx.org>
 
 	* Fix typo toolchain/gdb/Config.in that prevented GDB 7.4 from building
 	  (from Ken Bannister).
+	* Add support for a Cortex-M0 toolchain based on GCC 4.6.3.
+

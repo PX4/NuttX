@@ -57,6 +57,9 @@ ifneq ($(strip $(subst ",,$(BR2_GCC_TARGET_ABI))),)
 # ")))
 GCC_WITH_ABI:=--with-abi=$(BR2_GCC_TARGET_ABI)
 endif
+ifdef BR2_cortex_m0
+GCC_WITH_MODE:=--with-mode=thumb
+endif
 ifdef BR2_cortex_m3
 GCC_WITH_MODE:=--with-mode=thumb
 endif
