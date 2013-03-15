@@ -1,5 +1,5 @@
-ReleaseNotes v0.1.11
-====================
+ReleaseNotes v1.12
+==================
 
 Supported Toolchains
 --------------------
@@ -15,9 +15,12 @@ can be used to build the following NuttX-compatible toolchains:
 
     NXFLAT toolchain for use with the ARM7 and ARM9.
 
-  o arm-elf ARM Cortex-M3 (thumb2) toolchain needed for use with
-    the Luminary LM3Sxxx, NXP 17xxxx, Atmel SAM3u, and STMicro
-    STM32 ports provided with the NuttX releases.
+  o arm-eabi ARM Cortex-M0 toolchain needed for use with
+    the NUC120 ports provided with the NuttX releases.
+
+  o arm-elf and arm-eabi ARM Cortex-M3 (thumb2) toolchain needed
+    for use with the Luminary LM3Sxxx, NXP 17xxx, Atmel SAM3u, and
+    STMicro STM32 ports provided with the NuttX releases.
 
     NXFLAT toolchain for use with the ARM Cortex-M3.
 

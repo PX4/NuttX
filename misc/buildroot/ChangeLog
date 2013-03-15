@@ -127,9 +127,11 @@ buildroot-1.11 2011-11-05 <gnutt@nuttx.org>
 	  past the end of allocated memory.  Partial restoration of R_ARM_REL32
 	  logic.  There are lots of issues that I still do not understand here.
 
-buildroot-1.12 2011-xx-xx <gnutt@nuttx.org>
+buildroot-1.12 2013-03-15 <gnutt@nuttx.org>
 
 	* Fix typo toolchain/gdb/Config.in that prevented GDB 7.4 from building
 	  (from Ken Bannister).
 	* Add support for a Cortex-M0 toolchain based on GCC 4.6.3.
+
+buildroot-1.13 2011-xx-xx <gnutt@nuttx.org>
 
