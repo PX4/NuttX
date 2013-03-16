@@ -1,22 +1,17 @@
 #!/bin/sh
 set -e
 
-printf "Running libtoolize...\n"
-libtoolize --copy --force
+printf "Creating macrodir...\n"
+macrodir="$( sed -r -e '/^AC_CONFIG_MACRO_DIR\(\[(.*)\]\)/!d;'  \
+                    -e 's//\1/;'                                \
+                    configure.ac                                \
+           )"
+mkdir -p "${macrodir}"
 
-printf "Running aclocal...\n"
-aclocal -Wall --force
+printf "Running autoreconf...\n"
+autoreconf -f -i -Wall
 
-printf "Running autoconf...\n"
-autoconf -Wall --force
-
-printf "Running autoheader...\n"
-autoheader -Wall --force
-
-printf "Running automake...\n"
-automake --foreign --add-missing --copy -Wall --force
-
-# Cleanup the mess... :-(
+# Cleanup the useless stuff... :-(
 rm -rf autom4te.cache
 
 printf "Done. You may now run:\n    ./configure\n"

@@ -38,7 +38,12 @@ bin_PROGRAMS = qconf$(EXEEXT)
 subdir = frontends/qconf
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/scripts/.autostuff/m4/libtool.m4 \
+	$(top_srcdir)/scripts/.autostuff/m4/ltoptions.m4 \
+	$(top_srcdir)/scripts/.autostuff/m4/ltsugar.m4 \
+	$(top_srcdir)/scripts/.autostuff/m4/ltversion.m4 \
+	$(top_srcdir)/scripts/.autostuff/m4/lt~obsolete.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
@@ -108,7 +113,6 @@ ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
-ALLOCA = @ALLOCA@
 AMTAR = @AMTAR@
 AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
 AM_LFLAGS = @AM_LFLAGS@

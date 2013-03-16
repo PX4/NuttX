@@ -28,7 +28,7 @@ AS_IF(
     [test "$program_prefix" = NONE],
     [program_prefix=kconfig-])
 
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([foreign])
 
 AS_IF(
     [test "$(${srcdir}/scripts/version.sh --internal)" = "hg"],
@@ -50,19 +50,26 @@ LT_INIT([disable-static])
 #---------------------------------------------------------------------------
 # Set misc options
 
-# By default, do not build with -Wall, unless the user asks for it
+# By default, do build with -Wall, unless the user asks not to
+[wall_CFLAGS=-Wall]
 AC_ARG_ENABLE(
     [wall],
     [AS_HELP_STRING(
-        [--enable-wall],
-        [build with -Wall (default=no)])],
+        [--disable-wall],
+        [build with -Wall (default=yes)])],
     [AS_CASE(
         ["$enableval"],
         [yes], [wall_CFLAGS=-Wall],
         [*],   [wall_CFLAGS=""])])
 AC_SUBST([wall_CFLAGS],[${wall_CFLAGS}])
 
-# By default, do not build with -Werror, unless the user asks for it
+# For releases, do not build with -Werror, unless the user explcitly
+# requests to build with -Werror.
+# For the devel tree, do build with -Werror by default, unless user
+# explicitly disables -Werror
+AS_IF(
+    [test "$(${srcdir}/scripts/version.sh --internal)" = "hg"],
+    [werror_CFLAGS=-Werror])
 AC_ARG_ENABLE(
     [werror],
     [AS_HELP_STRING(
@@ -108,7 +115,7 @@ AC_ARG_ENABLE(
     [utils],
     [AS_HELP_STRING(
         [--disable-utils],
-        [install utilities to manage .config files (default=no)])])
+        [install utilities to manage .config files (default=yes)])])
 AC_SUBST([enable_utils], [${enable_utils:-yes}])
 
 AC_ARG_ENABLE(
@@ -214,23 +221,6 @@ AC_PROG_LEX
 AC_SUBST([AM_LFLAGS], ["-L -P zconf"])
 AC_PROG_YACC
 AC_SUBST([AM_YFLAGS], ["-t -l -p zconf"])
-
-#----------------------------------------
-# Check for standard headers
-AC_HEADER_STDC
-AC_HEADER_STDBOOL
-AC_CHECK_HEADERS([ fcntl.h limits.h locale.h ])
-AC_CHECK_HEADERS([ stdlib.h string.h sys/time.h unistd.h ])
-AC_TYPE_SIZE_T
-
-#----------------------------------------
-# Checks for library functions.
-AC_FUNC_MALLOC
-AC_FUNC_REALLOC
-AC_FUNC_ALLOCA
-AC_CHECK_FUNCS([ bzero memmove memset ])
-AC_CHECK_FUNCS([ strcasecmp strchr strcspn strdup strncasecmp strpbrk strrchr strspn strtol ])
-AC_CHECK_FUNCS([ gettimeofday mkdir regcomp setlocale uname ])
 
 #----------------------------------------
 # Check for gettext, for the kconfig frontends
