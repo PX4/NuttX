@@ -1,4 +1,3 @@
-./README.buildroot
-./gnuconfig.mk
-./patches
-
+/README.buildroot
+/gnuconfig.mk
+/patches

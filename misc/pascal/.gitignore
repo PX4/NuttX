@@ -1,6 +1,5 @@
-.config
-Make.config
-lib
-bin16
-bin32
-
+/.config
+/Make.config
+/lib
+/bin16
+/bin32
