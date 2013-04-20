@@ -90,7 +90,7 @@ fi
 
 echo "##### Comparing libxx"
 
-filelist=`find libxx -type f | fgrep -v '.svn'`
+filelist=`find libxx -type f`
 
 for file in $filelist; do
   diff -u $file ${nuttx_path}/${file}
@@ -99,7 +99,7 @@ done
 echo ""
 echo "##### Comparing include"
 
-filelist=`find include -type f | fgrep -v '.svn'`
+filelist=`find include -type f`
 
 for file in $filelist; do
   diff -u $file ${nuttx_path}/${file}

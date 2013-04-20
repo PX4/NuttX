@@ -311,13 +311,13 @@ fi
 
 echo "Installing uClibc++ in the NuttX source tree"
 
-filelist=`find libxx -type f | fgrep -v '.svn'`
+filelist=`find libxx -type f`
 
 for file in $filelist; do
   install -D $file ${nuttx_path}/${file}
 done
 
-filelist=`find include -type f | fgrep -v '.svn'`
+filelist=`find include -type f`
 
 for file in $filelist; do
   install -D $file ${nuttx_path}/${file}

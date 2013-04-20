@@ -30,7 +30,7 @@ installation script is provided at misc/uClibc++/install.sh that can be used
 to install the uClibc++ components into the NuttX source tree.
 
 The install script takes only a single arguement: The path to the nuttx
-directory.  If your directory structure is the same as the SVN structure
+directory.  If your directory structure is the same as the GIT structure
 (with misc/ and nuttx/ at the same level), then uClibc++ can be installed
 using this command executed from the misc/uClibc++ directory:
 
