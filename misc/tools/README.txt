@@ -158,3 +158,15 @@ windows IS POSSIBLE, I have done it in a few minutes."
 "Oops, forgot something, I had to bring a gperf binary from the gnuwin32 project."
 
 - Sebastien Lorquet
+
+osmocon
+=======
+
+This is the osmocon utility extracted from the Osmocom-BB git on 2013-5-14.  It
+has been modified to build standalone outside of the Osmocom-BB environment.
+Osmocom-BB developers will have no use for this tool since it is available in
+the Osmocom-BB repository.  However, it is handle for OS developers who will
+not be building the entire phone application.
+
+See the Osmocom-BB Getting Started page for instructions for the use of this
+tool.  NOTE:  This tool has a GPL license.  See osmocom/COPYING.
