@@ -5,3 +5,4 @@
 /conf
 /mconf
 /*.exe
+/*.dSYM
