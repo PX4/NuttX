@@ -93,7 +93,7 @@
  *
  ************************************************************************************/
 
-void weak_function stm32_spiinitialize(void)
+void stm32_spiinitialize(void)
 {
 #ifdef CONFIG_STM32_SPI1
   stm32_configgpio(GPIO_SPI_CS_GYRO);
