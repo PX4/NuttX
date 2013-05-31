@@ -535,6 +535,13 @@ config ARCH_BOARD_STM3240G_EVAL
 		microcontroller (ARM Cortex-M4 with FPU).  This port uses a GNU Cortex-M4
 		toolchain (such as CodeSourcery).
 
+config ARCH_BOARD_PX4FMU_V1
+	bool "PX4FMU v1.x"
+	depends on ARCH_CHIP_STM32F405RG
+	select ARCH_HAVE_LEDS
+	---help---
+		PX4 flight management unit v1.x
+
 config ARCH_BOARD_STM32F100RC_GENERIC
 	bool "STMicro STM32F100RC generic board"
 	depends on ARCH_CHIP_STM32F100RC
@@ -781,6 +788,7 @@ config ARCH_BOARD
 	default "stm32f100rc_generic" if ARCH_BOARD_STM32F100RC_GENERIC
 	default "stm32f3discovery"    if ARCH_BOARD_STM32F3_DISCOVERY
 	default "stm32f4discovery"    if ARCH_BOARD_STM32F4_DISCOVERY
+	default "px4fmu-v1"    	      if ARCH_BOARD_PX4FMU_V1
 	default "stm32ldiscovery"     if ARCH_BOARD_STM32L_DISCOVERY
 	default "mikroe-stm32f4"      if ARCH_BOARD_MIKROE_STM32F4
 	default "sure-pic32mx"        if ARCH_BOARD_SUREPIC32MX
@@ -1015,6 +1023,9 @@ source "configs/stm32f100rc_generic/Kconfig"
 endif
 if ARCH_BOARD_STM32F4_DISCOVERY
 source "configs/stm32f4discovery/Kconfig"
+endif
+if ARCH_BOARD_PX4FMU_V1
+source "configs/px4fmu-v1/Kconfig"
 endif
 if ARCH_BOARD_STM32L_DISCOVERY
 source "configs/stm32ldiscovery/Kconfig"
