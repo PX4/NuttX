@@ -149,12 +149,19 @@
 #define STM32_APB2_TIM11_CLKIN  (2*STM32_PCLK2_FREQUENCY)
 
 /* Timer Frequencies, if APBx is set to 1, frequency is same to APBx
- * otherwise frequency is 2xAPBx. 
+ * otherwise frequency is 2xAPBx.
  * Note: TIM1,8 are on APB2, others on APB1
  */
 
-#define STM32_TIM18_FREQUENCY   STM32_HCLK_FREQUENCY
-#define STM32_TIM27_FREQUENCY   (STM32_HCLK_FREQUENCY/2)
+#define STM32_TIM18_FREQUENCY   (2*STM32_PCLK2_FREQUENCY)
+#define STM32_TIM27_FREQUENCY   (2*STM32_PCLK1_FREQUENCY)
+
+/* High-resolution timer
+ */
+#ifdef CONFIG_HRT_TIMER
+# define HRT_TIMER		1	/* use timer1 for the HRT */
+# define HRT_TIMER_CHANNEL	1	/* use capture/compare channel */
+#endif
 
 /* LED definitions ******************************************************************/
 /* If CONFIG_ARCH_LEDS is not defined, then the user can control the LEDs in any
@@ -209,6 +216,85 @@
 /* UART DMA configuration for USART1/6 */
 #define DMAMAP_USART1_RX DMAMAP_USART1_RX_2
 #define DMAMAP_USART6_RX DMAMAP_USART6_RX_2
+ 
+/*
+ * PWM
+ *
+ * Four PWM outputs can be configured on pins otherwise shared with
+ * USART2; two can take the flow control pins if they are not being used.
+ *
+ * Pins:
+ *
+ * CTS - PA0 - TIM2CH1
+ * RTS - PA1 - TIM2CH2
+ * TX  - PA2 - TIM2CH3
+ * RX  - PA3 - TIM2CH4
+ *
+ */
+#define GPIO_TIM2_CH1OUT	GPIO_TIM2_CH1OUT_1
+#define GPIO_TIM2_CH2OUT	GPIO_TIM2_CH2OUT_1
+#define GPIO_TIM2_CH3OUT	GPIO_TIM2_CH3OUT_1
+#define GPIO_TIM2_CH4OUT	GPIO_TIM2_CH4OUT_1
+
+/*
+ * PPM
+ *
+ * PPM input is handled by the HRT timer.
+ */
+#if defined(CONFIG_HRT_TIMER) && defined (CONFIG_HRT_PPM)
+# define HRT_PPM_CHANNEL	3	/* use capture/compare channel 3 */
+# define GPIO_PPM_IN	(GPIO_ALT|GPIO_AF1|GPIO_SPEED_50MHz|GPIO_PULLUP|GPIO_PORTA|GPIO_PIN10)
+#endif
+
+/*
+ * CAN
+ *
+ * CAN2 is routed to the expansion connector.
+ */
+
+#define GPIO_CAN2_RX	GPIO_CAN2_RX_2
+#define GPIO_CAN2_TX	GPIO_CAN2_TX_2
+
+/*
+ * I2C
+ *
+ * The optional _GPIO configurations allow the I2C driver to manually
+ * reset the bus to clear stuck slaves.  They match the pin configuration,
+ * but are normally-high GPIOs.
+ */
+#define GPIO_I2C1_SCL		GPIO_I2C1_SCL_2
+#define GPIO_I2C1_SDA		GPIO_I2C1_SDA_2
+#define GPIO_I2C1_SCL_GPIO	(GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTB|GPIO_PIN8)
+#define GPIO_I2C1_SDA_GPIO	(GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTB|GPIO_PIN9)
+
+#define GPIO_I2C2_SCL		GPIO_I2C2_SCL_1
+#define GPIO_I2C2_SDA		GPIO_I2C2_SDA_1
+#define GPIO_I2C2_SCL_GPIO	(GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTB|GPIO_PIN10)
+#define GPIO_I2C2_SDA_GPIO	(GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTB|GPIO_PIN11)
+
+#define GPIO_I2C3_SCL		GPIO_I2C3_SCL_1
+#define GPIO_I2C3_SDA		GPIO_I2C3_SDA_1
+#define GPIO_I2C3_SCL_GPIO	(GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTA|GPIO_PIN8)
+#define GPIO_I2C3_SDA_GPIO	(GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTC|GPIO_PIN9)
+
+/*
+ * I2C busses
+ */
+#define PX4_I2C_BUS_ESC		1
+#define PX4_I2C_BUS_ONBOARD	2
+#define PX4_I2C_BUS_EXPANSION	3
+
+/*
+ * Devices on the onboard bus.
+ *
+ * Note that these are unshifted addresses.
+ */
+#define PX4_I2C_OBDEV_HMC5883	0x1e
+#define PX4_I2C_OBDEV_MS5611	0x76
+#define PX4_I2C_OBDEV_EEPROM	NOTDEFINED
+
+#define PX4_I2C_OBDEV_PX4IO_BL	0x18
+#define PX4_I2C_OBDEV_PX4IO	0x1a
 
 /*
  * SPI
@@ -231,28 +317,19 @@
 #define PX4_SPIDEV_GYRO		1
 #define PX4_SPIDEV_ACCEL	2
 #define PX4_SPIDEV_MPU		3
- 
+
 /*
- * I2C
- *
- * The optional _GPIO configurations allow the I2C driver to manually
- * reset the bus to clear stuck slaves.  They match the pin configuration,
- * but are normally-high GPIOs.
+ * Optional devices on IO's external port
  */
-#define GPIO_I2C1_SCL		GPIO_I2C1_SCL_2
-#define GPIO_I2C1_SDA		GPIO_I2C1_SDA_2
-#define GPIO_I2C1_SCL_GPIO	(GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTB|GPIO_PIN8)
-#define GPIO_I2C1_SDA_GPIO	(GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTB|GPIO_PIN9)
+#define PX4_SPIDEV_ACCEL_MAG 2
 
-#define GPIO_I2C2_SCL		GPIO_I2C2_SCL_1
-#define GPIO_I2C2_SDA		GPIO_I2C2_SDA_1
-#define GPIO_I2C2_SCL_GPIO	(GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTB|GPIO_PIN10)
-#define GPIO_I2C2_SDA_GPIO	(GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTB|GPIO_PIN11)
-
-#define GPIO_I2C3_SCL		GPIO_I2C3_SCL_1
-#define GPIO_I2C3_SDA		GPIO_I2C3_SDA_1
-#define GPIO_I2C3_SCL_GPIO	(GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTA|GPIO_PIN8)
-#define GPIO_I2C3_SDA_GPIO	(GPIO_OUTPUT|GPIO_OPENDRAIN|GPIO_SPEED_50MHz|GPIO_OUTPUT_SET|GPIO_PORTC|GPIO_PIN9)
+/*
+ * Tone alarm output
+ */
+#define TONE_ALARM_TIMER	3	/* timer 3 */
+#define TONE_ALARM_CHANNEL	3	/* channel 3 */
+#define GPIO_TONE_ALARM_IDLE	(GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_CLEAR|GPIO_PORTC|GPIO_PIN8)
+#define GPIO_TONE_ALARM		(GPIO_ALT|GPIO_AF2|GPIO_SPEED_2MHz|GPIO_FLOAT|GPIO_PUSHPULL|GPIO_PORTC|GPIO_PIN8)
 
 /************************************************************************************
  * Public Data

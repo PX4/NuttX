@@ -2,7 +2,7 @@
 # configs/stm3210e-eval/dfu/setenv.sh
 #
 #   Copyright (C) 2009 Gregory Nutt. All rights reserved.
-#   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
+#   Author: Gregory Nutt <gnutt@nuttx.org>
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -41,7 +41,7 @@ if [ -z "${PATH_ORIG}" ]; then export PATH_ORIG="${PATH}"; fi
 
 WD=`pwd`
 export RIDE_BIN="/cygdrive/c/Program Files/Raisonance/Ride/arm-gcc/bin"
-export BUILDROOT_BIN="${WD}/../buildroot/build_arm_nofpu/staging_dir/bin"
+export BUILDROOT_BIN="${WD}/../misc/buildroot/build_arm_nofpu/staging_dir/bin"
 export PATH="${BUILDROOT_BIN}:${RIDE_BIN}:/sbin:/usr/sbin:${PATH_ORIG}"
 
 echo "PATH : ${PATH}"
