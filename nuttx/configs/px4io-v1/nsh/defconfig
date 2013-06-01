@@ -1,5 +1,5 @@
 ############################################################################
-# configs/px4io/nsh/defconfig
+# configs/px4io-v1/nsh/defconfig
 #
 #   Copyright (C) 2012 PX4 Development Team. All rights reserved.
 #   Copyright (C) 2011-2012 Gregory Nutt. All rights reserved.
@@ -550,3 +550,9 @@ CONFIG_PTHREAD_STACK_MIN=512
 CONFIG_PTHREAD_STACK_DEFAULT=1024
 CONFIG_HEAP_BASE=
 CONFIG_HEAP_SIZE=
+
+#
+# NSH Library
+#
+# CONFIG_NSH_LIBRARY is not set
+# CONFIG_NSH_BUILTIN_APPS is not set
