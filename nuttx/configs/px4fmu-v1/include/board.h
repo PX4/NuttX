@@ -310,6 +310,13 @@
 #define GPIO_SPI3_SCK	GPIO_SPI3_SCK_2
 #define GPIO_SPI3_NSS	GPIO_SPI3_NSS_2
 
+/* XXX DMA setup not validated yet */
+//#define DMAMAP_SPI3_RX DMAMAP_SPI3_RX_1
+//#define DMAMAP_SPI3_RX DMAMAP_SPI3_TX_1
+
+//#define DMAMAP_SPI1_RX DMAMAP_SPI1_RX_1
+//#define DMAMAP_SPI1_RX DMAMAP_SPI1_TX_1
+
 /*
  * Use these in place of the spi_dev_e enumeration to
  * select a specific SPI device on SPI1
