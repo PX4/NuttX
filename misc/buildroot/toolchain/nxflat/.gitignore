@@ -5,3 +5,5 @@
 /mknxflat
 /readnxflat
 /*.exe
+/*.dSYM
+

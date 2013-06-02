@@ -1,5 +1,4 @@
-*.o1
-*.err
-*.lst
-*.pex
-
+/*.o1
+/*.err
+/*.lst
+/*.pex

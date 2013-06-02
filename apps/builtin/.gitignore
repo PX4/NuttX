@@ -4,8 +4,8 @@
 /Make.dep
 /builtin_list.h
 /builtin_proto.h
-*.src
-*.obj
-*.lst
-*.asm
-*.sym
+/*.src
+/*.obj
+/*.lst
+/*.asm
+/*.sym
