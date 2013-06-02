@@ -5,16 +5,16 @@
 
 if ARCH_BOARD_PX4FMU_V1
 
-config CONFIG_HRT_TIMER
+config HRT_TIMER
 	bool "High resolution timer support"
 	default y
 	---help---
 		Enable high resolution timer for PPM capture and system clocks.
 
-config CONFIG_HRT_PPM
+config HRT_PPM
 	bool "PPM input capture"
 	default y
-	depends on CONFIG_HRT_TIMER
+	depends on HRT_TIMER
 	---help---
 		Enable PPM input capture via HRT (for CPPM / PPM sum RC inputs)
 
