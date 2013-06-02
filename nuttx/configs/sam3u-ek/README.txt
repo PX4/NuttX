@@ -41,12 +41,12 @@ GNU Toolchain Options
   add one of the following configuration options to your .config (or defconfig)
   file:
 
-    CONFIG_SAM3U_CODESOURCERYW=y  : CodeSourcery under Windows
-    CONFIG_SAM3U_CODESOURCERYL=y  : CodeSourcery under Linux
-    CONFIG_SAM3U_DEVKITARM=y      : devkitARM under Windows
-    CONFIG_SAM3U_BUILDROOT=y      : NuttX buildroot under Linux or Cygwin (default)
+    CONFIG_SAM34_CODESOURCERYW=y  : CodeSourcery under Windows
+    CONFIG_SAM34_CODESOURCERYL=y  : CodeSourcery under Linux
+    CONFIG_SAM34_DEVKITARM=y      : devkitARM under Windows
+    CONFIG_SAM34_BUILDROOT=y      : NuttX buildroot under Linux or Cygwin (default)
 
-  If you are not using CONFIG_SAM3U_BUILDROOT, then you may also have to modify
+  If you are not using CONFIG_SAM34_BUILDROOT, then you may also have to modify
   the PATH in the setenv.h file if your make cannot find the tools.
 
   NOTE: the CodeSourcery (for Windows), devkitARM, and Raisonance toolchains are
@@ -108,13 +108,13 @@ IDEs
   2) Start the NuttX build at least one time from the Cygwin command line
      before trying to create your project.  This is necessary to create
      certain auto-generated files and directories that will be needed.
-  3) Set up include pathes:  You will need include/, arch/arm/src/sam3u,
+  3) Set up include pathes:  You will need include/, arch/arm/src/sam34,
      arch/arm/src/common, arch/arm/src/armv7-m, and sched/.
   4) All assembly files need to have the definition option -D __ASSEMBLY__
      on the command line.
 
   Startup files will probably cause you some headaches.  The NuttX startup file
-  is arch/arm/src/sam3u/sam3u_vectors.S.  You may need to build NuttX
+  is arch/arm/src/sam34/sam_vectors.S.  You may need to build NuttX
   one time from the Cygwin command line in order to obtain the pre-built
   startup object needed by RIDE.
 
@@ -256,17 +256,19 @@ SAM3U-EK-specific Configuration Options
 
     CONFIG_ARCH_CHIP - Identifies the arch/*/chip subdirectory
 
-       CONFIG_ARCH_CHIP=sam3u
+       CONFIG_ARCH_CHIP="sam34"
 
     CONFIG_ARCH_CHIP_name - For use in C code to identify the exact
        chip:
 
+       CONFIG_ARCH_CHIP_SAM34
+       CONFIG_ARCH_CHIP_SAM3U
        CONFIG_ARCH_CHIP_AT91SAM3U4
 
     CONFIG_ARCH_BOARD - Identifies the configs subdirectory and
        hence, the board that supports the particular chip or SoC.
 
-       CONFIG_ARCH_BOARD=sam3u_ek (for the SAM3U-EK development board)
+       CONFIG_ARCH_BOARD=sam3u-ek (for the SAM3U-EK development board)
 
     CONFIG_ARCH_BOARD_name - For use in C code
 
@@ -311,15 +313,15 @@ SAM3U-EK-specific Configuration Options
 
   Individual subsystems can be enabled:
 
-    CONFIG_SAM3U_DMA
-    CONFIG_SAM3U_HSMCI
-    CONFIG_SAM3U_NAND
-    CONFIG_SAM3U_SPI
-    CONFIG_SAM3U_UART
-    CONFIG_SAM3U_USART0
-    CONFIG_SAM3U_USART1
-    CONFIG_SAM3U_USART2
-    CONFIG_SAM3U_USART3
+    CONFIG_SAM34_DMA
+    CONFIG_SAM34_HSMCI
+    CONFIG_SAM34_NAND
+    CONFIG_SAM34_SPI
+    CONFIG_SAM34_UART
+    CONFIG_SAM34_USART0
+    CONFIG_SAM34_USART1
+    CONFIG_SAM34_USART2
+    CONFIG_SAM34_USART3
 
   Some subsystems can be configured to operate in different ways. The drivers
   need to know how to configure the subsystem.

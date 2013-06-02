@@ -2,7 +2,7 @@
  * configs/sam3u-ek/include/board.h
  * include/arch/board/board.h
  *
- *   Copyright (C) 2009-2011 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2009-2011, 2013 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,6 @@
  ************************************************************************************/
 
 #include <nuttx/config.h>
-#include "sam3u_internal.h"
 
 #ifndef __ASSEMBLY__
 #  include <stdint.h>
@@ -82,10 +81,10 @@
 
 /* Resulting frequencies */
 
-#define SAM3U_MAINOSC_FREQUENCY    (12000000)
-#define SAM3U_MCK_FREQUENCY        (48000000)
-#define SAM3U_PLLA_FREQUENCY       (96000000)
-#define SAM3U_CPU_FREQUENCY        (48000000)
+#define SAM_MAINOSC_FREQUENCY      (12000000)
+#define SAM_MCK_FREQUENCY          (48000000)
+#define SAM_PLLA_FREQUENCY         (96000000)
+#define SAM_CPU_FREQUENCY          (48000000)
 
 /* HSMCI clocking
  *
@@ -97,12 +96,12 @@
  */
 
 /* MCK = 48MHz, CLKDIV = 59, MCI_SPEED = 48MHz / 2 * (59+1) = 400 KHz */
-  
+
 #define HSMCI_INIT_CLKDIV      (59 << HSMCI_MR_CLKDIV_SHIFT)
 
 /* MCK = 48MHz, CLKDIV = 1, MCI_SPEED = 48MHz / 2 * (1+1) = 12 MHz */
 
-#define HSMCI_MMCXFR_CLKDIV    (3 << HSMCI_MR_CLKDIV_SHIFT) 
+#define HSMCI_MMCXFR_CLKDIV    (3 << HSMCI_MR_CLKDIV_SHIFT)
 
 /* MCK = 48MHz, CLKDIV = 0, MCI_SPEED = 48MHz / 2 * (0+1) = 24 MHz */
 
@@ -144,7 +143,7 @@ extern "C" {
  * Public Function Prototypes
  ************************************************************************************/
 /************************************************************************************
- * Name: sam3u_boardinitialize
+ * Name: sam_boardinitialize
  *
  * Description:
  *   All SAM3U architectures must provide the following entry point.  This entry point
@@ -153,7 +152,7 @@ extern "C" {
  *
  ************************************************************************************/
 
-EXTERN void sam3u_boardinitialize(void);
+void sam_boardinitialize(void);
 
 /************************************************************************************
  * Name: up_buttoninit
@@ -166,7 +165,7 @@ EXTERN void sam3u_boardinitialize(void);
  ************************************************************************************/
 
 #ifdef CONFIG_ARCH_BUTTONS
-EXTERN void up_buttoninit(void);
+void up_buttoninit(void);
 
 /************************************************************************************
  * Name: up_buttons
@@ -179,7 +178,7 @@ EXTERN void up_buttoninit(void);
  *
  ************************************************************************************/
 
-EXTERN uint8_t up_buttons(void);
+uint8_t up_buttons(void);
 
 /************************************************************************************
  * Name: up_irqbutton
@@ -193,7 +192,7 @@ EXTERN uint8_t up_buttons(void);
  ************************************************************************************/
 
 #ifdef CONFIG_GPIOA_IRQ
-EXTERN xcpt_t up_irqbutton(int id, xcpt_t irqhandler);
+xcpt_t up_irqbutton(int id, xcpt_t irqhandler);
 #endif
 #endif /* CONFIG_ARCH_BUTTONS */
 
