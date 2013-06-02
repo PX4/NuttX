@@ -1,4 +1,2 @@
-Make.dep
-.depend
-
-
+/.depend
+/Make.dep

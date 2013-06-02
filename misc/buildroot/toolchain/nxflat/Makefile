@@ -70,5 +70,5 @@ readnxflat: arch $(READNXFLAT_OBJS) arch/libarch.a
 
 clean:
 	-$(MAKE) -C arch clean
-	rm -f *.o $(BIN) arch *.exe *~ .*.swp
+	rm -f *.o $(BIN) arch *.exe *.dSYM *~ .*.swp
 

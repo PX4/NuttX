@@ -1641,6 +1641,12 @@ Where <subdir> is one of the following:
        configuration so nothing should appear on UART2 unless you enable
        some debug output or enable the USB monitor.
 
+       NOTE:  Using the SYSLOG to get debug output has limitations.  Among
+       those are that you cannot get debug output from interrupt handlers.
+       So, in particularly, debug output is not a useful way to debug the
+       USB device controller driver.  Instead, use the USB monitor with
+       USB debug off and USB trance on (see below).
+
     4. Enabling USB monitor SYSLOG output.  If tracing is enabled, the USB
        device will save encoded trace output in in-memory buffer; if the
        USB monitor is enabled, that trace buffer will be periodically
@@ -1670,8 +1676,8 @@ Where <subdir> is one of the following:
     You could also use the non-standard PL2303 serial device instead of
     the standard CDC/ACM serial device by changing:
 
-      CONFIG_CDCACM=y               : Disable the CDC/ACM serial device class
-      CONFIG_CDCACM_CONSOLE=y       : The CDC/ACM serial device is NOT the console
+      CONFIG_CDCACM=n               : Disable the CDC/ACM serial device class
+      CONFIG_CDCACM_CONSOLE=n       : The CDC/ACM serial device is NOT the console
       CONFIG_PL2303=y               : The Prolifics PL2303 emulation is enabled
       CONFIG_PL2303_CONSOLE=y       : The PL2303 serial device is the console
 

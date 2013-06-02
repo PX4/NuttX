@@ -7,6 +7,7 @@
 /mksyscall
 /mkversion
 /*.exe
+/*.dSYM
 /.k2h-body.dat
 /.k2h-apndx.dat
 /*.dSYM
