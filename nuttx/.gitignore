@@ -16,3 +16,6 @@
 /*.ihx
 /*.hex
 /pcode
+/cmpit.sh
+/cmporig.sh
+/tstit.sh
