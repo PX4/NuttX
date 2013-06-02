@@ -2,7 +2,7 @@
  * configs/sam3u-ek/src/up_touchscreen.c
  * arch/arm/src/board/up_touchscreen.c
  *
- *   Copyright (C) 2011-2012 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2011-2013 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,8 +50,8 @@
 #include <nuttx/input/touchscreen.h>
 #include <nuttx/input/ads7843e.h>
 
-#include "sam3u_internal.h"
-#include "sam3uek_internal.h"
+#include "sam_gpio.h"
+#include "sam3u-ek.h"
 
 /****************************************************************************
  * Pre-Processor Definitions
@@ -63,8 +63,8 @@
 #  error "Touchscreen support requires CONFIG_INPUT"
 #endif
 
-#ifndef CONFIG_SAM3U_SPI
-#  error "Touchscreen support requires CONFIG_SAM3U_SPI"
+#ifndef CONFIG_SAM34_SPI
+#  error "Touchscreen support requires CONFIG_SAM34_SPI"
 #endif
 
 #ifndef CONFIG_GPIOA_IRQ
@@ -154,22 +154,22 @@ static int tsc_attach(FAR struct ads7843e_config_s *state, xcpt_t isr)
 {
   /* Attach the ADS7843E interrupt */
 
-  ivdbg("Attaching %p to IRQ %d\n", isr, SAM3U_TCS_IRQ);
-  return irq_attach(SAM3U_TCS_IRQ, isr);
+  ivdbg("Attaching %p to IRQ %d\n", isr, SAM_TCS_IRQ);
+  return irq_attach(SAM_TCS_IRQ, isr);
 }
 
 static void tsc_enable(FAR struct ads7843e_config_s *state, bool enable)
 {
   /* Attach and enable, or detach and disable */
 
-  ivdbg("IRQ:%d enable:%d\n", SAM3U_TCS_IRQ, enable);
+  ivdbg("IRQ:%d enable:%d\n", SAM_TCS_IRQ, enable);
   if (enable)
     {
-      sam3u_gpioirqenable(SAM3U_TCS_IRQ);
+      sam_gpioirqenable(SAM_TCS_IRQ);
     }
   else
     {
-      sam3u_gpioirqdisable(SAM3U_TCS_IRQ);
+      sam_gpioirqdisable(SAM_TCS_IRQ);
     }
 }
 
@@ -186,7 +186,7 @@ static bool tsc_busy(FAR struct ads7843e_config_s *state)
 
   /* REVISIT:  This might need to be inverted */
 
-  bool busy = sam3u_gpioread(GPIO_TCS_BUSY);
+  bool busy = sam_gpioread(GPIO_TCS_BUSY);
 #if defined(CONFIG_DEBUG_INPUT) && defined(CONFIG_DEBUG_VERBOSE)
   if (busy != last)
     {
@@ -201,7 +201,7 @@ static bool tsc_pendown(FAR struct ads7843e_config_s *state)
 {
   /* REVISIT:  This might need to be inverted */
 
-  bool pendown = sam3u_gpioread(GPIO_TCS_IRQ);
+  bool pendown = sam_gpioread(GPIO_TCS_IRQ);
   ivdbg("pendown:%d\n", pendown);
   return pendown;
 }
@@ -238,12 +238,12 @@ int arch_tcinitialize(int minor)
 
   /* Configure and enable the ADS7843E interrupt pin as an input */
 
-  (void)sam3u_configgpio(GPIO_TCS_BUSY);
-  (void)sam3u_configgpio(GPIO_TCS_IRQ);
+  (void)sam_configgpio(GPIO_TCS_BUSY);
+  (void)sam_configgpio(GPIO_TCS_IRQ);
 
   /* Configure the PIO interrupt */
 
-  sam3u_gpioirq(GPIO_TCS_IRQ);
+  sam_gpioirq(GPIO_TCS_IRQ);
 
   /* Get an instance of the SPI interface */
 
