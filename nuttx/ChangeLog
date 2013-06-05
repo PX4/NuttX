@@ -4868,3 +4868,32 @@
 	  the SAM4L (2013-6-2).
 	* libc/stdio/lib_dprintd.c and lib_vdprintf.c:  Add dprintf() and
 	  vdprintf() (the latter from Andrew Tridgell, 2013-6-2).
+	* sched/sem_holder.c:  Modify assertion that is reported to cause
+	  false alarm assertions (2013-6-2).
+	* arch/arm/include/sam34/sam4l_irq.h and
+	  arch/arm/src/sam34/chip/sam4l_memorymap.h: Add interrupt and memory
+	  map definitions for the AT91SAM4L (2013-6-3).
+	* arch/arm/src/sam34/chip/sam4l_vectors.h and arm/src/sam34/sam_vectors.S:
+	  Add interrupt vector support for the SAM4L family (2013-6-3).
+	* arch/include/sam34/chip.h:  Add chip definitions for the SAM4L
+	  family (2013-6-3).
+	* configs/sam4l-xplained:  A partial configuration that will (eventually)
+	  support the SAM4L Xplained Pro developement board (2013-6-3).
+	* arch/arm/src/sam34/chip/sam4l_pinmap.h:  Initial cut as SAM4L
+	  pin mapping (2013-6-3).
+	* arch/arm/src/stm32/stm32*_dma.*:  Add a new interface function,
+	  stm32_dmacapable() that can be used to determine if DMA is
+	  possible from the specified memory address.  From Petteri Aimonen
+	  (2013-6-4).
+	* arch/arm/src/stm32/stm32_spi.c:  If CONFIG_STM32_DMACAPABLE is
+	  defined, use stm32_dmacapable() to determine if it is possible
+	  to perform DMA from the specified address.  This change is
+	  important for the STM32 F4 which may have SPI data buffers
+	  allocated on the stack in CCM memory which cannot support the
+	  DMA.  From Petteri Aimonen (2013-6-4).
+	* nuttx/arch/arm/src/sam34/sam4l_gpio.h: Created GPIO driver
+	  header file for the SAM4L.  Also renamed the SAM3U header
+	  file to sam3u_gpio.h (2013-6-4).
+	* nuttx/arch/arm/src/sam34/sam4l_gpio.c: Created GPIO driver for
+	  the SAM4L (2013-6-4).
+

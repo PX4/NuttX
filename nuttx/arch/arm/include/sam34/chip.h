@@ -48,20 +48,195 @@
 
 /* Get customizations for each supported chip */
 
-#ifdef CONFIG_ARCH_CHIP_AT91SAM3U4E
+/* AT91SAM3U Family *****************************************************************/
+
+#if defined(CONFIG_ARCH_CHIP_AT91SAM3U4E)
+
 /* Internal memory */
 
-#  define CONFIG_SAM34_SRAM0_SIZE    0x00008000  /* 32Kb */
-#  define CONFIG_SAM34_SRAM1_SIZE    0x00004000  /* 16Kb */
-#  define CONFIG_SAM34_NFCSRAM_SIZE  0x00001000  /*  4Kb */
+#  define CONFIG_SAM34_FLASH_SIZE    (256*1024)  /* 256Kb */
+#  define CONFIG_SAM34_SRAM0_SIZE    (32*1024)   /*  32Kb */
+#  define CONFIG_SAM34_SRAM1_SIZE    (16*1024)   /*  16Kb */
+#  define CONFIG_SAM34_NFCSRAM_SIZE  (4*1024)    /*   4Kb */
 
-/* DMA */
+/* Peripherals */
 
-#  define CONFIG_SAM34_NDMACHAN      4           /* 4 DMA Channels */
+#  define SAM34_NDMACHAN              4          /* 4 DMA Channels */
+#  define SAM34_NMCI2                 1          /* 1 memory card interface */
+#  define SAM32_NSLCD                 0          /* No segment LCD interface */
+#  define SAM32_NAESA                 0          /* No advanced encryption standard */
+#  define SAM32_NUDPHS                1          /* One USB high speed device */
+#  define SAM32_NUDPFS                0          /* No USB full speed device */
+#  define SAM32_NUHPFS                0          /* No USB full speed embedded host */
 
-/* Memory card interface */
+/* AT91SAM4L Family *****************************************************************/
+/* Sub-family differences:
+ *
+ *   FEATURE                 ATSAM4LCxx    ATSAM4LSxx
+ *   ----------------------- ------------- -------------
+ *   SEGMENT LCD             Yes           No
+ *   AESA                    Yes           No
+ *   USB                     Device + Host Device Only
+ *
+ *   Note:  The SEGMENT LCD capability varies with packaging.
+ *
+ *   FEATURE                 ATSAM4Lx2x    ATSAM4Lx4x
+ *   ----------------------- ------------- -------------
+ *   FLASH                   256KB         128KB
+ *   SRAM                    32KB          32KB
+ *
+ * Packaging differences:
+ *
+ *   FEATURE                 ATSAM4LxxC ATSAM4LxxB ATSAM4LxxA
+ *   ----------------------- ---------- ---------- ----------
+ *   Number of Pins          100        64         48
+ *   Max Frequency           48MHz      48MHz      48MHz
+ *   SEGMENT LCD             4x40       4x23       4x13
+ *   GPIO                    75         43         27
+ *   High-drive pins         6          3          1
+ *   External Interrupts     8+NMI      8+NMI      8+NMI
+ *   TWI Masters             2          2          1
+ *   TWI Master/Slave        2          2          1
+ *   USART                   4          4          3
+ *   PICOUART                1          1          1
+ *   Peripheral DMA Channels 16         16         16
+ *   Peripheral Even System  1          1          1
+ *   SPI                     1          1          1
+ *   Asynchronous Timers     1          1          1
+ *   Timer/Counter Channels  6          3          3
+ *   Parallel Capture Inputs 8          8          8
+ *   Frequency Meter         1          1          1
+ *   Watchdog Timer          1          1          1
+ *   Power Manager           1          1          1
+ *   Glue Logic LUT          2          2          1
+ *   ADC                     15-channel 7-channel  3-channel
+ *   DAC                     1-channel  1-channel  1-channel
+ *   Analog Comparators      4          2          1
+ *   CATB Sensors            32         32         26
+ *   Audio Bitstream DAC     1          1          1
+ *   IIS Controller          1          1          1
+ *   Packages                TQFP/VFBGA TQFP/QFN   TQFP/QFN
+ */
 
-#  define CONFIG_SAM34_MCI2          1
+#elif defined(CONFIG_ARCH_CHIP_ATSAM4LC2C) || defined (CONFIG_ARCH_CHIP_ATSAM4LC2B) || \
+      defined(CONFIG_ARCH_CHIP_ATSAM4LC2A)
+
+/* Internal memory */
+
+#  define CONFIG_SAM34_FLASH_SIZE    (128*1024)  /* 128Kb */
+#  define CONFIG_SAM34_SRAM0_SIZE    (32*1024)   /*  32Kb */
+#  define CONFIG_SAM34_SRAM1_SIZE    (0)         /* None */
+#  define CONFIG_SAM34_NFCSRAM_SIZE  (0)         /* None */
+
+/* Peripherals */
+
+#  define SAM34_NDMACHAN              16         /* 16 Peripheral DMA Channels */
+#  define SAM34_NMCI2                 0          /* No memory card interface */
+#  define SAM32_NSLCD                 1          /* 1 segment LCD interface */
+#  define SAM32_NAESA                 1          /* 1 advanced encryption standard */
+#  define SAM32_NUDPHS                0          /* No USB high speed device */
+#  define SAM32_NUDPFS                1          /* 1 USB full speed device */
+#  define SAM32_NUHPFS                1          /* 1 USB full speed embedded host */
+
+#elif defined(CONFIG_ARCH_CHIP_ATSAM4LC4C) || defined (CONFIG_ARCH_CHIP_ATSAM4LC4B) || \
+      defined(CONFIG_ARCH_CHIP_ATSAM4LC4A)
+
+/* Internal memory */
+
+#  define CONFIG_SAM34_FLASH_SIZE    (256*1024)  /* 256Kb */
+#  define CONFIG_SAM34_SRAM0_SIZE    (32*1024)   /*  32Kb */
+#  define CONFIG_SAM34_SRAM1_SIZE    (0)         /* None */
+#  define CONFIG_SAM34_NFCSRAM_SIZE  (0)         /* None */
+
+/* Peripherals */
+
+#  define SAM34_NDMACHAN              16         /* 16 Peripheral DMA Channels */
+#  define SAM34_NMCI2                 0          /* No memory card interface */
+#  define SAM32_NSLCD                 1          /* 1 segment LCD interface */
+#  define SAM32_NAESA                 1          /* 1 advanced encryption standard */
+#  define SAM32_NUDPHS                0          /* No USB high speed device */
+#  define SAM32_NUDPFS                1          /* 1 USB full speed device */
+#  define SAM32_NUHPFS                1          /* 1 USB full speed embedded host */
+
+#elif defined(CONFIG_ARCH_CHIP_ATSAM4LS2C) || defined (CONFIG_ARCH_CHIP_ATSAM4LS2B) || \
+      defined(CONFIG_ARCH_CHIP_ATSAM4LS2A)
+
+/* Internal memory */
+
+#  define CONFIG_SAM34_FLASH_SIZE    (128*1024)  /* 128Kb */
+#  define CONFIG_SAM34_SRAM0_SIZE    (32*1024)   /*  32Kb */
+#  define CONFIG_SAM34_SRAM1_SIZE    (0)         /* None */
+#  define CONFIG_SAM34_NFCSRAM_SIZE  (0)         /* None */
+
+/* Peripherals */
+
+#  define SAM34_NDMACHAN              16         /* 16 Peripheral DMA Channels */
+#  define SAM34_NMCI2                 0          /* No memory card interface */
+#  define SAM32_NSLCD                 0          /* No segment LCD interface */
+#  define SAM32_NAESA                 0          /* No advanced encryption standard */
+#  define SAM32_NUDPHS                0          /* No USB high speed device */
+#  define SAM32_NUDPFS                1          /* 1 USB full speed device */
+#  define SAM32_NUHPFS                0          /* No USB full speed embedded host */
+
+#elif defined(CONFIG_ARCH_CHIP_ATSAM4LS4C) || defined (CONFIG_ARCH_CHIP_ATSAM4LS4B) || \
+      defined(CONFIG_ARCH_CHIP_ATSAM4LS4A)
+
+/* Internal memory */
+
+#  define CONFIG_SAM34_FLASH_SIZE    (256*1024)  /* 256Kb */
+#  define CONFIG_SAM34_SRAM0_SIZE    (32*1024)   /*  32Kb */
+#  define CONFIG_SAM34_SRAM1_SIZE    (0)         /* None */
+#  define CONFIG_SAM34_NFCSRAM_SIZE  (0)         /* None */
+
+/* Peripherals */
+
+#  define SAM34_NDMACHAN              16         /* 16 Peripheral DMA Channels */
+#  define SAM34_NMCI2                 0          /* No memory card interface */
+#  define SAM32_NSLCD                 0          /* No segment LCD interface */
+#  define SAM32_NAESA                 0          /* No advanced encryption standard */
+#  define SAM32_NUDPHS                0          /* No USB high speed device */
+#  define SAM32_NUDPFS                1          /* 1 USB full speed device */
+#  define SAM32_NUHPFS                0          /* No USB full speed embedded host */
+
+/* AT91SAM4S Family *****************************************************************/
+/*
+ * FEATURE       SAM4SD32C SAM4SD32B SAM4SD16C SAM4SD16B SAM4SA16C SAM4SA16B SAM4S16C SAM4S16B SAM4S8C SAM4S8B
+ * Flash         2x1MB     2x1MB     2x512KB   1x1MB     1x1MB     1x1MB     1x1MB    1x1MB    1x512KB 1x512KB
+ * SRAM          160KB     160KB     160KB     160KB     160KB     160KB     128KB    128KB    128KB   128KB
+ * HCACHE        2KB       2KB       2KB       2KB       2KB       2KB       -        -        -       -
+ * Pins          100       64        100       64        100       64        100      64       100     64
+ * No. PIOs      79        47        79        47        79        47        79       47       79      47
+ * Ext. BUS      Yes       No        Yes       No        Yes       No        Yes      No       Yes     No
+ * 12-bit ADC    16 ch     11 ch     16 ch     11 ch     16 ch     11 ch     16 ch    11 ch    16 ch   11 ch
+ * 12-bit DAC    2 ch      2 ch      2 ch      2 ch      2 ch      2 ch      2 ch     2 ch     2 ch    2 ch
+ * Timer Counter 6 ch      3 ch      6 ch      3 ch      6 ch      3 ch      6 ch     3 ch     6 ch    3 ch
+ * PDC           22 ch     22 ch     22 ch     22 ch     22 ch     22 ch     22 ch    22 ch    22 ch   22 ch
+ * USART         2         2         2         2         2         2         2        2        2       2
+ * UART          2         2         2         2         2         2         2        2        2       2
+ * HSMCI         Yes       Yes       Yes       Yes       Yes       Yes      Yes      Yes      Yes      Yes
+ */
+
+#elif defined(CONFIG_ARCH_CHIP_ATSAM4SD32C)
+# error To be provided
+#elif defined(CONFIG_ARCH_CHIP_ATSAM4SD32B)
+# error To be provided
+#elif defined(CONFIG_ARCH_CHIP_ATSAM4SD16C)
+# error To be provided
+#elif defined(CONFIG_ARCH_CHIP_ATSAM4SD16B)
+# error To be provided
+#elif defined(CONFIG_ARCH_CHIP_ATSAM4SA16C)
+# error To be provided
+#elif defined(CONFIG_ARCH_CHIP_ATSAM4SA16B)
+# error To be provided
+#elif defined(CONFIG_ARCH_CHIP_ATSAM4S16C)
+# error To be provided
+#elif defined(CONFIG_ARCH_CHIP_ATSAM4S16B)
+# error To be provided
+#elif defined(CONFIG_ARCH_CHIP_ATSAM4S8C)
+# error To be provided
+#elif defined(CONFIG_ARCH_CHIP_ATSAM4S8B)
+# error To be provided
+
 #else
 #  error "Unknown SAM3/4 chip type"
 #endif
