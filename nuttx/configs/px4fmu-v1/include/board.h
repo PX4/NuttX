@@ -310,12 +310,15 @@
 #define GPIO_SPI3_SCK	GPIO_SPI3_SCK_2
 #define GPIO_SPI3_NSS	GPIO_SPI3_NSS_2
 
-/* XXX DMA setup not validated yet */
-//#define DMAMAP_SPI3_RX DMAMAP_SPI3_RX_1
-//#define DMAMAP_SPI3_RX DMAMAP_SPI3_TX_1
-
-//#define DMAMAP_SPI1_RX DMAMAP_SPI1_RX_1
-//#define DMAMAP_SPI1_RX DMAMAP_SPI1_TX_1
+/* SPI DMA configuration for SPI3 (microSD) */
+#define DMACHAN_SPI3_RX DMAMAP_SPI3_RX_1
+#define DMACHAN_SPI3_TX DMAMAP_SPI3_TX_2
+/* XXX since we allocate the HP work stack from CCM RAM on normal system startup,
+   SPI1 will never run in DMA mode - so we can just give it a random config here.
+   What we really need to do is to make DMA configurable per channel, and always
+   disable it for SPI1. */
+#define DMACHAN_SPI1_RX DMAMAP_SPI1_RX_1
+#define DMACHAN_SPI1_TX DMAMAP_SPI1_TX_2
 
 /*
  * Use these in place of the spi_dev_e enumeration to
