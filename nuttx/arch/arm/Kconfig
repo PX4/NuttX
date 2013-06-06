@@ -46,6 +46,7 @@ config ARCH_CHIP_KINETIS
 	bool "Freescale Kinetis"
 	select ARCH_CORTEXM4
 	select ARCH_HAVE_MPU
+	select ARCH_HAVE_FPU
 	select ARCH_HAVE_RAMFUNCS
 	select ARCH_RAMFUNCS
 	---help---
@@ -100,6 +101,7 @@ config ARCH_CHIP_LPC43XX
 	select ARCH_HAVE_CMNVECTOR
 	select ARMV7M_CMNVECTOR
 	select ARCH_HAVE_MPU
+	select ARCH_HAVE_FPU
 	---help---
 		NPX LPC43XX architectures (ARM Cortex-M4).
 
@@ -110,12 +112,11 @@ config ARCH_CHIP_NUC1XX
 	---help---
 		NPX LPC43XX architectures (ARM Cortex-M4).
 
-config ARCH_CHIP_SAM3U
-	bool "Atmel AT91SAM3"
-	select ARCH_CORTEXM3
+config ARCH_CHIP_SAM34
+	bool "Atmel AT91SAM3/SAM4"
 	select ARCH_HAVE_MPU
 	---help---
-		Atmel AT91SAM3 architectures (ARM Cortex-M3)
+		Atmel AT91SAM3 (ARM Cortex-M3) and SAM4 (ARM Cortex-M4) architectures
 
 config ARCH_CHIP_STM32
 	bool "STMicro STM32"
@@ -178,7 +179,7 @@ config ARCH_CHIP
 	default "lpc31xx"	if ARCH_CHIP_LPC31XX
 	default "lpc43xx"	if ARCH_CHIP_LPC43XX
 	default "nuc1xx"	if ARCH_CHIP_NUC1XX
-	default "sam3u"		if ARCH_CHIP_SAM3U
+	default "sam34"		if ARCH_CHIP_SAM34
 	default "stm32"		if ARCH_CHIP_STM32
 	default "str71x"	if ARCH_CHIP_STR71X
 
@@ -206,10 +207,14 @@ config ARMV7M_CMNVECTOR
 		logic or the common vector logic.  This applies only to ARMv7-M
 		architectures.
 
+config ARCH_HAVE_FPU
+	bool
+	default n
+
 config ARCH_FPU
 	bool "FPU support"
 	default y
-	depends on ARCH_CORTEXM4
+	depends on ARCH_HAVE_FPU
 	---help---
 		Build in support for the ARM Cortex-M4 Floating Point Unit (FPU).
 		Check your chip specifications first; not all Cortex-M4 chips support the FPU.
@@ -325,8 +330,8 @@ endif
 if ARCH_CHIP_NUC1XX
 source arch/arm/src/nuc1xx/Kconfig
 endif
-if ARCH_CHIP_SAM3U
-source arch/arm/src/sam3u/Kconfig
+if ARCH_CHIP_SAM34
+source arch/arm/src/sam34/Kconfig
 endif
 if ARCH_CHIP_STM32
 source arch/arm/src/stm32/Kconfig
