@@ -15,7 +15,7 @@ Contents
   - NuttX OABI "buildroot" Toolchain
   - NXFLAT Toolchain
   - LEDs
-  - Virtual COM Port
+  - Serial Consoles
   - SAM4L Xplained Pro-specific Configuration Options
   - Configurations
 
@@ -243,8 +243,27 @@ LEDs
   apparently, running normmally.  If LED0 is flashing at approximately
   2Hz, then a fatal error has been detected and the system has halted.
 
-Virtual COM Port
-^^^^^^^^^^^^^^^^
+Serial Consoles
+^^^^^^^^^^^^^^^
+
+  USART0
+  ------
+
+  USART is available on connectors EXT1 and EXT4
+
+    EXT1  TXT4  GPIO  Function
+    ----  ---- ------ -----------
+     13    13   PB00  USART0_RXD
+     14    14   PB01  USART0_TXD
+     19    19         GND
+     20    20         VCC
+
+  If you have a TTL to RS-232 convertor then this is the most convenient
+  serial console to use.  It is the default in all of these configurations.
+  An option is to use the virtual COM port.
+
+  Virtual COM Port
+  ----------------
 
   The SAM4L Xplained Pro contains an Embedded Debugger (EDBG) that can be
   used to program and debug the ATSAM4LC4C using Serial Wire Debug (SWD).
@@ -268,7 +287,7 @@ SAM4L Xplained Pro-specific Configuration Options
 
     CONFIG_ARCH_architecture - For use in C code:
 
-       CONFIG_ARCH_CORTEXM3=y
+       CONFIG_ARCH_CORTEXM4=y
 
     CONFIG_ARCH_CHIP - Identifies the arch/*/chip subdirectory
 
@@ -278,8 +297,8 @@ SAM4L Xplained Pro-specific Configuration Options
        chip:
 
        CONFIG_ARCH_CHIP_SAM34
-       CONFIG_ARCH_CHIP_SAM3U
-       CONFIG_ARCH_CHIP_AT91SAM3U4
+       CONFIG_ARCH_CHIP_SAM4L
+       CONFIG_ARCH_CHIP_ATSAM4LC4C
 
     CONFIG_ARCH_BOARD - Identifies the configs subdirectory and
        hence, the board that supports the particular chip or SoC.
@@ -298,7 +317,7 @@ SAM4L Xplained Pro-specific Configuration Options
 
     CONFIG_DRAM_SIZE - Describes the installed DRAM (SRAM in this case):
 
-       CONFIG_DRAM_SIZE=0x0000c000 (48Kb)
+       CONFIG_DRAM_SIZE=0x00008000 (32Kb)
 
     CONFIG_DRAM_START - The start address of installed DRAM
 
@@ -329,15 +348,61 @@ SAM4L Xplained Pro-specific Configuration Options
 
   Individual subsystems can be enabled:
 
-    CONFIG_SAM34_DMA
-    CONFIG_SAM34_HSMCI
-    CONFIG_SAM34_NAND
+    CPU
+    ---
+    CONFIG_SAM34_OCD
+
+    HSB
+    ---
+    CONFIG_SAM34_APBA
+    CONFIG_SAM34_AESA
+
+    PBA
+    ---
+    CONFIG_SAM34_IISC
     CONFIG_SAM34_SPI
-    CONFIG_SAM34_UART
+    CONFIG_SAM34_TC0
+    CONFIG_SAM34_TC1
+    CONFIG_SAM34_TWIM0
+    CONFIG_SAM34_TWIS0
+    CONFIG_SAM34_TWIM1
+    CONFIG_SAM34_TWIS1
     CONFIG_SAM34_USART0
     CONFIG_SAM34_USART1
     CONFIG_SAM34_USART2
     CONFIG_SAM34_USART3
+    CONFIG_SAM34_ADC12B
+    CONFIG_SAM34_DACC
+    CONFIG_SAM34_ACC
+    CONFIG_SAM34_GLOC
+    CONFIG_SAM34_ABDACB
+    CONFIG_SAM34_TRNG
+    CONFIG_SAM34_PARC
+    CONFIG_SAM34_CATB
+    CONFIG_SAM34_TWIM2
+    CONFIG_SAM34_TWIM3
+    CONFIG_SAM34_LCDCA
+
+    PBB
+    ---
+    CONFIG_SAM34_HRAMC1
+    CONFIG_SAM34_HMATRIX
+    CONFIG_SAM34_PDCA
+    CONFIG_SAM34_CRCCU
+    CONFIG_SAM34_USBC
+    CONFIG_SAM34_PEVC
+
+    PBC
+    ---
+    CONFIG_SAM34_CHIPID
+    CONFIG_SAM34_FREQM
+
+    PBD
+    ---
+    CONFIG_SAM34_AST
+    CONFIG_SAM34_WDT
+    CONFIG_SAM34_EIC
+    CONFIG_SAM34_PICOUART
 
   Some subsystems can be configured to operate in different ways. The drivers
   need to know how to configure the subsystem.
@@ -350,7 +415,7 @@ SAM4L Xplained Pro-specific Configuration Options
     CONFIG_USART2_ISUART
     CONFIG_USART3_ISUART
 
-  AT91SAM3U specific device driver settings
+  ST91SAM4L specific device driver settings
 
     CONFIG_U[S]ARTn_SERIAL_CONSOLE - selects the USARTn (n=0,1,2,3) or UART
            m (m=4,5) for the console and ttys0 (default is the USART1).
@@ -363,36 +428,96 @@ SAM4L Xplained Pro-specific Configuration Options
     CONFIG_U[S]ARTn_PARTIY - 0=no parity, 1=odd parity, 2=even parity
     CONFIG_U[S]ARTn_2STOP - Two stop bits
 
-  LCD Options.  Other than the standard LCD configuration options
-  (see configs/README.txt), the SAM4L Xplained Pro driver also supports:
-
-    CONFIG_LCD_PORTRAIT - Present the display in the standard 240x320
-       "Portrait" orientation.  Default:  The display is rotated to
-       support a 320x240 "Landscape" orientation.
-
 Configurations
 ^^^^^^^^^^^^^^
 
-Each SAM4L Xplained Pro configuration is maintained in a sub-directory and
-can be selected as follow:
+  Each SAM4L Xplained Pro configuration is maintained in a sub-directory and
+  can be selected as follow:
 
     cd tools
     ./configure.shsam4l-xplained/<subdir>
     cd -
     . ./setenv.sh
 
-Before sourcing the setenv.sh file above, you should examine it and perform
-edits as necessary so that BUILDROOT_BIN is the correct path to the directory
-than holds your toolchain binaries.
+  Before sourcing the setenv.sh file above, you should examine it and perform
+  edits as necessary so that BUILDROOT_BIN is the correct path to the directory
+  than holds your toolchain binaries.
 
-And then build NuttX by simply typing the following.  At the conclusion of
-the make, the nuttx binary will reside in an ELF file called, simply, nuttx.
+  And then build NuttX by simply typing the following.  At the conclusion of
+  the make, the nuttx binary will reside in an ELF file called, simply, nuttx.
 
     make
 
-The <subdir> that is provided above as an argument to the tools/configure.sh
-must be is one of the following:
+  The <subdir> that is provided above as an argument to the tools/configure.sh
+  must be is one of the following.
+
+  NOTE:  These configurations use the mconf-based configuration tool.  To
+  change any of these configurations using that tool, you should:
+
+    a. Build and install the kconfig-mconf tool.  See nuttx/README.txt
+       and misc/tools/
+
+    b. Execute 'make menuconfig' in nuttx/ in order to start the
+       reconfiguration process.
+
+Configuration sub-directories
+-----------------------------
 
   ostest:
-    This configuration directory, performs a simple OS test using
+    This configuration directory performs a simple OS test using
     examples/ostest.
+
+    NOTES:
+
+    1. This configuration provides test output on USART0 which is available
+       on EXT1 or EXT4 (see the section "Serial Consoles" above).  The
+       virtual COM port could be used, instead, by reconfiguring to use
+       USART1 instead of USART0:
+
+       System Type -> AT91SAM3/4 Peripheral Support
+         CONFIG_SAM_USART0=y
+         CONFIG_SAM_USART1=n
+
+       Device Drivers -> Serial Driver Support -> Serial Console
+         CONFIG_USART0_SERIAL_CONSOLE=y
+
+       Device Drivers -> Serial Driver Support -> USART0 Configuration
+         CONFIG_USART0_2STOP=0
+         CONFIG_USART0_BAUD=115200
+         CONFIG_USART0_BITS=8
+         CONFIG_USART0_PARITY=0
+         CONFIG_USART0_RXBUFSIZE=256
+         CONFIG_USART0_TXBUFSIZE=256
+
+    2. This configuration is set up to use the NuttX OABI toolchain (see
+       above). Of course this can be reconfigured if you prefer a different
+       toolchain.
+
+  nsh:
+    This configuration directory will built the NuttShell.
+
+    NOTES:
+
+    1. This configuration provides test output on USART0 which is available
+       on EXT1 or EXT4 (see the section "Serial Consoles" above).  The
+       virtual COM port could be used, instead, by reconfiguring to use
+       USART1 instead of USART0:
+
+       System Type -> AT91SAM3/4 Peripheral Support
+         CONFIG_SAM_USART0=y
+         CONFIG_SAM_USART1=n
+
+       Device Drivers -> Serial Driver Support -> Serial Console
+         CONFIG_USART0_SERIAL_CONSOLE=y
+
+       Device Drivers -> Serial Driver Support -> USART0 Configuration
+         CONFIG_USART0_2STOP=0
+         CONFIG_USART0_BAUD=115200
+         CONFIG_USART0_BITS=8
+         CONFIG_USART0_PARITY=0
+         CONFIG_USART0_RXBUFSIZE=256
+         CONFIG_USART0_TXBUFSIZE=256
+
+    2. This configuration is set up to use the NuttX OABI toolchain (see
+       above). Of course this can be reconfigured if you prefer a different
+       toolchain.

@@ -3848,7 +3848,7 @@
 	* configs/olimex-lpc1766stk/wlan:  Remove non-functional
 	  configuration.
 	* configs/stm32f4discovery/src and nuttx/drivers/lcd/ug-2864hsweg01.c:
-	  Updates and correctinos for the UG-2864HSWEG01 from Darcy Gong.
+	  Updates and corrections for the UG-2864HSWEG01 from Darcy Gong.
 	* configs/lm326965-ek:  All configurations converted to use the
 	  kconfig-frontends configuration tool.
 	* configs/Kconfig: NSH_MMCSDSPIPORTNO should depend on MMCSD_SPI,
@@ -4910,4 +4910,55 @@
 	  logic (leveraged from AVR32).
 	* nuttx/arch/arm/src/sam34/sam4l_periphclks.c/h:  Add common
 	  logic to enabled/disable SAM4L peripheral clocking (2013-6-5).
-
+	* nuttx/arch/arm/src/sam34/chip/sam4l_bpm.h and sam4l_scif.h:  Add
+	  register definitions for the SAM4L BMP and SCIF blocks (2013-6-6).
+	* nuttx/arch/arm/src/sam34/sam4l_clockconfig.c:  Now selects an
+	  optimal power scaling mode (2013-6-6).
+	* nuttx/arch/arm/src/stm32/stm32_serial.c and nuttx/include/termios.h:
+	  Change for hardware flow control support for STM32. It also fixes
+	  incorrect operation of USART2 and UART5 in current master.  Submitted
+	  by Lorenz Meier but includes changes by Mike Smith (2013-6-6).
+	* nuttx/arch/arm/src/stm32/stm32_otgfshost.c:  A backward conditional
+	  prevent detection of disonnection events.  Reported by Scott (2013-6-6).
+	* nuttx/arch/arm/src/sam34/chip/sam4l_bscif.h: Add registers definitions
+	  for the SAM4L BSCIF module (2013-6-6).
+	* nuttx/arch/arm/src/sam34/sam4l_clockconfig.c and chip/sam4l_wdt.h:
+	  Finally finished the SAM4L clock configuration logic; Added a
+	  WDT register definition header file (2013-6-8).
+	* nuttx/arch/arm/src/sam34/chip/sam4l_usart.h and sam4l_picouart.h:
+	  Add UART/USART register defintion files for the SAM4L (2013-6-8).
+	* arm/src/sam34/chip/sam3u_periphclks.h:  More macros and definitions
+	  to generalize peripheral clocking and to hide differences between
+	  the SAM3U and the SAM4L (2013-6-8).
+	* configs/sam4l-xplained/ostest:  The SAM4L now passed the OS test
+	  (2013-6-9).
+	* configs/sam4l-xplained/nsh:  Added an NSH configuration for the
+	  SAM4L Xplained Pro board (2013-6-9).
+	* configs/sam4l-xplained/src/sam_cxxinitialize.c:  Added C++ support
+	  to the SAM4L Xplained Pro board configuration (2013-6-9).
+	* arm/src/sam34/chip/sam_irq.c:  Extend IRQ support to handle the
+	  larger number of NVIC interrupts used by the SAM4L (2013-6-9).
+	* arch/arm/src/sam45/chip:  Beginning updates of SAM3U header files
+	  to include support for the SAM4S: WDT, SUPC, EEFC, MATRIX, PMC,
+	  UARTs, USARTs, HSMCI, SPI (2013-6-10).
+	* arch/arm/src/chip/sam4s_memorymap.h, sam4s_irq.h, and sam4s_vectors.h:
+	  Add SAM4S memory map and interrupt definitions (2013-6-10)
+	* configs/sam4s-xplained:  Add framework for the SAM4S Xplained board.
+	  There is not much there on initial checkin (2013-6-10).
+	* arch/arm/src/sam34: SAM3S support: GPIO, chip characteristics,
+	  peripheral Kconfig (2013-6-11).
+	* arch/arm/src/sam34/chip/sam4s_pinmap.h:  Add SAM4S pin configuration
+	  definitions (2013-6-11).
+	* arch/arm/src/sam34/sam4s_periphclks.h:  Add macros to manage SAM4S
+	  peripheral clocks (2013-6-11).
+	* configs/sam4s-xplained: Configuration builds error-free (2013-6-11).
+	* configs/sam4s-xplained/nsh:  Added an NSH configuration for the
+	  SAM4S Xplained board.  Both the OS test and the NSH configurations
+	  no execute error-free.  Delay loops calibrated for both the SAM4L
+	  and SAM4S boards (2013-6-12).
+	* Standardize on CONFIG_NSH_BUILTIN_APPS.  Remove all other variants
+	  of the build-as-an-NSH-application configuration settings
+	  (2013-6-12).
+	* arch/arm/src/sam34/sam_periphclks.h:  A header file that just
+	  includes the right header file.  This cleans up the messy logic
+	  in all of the C files and puts the mess in one place (2013-6-12).

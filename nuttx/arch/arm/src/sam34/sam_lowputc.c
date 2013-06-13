@@ -48,9 +48,19 @@
 #include "up_arch.h"
 
 #include "sam_gpio.h"
+#include "sam_periphclks.h"
 #include "sam_lowputc.h"
-#include "chip/sam_pmc.h"
-#include "chip/sam_uart.h"
+
+#if defined(CONFIG_ARCH_CHIP_SAM3U)
+#  include "chip/sam3u_uart.h"
+#elif defined(CONFIG_ARCH_CHIP_SAM4L)
+#  include "chip/sam4l_usart.h"
+#elif defined(CONFIG_ARCH_CHIP_SAM4S)
+#  include "chip/sam3u_uart.h"
+#else
+#  error Unknown UART
+#endif
+
 #include "chip/sam_pinmap.h"
 
 /**************************************************************************
@@ -76,40 +86,54 @@
 #  undef CONFIG_SAM34_USART3
 #endif
 
-/* Is there a serial console? It could be on the UART, or USARTn */
+/* Is there a serial console?  It could be on UART0-1 or USART0-3 */
 
-#if defined(CONFIG_UART_SERIAL_CONSOLE) && defined(CONFIG_SAM34_UART)
+#if defined(CONFIG_UART0_SERIAL_CONSOLE) && defined(CONFIG_SAM34_UART0)
+#  undef CONFIG_UART1_SERIAL_CONSOLE
+#  undef CONFIG_USART0_SERIAL_CONSOLE
+#  undef CONFIG_USART1_SERIAL_CONSOLE
+#  undef CONFIG_USART2_SERIAL_CONSOLE
+#  undef CONFIG_USART3_SERIAL_CONSOLE
+#  define HAVE_CONSOLE 1
+#elif defined(CONFIG_UART1_SERIAL_CONSOLE) && defined(CONFIG_SAM34_UART1)
+#  undef CONFIG_UART0_SERIAL_CONSOLE
 #  undef CONFIG_USART0_SERIAL_CONSOLE
 #  undef CONFIG_USART1_SERIAL_CONSOLE
 #  undef CONFIG_USART2_SERIAL_CONSOLE
 #  undef CONFIG_USART3_SERIAL_CONSOLE
 #  define HAVE_CONSOLE 1
 #elif defined(CONFIG_USART0_SERIAL_CONSOLE) && defined(CONFIG_SAM34_USART0)
-#  undef CONFIG_USART_SERIAL_CONSOLE
+#  undef CONFIG_UART0_SERIAL_CONSOLE
+#  undef CONFIG_UART1_SERIAL_CONSOLE
 #  undef CONFIG_USART1_SERIAL_CONSOLE
 #  undef CONFIG_USART2_SERIAL_CONSOLE
 #  undef CONFIG_USART3_SERIAL_CONSOLE
 #  define HAVE_CONSOLE 1
 #elif defined(CONFIG_USART1_SERIAL_CONSOLE) && defined(CONFIG_SAM34_USART1)
-#  undef CONFIG_USART_SERIAL_CONSOLE
+#  undef CONFIG_UART0_SERIAL_CONSOLE
+#  undef CONFIG_UART1_SERIAL_CONSOLE
 #  undef CONFIG_USART0_SERIAL_CONSOLE
 #  undef CONFIG_USART2_SERIAL_CONSOLE
 #  undef CONFIG_USART3_SERIAL_CONSOLE
 #  define HAVE_CONSOLE 1
 #elif defined(CONFIG_USART2_SERIAL_CONSOLE) && defined(CONFIG_SAM34_USART2)
-#  undef CONFIG_USART_SERIAL_CONSOLE
+#  undef CONFIG_UART0_SERIAL_CONSOLE
+#  undef CONFIG_UART1_SERIAL_CONSOLE
 #  undef CONFIG_USART0_SERIAL_CONSOLE
 #  undef CONFIG_USART1_SERIAL_CONSOLE
 #  undef CONFIG_USART3_SERIAL_CONSOLE
 #  define HAVE_CONSOLE 1
 #elif defined(CONFIG_USART3_SERIAL_CONSOLE) && defined(CONFIG_SAM34_USART3)
-#  undef CONFIG_USART_SERIAL_CONSOLE
+#  undef CONFIG_UART0_SERIAL_CONSOLE
+#  undef CONFIG_UART1_SERIAL_CONSOLE
 #  undef CONFIG_USART0_SERIAL_CONSOLE
 #  undef CONFIG_USART1_SERIAL_CONSOLE
 #  undef CONFIG_USART2_SERIAL_CONSOLE
 #  define HAVE_CONSOLE 1
 #else
-#  undef CONFIG_USART_SERIAL_CONSOLE
+#  warning "No valid CONFIG_USARTn_SERIAL_CONSOLE Setting"
+#  undef CONFIG_UART0_SERIAL_CONSOLE
+#  undef CONFIG_UART1_SERIAL_CONSOLE
 #  undef CONFIG_USART0_SERIAL_CONSOLE
 #  undef CONFIG_USART1_SERIAL_CONSOLE
 #  undef CONFIG_USART2_SERIAL_CONSOLE
@@ -117,14 +141,37 @@
 #  undef HAVE_CONSOLE
 #endif
 
+/* Select MCU-specific settings
+ *
+ * For the SAM3U, the USARTs are driven by the main clock.
+ * For the SAM4L, the USARTs are driven by CLK_USART (undivided) which is
+ *   selected by the PBADIVMASK register.
+ */
+
+#if defined(CONFIG_ARCH_CHIP_SAM3U) || defined(CONFIG_ARCH_CHIP_SAM4S)
+#  define SAM_MR_USCLKS    UART_MR_USCLKS_MCK   /* Source = Main clock */
+#  define SAM_USART_CLOCK  BOARD_MCK_FREQUENCY  /* Frequency of the main clock */
+#elif defined(CONFIG_ARCH_CHIP_SAM4L)
+#  define SAM_MR_USCLKS    UART_MR_USCLKS_USART /* Source = USART_CLK (undefined) */
+#  define SAM_USART_CLOCK  BOARD_PBA_FREQUENCY  /* PBA frequency is undivided */
+#else
+#  error Unrecognized SAM architecture
+#endif
+
 /* Select USART parameters for the selected console */
 
-#if defined(CONFIG_UART_SERIAL_CONSOLE)
-#  define SAM_CONSOLE_BASE     SAM_UART_BASE
-#  define SAM_CONSOLE_BAUD     CONFIG_UART_BAUD
-#  define SAM_CONSOLE_BITS     CONFIG_UART_BITS
-#  define SAM_CONSOLE_PARITY   CONFIG_UART_PARITY
-#  define SAM_CONSOLE_2STOP    CONFIG_UART_2STOP
+#if defined(CONFIG_UART0_SERIAL_CONSOLE)
+#  define SAM_CONSOLE_BASE     SAM_UART0_BASE
+#  define SAM_CONSOLE_BAUD     CONFIG_UART0_BAUD
+#  define SAM_CONSOLE_BITS     CONFIG_UART0_BITS
+#  define SAM_CONSOLE_PARITY   CONFIG_UART0_PARITY
+#  define SAM_CONSOLE_2STOP    CONFIG_UART0_2STOP
+#elif defined(CONFIG_UART1_SERIAL_CONSOLE)
+#  define SAM_CONSOLE_BASE     SAM_UART1_BASE
+#  define SAM_CONSOLE_BAUD     CONFIG_UART1_BAUD
+#  define SAM_CONSOLE_BITS     CONFIG_UART1_BITS
+#  define SAM_CONSOLE_PARITY   CONFIG_UART1_PARITY
+#  define SAM_CONSOLE_2STOP    CONFIG_UART1_2STOP
 #elif defined(CONFIG_USART0_SERIAL_CONSOLE)
 #  define SAM_CONSOLE_BASE     SAM_USART0_BASE
 #  define SAM_CONSOLE_BAUD     CONFIG_USART0_BAUD
@@ -156,15 +203,16 @@
 /* Select the settings for the mode register */
 
 #if SAM_CONSOLE_BITS == 5
-#  define MR_CHRL_VALUE USART_MR_CHRL_5BITS /* 5 bits */
+#  define MR_CHRL_VALUE UART_MR_CHRL_5BITS /* 5 bits */
 #elif SAM_CONSOLE_BITS == 6
-#  define MR_CHRL_VALUE USART_MR_CHRL_6BITS  /* 6 bits */
+#  define MR_CHRL_VALUE UART_MR_CHRL_6BITS  /* 6 bits */
 #elif SAM_CONSOLE_BITS == 7
-#  define MR_CHRL_VALUE USART_MR_CHRL_7BITS /* 7 bits */
+#  define MR_CHRL_VALUE UART_MR_CHRL_7BITS /* 7 bits */
 #elif SAM_CONSOLE_BITS == 8
-#  define MR_CHRL_VALUE USART_MR_CHRL_8BITS /* 8 bits */
-#elif SAM_CONSOLE_BITS == 9 && !defined(CONFIG_UART_SERIAL_CONSOLE)
-#  define MR_CHRL_VALUE USART_MR_MODE9
+#  define MR_CHRL_VALUE UART_MR_CHRL_8BITS /* 8 bits */
+#elif SAM_CONSOLE_BITS == 9 && !defined(CONFIG_UART0_SERIAL_CONSOLE) && \
+     !defined(CONFIG_UART1_SERIAL_CONSOLE)
+#  define MR_CHRL_VALUE UART_MR_MODE9
 #else
 #  error "Invlaid number of bits"
 #endif
@@ -178,12 +226,12 @@
 #endif
 
 #if SAM_CONSOLE_2STOP != 0
-#  define MR_NBSTOP_VALUE USART_MR_NBSTOP_2
+#  define MR_NBSTOP_VALUE UART_MR_NBSTOP_2
 #else
-#  define MR_NBSTOP_VALUE USART_MR_NBSTOP_1
+#  define MR_NBSTOP_VALUE UART_MR_NBSTOP_1
 #endif
 
-#define MR_VALUE (USART_MR_MODE_NORMAL | USART_MR_USCLKS_MCK | \
+#define MR_VALUE (UART_MR_MODE_NORMAL | SAM_MR_USCLKS | \
                   MR_CHRL_VALUE | MR_PAR_VALUE | MR_NBSTOP_VALUE)
 
 /**************************************************************************
@@ -241,69 +289,81 @@ void up_lowputc(char ch)
 
 void sam_lowsetup(void)
 {
-  uint32_t regval;
-
   /* Enable clocking for all selected UART/USARTs */
 
-  regval = 0;
-#ifdef CONFIG_SAM34_UART
-  regval |= (1 << SAM_PID_UART);
+#ifdef CONFIG_SAM34_UART0
+  sam_uart0_enableclk();
+#endif
+#ifdef CONFIG_SAM34_UART1
+  sam_uart1_enableclk();
 #endif
 #ifdef CONFIG_SAM34_USART0
-  regval |= (1 << SAM_PID_USART0);
+  sam_usart0_enableclk();
 #endif
 #ifdef CONFIG_SAM34_USART1
-  regval |= (1 << SAM_PID_USART1);
+  sam_usart1_enableclk();
 #endif
 #ifdef CONFIG_SAM34_USART2
-  regval |= (1 << SAM_PID_USART2);
+  sam_usart2_enableclk();
 #endif
 #ifdef CONFIG_SAM34_USART3
-  regval |= (1 << SAM_PID_USART3);
+  sam_usart3_enableclk();
 #endif
-  putreg32(regval, SAM_PMC_PCER);
 
   /* Configure UART pins for all selected UART/USARTs */
 
-#ifdef CONFIG_SAM34_UART
-  (void)sam_configgpio(GPIO_UART_RXD);
-  (void)sam_configgpio(GPIO_UART_TXD);
+#ifdef CONFIG_SAM34_UART0
+  (void)sam_configgpio(GPIO_UART0_RXD);
+  (void)sam_configgpio(GPIO_UART0_TXD);
 #endif
+
+#ifdef CONFIG_SAM34_UART1
+  (void)sam_configgpio(GPIO_UART1_RXD);
+  (void)sam_configgpio(GPIO_UART1_TXD);
+#endif
+
 #ifdef CONFIG_SAM34_USART0
   (void)sam_configgpio(GPIO_USART0_RXD);
   (void)sam_configgpio(GPIO_USART0_TXD);
+#ifdef CONFIG_USART0_OFLOWCONTROL
   (void)sam_configgpio(GPIO_USART0_CTS);
+#endif
+#ifdef CONFIG_USART0_IFLOWCONTROL
   (void)sam_configgpio(GPIO_USART0_RTS);
 #endif
+#endif
+
 #ifdef CONFIG_SAM34_USART1
   (void)sam_configgpio(GPIO_USART1_RXD);
   (void)sam_configgpio(GPIO_USART1_TXD);
+#ifdef CONFIG_USART1_OFLOWCONTROL
   (void)sam_configgpio(GPIO_USART1_CTS);
+#endif
+#ifdef CONFIG_USART1_IFLOWCONTROL
   (void)sam_configgpio(GPIO_USART1_RTS);
 #endif
+#endif
+
 #ifdef CONFIG_SAM34_USART2
   (void)sam_configgpio(GPIO_USART2_RXD);
   (void)sam_configgpio(GPIO_USART2_TXD);
+#ifdef CONFIG_USART2_OFLOWCONTROL
   (void)sam_configgpio(GPIO_USART2_CTS);
+#endif
+#ifdef CONFIG_USART2_IFLOWCONTROL
   (void)sam_configgpio(GPIO_USART2_RTS);
 #endif
+#endif
+
 #ifdef CONFIG_SAM34_USART3
   (void)sam_configgpio(GPIO_USART3_RXD);
   (void)sam_configgpio(GPIO_USART3_TXD);
+#ifdef CONFIG_USART3_OFLOWCONTROL
   (void)sam_configgpio(GPIO_USART3_CTS);
+#endif
+#ifdef CONFIG_USART3_IFLOWCONTROL
   (void)sam_configgpio(GPIO_USART3_RTS);
 #endif
-
-#ifdef GPIO_CONSOLE_RXD
-#endif
-#ifdef GPIO_CONSOLE_TXD
-  (void)sam_configgpio(GPIO_CONSOLE_TXD);
-#endif
-#ifdef GPIO_CONSOLE_CTS
-  (void)sam_configgpio(GPIO_CONSOLE_CTS);
-#endif
-#ifdef GPIO_CONSOLE_RTS
-  (void)sam_configgpio(GPIO_CONSOLE_RTS);
 #endif
 
   /* Configure the console (only) */
@@ -321,9 +381,11 @@ void sam_lowsetup(void)
 
   putreg32(MR_VALUE, SAM_CONSOLE_BASE + SAM_UART_MR_OFFSET);
 
-  /* Configure the console baud */
+  /* Configure the console baud.  NOTE: Oversampling by 8 is not supported.
+   * This may limit BAUD rates for lower USART clocks.
+   */
 
-  putreg32(((SAM_MCK_FREQUENCY + (SAM_CONSOLE_BAUD << 3))/(SAM_CONSOLE_BAUD << 4)),
+  putreg32(((SAM_USART_CLOCK + (SAM_CONSOLE_BAUD << 3)) / (SAM_CONSOLE_BAUD << 4)),
            SAM_CONSOLE_BASE + SAM_UART_BRGR_OFFSET);
 
   /* Enable receiver & transmitter */

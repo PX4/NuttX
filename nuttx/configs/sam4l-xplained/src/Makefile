@@ -42,6 +42,10 @@ AOBJS = $(ASRCS:.S=$(OBJEXT))
 
 CSRCS = sam_boot.c sam_spi.c
 
+ifeq ($(CONFIG_HAVE_CXX),y)
+CSRCS += sam_cxxinitialize.c
+endif
+
 ifeq ($(CONFIG_ARCH_LEDS),y)
 CSRCS += sam_autoleds.c
 else

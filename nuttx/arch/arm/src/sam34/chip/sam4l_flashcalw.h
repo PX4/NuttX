@@ -80,7 +80,7 @@
 #define SAM_FLASHCALW_FCMD          (SAM_FLASHCALW_BASE+SAM_FLASHCALW_FCMD_OFFSET)
 #define SAM_FLASHCALW_FSR           (SAM_FLASHCALW_BASE+SAM_FLASHCALW_FSR_OFFSET)
 #define SAM_FLASHCALW_FPR           (SAM_FLASHCALW_BASE+SAM_FLASHCALW_FPR_OFFSET)
-#define SAM_FLASHCALW_FSR           (SAM_FLASHCALW_BASE+SAM_FLASHCALW_FSR_OFFSET)
+#define SAM_FLASHCALW_FVR           (SAM_FLASHCALW_BASE+SAM_FLASHCALW_FVR_OFFSET)
 #define SAM_FLASHCALW_FGPFRHI       (SAM_FLASHCALW_BASE+SAM_FLASHCALW_FGPFRHI_OFFSET)
 #define SAM_FLASHCALW_FGPFRLO       (SAM_FLASHCALW_BASE+SAM_FLASHCALW_FGPFRLO_OFFSET)
 
@@ -131,6 +131,7 @@
 #define FLASHCALW_FCMD_PAGEN_MASK      (0xffff << FLASHCALW_FCMD_PAGEN_SHIFT)
 #define FLASHCALW_FCMD_KEY_SHIFT       (14)      /* Bits 24-31: Write protection key */
 #define FLASHCALW_FCMD_KEY_MASK        (0xff << FLASHCALW_FCMD_KEY_SHIFT)
+#  define FLASHCALW_FCMD_KEY           (0xa5 << FLASHCALW_FCMD_KEY_SHIFT)
 
 /* Flash Status Register */
 
@@ -161,7 +162,6 @@
 #define FLASHCALW_FSR_LOCK15           (1 << 31) /* Bit 31: Lock Region 15 Lock Status */
 
 /* Flash Parameter Register */
-#define FLASHCALW_FPR_
 
 #define FLASHCALW_FPR_FSZ_SHIFT        (0)       /* Bits 0-3: Flash Size */
 #define FLASHCALW_FPR_FSZ_MASK         (15 << FLASHCALW_FPR_FSZ_SHIFT)
@@ -332,6 +332,36 @@
 #define FLASH_CMD_QPRUP             15 /* Quick Page Read User Page */
 #define FLASH_CMD_HSEN              16 /* High Speed Mode Enable */
 #define FLASH_CMD_HSDIS             17 /* High Speed Mode Disable */
+
+/* Maximum CPU frequency for 0 and 1 FLASH wait states (FWS) in various modes
+ * (Table 42-30 in the big data sheet).
+ *
+ *   ------- ------------------- ---------- ----------
+ *   Power     Flash Read Mode     Flash     Maximum
+ *   Sclaing                        Wait    Operating
+ *   Mode    HSEN HSDIS FASTWKUP   States   Frequency
+ *   ------- ---- ----- -------- ---------- ----------
+ *     PS0          X       X        1        12MHz
+ *     " "          X                0        18MHz
+ *     " "          X                1        36MHz
+ *     PS1          X       X        1        12MHz
+ *     " "          X                0         8MHz
+ *     " "          X                1        12MHz
+ *     PS2     X                     0        24Mhz
+ *     " "     X                     1        48MHz
+ *   ------- ---- ----- -------- ---------- ----------
+ */
+
+#define FLASH_MAXFREQ_PS0_HSDIS_FASTWKUP_FWS1 (12000000ul)
+#define FLASH_MAXFREQ_PS0_HSDIS_FWS0          (18000000ul)
+#define FLASH_MAXFREQ_PS0_HSDIS_FWS1          (36000000ul)
+
+#define FLASH_MAXFREQ_PS1_HSDIS_FASTWKUP_FWS1 (12000000ul)
+#define FLASH_MAXFREQ_PS1_HSDIS_FWS0          (8000000ul)
+#define FLASH_MAXFREQ_PS1_HSDIS_FWS1          (12000000ul)
+
+#define FLASH_MAXFREQ_PS2_HSEN_FWS0           (24000000ul)
+#define FLASH_MAXFREQ_PS2_HSEN_FWS1           (48000000ul)
 
 /************************************************************************************
  * Public Types

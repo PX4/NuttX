@@ -1,5 +1,6 @@
 /************************************************************************************
  * arch/arm/src/sam34/sam3u_gpio.h
+ * General Purpose Input/Output (GPIO) definitions for the SAM3U
  *
  *   Copyright (C) 2009-2011, 2013 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -45,16 +46,22 @@
 /************************************************************************************
  * Definitions
  ************************************************************************************/
+/* Configuration ********************************************************************/
+
+#undef GPIO_HAVE_PULLDOWN
+#undef GPIO_HAVE_PERIPHCD
+#undef GPIO_HAVE_SCHMITT
 
 /* Bit-encoded input to sam_configgpio() ********************************************/
 
 /* 16-bit Encoding:
- * MMCC CII. VPPB BBBB
+ *
+ *   MMCC CII. VPPB BBBB
  */
 
 /* Input/Output mode:
  *
- * MM.. .... .... ....
+ *   MM.. .... .... ....
  */
 
 #define GPIO_MODE_SHIFT            (14)        /* Bits 14-15: GPIO mode */
@@ -65,7 +72,8 @@
 #  define GPIO_PERIPHB             (3 << GPIO_MODE_SHIFT) /* Controlled by periph B signal */
 
 /* These bits set the configuration of the pin:
- * ..CC C... .... ....
+ *
+ *   ..CC C... .... ....
  */
 
 #define GPIO_CFG_SHIFT             (11)        /* Bits 11-13: GPIO configuration bits */
@@ -76,10 +84,11 @@
 #  define GPIO_CFG_OPENDRAIN       (4 << GPIO_CFG_SHIFT) /* Bit 13: Open drain */
 
 /* Additional interrupt modes:
- * .... .II. .... ....
+ *
+ *   .... .II. .... ....
  */
 
-#define GPIO_INT_SHIFT             (9)        /* Bits 9-10: GPIO configuration bits */
+#define GPIO_INT_SHIFT             (9)         /* Bits 9-10: GPIO interrupt bits */
 #define GPIO_INT_MASK              (3 << GPIO_INT_SHIFT)
 #  define GPIO_INT_LEVEL           (1 << 10)   /* Bit 10: Level detection interrupt */
 #  define GPIO_INT_EDGE            (0)         /*        (vs. Edge detection interrupt) */
@@ -89,14 +98,16 @@
 #  define GPIO_INT_FALLING         (0)         /*        (vs. Falling edge detection interrupt) */
 
 /* If the pin is an GPIO output, then this identifies the initial output value:
- * .... .... V... ....
+ *
+ *   .... .... V... ....
  */
 
 #define GPIO_OUTPUT_SET            (1 << 7)    /* Bit 7: Inital value of output */
 #define GPIO_OUTPUT_CLEAR          (0)
 
 /* This identifies the GPIO port:
- * .... .... .PP. ....
+ *
+ *   .... .... .PP. ....
  */
 
 #define GPIO_PORT_SHIFT            (5)         /* Bit 5-6:  Port number */
@@ -106,10 +117,11 @@
 #  define GPIO_PORT_PIOC           (2 << GPIO_PORT_SHIFT)
 
 /* This identifies the bit in the port:
- * .... .... ...B BBBB
+ *
+ *   .... .... ...B BBBB
  */
 
-#define GPIO_PIN_SHIFT             0        /* Bits 0-4: GPIO number: 0-31 */
+#define GPIO_PIN_SHIFT             0           /* Bits 0-4: GPIO number: 0-31 */
 #define GPIO_PIN_MASK              (31 << GPIO_PIN_SHIFT)
 #define GPIO_PIN0                  (0  << GPIO_PIN_SHIFT)
 #define GPIO_PIN1                  (1  << GPIO_PIN_SHIFT)

@@ -1,5 +1,6 @@
 /****************************************************************************************
  * arch/arm/src/sam34/chip/sam3u_pio.h
+ * Parallel Input/Output (PIO) Controller definitions for the SAM3U
  *
  *   Copyright (C) 2009, 2013 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -299,15 +300,15 @@
 
 /* PIO Write Protect Mode Register */
 
-#define PIO_WPMR_WPEN              1 << 0)  /* Bit 0:  Write Protect Enable */
-#define PIO_WPMR_WPKEY_SHIFT       8)       /* Bits 8-31: Write Protect KEY */
-#define PIO_WPMR_WPKEY_MASK        0xffffff << PIO_WPMR_WPKEY_SHIFT)
+#define PIO_WPMR_WPEN              (1 << 0)  /* Bit 0:  Write Protect Enable */
+#define PIO_WPMR_WPKEY_SHIFT       (8)       /* Bits 8-31: Write Protect KEY */
+#define PIO_WPMR_WPKEY_MASK        (0xffffff << PIO_WPMR_WPKEY_SHIFT)
 
 /* PIO Write Protect Status Register */
 
-#define PIO_WPSR_WPVS              1 << 0)  /* Bit 0:  Write Protect Violation Status */
-#define PIO_WPSR_WPVSRC_SHIFT      8)       /* Bits 8-23: Write Protect Violation Source */
-#define PIO_WPSR_WPVSRC_MASK       0xffff << PIO_WPSR_WPVSRC_SHIFT)
+#define PIO_WPSR_WPVS              (1 << 0)  /* Bit 0:  Write Protect Violation Status */
+#define PIO_WPSR_WPVSRC_SHIFT      (8)       /* Bits 8-23: Write Protect Violation Source */
+#define PIO_WPSR_WPVSRC_MASK       (0xffff << PIO_WPSR_WPVSRC_SHIFT)
 
 /****************************************************************************************
  * Public Types

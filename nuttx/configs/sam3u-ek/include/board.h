@@ -33,8 +33,8 @@
  *
  ************************************************************************************/
 
-#ifndef __ARCH_BOARD_BOARD_H
-#define __ARCH_BOARD_BOARD_H
+#ifndef __ARCH_SAM3U_EK_INCLUDE_BOARD_H
+#define __ARCH_SAM3U_EK_INCLUDE_BOARD_H
 
 /************************************************************************************
  * Included Files
@@ -60,14 +60,14 @@
 
 /* Main oscillator register settings */
 
-#define BOARD_CKGR_MOR_MOSCXTST    (63 << CKGR_MOR_MOSCXTST_SHIFT) /* Start-up Time */
+#define BOARD_CKGR_MOR_MOSCXTST    (63 << PMC_CKGR_MOR_MOSCXTST_SHIFT) /* Start-up Time */
 
 /* PLLA configuration */
 
-#define BOARD_CKGR_PLLAR_MULA      (7 << CKGR_PLLAR_MULA_SHIFT)
-#define BOARD_CKGR_PLLAR_STMODE    CKGR_PLLAR_STMODE_FAST
-#define BOARD_CKGR_PLLAR_PLLACOUNT (63 << CKGR_PLLAR_PLLACOUNT_SHIFT)
-#define BOARD_CKGR_PLLAR_DIVA      CKGR_PLLAR_DIVA_BYPASS
+#define BOARD_CKGR_PLLAR_MUL       (7 << PMC_CKGR_PLLAR_MUL_SHIFT)
+#define BOARD_CKGR_PLLAR_STMODE    PMC_CKGR_PLLAR_STMODE_FAST
+#define BOARD_CKGR_PLLAR_COUNT     (63 << PMC_CKGR_PLLAR_COUNT_SHIFT)
+#define BOARD_CKGR_PLLAR_DIV       PMC_CKGR_PLLAR_DIV_BYPASS
 
 /* PMC master clock register settings */
 
@@ -76,14 +76,14 @@
 
 /* USB UTMI PLL start-up time */
 
-#define BOARD_CKGR_UCKR_UPLLCOUNT (3 << CKGR_UCKR_UPLLCOUNT_SHIFT)
+#define BOARD_CKGR_UCKR_UPLLCOUNT  (3 << PMC_CKGR_UCKR_UPLLCOUNT_SHIFT)
 
 /* Resulting frequencies */
 
-#define SAM_MAINOSC_FREQUENCY      (12000000)
-#define SAM_MCK_FREQUENCY          (48000000)
-#define SAM_PLLA_FREQUENCY         (96000000)
-#define SAM_CPU_FREQUENCY          (48000000)
+#define BOARD_MAINOSC_FREQUENCY    (12000000)
+#define BOARD_MCK_FREQUENCY        (48000000)
+#define BOARD_PLLA_FREQUENCY       (96000000)
+#define BOARD_CPU_FREQUENCY        (48000000)
 
 /* HSMCI clocking
  *
@@ -96,16 +96,20 @@
 
 /* MCK = 48MHz, CLKDIV = 59, MCI_SPEED = 48MHz / 2 * (59+1) = 400 KHz */
 
-#define HSMCI_INIT_CLKDIV      (59 << HSMCI_MR_CLKDIV_SHIFT)
+#define HSMCI_INIT_CLKDIV          (59 << HSMCI_MR_CLKDIV_SHIFT)
 
 /* MCK = 48MHz, CLKDIV = 1, MCI_SPEED = 48MHz / 2 * (1+1) = 12 MHz */
 
-#define HSMCI_MMCXFR_CLKDIV    (3 << HSMCI_MR_CLKDIV_SHIFT)
+#define HSMCI_MMCXFR_CLKDIV        (3 << HSMCI_MR_CLKDIV_SHIFT)
 
 /* MCK = 48MHz, CLKDIV = 0, MCI_SPEED = 48MHz / 2 * (0+1) = 24 MHz */
 
-#define HSMCI_SDXFR_CLKDIV     (0 << HSMCI_MR_CLKDIV_SHIFT)
-#define HSMCI_SDWIDEXFR_CLKDIV HSMCI_SDXFR_CLKDIV
+#define HSMCI_SDXFR_CLKDIV         (0 << HSMCI_MR_CLKDIV_SHIFT)
+#define HSMCI_SDWIDEXFR_CLKDIV     HSMCI_SDXFR_CLKDIV
+
+/* FLASH wait states */
+
+#define BOARD_FWS                  2
 
 /* LED definitions ******************************************************************/
 
@@ -201,4 +205,4 @@ xcpt_t up_irqbutton(int id, xcpt_t irqhandler);
 #endif
 
 #endif /* __ASSEMBLY__ */
-#endif  /* __ARCH_BOARD_BOARD_H */
+#endif  /* __ARCH_SAM3U_EK_INCLUDE_BOARD_H */

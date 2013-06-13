@@ -64,7 +64,7 @@
 #include "sam_dmac.h"
 #include "sam_hsmci.h"
 #include "chip/sam_dmac.h"
-#include "chip/sam_pmc.h"
+#include "chip/sam3u_pmc.h"
 #include "chip/sam_hsmci.h"
 #include "chip/sam_pinmap.h"
 
@@ -644,7 +644,7 @@ static inline void sam_disable(void)
 {
   /* Disable the MCI peripheral clock */
 
-  putreg32((1 << SAM_PID_HSMCI), SAM_PMC_PCDR);
+  sam_hsmci_disableclk();
 
   /* Disable the MCI */
 
@@ -667,7 +667,7 @@ static inline void sam_enable(void)
 {
   /* Enable the MCI peripheral clock */
 
-  putreg32((1 << SAM_PID_HSMCI), SAM_PMC_PCER);
+  sam_hsmci_enableclk();
 
   /* Enable the MCI and the Power Saving */
 
@@ -1223,8 +1223,7 @@ static void sam_reset(FAR struct sdio_dev_s *dev)
   /* Enable the MCI clock */
 
   flags = irqsave();
-  putreg32((1 << SAM_PID_HSMCI), SAM_PMC_PCER);
-  fdbg("PCSR: %08x\n", getreg32(SAM_PMC_PCSR));
+  sam_hsmci_enableclk();
 
   /* Reset the MCI */
 

@@ -257,15 +257,23 @@ struct up_dev_s
   uint8_t           parity;    /* 0=none, 1=odd, 2=even */
   uint8_t           bits;      /* Number of bits (7 or 8) */
   bool              stopbits2; /* True: Configure with 2 stop bits instead of 1 */
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
   bool              iflow;     /* input flow control (RTS) enabled */
+#endif
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
   bool              oflow;     /* output flow control (CTS) enabled */
+#endif
   uint32_t          baud;      /* Configured baud */
 #else
   const uint8_t     parity;    /* 0=none, 1=odd, 2=even */
   const uint8_t     bits;      /* Number of bits (7 or 8) */
   const bool        stopbits2; /* True: Configure with 2 stop bits instead of 1 */
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
   const bool        iflow;     /* input flow control (RTS) enabled */
+#endif
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
   const bool        oflow;     /* output flow control (CTS) enabled */
+#endif
   const uint32_t    baud;      /* Configured baud */
 #endif
 
@@ -274,8 +282,12 @@ struct up_dev_s
   const uint32_t    usartbase; /* Base address of USART registers */
   const uint32_t    tx_gpio;   /* U[S]ART TX GPIO pin configuration */
   const uint32_t    rx_gpio;   /* U[S]ART RX GPIO pin configuration */
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
   const uint32_t    rts_gpio;  /* U[S]ART RTS GPIO pin configuration */
+#endif
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
   const uint32_t    cts_gpio;  /* U[S]ART CTS GPIO pin configuration */
+#endif
 
 #ifdef SERIAL_HAVE_DMA
   const unsigned int rxdma_channel; /* DMA channel assigned */
@@ -496,17 +508,21 @@ static struct up_dev_s g_usart1priv =
   .parity        = CONFIG_USART1_PARITY,
   .bits          = CONFIG_USART1_BITS,
   .stopbits2     = CONFIG_USART1_2STOP,
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
   .iflow         = false,
+#endif
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
   .oflow         = false,
+#endif
   .baud          = CONFIG_USART1_BAUD,
   .apbclock      = STM32_PCLK2_FREQUENCY,
   .usartbase     = STM32_USART1_BASE,
   .tx_gpio       = GPIO_USART1_TX,
   .rx_gpio       = GPIO_USART1_RX,
-#ifdef GPIO_USART1_CTS
+#if defined(CONFIG_SERIAL_OFLOWCONROL) && defined(CONFIG_USART1_OFLOWCONTROL)
   .cts_gpio      = GPIO_USART1_CTS,
 #endif
-#ifdef GPIO_USART1_RTS
+#if defined(CONFIG_SERIAL_IFLOWCONROL) && defined(CONFIG_USART1_IFLOWCONTROL)
   .rts_gpio      = GPIO_USART1_RTS,
 #endif
 #ifdef CONFIG_USART1_RXDMA
@@ -558,17 +574,21 @@ static struct up_dev_s g_usart2priv =
   .parity        = CONFIG_USART2_PARITY,
   .bits          = CONFIG_USART2_BITS,
   .stopbits2     = CONFIG_USART2_2STOP,
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
   .iflow         = false,
+#endif
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
   .oflow         = false,
+#endif
   .baud          = CONFIG_USART2_BAUD,
   .apbclock      = STM32_PCLK1_FREQUENCY,
   .usartbase     = STM32_USART2_BASE,
   .tx_gpio       = GPIO_USART2_TX,
   .rx_gpio       = GPIO_USART2_RX,
-#ifdef GPIO_USART2_CTS
+#if defined(CONFIG_SERIAL_OFLOWCONROL) && defined(CONFIG_USART2_OFLOWCONTROL)
   .cts_gpio      = GPIO_USART2_CTS,
 #endif
-#ifdef GPIO_USART2_RTS
+#if defined(CONFIG_SERIAL_IFLOWCONROL) && defined(CONFIG_USART2_IFLOWCONTROL)
   .rts_gpio      = GPIO_USART2_RTS,
 #endif
 #ifdef CONFIG_USART2_RXDMA
@@ -620,17 +640,21 @@ static struct up_dev_s g_usart3priv =
   .parity        = CONFIG_USART3_PARITY,
   .bits          = CONFIG_USART3_BITS,
   .stopbits2     = CONFIG_USART3_2STOP,
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
   .iflow         = false,
+#endif
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
   .oflow         = false,
+#endif
   .baud          = CONFIG_USART3_BAUD,
   .apbclock      = STM32_PCLK1_FREQUENCY,
   .usartbase     = STM32_USART3_BASE,
   .tx_gpio       = GPIO_USART3_TX,
   .rx_gpio       = GPIO_USART3_RX,
-#ifdef GPIO_USART3_CTS
+#if defined(CONFIG_SERIAL_OFLOWCONROL) && defined(CONFIG_USART3_OFLOWCONTROL)
   .cts_gpio      = GPIO_USART3_CTS,
 #endif
-#ifdef GPIO_USART3_RTS
+#if defined(CONFIG_SERIAL_IFLOWCONROL) && defined(CONFIG_USART3_IFLOWCONTROL)
   .rts_gpio      = GPIO_USART3_RTS,
 #endif
 #ifdef CONFIG_USART3_RXDMA
@@ -682,15 +706,23 @@ static struct up_dev_s g_uart4priv =
   .parity        = CONFIG_UART4_PARITY,
   .bits          = CONFIG_UART4_BITS,
   .stopbits2     = CONFIG_UART4_2STOP,
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
   .iflow         = false,
+#endif
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
   .oflow         = false,
+#endif
   .baud          = CONFIG_UART4_BAUD,
   .apbclock      = STM32_PCLK1_FREQUENCY,
   .usartbase     = STM32_UART4_BASE,
   .tx_gpio       = GPIO_UART4_TX,
   .rx_gpio       = GPIO_UART4_RX,
-  .cts_gpio      = 0,  /* flow control not supported on this port */
-  .rts_gpio      = 0,  /* flow control not supported on this port */
+#ifdef CONFIG_SERIAL_OFLOWCONROL
+  .cts_gpio      = 0,
+#endif
+#ifdef CONFIG_SERIAL_IFLOWCONROL
+  .rts_gpio      = 0,
+#endif
 #ifdef CONFIG_UART4_RXDMA
   .rxdma_channel = DMAMAP_UART4_RX,
   .rxfifo        = g_uart4rxfifo,
@@ -740,15 +772,23 @@ static struct up_dev_s g_uart5priv =
   .parity         = CONFIG_UART5_PARITY,
   .bits           = CONFIG_UART5_BITS,
   .stopbits2      = CONFIG_UART5_2STOP,
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
   .iflow         = false,
+#endif
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
   .oflow         = false,
+#endif
   .baud           = CONFIG_UART5_BAUD,
   .apbclock       = STM32_PCLK1_FREQUENCY,
   .usartbase      = STM32_UART5_BASE,
   .tx_gpio        = GPIO_UART5_TX,
   .rx_gpio        = GPIO_UART5_RX,
-  .cts_gpio       = 0,  /* flow control not supported on this port */
-  .rts_gpio       = 0,  /* flow control not supported on this port */
+#ifdef CONFIG_SERIAL_OFLOWCONROL
+  .cts_gpio      = 0,
+#endif
+#ifdef CONFIG_SERIAL_IFLOWCONROL
+  .rts_gpio      = 0,
+#endif
 #ifdef CONFIG_UART5_RXDMA
   .rxdma_channel = DMAMAP_UART5_RX,
   .rxfifo        = g_uart5rxfifo,
@@ -798,17 +838,21 @@ static struct up_dev_s g_usart6priv =
   .parity         = CONFIG_USART6_PARITY,
   .bits           = CONFIG_USART6_BITS,
   .stopbits2      = CONFIG_USART6_2STOP,
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
   .iflow         = false,
+#endif
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
   .oflow         = false,
+#endif
   .baud           = CONFIG_USART6_BAUD,
   .apbclock       = STM32_PCLK2_FREQUENCY,
   .usartbase      = STM32_USART6_BASE,
   .tx_gpio        = GPIO_USART6_TX,
   .rx_gpio        = GPIO_USART6_RX,
-#ifdef GPIO_USART6_CTS
+#if defined(CONFIG_SERIAL_OFLOWCONROL) && defined(CONFIG_USART6_OFLOWCONTROL)
   .cts_gpio       = GPIO_USART6_CTS,
 #endif
-#ifdef GPIO_USART6_RTS
+#if defined(CONFIG_SERIAL_IFLOWCONROL) && defined(CONFIG_USART6_IFLOWCONTROL)
   .rts_gpio       = GPIO_USART6_RTS,
 #endif
 #ifdef CONFIG_USART6_RXDMA
@@ -865,10 +909,10 @@ static struct up_dev_s g_uart7priv =
   .usartbase      = STM32_UART7_BASE,
   .tx_gpio        = GPIO_UART7_TX,
   .rx_gpio        = GPIO_UART7_RX,
-#ifdef GPIO_UART7_CTS
+#if defined(CONFIG_SERIAL_OFLOWCONROL) && defined(CONFIG_USART7_OFLOWCONTROL)
   .cts_gpio       = GPIO_UART7_CTS,
 #endif
-#ifdef GPIO_UART7_RTS
+#if defined(CONFIG_SERIAL_IFLOWCONROL) && defined(CONFIG_USART7_IFLOWCONTROL)
   .rts_gpio       = GPIO_UART7_RTS,
 #endif
 #ifdef CONFIG_UART7_RXDMA
@@ -925,10 +969,10 @@ static struct up_dev_s g_uart8priv =
   .usartbase      = STM32_UART8_BASE,
   .tx_gpio        = GPIO_UART8_TX,
   .rx_gpio        = GPIO_UART8_RX,
-#ifdef GPIO_UART8_CTS
+#if defined(CONFIG_SERIAL_OFLOWCONROL) && defined(CONFIG_USART8_OFLOWCONTROL)
   .cts_gpio       = GPIO_UART8_CTS,
 #endif
-#ifdef GPIO_UART8_RTS
+#if defined(CONFIG_SERIAL_IFLOWCONROL) && defined(CONFIG_USART8_IFLOWCONTROL)
   .rts_gpio       = GPIO_UART8_RTS,
 #endif
 #ifdef CONFIG_UART8_RXDMA
@@ -1109,13 +1153,14 @@ static int up_dma_nextrx(struct up_dev_s *priv)
 #ifndef CONFIG_SUPPRESS_UART_CONFIG
 static void up_set_format(struct uart_dev_s *dev)
 {
-#ifdef CONFIG_STM32_STM32F30XX
+  struct up_dev_s *priv = (struct up_dev_s*)dev->priv;
+  uint32_t regval;
 
+#ifdef CONFIG_STM32_STM32F30XX
   /* This first implementation is for U[S]ARTs that support oversampling
    * by 8 in additional to the standard oversampling by 16.
    */
 
-  struct up_dev_s *priv = (struct up_dev_s*)dev->priv;
   uint32_t usartdiv8;
   uint32_t cr1;
   uint32_t brr;
@@ -1171,12 +1216,10 @@ static void up_set_format(struct uart_dev_s *dev)
    * dividers.
    */
 
-  struct up_dev_s *priv = (struct up_dev_s*)dev->priv;
   uint32_t usartdiv32;
   uint32_t mantissa;
   uint32_t fraction;
   uint32_t brr;
-  uint32_t regval;
 
   /* Configure the USART Baud Rate.  The baud rate for the receiver and
    * transmitter (Rx and Tx) are both set to the same value as programmed
@@ -1206,6 +1249,7 @@ static void up_set_format(struct uart_dev_s *dev)
    fraction   = (usartdiv32 - (mantissa << 5) + 1) >> 1;
    brr       |= fraction << USART_BRR_FRAC_SHIFT;
    up_serialout(priv, STM32_USART_BRR_OFFSET, brr);
+#endif
 
   /* Configure parity mode */
 
@@ -1232,6 +1276,7 @@ static void up_set_format(struct uart_dev_s *dev)
     {
       regval |= USART_CR2_STOP2;
     }
+
   up_serialout(priv, STM32_USART_CR2_OFFSET, regval);
 
   /* Configure hardware flow control */
@@ -1239,14 +1284,19 @@ static void up_set_format(struct uart_dev_s *dev)
   regval  = up_serialin(priv, STM32_USART_CR3_OFFSET);
   regval &= ~(USART_CR3_CTSE|USART_CR3_RTSE);
 
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
   if (priv->iflow && (priv->rts_gpio != 0))
-    { 
+    {
       regval |= USART_CR3_RTSE;
     }
+#endif
+
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
   if (priv->oflow && (priv->cts_gpio != 0))
-    { 
+    {
       regval |= USART_CR3_CTSE;
     }
+#endif
 
   up_serialout(priv, STM32_USART_CR3_OFFSET, regval);
 
@@ -1279,15 +1329,19 @@ static int up_setup(struct uart_dev_s *dev)
   stm32_configgpio(priv->tx_gpio);
   stm32_configgpio(priv->rx_gpio);
 
+#ifdef CONFIG_SERIAL_OFLOWCONROL
   if (priv->cts_gpio != 0)
     {
       stm32_configgpio(priv->cts_gpio);
     }
+#endif
 
+#ifdef CONFIG_SERIAL_IFLOWCONROL
   if (priv->rts_gpio != 0)
     {
       stm32_configgpio(priv->rts_gpio);
     }
+#endif
 
 #if HAVE_RS485
   if (priv->rs485_dir_gpio != 0)
@@ -1298,10 +1352,10 @@ static int up_setup(struct uart_dev_s *dev)
 #endif
 
   /* Configure CR2 */
-  /* Clear CLKEN, CPOL, CPHA, LBCL, and interrupt enable bits */
+  /* Clear STOP, CLKEN, CPOL, CPHA, LBCL, and interrupt enable bits */
 
   regval = up_serialin(priv, STM32_USART_CR2_OFFSET);
-  regval &= ~(USART_CR2_CLKEN|USART_CR2_CPOL|
+  regval &= ~(USART_CR2_STOP_MASK|USART_CR2_CLKEN|USART_CR2_CPOL|
               USART_CR2_CPHA|USART_CR2_LBCL|USART_CR2_LBDIE);
 
   /* Configure STOP bits */
@@ -1317,8 +1371,7 @@ static int up_setup(struct uart_dev_s *dev)
   /* Clear M, TE, REm and all interrupt enable bits */
 
   regval  = up_serialin(priv, STM32_USART_CR1_OFFSET);
-  regval &= ~(USART_CR1_M|USART_CR1_TE|
-              USART_CR1_RE|USART_CR1_ALLINTS);
+  regval &= ~(USART_CR1_M|USART_CR1_TE|USART_CR1_RE|USART_CR1_ALLINTS);
 
   /* Configure word length */
 
@@ -1347,8 +1400,6 @@ static int up_setup(struct uart_dev_s *dev)
   regval     |= (USART_CR1_UE|USART_CR1_TE|USART_CR1_RE);
   up_serialout(priv, STM32_USART_CR1_OFFSET, regval);
 
-#endif
-
   /* Set up the cached interrupt enables value */
 
   priv->ie    = 0;
@@ -1374,7 +1425,7 @@ static int up_dma_setup(struct uart_dev_s *dev)
   /* Do the basic UART setup first, unless we are the console */
 
   if (!dev->isconsole)
-    {    
+    {
       result = up_setup(dev);
       if (result != OK)
         {
@@ -1706,7 +1757,7 @@ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
 
         up_serialout(priv, STM32_USART_CR3_OFFSET, cr);
       }
-     break;    
+     break;
 #endif
 
 #ifdef CONFIG_SERIAL_TERMIOS
@@ -1726,12 +1777,16 @@ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
          * there is no way to report 9-bit mode, we always claim 8.
          */
 
-        termiosp->c_cflag = 
+        termiosp->c_cflag =
           ((priv->parity != 0) ? PARENB : 0) |
           ((priv->parity == 1) ? PARODD : 0) |
           ((priv->stopbits2) ? CSTOPB : 0) |
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
           ((priv->oflow) ? CCTS_OFLOW : 0) |
+#endif
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
           ((priv->iflow) ? CRTS_IFLOW : 0) |
+#endif
           CS8;
 
         /* TODO: CCTS_IFLOW, CCTS_OFLOW */
@@ -1750,26 +1805,35 @@ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
 
         /* Perform some sanity checks before accepting any changes */
 
-        if (((termiosp->c_cflag & CSIZE) != CS8) ||
-            ((termiosp->c_cflag & CCTS_OFLOW) && (priv->cts_gpio == 0)) ||
-            ((termiosp->c_cflag & CRTS_IFLOW) && (priv->rts_gpio == 0)))
-          { 
+        if (((termiosp->c_cflag & CSIZE) != CS8)
+#ifdef CONFIG_SERIAL_IFLOWCONROL
+            || ((termiosp->c_cflag & CCTS_OFLOW) && (priv->cts_gpio == 0))
+#endif
+#ifdef CONFIG_SERIAL_IFLOWCONROL
+            || ((termiosp->c_cflag & CRTS_IFLOW) && (priv->rts_gpio == 0))
+#endif
+           )
+          {
             ret = -EINVAL;
             break;
           }
 
         if (termiosp->c_cflag & PARENB)
-          { 
+          {
             priv->parity = (termiosp->c_cflag & PARODD) ? 1 : 2;
           }
         else
-          { 
+          {
             priv->parity = 0;
           }
 
         priv->stopbits2 = (termiosp->c_cflag & CSTOPB) != 0;
+#ifdef CONFIG_SERIAL_OFLOWCONTROL
         priv->oflow = (termiosp->c_cflag & CCTS_OFLOW) != 0;
+#endif
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
         priv->iflow = (termiosp->c_cflag & CRTS_IFLOW) != 0;
+#endif
 
         /* Note that since there is no way to request 9-bit mode
          * and no way to support 5/6/7-bit modes, we ignore them
