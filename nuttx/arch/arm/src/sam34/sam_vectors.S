@@ -61,18 +61,22 @@
  * 0x2000:bfff - End of SRAM and end of heap
  */
 
-#define IDLE_STACK		(_ebss+CONFIG_IDLETHREAD_STACKSIZE)
+#define IDLE_STACK		(_ebss+CONFIG_IDLETHREAD_STACKSIZE-4)
 #define HEAP_BASE		(_ebss+CONFIG_IDLETHREAD_STACKSIZE)
 
 /************************************************************************************************
  * Global Symbols
  ************************************************************************************************/
 
-	.globl		__start
-
 	.syntax		unified
 	.thumb
 	.file		"sam_vectors.S"
+
+/* Check if common ARMv7 interrupt vectoring is used (see arch/arm/src/armv7-m/up_vectors.S) */
+
+#ifndef CONFIG_ARMV7M_CMNVECTOR
+
+	.globl		__start
 
 /************************************************************************************************
  * Macros
@@ -128,12 +132,16 @@ sam_vectors:
 #define VECTOR(l,i) .word l
 
 #undef UNUSED
-#define UNUSED(i) .word stm32_reserved
+#define UNUSED(i) .word sam_reserved
 
 #if defined(CONFIG_ARCH_CHIP_SAM3U)
 #  include "chip/sam3u_vectors.h"
+#elif defined(CONFIG_ARCH_CHIP_SAM4L)
+#  include "chip/sam4l_vectors.h"
+#elif defined(CONFIG_ARCH_CHIP_SAM4S)
+#  include "chip/sam4s_vectors.h"
 #else
-#  Unrecognized SAM architecture
+#  error Unrecognized SAM architecture
 #endif
 
 	.size	sam_vectors, .-sam_vectors
@@ -165,8 +173,12 @@ handlers:
 
 #if defined(CONFIG_ARCH_CHIP_SAM3U)
 #  include "chip/sam3u_vectors.h"
+#elif defined(CONFIG_ARCH_CHIP_SAM4L)
+#  include "chip/sam4l_vectors.h"
+#elif defined(CONFIG_ARCH_CHIP_SAM4S)
+#  include "chip/sam4s_vectors.h"
 #else
-#  Unrecognized SAM architecture
+#  error Unrecognized SAM architecture
 #endif
 
 /* Common IRQ handling logic.  On entry here, the return stack is on either
@@ -289,8 +301,8 @@ sam_common:
 #endif
 
 	/* We are returning with a pending context switch.  This case is different
-	 * because in this case, the register save structure does not lie on the
-	 * stack but, rather, are within a TCB structure.  We'll have to copy some
+	 * because in this case, the register save structure does not lie in the
+	 * stack but, rather, within a TCB structure.  We'll have to copy some
 	 * values to the stack.
 	 */
 
@@ -397,6 +409,7 @@ up_interruptstack:
 g_intstackbase:
 	.size	up_interruptstack, .-up_interruptstack
 #endif
+#endif /* CONFIG_ARMV7M_CMNVECTOR */
 
 /************************************************************************************************
  * .rodata

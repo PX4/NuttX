@@ -1,7 +1,7 @@
 /****************************************************************************
  * NxWidgets/libnxwidgets/include/cnumericedit.cxx
  *
- *   Copyright (C) 2012 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2012-2013 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *           Petteri Aimonen <jpa@kapsi.fi>
  *
@@ -216,14 +216,22 @@ void CNumericEdit::handleActionEvent(const CWidgetEventArgs &e)
     {
       m_timercount++;
 
-      int increment = m_increment;
+      // Increment the value at increasing speed.
+      // Ignore the first 3 timer ticks so that single clicks
+      // only increment by one.
+
+      int increment = 0;
       if (m_timercount > 50)
         {
           increment = m_increment * 100;
         }
-      else if (m_timercount > 10)
+      else if (m_timercount > 20)
         {
           increment = m_increment * 10;
+        }
+      else if (m_timercount > 3)
+        {
+          increment = m_increment;
         }
 
       if (m_button_minus->isClicked())

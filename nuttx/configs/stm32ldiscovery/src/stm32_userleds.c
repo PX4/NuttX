@@ -1,6 +1,5 @@
 /****************************************************************************
- * configs/stm32ldiscovery/src/up_leds.c
- * arch/arm/src/board/up_leds.c
+ * configs/stm32ldiscovery/src/stm32_userleds.c
  *
  *   Copyright (C) 2013 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>

@@ -3,10 +3,10 @@
 # see misc/tools/kconfig-language.txt.
 #
 
-comment "AT91SAM3/SAM4 Configuration Options"
+comment "AT91SAM3/4 Configuration Options"
 
 choice
-	prompt "AT91SAM3 Chip Selection"
+	prompt "AT91SAM3/4 Chip Selection"
 	default ARCH_CHIP_AT91SAM3U4E
 	depends on ARCH_CHIP_SAM34
 
@@ -15,54 +15,424 @@ config ARCH_CHIP_AT91SAM3U4E
 	select ARCH_CORTEXM3
 	select ARCH_CHIP_SAM3U
 
+config ARCH_CHIP_SAM34_NDMACHANC2C
+	bool "ATSAM4LC2C"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4L
+
+config ARCH_CHIP_ATSAM4LC2B
+	bool "ATSAM4LC2B"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4L
+
+config ARCH_CHIP_ATSAM4LC2A
+	bool "ATSAM4LC2A"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4L
+
+config ARCH_CHIP_ATSAM4LC4C
+	bool "ATSAM4LC4C"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4L
+
+config ARCH_CHIP_ATSAM4LC4B
+	bool "ATSAM4LC4B"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4L
+
+config ARCH_CHIP_ATSAM4LC4A
+	bool "ATSAM4LC4A"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4L
+
+config ARCH_CHIP_ATSAM4LS2C
+	bool "ATSAM4LS2C"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4L
+
+config ARCH_CHIP_ATSAM4LS2B
+	bool "ATSAM4LS2B"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4L
+
+config ARCH_CHIP_ATSAM4LS2A
+	bool "ATSAM4LS2A"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4L
+
+config ARCH_CHIP_ATSAM4LS4C
+	bool "ATSAM4LS4C"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4L
+
+config ARCH_CHIP_ATSAM4LS4B
+	bool "ATSAM4LS4B"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4L
+
+config ARCH_CHIP_ATSAM4LS4A
+	bool "ATSAM4LS4A"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4L
+
+config ARCH_CHIP_ATSAM4SD32C
+	bool "ATSAM4SD32C"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4S
+
+config ARCH_CHIP_ATSAM4SD32B
+	bool "ATSAM4SD32B"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4S
+
+config ARCH_CHIP_ATSAM4SD16C
+	bool "ATSAM4SD16C"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4S
+
+config ARCH_CHIP_ATSAM4SD16B
+	bool "ATSAM4SD16B"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4S
+
+config ARCH_CHIP_ATSAM4SA16C
+	bool "ATSAM4SA16C"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4S
+
+config ARCH_CHIP_ATSAM4SA16B
+	bool "ATSAM4SA16B"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4S
+
+config ARCH_CHIP_ATSAM4S16C
+	bool "ATSAM4S16C"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4S
+
+config ARCH_CHIP_ATSAM4S16B
+	bool "ATSAM4S16B"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4S
+
+config ARCH_CHIP_ATSAM4S8C
+	bool "ATSAM4S8C"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4S
+
+config ARCH_CHIP_ATSAM4S8B
+	bool "ATSAM4S8B"
+	select ARCH_CORTEXM4
+	select ARCH_CHIP_SAM4S
+
 endchoice
 
 config ARCH_CHIP_SAM3U
 	bool
-
-menu "AT91SAM3 Peripheral Support"
-
-config SAM34_DMA
-	bool "DMA"
 	default n
-	select ARCH_DMA
+
+config ARCH_CHIP_SAM4L
+	bool
+	default n
+	select ARCH_RAMFUNCS
+
+config ARCH_CHIP_SAM4S
+	bool
+	default n
+
+menu "AT91SAM3/4 Peripheral Support"
+
+config SAM_PICOCACHE
+	bool "PICOCACHE"
+	default y
+	depends on ARCH_CHIP_SAM4L
+
+config SAM34_OCD
+	bool "On-chip DEBUG"
+	depends on ARCH_CHIP_SAM4L
+	default y if DEBUG_SYMBOLS
+	default n if !DEBUG_SYMBOLS
+
+config SAM34_APBA
+	bool "APBA bridge"
+	default n
+	depends on ARCH_CHIP_SAM4L
+
+config SAM34_AESA
+	bool "Advanced Encryption Standard (AESA)"
+	default n
+	depends on ARCH_CHIP_SAM4L
+
+config SAM34_IISC
+	bool "Inter-IC Sound (I2S) Controller"
+	default n
+	depends on ARCH_CHIP_SAM4L
+
+config SAM34_SPI
+	bool "Serial Peripheral Interface (SPI)"
+	default n
+
+config SAM34_SSC
+	bool "Synchronous Serial Controller (SSC)"
+	default n
+	depends on ARCH_CHIP_SAM3U || ARCH_CHIP_SAM4S
+
+config SAM34_TC0
+	bool "Timer/Counter 0 (TC0)"
+	default n
+
+config SAM34_TC1
+	bool "Timer/Counter 1 (TC1)"
+	default n
+
+config SAM34_TC2
+	bool "Timer/Counter 2 (TC2)"
+	default n
+	depends on ARCH_CHIP_SAM3U || ARCH_CHIP_SAM4S
+
+config SAM34_TC3
+	bool "Timer/Counter 3 (TC3)"
+	default n
+	depends on ARCH_CHIP_SAM4S
+
+config SAM34_TC4
+	bool "Timer/Counter 4 (TC4)"
+	default n
+	depends on ARCH_CHIP_SAM4S
+
+config SAM34_TC5
+	bool "Timer/Counter 5 (TC5)"
+	default n
+	depends on ARCH_CHIP_SAM4S
+
+config SAM34_PWM
+	bool "Pulse Width Modulation (PWM) Controller"
+	default n
+	depends on ARCH_CHIP_SAM3U|| ARCH_CHIP_SAM4S
+
+config SAM34_TWIM0
+	bool "Two-wire Master Interface 0 (TWIM0)"
+	default n
+
+config SAM34_TWIS0
+	bool "Two-wire Slave Interface 0 (TWIS0)"
+	default n
+
+config SAM34_TWIM1
+	bool "Two-wire Master Interface 1 (TWIM1)"
+	default n
+
+config SAM34_TWIS1
+	bool "Two-wire Slave Interface 1 (TWIS1)"
+	default n
+
+config SAM34_TWIM2
+	bool "Two-wire Master Interface 2 (TWIM2)"
+	default n
+	depends on ARCH_CHIP_SAM4L
+
+config SAM34_TWIM3
+	bool "Two-wire Master Interface 3 (TWIM3)"
+	default n
+	depends on ARCH_CHIP_SAM4L
+
+config SAM34_UART0
+	bool "UART 0"
+	default y
+	depends on ARCH_CHIP_SAM3U || ARCH_CHIP_SAM4S
+	select ARCH_HAVE_UART0
+
+config SAM34_UART1
+	bool "UART 1"
+	default n
+	depends on ARCH_CHIP_SAM4S
+	select ARCH_HAVE_UART1
+
+config SAM34_PICOUART
+	bool "PicoUART"
+	default n
+	depends on ARCH_CHIP_SAM4L
+	select ARCH_HAVE_UART
+
+config SAM34_USART0
+	bool "USART 0"
+	default n
+	select ARCH_HAVE_USART0
+
+config SAM34_USART1
+	bool "USART 1"
+	default n
+	select ARCH_HAVE_USART1
+
+config SAM34_USART2
+	bool "USART 2"
+	default n
+	select ARCH_HAVE_USART2
+	depends on ARCH_CHIP_SAM3U || ARCH_CHIP_SAM4L
+
+config SAM34_USART3
+	bool "USART 3"
+	default n
+	select ARCH_HAVE_USART3
+	depends on ARCH_CHIP_SAM3U || ARCH_CHIP_SAM4L
+
+config SAM34_ADC12B
+	bool "12-bit ADC Controller"
+	default n
+
+config SAM34_ADC
+	bool "10-bit ADC Controller"
+	default n
+	depends on ARCH_CHIP_SAM3U
+
+config SAM34_DACC
+	bool "Digital To Analog Converter (DAC)"
+	default n
+	depends on ARCH_CHIP_SAM4L || ARCH_CHIP_SAM4S
+
+config SAM34_ACC
+	bool "Analog Comparator (AC)"
+	default n
+	depends on ARCH_CHIP_SAM4L || ARCH_CHIP_SAM4S
+
+config SAM34_GLOC
+	bool "GLOC"
+	default n
+	depends on ARCH_CHIP_SAM4L
+
+config SAM34_ABDACB
+	bool "Audio Bitstream DAC (ABDAC)"
+	default n
+	depends on ARCH_CHIP_SAM4L
+
+config SAM34_TRNG
+	bool "True Random Number Generator (TRNG)"
+	default n
+	depends on ARCH_CHIP_SAM4L
+
+config SAM34_PARC
+	bool "Parallel Capture (PARC)"
+	default n
+	depends on ARCH_CHIP_SAM4L
+
+config SAM34_CATB
+	bool "Capacitive Touch Module B (CATB)"
+	default n
+	depends on ARCH_CHIP_SAM4L
+
+config SAM34_LCDCA
+	bool "LCD Controller A (LCDCA)"
+	default n
+	depends on ARCH_CHIP_SAM4L
+
+config SAM34_HRAMC1
+	bool "HRAMC1 (picoCache RAM)"
+	default n
+	depends on ARCH_CHIP_SAM4L
+
+config SAM34_SMC
+	bool "Static Memory Controller (SMC)"
+	default n
+	depends on ARCH_CHIP_SAM3U || ARCH_CHIP_SAM4S
 
 config SAM34_NAND
 	bool "NAND support"
 	default n
+	depends on ARCH_CHIP_SAM3U
+
+config SAM34_HMATRIX
+	bool "HMATRIX"
+	default n
+	depends on ARCH_CHIP_SAM4L
+
+config SAM34_PDCA
+	bool "Peripheral DMA controller (PDC)"
+	default n
+	depends on ARCH_CHIP_SAM4L || ARCH_CHIP_SAM4S
+	select ARCH_DMA
+
+config SAM34_DMA
+	bool "DMA controller"
+	default n
+	depends on ARCH_CHIP_SAM3U
+	select ARCH_DMA
+
+config SAM34_CRCCU
+	bool "CRC Calculation Unit"
+	default n
+	depends on ARCH_CHIP_SAM4L || ARCH_CHIP_SAM4S
+
+config SAM34_UDPHS
+	bool "USB Device High Speed"
+	default n
+	depends on ARCH_CHIP_SAM3U
+
+config SAM34_UDP
+	bool "USB Device Full Speed"
+	default n
+	depends on ARCH_CHIP_SAM4S
+
+config SAM34_USBC
+	bool "USB 2.0 Interface"
+	default n
+	depends on ARCH_CHIP_SAM4L
+
+config SAM34_PEVC
+	bool "Peripheral Event Controller"
+	default n
+	depends on ARCH_CHIP_SAM4L
+
+config SAM34_CHIPID
+	bool "Chip ID"
+	default n
+	depends on ARCH_CHIP_SAM4L
+
+config SAM34_FREQM
+	bool "Frequency Meter (FREQM)"
+	default n
+	depends on ARCH_CHIP_SAM4L
+
+config SAM34_AST
+	bool "Asynchronous Timer (AST)"
+	default n
+	depends on ARCH_CHIP_SAM4L
+
+config SAM34_RTC
+	bool "Real Time Clock (RTC)"
+	default n
+	depends on ARCH_CHIP_SAM3U || ARCH_CHIP_SAM4S
+
+config SAM34_RTT
+	bool "Real Time Timer (RTT)"
+	default n
+	depends on ARCH_CHIP_SAM3U || ARCH_CHIP_SAM4S
+
+config SAM34_WDT
+	bool "Watchdog Timer (WDT)"
+	default n
+
+config SAM34_EIC
+	bool "External Interrupt Controller (EIC)"
+	default n
+	depends on ARCH_CHIP_SAM4L
 
 config SAM34_HSMCI
-	bool "HSMCI"
+	bool "High Speed Multimedia Card Interface (HSMCI)"
 	default n
-
-config SAM34_UART
-	bool "UART"
-	default y
-	select ARCH_HAVE_UART
-
-config SAM34_USART0
-	bool "USART0"
-	default n
-
-config SAM34_USART1
-	bool "USART1"
-	default n
-
-config SAM34_USART2
-	bool "USART2"
-	default n
-
-config SAM34_USART3
-	bool "USART3"
-	default n
-
-config SAM34_SPI
-	bool "SPI"
-	default n
+	depends on ARCH_CHIP_SAM3U || ARCH_CHIP_SAM4S
 
 endmenu
 
-menu "AT91SAM3 UART Configuration"
+config SAM32_RESET_PERIPHCLKS
+	bool "Enable all peripheral clocks on reset"
+	default n
+	depends on ARCH_CHIP_SAM4L
+	---help---
+		By default, only a few necessary peripheral clocks are enabled at
+		reset. If this setting is enabled, then all clocking will be enabled
+		to all of the selected peripherals on reset.
+
+comment "AT91SAM3/4 USART Configuration"
 
 config USART0_ISUART
 	bool "USART0 is a UART"
@@ -88,9 +458,13 @@ config USART3_ISUART
 	depends on SAM34_USART3
 	select ARCH_HAVE_USART2
 
-endmenu
+comment "AT91SAM3/4 GPIO Interrupt Configuration"
+config GPIO_IRQ
+	bool "GPIO pin interrupts"
+	---help---
+		Enable support for interrupting GPIO pins
 
-menu "AT91SAM3 GPIO Interrupt Configuration"
+if GPIO_IRQ
 
 config GPIOA_IRQ
 	bool "GPIOA interrupts"
@@ -104,4 +478,30 @@ config GPIOC_IRQ
 	bool "GPIOC interrupts"
 	default n
 
-endmenu
+endif
+
+if SAM34_WDT
+comment "AT91SAM3/4 Watchdog Configuration"|
+
+config WDT_ENABLED_ON_RESET
+	bool "Enabled on reset"
+	default n
+	---help---
+		The WDT can be enabled at reset. This is controlled by the WDTAUTO
+		fuse. The WDT will be set in basic mode, RCSYS is set as source for
+		CLK_CNT, and PSEL will be set to a value giving Tpsel above 100 ms
+		(SAM4L)
+
+		This setting informs that start-up logic that the watchdog is
+		enabled.
+
+config WDT_DISABLE_ON_RESET
+	bool "Disable on reset"
+	default n
+	depends on WDT_ENABLED_ON_RESET
+	---help---
+		If the WDT can be enabled at reset then this setting may be used to
+		configure and disable the watchdog timer very early in the boot
+		sequence.
+
+endif

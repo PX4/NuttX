@@ -54,8 +54,9 @@
 #include "up_internal.h"
 
 #include "sam_gpio.h"
-#include "chip/sam_pio.h"
-#include "chip/sam_pmc.h"
+#include "sam_periphclks.h"
+#include "chip/sam3u_pio.h"
+#include "chip/sam3u_pmc.h"
 
 #ifdef CONFIG_GPIO_IRQ
 
@@ -209,15 +210,12 @@ static int up_gpiocinterrupt(int irq, void *context)
 
 void sam_gpioirqinitialize(void)
 {
-  uint32_t pcer;
-
   /* Configure GPIOA interrupts */
 
 #ifdef CONFIG_GPIOA_IRQ
   /* Enable GPIOA clocking */
 
-  pcer |= (1 << SAM_PID_PIOA);
-  putreg32(pcer, SAM_PMC_PCER);
+  sam_pioa_enableclk();
 
   /* Clear and disable all GPIOA interrupts */
 
@@ -235,8 +233,7 @@ void sam_gpioirqinitialize(void)
 #ifdef CONFIG_GPIOB_IRQ
   /* Enable GPIOB clocking */
 
-  pcer |= (1 << SAM_PID_PIOB);
-  putreg32(pcer, SAM_PMC_PCER);
+  sam_piob_enableclk();
 
   /* Clear and disable all GPIOB interrupts */
 
@@ -254,8 +251,7 @@ void sam_gpioirqinitialize(void)
 #ifdef CONFIG_GPIOC_IRQ
   /* Enable GPIOC clocking */
 
-  pcer |= (1 << SAM_PID_PIOC);
-  putreg32(pcer, SAM_PMC_PCER);
+  sam_pioc_enableclk();
 
   /* Clear and disable all GPIOC interrupts */
 
