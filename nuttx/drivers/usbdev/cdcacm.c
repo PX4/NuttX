@@ -1806,6 +1806,7 @@ static int cdcuart_ioctl(FAR struct file *filep,int cmd,unsigned long arg)
 {
   struct inode        *inode = filep->f_inode;
   struct cdcacm_dev_s *priv  = inode->i_private;
+  FAR uart_dev_t *serdev = &priv->serdev;
   int                  ret   = OK;
 
   switch (cmd)
@@ -1898,8 +1899,49 @@ static int cdcuart_ioctl(FAR struct file *filep,int cmd,unsigned long arg)
       }
       break;
 
+    #ifdef CONFIG_SERIAL_TERMIOS
+          case TCGETS:
+          {
+            struct termios *termiosp = (struct termios*)arg;
+
+            if (!termiosp)
+              {
+                ret = -EINVAL;
+                break;
+              }
+
+            /* and update with flags from this layer */
+
+            termiosp->c_iflag = serdev->tc_iflag;
+            termiosp->c_oflag = serdev->tc_oflag;
+            termiosp->c_lflag = serdev->tc_lflag;
+          }
+
+          break;
+
+        case TCSETS:
+          {
+            struct termios *termiosp = (struct termios*)arg;
+
+            if (!termiosp)
+              {
+                ret = -EINVAL;
+                break;
+              }
+
+            /* update the flags we keep at this layer */
+
+            serdev->tc_iflag = termiosp->c_iflag;
+            serdev->tc_oflag = termiosp->c_oflag;
+            serdev->tc_lflag = termiosp->c_lflag;
+          }
+
+          break;
+#endif
+
     default:
-      ret = -ENOTTY;
+            
+            ret = -ENOSYS;
       break;
     }
 
