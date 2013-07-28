@@ -2417,6 +2417,10 @@ void up_serialinit(void)
 
 #if CONSOLE_UART > 0
   (void)uart_register("/dev/console", &uart_devs[CONSOLE_UART - 1]->dev);
+#ifndef CONFIG_SERIAL_DISABLE_REORDERING
+  /* If not disabled, register the console UART to ttyS0 and exclude
+   * it from initializing it further down
+   */
   (void)uart_register("/dev/ttyS0",   &uart_devs[CONSOLE_UART - 1]->dev);
   minor = 1;
 
@@ -2425,6 +2429,7 @@ void up_serialinit(void)
 # ifdef SERIAL_HAVE_CONSOLE_DMA
   up_dma_setup(&uart_devs[CONSOLE_UART - 1]->dev);
 # endif
+#endif /* CONFIG_SERIAL_DISABLE_REORDERING not defined */
 
 #endif /* CONSOLE_UART > 0 */
 
@@ -2434,12 +2439,14 @@ void up_serialinit(void)
 
   for (i = 0; i < STM32_NUSART; i++)
     {
+        
+#ifndef CONFIG_SERIAL_DISABLE_REORDERING
       /* Don't create a device for the console - we did that above */
-
       if ((uart_devs[i] == 0) || (uart_devs[i]->dev.isconsole))
         {
           continue;
         }
+#endif
 
       /* Register USARTs as devices in increasing order */
 
