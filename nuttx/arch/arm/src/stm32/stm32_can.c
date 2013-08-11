@@ -96,7 +96,7 @@
 #if !defined(CONFIG_DEBUG) || !defined(CONFIG_DEBUG_CAN)
 #  undef CONFIG_CAN_REGDEBUG
 #endif
-
+ 
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -107,7 +107,8 @@ struct stm32_can_s
   uint8_t  canrx0; /* CAN RX FIFO 0 IRQ number */
   uint8_t  cantx;  /* CAN TX IRQ number */
   uint8_t  filter; /* Filter number */
-  uint32_t base;   /* Base address of the CAN registers */
+  uint32_t base;   /* Base address of the CAN control registers */
+  uint32_t fbase;  /* Base address of the CAN filter registers */
   uint32_t baud;   /* Configured baud */
 };
 
@@ -118,7 +119,9 @@ struct stm32_can_s
 /* CAN Register access */
 
 static uint32_t can_getreg(struct stm32_can_s *priv, int offset);
+static uint32_t can_getfreg(struct stm32_can_s *priv, int offset);
 static void can_putreg(struct stm32_can_s *priv, int offset, uint32_t value);
+static void can_putfreg(struct stm32_can_s *priv, int offset, uint32_t value);
 #ifdef CONFIG_CAN_REGDEBUG
 static void can_dumpctrlregs(struct stm32_can_s *priv, FAR const char *msg);
 static void can_dumpmbregs(struct stm32_can_s *priv, FAR const char *msg);
@@ -179,6 +182,7 @@ static struct stm32_can_s g_can1priv =
   .cantx            = STM32_IRQ_CAN1TX,
   .filter           = 0,
   .base             = STM32_CAN1_BASE,
+  .fbase            = STM32_CAN1_BASE,
   .baud             = CONFIG_CAN1_BAUD,
 };
 
@@ -197,6 +201,7 @@ static struct stm32_can_s g_can2priv =
   .cantx            = STM32_IRQ_CAN2TX,
   .filter           = CAN_NFILTERS / 2,
   .base             = STM32_CAN2_BASE,
+  .fbase             = STM32_CAN1_BASE,
   .baud             = CONFIG_CAN2_BAUD,
 };
 
@@ -213,9 +218,10 @@ static struct can_dev_s g_can2dev =
 
 /****************************************************************************
  * Name: can_getreg
+ * Name: can_getfreg
  *
  * Description:
- *   Read the value of an CAN register.
+ *   Read the value of a CAN register or filter block register.
  *
  * Input Parameters:
  *   priv - A reference to the CAN block status
@@ -226,12 +232,11 @@ static struct can_dev_s g_can2dev =
  ****************************************************************************/
 
 #ifdef CONFIG_CAN_REGDEBUG
-static uint32_t can_getreg(struct stm32_can_s *priv, int offset)
+static uint32_t can_vgetreg(uint32_t addr)
 {
   static uint32_t prevaddr = 0;
   static uint32_t preval   = 0;
   static uint32_t count    = 0;
-         uint32_t addr     = priv->base + offset;
 
   /* Read the value from the register */
 
@@ -278,18 +283,31 @@ static uint32_t can_getreg(struct stm32_can_s *priv, int offset)
   lldbg("%08x->%08x\n", addr, val);
   return val;
 }
+static uint32_t can_getreg(struct stm32_can_s *priv, int offset)
+{
+  return can_vgetreg(priv->base + offset);
+}
+static uint32_t can_getfreg(struct stm32_can_s *priv, int offset)
+{
+  return can_vgetreg(priv->fbase + offset);
+}
 #else
 static uint32_t can_getreg(struct stm32_can_s *priv, int offset)
 {
   return getreg32(priv->base + offset);
 }
+static uint32_t can_getfreg(struct stm32_can_s *priv, int offset)
+{
+  return getreg32(priv->fbase + offset);
+}
 #endif
 
 /****************************************************************************
  * Name: can_putreg
+ * Name: can_putfreg
  *
  * Description:
- *   Set the value of an CAN register.
+ *   Set the value of a CAN register or filter block register.
  *
  * Input Parameters:
  *   priv - A reference to the CAN block status
@@ -302,9 +320,8 @@ static uint32_t can_getreg(struct stm32_can_s *priv, int offset)
  ****************************************************************************/
 
 #ifdef CONFIG_CAN_REGDEBUG
-static void can_putreg(struct stm32_can_s *priv, int offset, uint32_t value)
+static void can_vputreg(uint32_t addr, uint32_t value)
 {
-  uint32_t addr = priv->base + offset;
 
   /* Show the register value being written */
 
@@ -314,10 +331,22 @@ static void can_putreg(struct stm32_can_s *priv, int offset, uint32_t value)
 
   putreg32(value, addr);
 }
+static void can_putreg(struct stm32_can_s *priv, int offset, uint32_t value)
+{
+  can_vputreg(priv->base + offset, value);
+}
+static void can_putfreg(struct stm32_can_s *priv, int offset, uint32_t value)
+{
+  can_vputreg(priv->fbase + offset, value);
+}
 #else
 static void can_putreg(struct stm32_can_s *priv, int offset, uint32_t value)
 {
   putreg32(value, priv->base + offset);
+}
+static void can_putfreg(struct stm32_can_s *priv, int offset, uint32_t value)
+{
+  putreg32(value, priv->fbase + offset);
 }
 #endif
 
@@ -1510,52 +1539,52 @@ static int can_filterinit(struct stm32_can_s *priv)
 
   /* Enter filter initialization mode */
 
-  regval  = can_getreg(priv, STM32_CAN_FMR_OFFSET);
+  regval  = can_getfreg(priv, STM32_CAN_FMR_OFFSET);
   regval |= CAN_FMR_FINIT;
-  can_putreg(priv, STM32_CAN_FMR_OFFSET, regval);
+  can_putfreg(priv, STM32_CAN_FMR_OFFSET, regval);
 
   /* Disable the filter */
 
-  regval  = can_getreg(priv, STM32_CAN_FA1R_OFFSET);
+  regval  = can_getfreg(priv, STM32_CAN_FA1R_OFFSET);
   regval &= ~bitmask;
-  can_putreg(priv, STM32_CAN_FA1R_OFFSET, regval);
+  can_putfreg(priv, STM32_CAN_FA1R_OFFSET, regval);
 
   /* Select the 32-bit scale for the filter */
 
-  regval  = can_getreg(priv, STM32_CAN_FS1R_OFFSET);
+  regval  = can_getfreg(priv, STM32_CAN_FS1R_OFFSET);
   regval |= bitmask;
-  can_putreg(priv, STM32_CAN_FS1R_OFFSET, regval);
+  can_putfreg(priv, STM32_CAN_FS1R_OFFSET, regval);
  
   /* There are 14 or 28 filter banks (depending) on the device.  Each filter bank is
    * composed of two 32-bit registers, CAN_FiR:
    */
 
-  can_putreg(priv,  STM32_CAN_FR_OFFSET(priv->filter, 1), 0);
-  can_putreg(priv,  STM32_CAN_FR_OFFSET(priv->filter, 2), 0);
+  can_putfreg(priv,  STM32_CAN_FR_OFFSET(priv->filter, 1), 0);
+  can_putfreg(priv,  STM32_CAN_FR_OFFSET(priv->filter, 2), 0);
 
  /* Set Id/Mask mode for the filter */
 
-  regval  = can_getreg(priv, STM32_CAN_FM1R_OFFSET);
+  regval  = can_getfreg(priv, STM32_CAN_FM1R_OFFSET);
   regval &= ~bitmask;
-  can_putreg(priv, STM32_CAN_FM1R_OFFSET, regval);
+  can_putfreg(priv, STM32_CAN_FM1R_OFFSET, regval);
 
  /* Assign FIFO 0 for the filter */
 
-  regval  = can_getreg(priv, STM32_CAN_FFA1R_OFFSET);
+  regval  = can_getfreg(priv, STM32_CAN_FFA1R_OFFSET);
   regval &= ~bitmask;
-  can_putreg(priv, STM32_CAN_FFA1R_OFFSET, regval);
+  can_putfreg(priv, STM32_CAN_FFA1R_OFFSET, regval);
  
   /* Enable the filter */
 
-  regval  = can_getreg(priv, STM32_CAN_FA1R_OFFSET);
+  regval  = can_getfreg(priv, STM32_CAN_FA1R_OFFSET);
   regval |= bitmask;
-  can_putreg(priv, STM32_CAN_FA1R_OFFSET, regval);
+  can_putfreg(priv, STM32_CAN_FA1R_OFFSET, regval);
 
   /* Exit filter initialization mode */
 
-  regval  = can_getreg(priv, STM32_CAN_FMR_OFFSET);
+  regval  = can_getfreg(priv, STM32_CAN_FMR_OFFSET);
   regval &= ~CAN_FMR_FINIT;
-  can_putreg(priv, STM32_CAN_FMR_OFFSET, regval);
+  can_putfreg(priv, STM32_CAN_FMR_OFFSET, regval);
   return OK;
 }
 
