@@ -873,7 +873,7 @@ int romfs_parsefilename(struct romfs_mountpt_s *rm, uint32_t offset, char *pname
     {
       /* Read the sector into memory */
 
-      ndx = romfs_devcacheread(rm, offset);
+      ndx = romfs_devcacheread(rm, offset + namelen);
       if (ndx < 0)
         {
           return ndx;
