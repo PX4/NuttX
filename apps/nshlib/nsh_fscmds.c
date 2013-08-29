@@ -242,12 +242,21 @@ static int ls_handler(FAR struct nsh_vtbl_s *vtbl, const char *dirpath, struct d
   if ((lsflags & (LSFLAGS_SIZE|LSFLAGS_LONG)) != 0)
     {
       struct stat buf;
-      char *fullpath = nsh_getdirpath(dirpath, entryp->d_name);
 
-      /* Yes, stat the file */
+      /* stat the file */
+      if (entryp != NULL) 
+      {
+          char *fullpath = nsh_getdirpath(dirpath, entryp->d_name);
+          ret = stat(fullpath, &buf);
+          free(fullpath);
+      } 
+      else 
+      {
+          /* a NULL entryp signifies that we are running ls on a
+             single file */
+          ret = stat(dirpath, &buf);
+      }
 
-      ret = stat(fullpath, &buf);
-      free(fullpath);
       if (ret != 0)
         {
           nsh_output(vtbl, g_fmtcmdfailed, "ls", "stat", NSH_ERRNO);
@@ -326,20 +335,28 @@ static int ls_handler(FAR struct nsh_vtbl_s *vtbl, const char *dirpath, struct d
 
   /* then provide the filename that is common to normal and verbose output */
 
+  if (entryp != NULL) 
+  {
 #ifdef CONFIG_NSH_FULLPATH
-  nsh_output(vtbl, " %s/%s", arg, entryp->d_name);
+      nsh_output(vtbl, " %s/%s", arg, entryp->d_name);
 #else
-  nsh_output(vtbl, " %s", entryp->d_name);
+      nsh_output(vtbl, " %s", entryp->d_name);
 #endif
+      if (DIRENT_ISDIRECTORY(entryp->d_type) && !ls_specialdir(entryp->d_name))
+      {
+          nsh_output(vtbl, "/\n");
+      }
+      else
+      {
+          nsh_output(vtbl, "\n");
+      }
+  } 
+  else 
+  {
+      /* a single file */
+      nsh_output(vtbl, " %s\n", dirpath);
+  }
 
-  if (DIRENT_ISDIRECTORY(entryp->d_type) && !ls_specialdir(entryp->d_name))
-    {
-      nsh_output(vtbl, "/\n");
-    }
-  else
-    {
-      nsh_output(vtbl, "\n");
-    }
   return OK;
 }
 #endif
@@ -865,6 +882,7 @@ int cmd_ls(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv)
   char *fullpath;
   bool badarg = false;
   int ret;
+  struct stat st;
 
   /* Get the ls options */
 
@@ -929,16 +947,23 @@ int cmd_ls(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv)
       return ERROR;
     }
 
-  /* List the directory contents */
+  /* see if it is a single file */
+  if (stat(fullpath, &st) == 0 && !S_ISDIR(st.st_mode)) {
+      /* pass a null dirent to ls_handler to signify that this is a
+         single file */
+      ret = ls_handler(vtbl, fullpath, NULL, (void*)lsflags);
+  } else {
+      /* List the directory contents */
+      nsh_output(vtbl, "%s:\n", fullpath);
+      ret = foreach_direntry(vtbl, "ls", fullpath, ls_handler, (void*)lsflags);
+      if (ret == OK && (lsflags & LSFLAGS_RECURSIVE) != 0)
+      {
+          /* Then recurse to list each directory within the directory */
 
-  nsh_output(vtbl, "%s:\n", fullpath);
-  ret = foreach_direntry(vtbl, "ls", fullpath, ls_handler, (void*)lsflags);
-  if (ret == OK && (lsflags & LSFLAGS_RECURSIVE) != 0)
-    {
-      /* Then recurse to list each directory within the directory */
+          ret = foreach_direntry(vtbl, "ls", fullpath, ls_recursive, (void*)lsflags);
+      }
+  }
 
-      ret = foreach_direntry(vtbl, "ls", fullpath, ls_recursive, (void*)lsflags);
-    }
   nsh_freefullpath(fullpath);
   return ret;
 }
