@@ -2470,7 +2470,6 @@ static int stm32_dmarecvsetup(FAR struct sdio_dev_s *dev, FAR uint8_t *buffer,
 {
   struct stm32_dev_s *priv = (struct stm32_dev_s *)dev;
   uint32_t dblocksize;
-  int ret = -EINVAL;
 
   DEBUGASSERT(priv != NULL && buffer != NULL && buflen > 0);
   DEBUGASSERT(((uint32_t)buffer & 3) == 0);
@@ -2481,39 +2480,47 @@ static int stm32_dmarecvsetup(FAR struct sdio_dev_s *dev, FAR uint8_t *buffer,
 
   /* Wide bus operation is required for DMA */
 
-  if (priv->widebus)
+  if (!priv->widebus)
     {
-      stm32_sampleinit();
-      stm32_sample(priv, SAMPLENDX_BEFORE_SETUP);
-
-      /* Save the destination buffer information for use by the interrupt handler */
-
-      priv->buffer    = (uint32_t*)buffer;
-      priv->remaining = buflen;
-      priv->dmamode   = true;
-
-      /* Then set up the SDIO data path */
-
-      dblocksize = stm32_log2(buflen) << SDIO_DCTRL_DBLOCKSIZE_SHIFT;
-      stm32_dataconfig(SDIO_DTIMER_DATATIMEOUT, buflen, dblocksize|SDIO_DCTRL_DTDIR);
-
-      /* Configure the RX DMA */
-
-      stm32_configxfrints(priv, SDIO_DMARECV_MASK);
-
-      putreg32(1, SDIO_DCTRL_DMAEN_BB);
-      stm32_dmasetup(priv->dma, STM32_SDIO_FIFO, (uint32_t)buffer,
-                     (buflen + 3) >> 2, SDIO_RXDMA32_CONFIG);
- 
-      /* Start the DMA */
-
-      stm32_sample(priv, SAMPLENDX_BEFORE_ENABLE);
-      stm32_dmastart(priv->dma, stm32_dmacallback, priv, false);
-      stm32_sample(priv, SAMPLENDX_AFTER_SETUP);
-      ret = OK;
+      return -EINVAL;
     }
 
-  return ret;
+  /* DMA must be possible to the buffer */
+
+  if (!stm32_dmacapable((uintptr_t)buffer, (buflen + 3) >> 2, SDIO_RXDMA32_CONFIG))
+    {
+      return -EFAULT;
+    }
+
+  stm32_sampleinit();
+  stm32_sample(priv, SAMPLENDX_BEFORE_SETUP);
+
+  /* Save the destination buffer information for use by the interrupt handler */
+
+  priv->buffer    = (uint32_t*)buffer;
+  priv->remaining = buflen;
+  priv->dmamode   = true;
+
+  /* Then set up the SDIO data path */
+
+  dblocksize = stm32_log2(buflen) << SDIO_DCTRL_DBLOCKSIZE_SHIFT;
+  stm32_dataconfig(SDIO_DTIMER_DATATIMEOUT, buflen, dblocksize|SDIO_DCTRL_DTDIR);
+
+  /* Configure the RX DMA */
+
+  stm32_configxfrints(priv, SDIO_DMARECV_MASK);
+
+  putreg32(1, SDIO_DCTRL_DMAEN_BB);
+  stm32_dmasetup(priv->dma, STM32_SDIO_FIFO, (uint32_t)buffer,
+                 (buflen + 3) >> 2, SDIO_RXDMA32_CONFIG);
+
+  /* Start the DMA */
+
+  stm32_sample(priv, SAMPLENDX_BEFORE_ENABLE);
+  stm32_dmastart(priv->dma, stm32_dmacallback, priv, false);
+  stm32_sample(priv, SAMPLENDX_AFTER_SETUP);
+
+  return OK;
 }
 #endif
 
@@ -2553,43 +2560,50 @@ static int stm32_dmasendsetup(FAR struct sdio_dev_s *dev,
 
   /* Wide bus operation is required for DMA */
 
-  if (priv->widebus)
+  if (!priv->widebus)
     {
-      stm32_sampleinit();
-      stm32_sample(priv, SAMPLENDX_BEFORE_SETUP);
-
-      /* Save the source buffer information for use by the interrupt handler */
-
-      priv->buffer    = (uint32_t*)buffer;
-      priv->remaining = buflen;
-      priv->dmamode   = true;
-
-      /* Then set up the SDIO data path */
-
-      dblocksize = stm32_log2(buflen) << SDIO_DCTRL_DBLOCKSIZE_SHIFT;
-      stm32_dataconfig(SDIO_DTIMER_DATATIMEOUT, buflen, dblocksize);
-
-      /* Configure the TX DMA */
-
-      stm32_dmasetup(priv->dma, STM32_SDIO_FIFO, (uint32_t)buffer,
-                     (buflen + 3) >> 2, SDIO_TXDMA32_CONFIG);
-
-      stm32_sample(priv, SAMPLENDX_BEFORE_ENABLE);
-      putreg32(1, SDIO_DCTRL_DMAEN_BB);
-
-      /* Start the DMA */
-
-      stm32_dmastart(priv->dma, stm32_dmacallback, priv, false);
-      stm32_sample(priv, SAMPLENDX_AFTER_SETUP);
-
-      /* Enable TX interrrupts */
-
-      stm32_configxfrints(priv, SDIO_DMASEND_MASK);
-
-      ret = OK;
+      return -EINVAL;
     }
 
-  return ret;
+  /* DMA must be possible to the buffer */
+
+  if (!stm32_dmacapable((uintptr_t)buffer, (buflen + 3) >> 2, SDIO_TXDMA32_CONFIG))
+    {
+      return -EFAULT;
+    }
+
+  stm32_sampleinit();
+  stm32_sample(priv, SAMPLENDX_BEFORE_SETUP);
+
+  /* Save the source buffer information for use by the interrupt handler */
+
+  priv->buffer    = (uint32_t*)buffer;
+  priv->remaining = buflen;
+  priv->dmamode   = true;
+
+  /* Then set up the SDIO data path */
+
+  dblocksize = stm32_log2(buflen) << SDIO_DCTRL_DBLOCKSIZE_SHIFT;
+  stm32_dataconfig(SDIO_DTIMER_DATATIMEOUT, buflen, dblocksize);
+
+  /* Configure the TX DMA */
+
+  stm32_dmasetup(priv->dma, STM32_SDIO_FIFO, (uint32_t)buffer,
+                 (buflen + 3) >> 2, SDIO_TXDMA32_CONFIG);
+
+  stm32_sample(priv, SAMPLENDX_BEFORE_ENABLE);
+  putreg32(1, SDIO_DCTRL_DMAEN_BB);
+
+  /* Start the DMA */
+
+  stm32_dmastart(priv->dma, stm32_dmacallback, priv, false);
+  stm32_sample(priv, SAMPLENDX_AFTER_SETUP);
+
+  /* Enable TX interrrupts */
+
+  stm32_configxfrints(priv, SDIO_DMASEND_MASK);
+
+  return OK;
 }
 #endif
 
