@@ -1321,7 +1321,12 @@ static ssize_t mmcsd_readsingle(FAR struct mmcsd_state_s *priv,
 #ifdef CONFIG_SDIO_DMA
   if (priv->dma)
     {
-      SDIO_DMARECVSETUP(priv->dev, buffer, priv->blocksize);
+      ret = SDIO_DMARECVSETUP(priv->dev, buffer, priv->blocksize);
+      if (ret != OK)
+        {
+          fvdbg("SDIO_DMARECVSETUP: error %d\n", ret);
+          return ret;
+        }
     }
   else
 #endif
@@ -1431,7 +1436,12 @@ static ssize_t mmcsd_readmultiple(FAR struct mmcsd_state_s *priv,
 #ifdef CONFIG_SDIO_DMA
   if (priv->dma)
     {
-      SDIO_DMARECVSETUP(priv->dev, buffer, nbytes);
+      ret = SDIO_DMARECVSETUP(priv->dev, buffer, nbytes);
+      if (ret != OK)
+        {
+          fvdbg("SDIO_DMARECVSETUP: error %d\n", ret);
+          return ret;
+        }
     }
   else
 #endif
@@ -1621,7 +1631,12 @@ static ssize_t mmcsd_writesingle(FAR struct mmcsd_state_s *priv,
 #ifdef CONFIG_SDIO_DMA
   if (priv->dma)
     {
-      SDIO_DMASENDSETUP(priv->dev, buffer, priv->blocksize);
+      ret = SDIO_DMASENDSETUP(priv->dev, buffer, priv->blocksize);
+      if (ret != OK)
+        { 
+          fvdbg("SDIO_DMASENDSETUP: error %d\n", ret);
+          return ret;
+        }
     }
   else
 #endif
@@ -1766,7 +1781,12 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_state_s *priv,
 #ifdef CONFIG_SDIO_DMA
   if (priv->dma)
     {
-      SDIO_DMASENDSETUP(priv->dev, buffer, nbytes);
+      ret = SDIO_DMASENDSETUP(priv->dev, buffer, nbytes);
+      if (ret != OK)
+        { 
+          fvdbg("SDIO_DMASENDSETUP: error %d\n", ret);
+          return ret;
+        }
     }
   else
 #endif
