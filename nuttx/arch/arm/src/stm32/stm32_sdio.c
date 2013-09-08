@@ -452,6 +452,8 @@ static int  stm32_registercallback(FAR struct sdio_dev_s *dev,
 
 #ifdef CONFIG_SDIO_DMA
 static bool stm32_dmasupported(FAR struct sdio_dev_s *dev);
+static int  stm32_dmapreflight(FAR struct sdio_dev_s *dev,
+              FAR uint8_t *buffer, size_t buflen);
 static int  stm32_dmarecvsetup(FAR struct sdio_dev_s *dev,
               FAR uint8_t *buffer, size_t buflen);
 static int  stm32_dmasendsetup(FAR struct sdio_dev_s *dev,
@@ -497,6 +499,7 @@ struct stm32_dev_s g_sdiodev =
     .registercallback = stm32_registercallback,
 #ifdef CONFIG_SDIO_DMA
     .dmasupported     = stm32_dmasupported,
+    .dmarecvsetup     = stm32_dmapreflight,
     .dmarecvsetup     = stm32_dmarecvsetup,
     .dmasendsetup     = stm32_dmasendsetup,
 #endif
@@ -2446,6 +2449,48 @@ static bool stm32_dmasupported(FAR struct sdio_dev_s *dev)
 #endif
 
 /****************************************************************************
+ * Name: stm32_dmapreflight
+ *
+ * Description:
+ *   Preflight an SDIO DMA operation.  If the buffer is not well-formed for
+ *   SDIO DMA transfer (alignment, size, etc.) returns an error.
+ *
+ * Input Parameters:
+ *   dev    - An instance of the SDIO device interface
+ *   buffer - The memory to DMA to/from
+ *   buflen - The size of the DMA transfer in bytes
+ *
+ * Returned Value:
+ *   OK on success; a negated errno on failure
+ ****************************************************************************/
+
+#ifdef CONFIG_SDIO_DMA
+static int stm32_dmapreflight(FAR struct sdio_dev_s *dev, FAR uint8_t *buffer,
+                              size_t buflen)
+{
+  struct stm32_dev_s *priv = (struct stm32_dev_s *)dev;
+
+  DEBUGASSERT(priv != NULL && buffer != NULL && buflen > 0);
+
+  /* Wide bus operation is required for DMA */
+
+  if (!priv->widebus)
+    {
+      return -EINVAL;
+    }
+
+  /* DMA must be possible to the buffer */
+
+  if (!stm32_dmacapable((uintptr_t)buffer, (buflen + 3) >> 2, SDIO_RXDMA32_CONFIG))
+    {
+      return -EFAULT;
+    }
+
+  return 0;
+}
+#endif
+
+/****************************************************************************
  * Name: stm32_dmarecvsetup
  *
  * Description:
@@ -2472,25 +2517,11 @@ static int stm32_dmarecvsetup(FAR struct sdio_dev_s *dev, FAR uint8_t *buffer,
   uint32_t dblocksize;
 
   DEBUGASSERT(priv != NULL && buffer != NULL && buflen > 0);
-  DEBUGASSERT(((uint32_t)buffer & 3) == 0);
+  DEBUGASSERT(stm32_dmapreflight(dev, buffer, buflen) == 0);
 
   /* Reset the DPSM configuration */
 
   stm32_datadisable();
-
-  /* Wide bus operation is required for DMA */
-
-  if (!priv->widebus)
-    {
-      return -EINVAL;
-    }
-
-  /* DMA must be possible to the buffer */
-
-  if (!stm32_dmacapable((uintptr_t)buffer, (buflen + 3) >> 2, SDIO_RXDMA32_CONFIG))
-    {
-      return -EFAULT;
-    }
 
   stm32_sampleinit();
   stm32_sample(priv, SAMPLENDX_BEFORE_SETUP);
@@ -2552,25 +2583,11 @@ static int stm32_dmasendsetup(FAR struct sdio_dev_s *dev,
   int ret = -EINVAL;
 
   DEBUGASSERT(priv != NULL && buffer != NULL && buflen > 0);
-  DEBUGASSERT(((uint32_t)buffer & 3) == 0);
+  DEBUGASSERT(stm32_dmapreflight(dev, buffer, buflen) == 0);
 
   /* Reset the DPSM configuration */
 
   stm32_datadisable();
-
-  /* Wide bus operation is required for DMA */
-
-  if (!priv->widebus)
-    {
-      return -EINVAL;
-    }
-
-  /* DMA must be possible to the buffer */
-
-  if (!stm32_dmacapable((uintptr_t)buffer, (buflen + 3) >> 2, SDIO_TXDMA32_CONFIG))
-    {
-      return -EFAULT;
-    }
 
   stm32_sampleinit();
   stm32_sample(priv, SAMPLENDX_BEFORE_SETUP);
