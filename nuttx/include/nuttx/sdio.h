@@ -861,10 +861,8 @@ struct sdio_dev_s
 
 #ifdef CONFIG_SDIO_DMA
   bool  (*dmasupported)(FAR struct sdio_dev_s *dev);
-# ifdef CONFIG_SDIO_DMA_PREFLIGHT
   int   (*dmapreflight)(FAR struct sdio_dev_s *dev, FAR uint8_t *buffer,
           size_t buflen);
-# endif
   int   (*dmarecvsetup)(FAR struct sdio_dev_s *dev, FAR uint8_t *buffer,
           size_t buflen);
   int   (*dmasendsetup)(FAR struct sdio_dev_s *dev, FAR const uint8_t *buffer,
