@@ -271,12 +271,15 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
                * bytes remaining in the input data stream.
                */
 
+              /* Skip over any white space before the string */
+
+              while (*buf && isspace(*buf))
+                {
+                  buf++;
+                }
+
               if (*buf)
                 {
-                  while (isspace(*buf))
-                    {
-                      buf++;
-                    }
 
                   /* Was a fieldwidth specified? */
 
@@ -298,6 +301,10 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
                   /* Update the buffer pointer past the string in the input */
 
                   buf += width;
+                }
+              else
+                {
+                  noassign = true;
                 }
             }
 
@@ -348,6 +355,10 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
 
                   buf += width;
                 }
+              else
+                {
+                  noassign = true;
+                }
             }
 
           /* Process %d, %o, %b, %x, %u:  Various integer conversions */
@@ -385,14 +396,15 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
                * bytes remaining in the input data stream.
                */
 
+              /* Skip over any white space before the integer string */
+
+              while (*buf && isspace(*buf))
+                {
+                  buf++;
+                }
+
               if (*buf)
                 {
-                  /* Skip over any white space before the integer string */
-
-                  while (isspace(*buf))
-                    {
-                      buf++;
-                    }
 
                   /* The base of the integer conversion depends on the
                    * specific conversion specification.
@@ -462,6 +474,10 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
                         }
                     }
                 }
+              else
+                {
+                  noassign = true;
+                }
             }
 
           /* Process %f:  Floating point conversion */
@@ -504,14 +520,15 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
                * bytes remaining in the input data stream.
                */
 
+              /* Skip over any white space before the real string */
+
+              while (*buf && isspace(*buf))
+                {
+                  buf++;
+                }
+
               if (*buf)
                 {
-                  /* Skip over any white space before the real string */
-
-                  while (isspace(*buf))
-                    {
-                      buf++;
-                    }
 
                   /* Was a fieldwidth specified? */
 
@@ -559,6 +576,10 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
                         }
                     }
                 }
+              else
+                {
+                  noassign = true;
+                }
 #endif
             }
 
@@ -584,6 +605,11 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
                     }
                 }
             }
+          else
+          {
+            /* None of the format specifiers matched */
+            noassign = true;
+          }
 
           /* Note %n does not count as a conversion */
 
