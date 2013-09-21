@@ -698,6 +698,30 @@
 #endif
 
 /****************************************************************************
+ * Name: SDIO_DMAPREFLIGHT
+ *
+ * Description:
+ *   Preflight an SDIO DMA operation.  If the buffer is not well-formed for
+ *   SDIO DMA transfer (alignment, size, etc.) returns an error.
+ *
+ * Input Parameters:
+ *   dev    - An instance of the SDIO device interface
+ *   buffer - The memory to DMA to/from
+ *   buflen - The size of the DMA transfer in bytes
+ *
+ * Returned Value:
+ *   OK on success; a negated errno on failure
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_SDIO_DMA
+#  define SDIO_DMAPREFLIGHT(dev,buffer,len) ((dev)->dmapreflight && \
+      (dev)->dmapreflight(dev,buffer,len))
+#else
+#  define SDIO_DMAPREFLIGHT(dev,buffer,len) (0)
+#endif
+
+/****************************************************************************
  * Name: SDIO_DMARECVSETUP
  *
  * Description:
@@ -837,6 +861,8 @@ struct sdio_dev_s
 
 #ifdef CONFIG_SDIO_DMA
   bool  (*dmasupported)(FAR struct sdio_dev_s *dev);
+  int   (*dmapreflight)(FAR struct sdio_dev_s *dev, FAR uint8_t *buffer,
+          size_t buflen);
   int   (*dmarecvsetup)(FAR struct sdio_dev_s *dev, FAR uint8_t *buffer,
           size_t buflen);
   int   (*dmasendsetup)(FAR struct sdio_dev_s *dev, FAR const uint8_t *buffer,

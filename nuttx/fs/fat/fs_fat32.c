@@ -447,6 +447,7 @@ static ssize_t fat_read(FAR struct file *filep, char *buffer, size_t buflen)
   uint8_t               *userbuffer = (uint8_t*)buffer;
   int                   sectorindex;
   int                   ret;
+  bool                  force_indirect = false;
 
   /* Sanity checks */
 
@@ -517,13 +518,15 @@ static ssize_t fat_read(FAR struct file *filep, char *buffer, size_t buflen)
     {
       bytesread  = 0;
 
+fat_read_restart:
+
       /* Check if the user has provided a buffer large enough to
        * hold one or more complete sectors -AND- the read is
        * aligned to a sector boundary.
        */
 
       nsectors = buflen / fs->fs_hwsectorsize;
-      if (nsectors > 0 && sectorindex == 0)
+      if (nsectors > 0 && sectorindex == 0 && !force_indirect)
         {
           /* Read maximum contiguous sectors directly to the user's
            * buffer without using our tiny read buffer.
@@ -549,6 +552,22 @@ static ssize_t fat_read(FAR struct file *filep, char *buffer, size_t buflen)
           ret = fat_hwread(fs, userbuffer, ff->ff_currentsector, nsectors);
           if (ret < 0)
             {
+#ifdef CONFIG_FAT_DMAMEMORY
+              /* The low-level driver may return -EFAULT in the case where
+               * the transfer cannot be performed due to DMA constraints.
+               * It is probable that the buffer is completely un-DMA-able,
+               * so force indirect transfers via the sector buffer and 
+               * restart the operation.
+               */
+
+              if (ret == -EFAULT)
+                {
+                  fdbg("DMA: read alignment error, restarting indirect\n");
+                  force_indirect = true;
+                  goto fat_read_restart;
+                }
+#endif
+
               goto errout_with_semaphore;
             }
 
@@ -558,7 +577,8 @@ static ssize_t fat_read(FAR struct file *filep, char *buffer, size_t buflen)
         }
       else
         {
-          /* We are reading a partial sector.  First, read the whole sector
+          /* We are reading a partial sector, or handling a non-DMA-able
+           * whole-sector transfer.  First, read the whole sector
            * into the file data buffer.  This is a caching buffer so if
            * it is already there then all is well.
            */
@@ -569,7 +589,7 @@ static ssize_t fat_read(FAR struct file *filep, char *buffer, size_t buflen)
               goto errout_with_semaphore;
             }
 
-          /* Copy the partial sector into the user buffer */
+          /* Copy the requested part of the sector into the user buffer */
 
           bytesread = fs->fs_hwsectorsize - sectorindex;
           if (bytesread > buflen)
@@ -645,6 +665,7 @@ static ssize_t fat_write(FAR struct file *filep, const char *buffer,
   uint8_t              *userbuffer = (uint8_t*)buffer;
   int                   sectorindex;
   int                   ret;
+  bool                  force_indirect = false;
 
   /* Sanity checks.  I have seen the following assertion misfire if
    * CONFIG_DEBUG_MM is enabled while re-directing output to a
@@ -735,8 +756,10 @@ static ssize_t fat_write(FAR struct file *filep, const char *buffer,
        * hold one or more complete sectors.
        */
 
+fat_write_restart:
+
       nsectors = buflen / fs->fs_hwsectorsize;
-      if (nsectors > 0 && sectorindex == 0)
+      if (nsectors > 0 && sectorindex == 0 && !force_indirect)
         {
           /* Write maximum contiguous sectors directly from the user's
            * buffer without using our tiny read buffer.
@@ -763,6 +786,22 @@ static ssize_t fat_write(FAR struct file *filep, const char *buffer,
           ret = fat_hwwrite(fs, userbuffer, ff->ff_currentsector, nsectors);
           if (ret < 0)
             {
+#ifdef CONFIG_FAT_DMAMEMORY
+              /* The low-level driver may return -EFAULT in the case where
+               * the transfer cannot be performed due to DMA constraints.
+               * It is probable that the buffer is completely un-DMA-able,
+               * so force indirect transfers via the sector buffer and 
+               * restart the operation.
+               */
+
+              if (ret == -EFAULT)
+                {
+                  fdbg("DMA: write alignment error, restarting indirect\n");
+                  force_indirect = true;
+                  goto fat_write_restart;
+                }
+#endif
+
               goto errout_with_semaphore;
             }
 
@@ -773,31 +812,24 @@ static ssize_t fat_write(FAR struct file *filep, const char *buffer,
         }
       else
         {
-          /* We are writing a partial sector -OR- the current sector
-           * has not yet been filled.
+          /* Decide whether we are performing a read-modify-write
+           * operation, in which case we have to read the existing sector
+           * into the buffer first.
            *
-           * We will first have to read the full sector in memory as
-           * part of a read-modify-write operation.  NOTE we don't
-           * have to read the data on a rare case: When we are extending
-           * the file (filep->f_pos == ff->ff_size) -AND- the new data
-           * happens to be aligned at the beginning of the sector
-           * (sectorindex == 0).
+           * There are two cases where we can avoid this read:
+           *
+           * - If we are performing a whole-sector write that was rejected
+           *   by fat_hwwrite(), i.e. sectorindex == 0 and buflen >= sector size.
+           *
+           * - If the write is aligned to the beginning of the sector and
+           *   extends beyond the end of the file, i.e. sectorindex == 0 and
+           *   file pos + buflen >= file size.
+           *
            */
 
-          if (filep->f_pos < ff->ff_size || sectorindex != 0)
-            {
-              /* Read the current sector into memory (perhaps first flushing
-               * the old, dirty sector to disk).
-               */
-
-              ret = fat_ffcacheread(fs, ff, ff->ff_currentsector);
-              if (ret < 0)
-                {
-                  goto errout_with_semaphore;
-                }
-            }
-          else
-            {
+          if ((sectorindex == 0) && 
+              ((buflen >= fs->fs_hwsectorsize) || ((filep->f_pos + buflen) >= ff->ff_size)))
+            { 
                /* Flush unwritten data in the sector cache. */
 
                ret = fat_ffcacheflush(fs, ff);
@@ -810,8 +842,20 @@ static ssize_t fat_write(FAR struct file *filep, const char *buffer,
 
               ff->ff_cachesector = ff->ff_currentsector;
             }
+          else
+            {
+              /* Read the current sector into memory (perhaps first flushing
+               * the old, dirty sector to disk).
+               */
 
-          /* Copy the partial sector from the user buffer */
+              ret = fat_ffcacheread(fs, ff, ff->ff_currentsector);
+              if (ret < 0)
+                {
+                  goto errout_with_semaphore;
+                }
+            }
+
+          /* Copy the requested part of the sector from the user buffer */
 
           writesize = fs->fs_hwsectorsize - sectorindex;
           if (writesize > buflen)

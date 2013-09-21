@@ -452,6 +452,8 @@ static int  stm32_registercallback(FAR struct sdio_dev_s *dev,
 
 #ifdef CONFIG_SDIO_DMA
 static bool stm32_dmasupported(FAR struct sdio_dev_s *dev);
+static int  stm32_dmapreflight(FAR struct sdio_dev_s *dev,
+              FAR uint8_t *buffer, size_t buflen);
 static int  stm32_dmarecvsetup(FAR struct sdio_dev_s *dev,
               FAR uint8_t *buffer, size_t buflen);
 static int  stm32_dmasendsetup(FAR struct sdio_dev_s *dev,
@@ -497,6 +499,7 @@ struct stm32_dev_s g_sdiodev =
     .registercallback = stm32_registercallback,
 #ifdef CONFIG_SDIO_DMA
     .dmasupported     = stm32_dmasupported,
+    .dmarecvsetup     = stm32_dmapreflight,
     .dmarecvsetup     = stm32_dmarecvsetup,
     .dmasendsetup     = stm32_dmasendsetup,
 #endif
@@ -2446,6 +2449,48 @@ static bool stm32_dmasupported(FAR struct sdio_dev_s *dev)
 #endif
 
 /****************************************************************************
+ * Name: stm32_dmapreflight
+ *
+ * Description:
+ *   Preflight an SDIO DMA operation.  If the buffer is not well-formed for
+ *   SDIO DMA transfer (alignment, size, etc.) returns an error.
+ *
+ * Input Parameters:
+ *   dev    - An instance of the SDIO device interface
+ *   buffer - The memory to DMA to/from
+ *   buflen - The size of the DMA transfer in bytes
+ *
+ * Returned Value:
+ *   OK on success; a negated errno on failure
+ ****************************************************************************/
+
+#ifdef CONFIG_SDIO_DMA
+static int stm32_dmapreflight(FAR struct sdio_dev_s *dev, FAR uint8_t *buffer,
+                              size_t buflen)
+{
+  struct stm32_dev_s *priv = (struct stm32_dev_s *)dev;
+
+  DEBUGASSERT(priv != NULL && buffer != NULL && buflen > 0);
+
+  /* Wide bus operation is required for DMA */
+
+  if (!priv->widebus)
+    {
+      return -EINVAL;
+    }
+
+  /* DMA must be possible to the buffer */
+
+  if (!stm32_dmacapable((uintptr_t)buffer, (buflen + 3) >> 2, SDIO_RXDMA32_CONFIG))
+    {
+      return -EFAULT;
+    }
+
+  return 0;
+}
+#endif
+
+/****************************************************************************
  * Name: stm32_dmarecvsetup
  *
  * Description:
@@ -2470,50 +2515,43 @@ static int stm32_dmarecvsetup(FAR struct sdio_dev_s *dev, FAR uint8_t *buffer,
 {
   struct stm32_dev_s *priv = (struct stm32_dev_s *)dev;
   uint32_t dblocksize;
-  int ret = -EINVAL;
 
   DEBUGASSERT(priv != NULL && buffer != NULL && buflen > 0);
-  DEBUGASSERT(((uint32_t)buffer & 3) == 0);
+  DEBUGASSERT(stm32_dmapreflight(dev, buffer, buflen) == 0);
 
   /* Reset the DPSM configuration */
 
   stm32_datadisable();
 
-  /* Wide bus operation is required for DMA */
+  stm32_sampleinit();
+  stm32_sample(priv, SAMPLENDX_BEFORE_SETUP);
 
-  if (priv->widebus)
-    {
-      stm32_sampleinit();
-      stm32_sample(priv, SAMPLENDX_BEFORE_SETUP);
+  /* Save the destination buffer information for use by the interrupt handler */
 
-      /* Save the destination buffer information for use by the interrupt handler */
+  priv->buffer    = (uint32_t*)buffer;
+  priv->remaining = buflen;
+  priv->dmamode   = true;
 
-      priv->buffer    = (uint32_t*)buffer;
-      priv->remaining = buflen;
-      priv->dmamode   = true;
+  /* Then set up the SDIO data path */
 
-      /* Then set up the SDIO data path */
+  dblocksize = stm32_log2(buflen) << SDIO_DCTRL_DBLOCKSIZE_SHIFT;
+  stm32_dataconfig(SDIO_DTIMER_DATATIMEOUT, buflen, dblocksize|SDIO_DCTRL_DTDIR);
 
-      dblocksize = stm32_log2(buflen) << SDIO_DCTRL_DBLOCKSIZE_SHIFT;
-      stm32_dataconfig(SDIO_DTIMER_DATATIMEOUT, buflen, dblocksize|SDIO_DCTRL_DTDIR);
+  /* Configure the RX DMA */
 
-      /* Configure the RX DMA */
+  stm32_configxfrints(priv, SDIO_DMARECV_MASK);
 
-      stm32_configxfrints(priv, SDIO_DMARECV_MASK);
+  putreg32(1, SDIO_DCTRL_DMAEN_BB);
+  stm32_dmasetup(priv->dma, STM32_SDIO_FIFO, (uint32_t)buffer,
+                 (buflen + 3) >> 2, SDIO_RXDMA32_CONFIG);
 
-      putreg32(1, SDIO_DCTRL_DMAEN_BB);
-      stm32_dmasetup(priv->dma, STM32_SDIO_FIFO, (uint32_t)buffer,
-                     (buflen + 3) >> 2, SDIO_RXDMA32_CONFIG);
- 
-      /* Start the DMA */
+  /* Start the DMA */
 
-      stm32_sample(priv, SAMPLENDX_BEFORE_ENABLE);
-      stm32_dmastart(priv->dma, stm32_dmacallback, priv, false);
-      stm32_sample(priv, SAMPLENDX_AFTER_SETUP);
-      ret = OK;
-    }
+  stm32_sample(priv, SAMPLENDX_BEFORE_ENABLE);
+  stm32_dmastart(priv->dma, stm32_dmacallback, priv, false);
+  stm32_sample(priv, SAMPLENDX_AFTER_SETUP);
 
-  return ret;
+  return OK;
 }
 #endif
 
@@ -2545,51 +2583,44 @@ static int stm32_dmasendsetup(FAR struct sdio_dev_s *dev,
   int ret = -EINVAL;
 
   DEBUGASSERT(priv != NULL && buffer != NULL && buflen > 0);
-  DEBUGASSERT(((uint32_t)buffer & 3) == 0);
+  DEBUGASSERT(stm32_dmapreflight(dev, buffer, buflen) == 0);
 
   /* Reset the DPSM configuration */
 
   stm32_datadisable();
 
-  /* Wide bus operation is required for DMA */
+  stm32_sampleinit();
+  stm32_sample(priv, SAMPLENDX_BEFORE_SETUP);
 
-  if (priv->widebus)
-    {
-      stm32_sampleinit();
-      stm32_sample(priv, SAMPLENDX_BEFORE_SETUP);
+  /* Save the source buffer information for use by the interrupt handler */
 
-      /* Save the source buffer information for use by the interrupt handler */
+  priv->buffer    = (uint32_t*)buffer;
+  priv->remaining = buflen;
+  priv->dmamode   = true;
 
-      priv->buffer    = (uint32_t*)buffer;
-      priv->remaining = buflen;
-      priv->dmamode   = true;
+  /* Then set up the SDIO data path */
 
-      /* Then set up the SDIO data path */
+  dblocksize = stm32_log2(buflen) << SDIO_DCTRL_DBLOCKSIZE_SHIFT;
+  stm32_dataconfig(SDIO_DTIMER_DATATIMEOUT, buflen, dblocksize);
 
-      dblocksize = stm32_log2(buflen) << SDIO_DCTRL_DBLOCKSIZE_SHIFT;
-      stm32_dataconfig(SDIO_DTIMER_DATATIMEOUT, buflen, dblocksize);
+  /* Configure the TX DMA */
 
-      /* Configure the TX DMA */
+  stm32_dmasetup(priv->dma, STM32_SDIO_FIFO, (uint32_t)buffer,
+                 (buflen + 3) >> 2, SDIO_TXDMA32_CONFIG);
 
-      stm32_dmasetup(priv->dma, STM32_SDIO_FIFO, (uint32_t)buffer,
-                     (buflen + 3) >> 2, SDIO_TXDMA32_CONFIG);
+  stm32_sample(priv, SAMPLENDX_BEFORE_ENABLE);
+  putreg32(1, SDIO_DCTRL_DMAEN_BB);
 
-      stm32_sample(priv, SAMPLENDX_BEFORE_ENABLE);
-      putreg32(1, SDIO_DCTRL_DMAEN_BB);
+  /* Start the DMA */
 
-      /* Start the DMA */
+  stm32_dmastart(priv->dma, stm32_dmacallback, priv, false);
+  stm32_sample(priv, SAMPLENDX_AFTER_SETUP);
 
-      stm32_dmastart(priv->dma, stm32_dmacallback, priv, false);
-      stm32_sample(priv, SAMPLENDX_AFTER_SETUP);
+  /* Enable TX interrrupts */
 
-      /* Enable TX interrrupts */
+  stm32_configxfrints(priv, SDIO_DMASEND_MASK);
 
-      stm32_configxfrints(priv, SDIO_DMASEND_MASK);
-
-      ret = OK;
-    }
-
-  return ret;
+  return OK;
 }
 #endif
 
