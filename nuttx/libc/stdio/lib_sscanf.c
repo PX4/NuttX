@@ -175,9 +175,13 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
   FAR char       *bufstart;
   FAR char       *tv;
   FAR const char *tc;
+  FAR long       *pclong;
+  FAR int        *pcint;
   bool            lflag;
   bool            noassign;
+  bool            data_invalid;
   int             count;
+  int             fmtcount;
   int             width;
   int             base = 10;
   char            tmp[MAXLN];
@@ -192,10 +196,14 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
 
   /* Parse the format, extracting values from the input buffer as needed */
 
+  pclong   = NULL;
+  pcint    = NULL;
   count    = 0;
+  fmtcount = 0;
   width    = 0;
   noassign = false;
   lflag    = false;
+  data_invalid = false;
 
   /* Loop until all characters in the fmt string have been processed.  We
    * may have to continue loop after reaching the end the input data in
@@ -253,6 +261,7 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
 
           if (*fmt == 's')
             {
+              fmtcount++;
               lvdbg("vsscanf: Performing string conversion\n");
 
               /* Get a pointer to the char * value.  We need to do this even
@@ -312,6 +321,7 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
 
           else if (*fmt == 'c')
             {
+              fmtcount++;
               lvdbg("vsscanf: Performing character conversion\n");
 
               /* Get a pointer to the char * value.  We need to do this even
@@ -365,6 +375,7 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
 
           else if (strchr("dobxu", *fmt))
             {
+              fmtcount++;
               lvdbg("vsscanf: Performing integer conversion\n");
 
               /* Get a pointer to the integer value.  We need to do this even
@@ -443,7 +454,21 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
                   strncpy(tmp, buf, width);
                   tmp[width] = '\0';
 
-                  lvdbg("vsscanf: tmp[]=\"%s\"\n", tmp);
+                  lvdbg("vsscanf: tmp[]=\"%s\", width: %d\n", tmp, width);
+
+                  /* Ignore anything after the first non-digit character */
+
+                  int c_count;
+                  for (c_count = 0; c_count < width; c_count++)
+                    {
+                      if (tmp[c_count] < '0' || tmp[c_count] > '9')
+                      {
+                        tmp[c_count] = '\0';
+                        width = c_count;
+                        data_invalid = true;
+                        break;
+                      }
+                    }
 
                   /* Perform the integer conversion */
 
@@ -484,6 +509,7 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
 
           else if (*fmt == 'f')
             {
+              fmtcount++;
               lvdbg("vsscanf: Performing floating point conversion\n");
 
               /* Get a pointer to the double value.  We need to do this even
@@ -543,6 +569,21 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
 
                   strncpy(tmp, buf, width);
                   tmp[width] = '\0';
+
+                  /* Ignore anything after the first non-digit character */
+
+                  int c_count;
+                  for (c_count = 0; c_count < width; c_count++)
+                    {
+                      if ((tmp[c_count] < '0' || tmp[c_count] > '9') && tmp[c_count] != '.')
+                        {
+                          tmp[c_count] = '\0';
+                          width = c_count;
+                          data_invalid = true;
+                          break;
+                        }
+                    }
+
                   buf += width;
 
                   lvdbg("vsscanf: tmp[]=\"%s\"\n", tmp);
@@ -587,22 +628,13 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
 
           else if (*fmt == 'n')
             {
-              lvdbg("vsscanf: Performing character count\n");
-
-              if (!noassign)
+              if (lflag)
                 {
-                  size_t nchars = (size_t)(buf - bufstart);
-
-                  if (lflag)
-                    {
-                      FAR long *plong = va_arg(ap, long*);
-                      *plong = (long)nchars;
-                    }
-                  else
-                    {
-                      FAR int *pint = va_arg(ap, int*);
-                      *pint = (int)nchars;
-                    }
+                  pclong = va_arg(ap, long*);
+                }
+              else
+                {
+                  pcint = va_arg(ap, int*);
                 }
             }
           else
@@ -619,7 +651,16 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
             }
 
           width    = 0;
-          noassign = false;
+
+          if (data_invalid)
+            {
+              noassign = true;
+            }
+          else
+            {
+              noassign = false;
+            }
+
           lflag    = false;
 
           fmt++;
@@ -649,6 +690,30 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
             }
         }
     }
+
+    /* Clean up - read whitespaces */
+    while (*buf && isspace(*buf))
+      {
+        buf++;
+      }
+
+    /* Get character count if requested */
+
+      if (pclong || pcint)
+        {
+          lvdbg("vsscanf: Performing character count\n");
+
+          size_t nchars = (size_t)(buf - bufstart);
+
+          if (pclong)
+            {
+              *pclong = (long)nchars;
+            }
+          else if (pcint)
+            {
+              *pcint = (int)nchars;
+            }
+        }
 
   return count;
 }
