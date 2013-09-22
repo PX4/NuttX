@@ -461,7 +461,12 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
                   int c_count;
                   for (c_count = 0; c_count < width; c_count++)
                     {
-                      if ((tmp[c_count] < '0' || tmp[c_count] > '9') && !(tmp[c_count] == '-' || tmp[c_count] == '+'))
+                      if ((tmp[c_count] < '0' || tmp[c_count] > '9') && !(tmp[c_count] == '-' ||
+                                                                          tmp[c_count] == '+' ||
+                                                                          tmp[c_count] == 'x' ||
+                                                                          tmp[c_count] == 'X' ||
+                                                                          tmp[c_count] == 'b' ||
+                                                                          tmp[c_count] == 'B'))
                       {
                         lvdbg("data invalid on char: %c (0x%02x), %d\n", tmp[c_count], tmp[c_count], c_count);
                         tmp[c_count] = '\0';
@@ -578,7 +583,9 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
                     {
                       if ((tmp[c_count] < '0' || tmp[c_count] > '9') && !(tmp[c_count] == '.' ||
                                                                           tmp[c_count] == '-' ||
-                                                                          tmp[c_count] == '+'))
+                                                                          tmp[c_count] == '+' ||
+                                                                          tmp[c_count] == 'x' ||
+                                                                          tmp[c_count] == 'X'))
                         {
                           tmp[c_count] = '\0';
                           width = c_count;
