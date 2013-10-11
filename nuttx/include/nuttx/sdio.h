@@ -715,10 +715,9 @@
  ****************************************************************************/
 
 #ifdef CONFIG_SDIO_DMA
-#  define SDIO_DMAPREFLIGHT(dev,buffer,len) ((dev)->dmapreflight && \
-      (dev)->dmapreflight(dev,buffer,len))
+#  define SDIO_DMAPREFLIGHT(dev,buffer,len) ((dev)->dmapreflight?(dev)->dmapreflight(dev,buffer,len):OK)
 #else
-#  define SDIO_DMAPREFLIGHT(dev,buffer,len) (0)
+#  define SDIO_DMAPREFLIGHT(dev,buffer,len) (OK)
 #endif
 
 /****************************************************************************
