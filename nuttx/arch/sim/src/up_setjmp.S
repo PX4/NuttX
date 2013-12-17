@@ -135,7 +135,7 @@ SYMBOL(up_longjmp):
 
 	/* Jump to saved PC.  */
 
-	jmp		(*%edx)
+	jmp	*(%edx)
 #if !((defined __CYGWIN__) || (defined __APPLE__))
 	.size SYMBOL(up_longjmp), . - SYMBOL(up_longjmp)
 #endif
