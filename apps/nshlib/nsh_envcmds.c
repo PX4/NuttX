@@ -137,48 +137,6 @@ static inline char *nsh_getdirpath(FAR struct nsh_vtbl_s *vtbl,
   return alloc;
 }
 
-static int expand_env(const char *src, char *res, int res_size)
-{
-	unsigned int src_idx = 0;
-	unsigned int res_idx = 0;
-	int var_idx = -1;
-	char var_name[32];
-	while (res_idx < res_size) {
-	  char c = src[src_idx++];
-	  if (var_idx >= 0) {
-		  // parsing variable name
-	  	  if (var_idx == 0 && c == '{') {
-	  		  continue;
-	  	  } else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
-	  		  // variable name
-			  var_name[var_idx++] = c;
-			  continue;
-	  	  } else {
-	  		  // end of variable name
-			  var_name[var_idx] = '\0';
-			  char *var_value = getenv(var_name);
-			  for (unsigned int i = 0; res_idx < res_size && var_value[i] != 0; i++) {
-				  res[res_idx++] = var_value[i];
-			  }
-			  var_idx = -1;
-			  if (c == '}')
-				  continue;
-		  }
-	  }
-	  if (c == '$') {
-		  // start parsing variable
-		  var_idx = 0;
-		  continue;
-	  }
-	  // normal string
-	  res[res_idx++] = c;
-	  if (c == '\0')
-		  break;
-	}
-	if (res_idx >= res_size)
-		return -1;
-	return 0;
-}
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -351,14 +309,11 @@ int cmd_pwd(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv)
 #ifndef CONFIG_NSH_DISABLE_SET
 int cmd_set(FAR struct nsh_vtbl_s *vtbl, int argc, char **argv)
 {
-  char value[256];
-  int ret = expand_env(argv[2], value, sizeof(value));
-  if (ret == 0) {
-    ret = setenv(argv[1], value, TRUE);
-  }
-  if (ret < 0) {
-    nsh_output(vtbl, g_fmtcmdfailed, argv[0], "setenv", NSH_ERRNO);
-  }
+  int ret = setenv(argv[1], argv[2], TRUE);
+  if (ret < 0)
+    {
+      nsh_output(vtbl, g_fmtcmdfailed, argv[0], "setenv", NSH_ERRNO);
+    }
   return ret;
 }
 #endif
