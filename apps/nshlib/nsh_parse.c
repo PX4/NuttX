@@ -1307,121 +1307,144 @@ int nsh_parse(FAR struct nsh_vtbl_s *vtbl, char *cmdline)
   char *var_name_end;
   bool bracket = false;
 
-  while (true) {
-    char c = *src_ptr++;
-    if (var_name_start) {
-      /* Parsing variable name */
-      if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
-        /* Valid variable char */
-        continue;
-      } else {
-        /* End of variable name */
-        if (bracket && c != '}') {
-          /* Bad substitution */
-          cmdline[strlen(cmdline) - 1] = '\0';
-          nsh_output(vtbl, g_fmtbadsubstitution, cmdline);
-          goto errout;
-        }
-        do_expand = true;
-        var_name_end = src_ptr - 1;
-        char tmp_char = *var_name_end;
-        *var_name_end = '\0';
-        char *var_value = getenv(var_name_start);
-        *var_name_end = tmp_char;
-        res_size += strlen(var_value);
-        var_name_start = NULL;
-        if (c == '}') {
-          bracket = false;
-          continue;
-        }
-      }
-    }
-    if (c == '$') {
-      /* Start parsing variable, check next char */
-      char nc = *src_ptr;
-      if (nc == '{') {
-        bracket = true;
-        src_ptr++;
-        var_name_start = src_ptr;
-        continue;
-      } else if ((nc >= 'a' && nc <= 'z') || (nc >= 'A' && nc <= 'Z')) {
-        /* First variable name char must be letter */
-        var_name_start = src_ptr;
-        continue;
-      }
-    }
-    /* Normal char */
-    res_size++;
-    if (c == '\0')
-      break;
-  }
-  if (do_expand) {
-    /* Second pass: allocate buffer and expand command line */
+  /* First pass: check for variables and calculate resulting line length */
 
-    printf("Orig: %s", cmdline);
-    printf("Expand, size: %d\n", res_size);
-
-    cmdline_exp = (char*) malloc(res_size);
-
-    src_ptr = cmdline;
-    char *res_ptr = cmdline_exp;
-    var_name_start = NULL;
-    bracket = false;
-
-    while (true) {
+  while (true)
+    {
       char c = *src_ptr++;
-      if (var_name_start) {
-        /* Parsing variable name */
-        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
-          /* Valid variable char */
-          continue;
-        } else {
-          /* End of variable name, don't check syntax, it's already done on first pass */
-          var_name_end = src_ptr - 1;
-          char tmp_char = *var_name_end;
-          *var_name_end = '\0';
-          char *var_value = getenv(var_name_start);
-          printf("VAR: %s = %s\n", var_name_start, var_value);
-          *var_name_end = tmp_char;
-          //res_ptr = stpcpy(res_ptr, var_value);
-          if (var_value) {
-            for (int i = 0; true; i++) {
-              char a = var_value[i];
-              if (a == '\0')
-                break;
-              *res_ptr++ = a;
+      if (var_name_start)
+        {
+          /* Parsing variable name */
+          if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')
+            {
+              /* Valid variable char */
+              continue;
             }
-          }
-          var_name_start = NULL;
-          if (c == '}') {
-            bracket = false;
-            continue;
-          }
+          else
+            {
+              /* End of variable name */
+              if (bracket && c != '}')
+                {
+                  /* Bad substitution */
+            	  /* Remove \n at and of line end exit with error message*/
+                  cmdline[strlen(cmdline) - 1] = '\0';
+                  nsh_output(vtbl, g_fmtbadsubstitution, cmdline);
+                  goto errout;
+                }
+              do_expand = true;
+              var_name_end = src_ptr - 1;
+              char tmp_char = *var_name_end;
+              *var_name_end = '\0';
+              char *var_value = getenv(var_name_start);
+              *var_name_end = tmp_char;
+              res_size += strlen(var_value);
+              var_name_start = NULL;
+              if (c == '}')
+                {
+                  bracket = false;
+                  continue;
+                }
+            }
         }
-      }
-      if (c == '$') {
-        /* Start parsing variable, check next char */
-        char nc = *src_ptr;
-        if (nc == '{') {
-          bracket = true;
-          src_ptr++;
-          var_name_start = src_ptr;
-          continue;
-        } else if ((nc >= 'a' && nc <= 'z') || (nc >= 'A' && nc <= 'Z')) {
-          /* First variable name char must be letter */
-          var_name_start = src_ptr;
-          continue;
+
+      if (c == '$')
+        {
+          /* Start parsing variable, check next char */
+          char nc = *src_ptr;
+          if (nc == '{')
+            {
+              bracket = true;
+              src_ptr++;
+              var_name_start = src_ptr;
+              continue;
+            }
+          else if ((nc >= 'a' && nc <= 'z') || (nc >= 'A' && nc <= 'Z'))
+            {
+              /* First variable name char must be letter */
+              var_name_start = src_ptr;
+              continue;
+            }
         }
-      }
       /* Normal char */
-      *res_ptr++ = c;
+      res_size++;
       if (c == '\0')
-        break;
+          break;
     }
 
-    printf("Expanded: %s", cmdline_exp);
-    cmdline = cmdline_exp;
-  }
+  if (do_expand)
+    {
+      /* Second pass: allocate buffer and expand command line */
+
+      cmdline_exp = (char*) malloc(res_size);
+
+      src_ptr = cmdline;
+      char *res_ptr = cmdline_exp;
+      var_name_start = NULL;
+      bracket = false;
+
+      while (true)
+        {
+          char c = *src_ptr++;
+          if (var_name_start)
+            {
+              /* Parsing variable name */
+              if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')
+                {
+                  /* Valid variable char */
+                  continue;
+                }
+              else
+                {
+                  /* End of variable name, don't check syntax, it's already done on first pass */
+                  var_name_end = src_ptr - 1;
+                  char tmp_char = *var_name_end;
+                  *var_name_end = '\0';
+                  char *var_value = getenv(var_name_start);
+                  *var_name_end = tmp_char;
+                  if (var_value)
+                    {
+                      for (int i = 0; true; i++)
+                        {
+                          char a = var_value[i];
+                          if (a == '\0')
+                              break;
+                          *res_ptr++ = a;
+                        }
+                     }
+                   var_name_start = NULL;
+                   if (c == '}')
+                     {
+                       bracket = false;
+                       continue;
+                     }
+                 }
+             }
+           if (c == '$')
+             {
+               /* Start parsing variable, check next char */
+               char nc = *src_ptr;
+               if (nc == '{')
+                 {
+                   bracket = true;
+                   src_ptr++;
+                   var_name_start = src_ptr;
+                   continue;
+                 }
+               else if ((nc >= 'a' && nc <= 'z') || (nc >= 'A' && nc <= 'Z'))
+                 {
+                   /* First variable name char must be letter */
+                   var_name_start = src_ptr;
+                   continue;
+                 }
+             }
+           /* Normal char */
+           *res_ptr++ = c;
+           if (c == '\0')
+               break;
+        }
+
+      cmdline = cmdline_exp;
+    }
 #endif
 
   /* Parse out the command at the beginning of the line */
@@ -1463,9 +1486,8 @@ int nsh_parse(FAR struct nsh_vtbl_s *vtbl, char *cmdline)
        */
 
 #ifndef CONFIG_DISABLE_ENVIRON
-      if (cmdline_exp != NULL) {
-        free(cmdline_exp);
-      }
+      if (cmdline_exp != NULL)
+          free(cmdline_exp);
 #endif
 
       return OK;
@@ -1574,9 +1596,8 @@ int nsh_parse(FAR struct nsh_vtbl_s *vtbl, char *cmdline)
       /* Save the result:  success if 0; failure if 1 */
 
 #ifndef CONFIG_DISABLE_ENVIRON
-      if (cmdline_exp != NULL) {
-        free(cmdline_exp);
-      }
+      if (cmdline_exp != NULL)
+          free(cmdline_exp);
 #endif
 
       return nsh_saveresult(vtbl, ret != OK);
@@ -1623,9 +1644,8 @@ int nsh_parse(FAR struct nsh_vtbl_s *vtbl, char *cmdline)
       /* Save the result:  success if 0; failure if 1 */
 
 #ifndef CONFIG_DISABLE_ENVIRON
-      if (cmdline_exp != NULL) {
-        free(cmdline_exp);
-      }
+      if (cmdline_exp != NULL)
+          free(cmdline_exp);
 #endif
 
       return nsh_saveresult(vtbl, ret != OK);
@@ -1805,9 +1825,8 @@ int nsh_parse(FAR struct nsh_vtbl_s *vtbl, char *cmdline)
    */
 
 #ifndef CONFIG_DISABLE_ENVIRON
-  if (cmdline_exp != NULL) {
-    free(cmdline_exp);
-  }
+  if (cmdline_exp != NULL)
+      free(cmdline_exp);
 #endif
 
   return nsh_saveresult(vtbl, false);
@@ -1821,9 +1840,8 @@ errout_with_redirect:
 #endif
 errout:
 #ifndef CONFIG_DISABLE_ENVIRON
-  if (cmdline_exp != NULL) {
-    free(cmdline_exp);
-  }
+  if (cmdline_exp != NULL)
+      free(cmdline_exp);
 #endif
 
   return nsh_saveresult(vtbl, true);
