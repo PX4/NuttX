@@ -488,7 +488,9 @@ const char g_fmtinternalerror[]  = "nsh: %s: Internal error\n";
 #ifndef CONFIG_DISABLE_SIGNALS
 const char g_fmtsignalrecvd[]    = "nsh: %s: Interrupted by signal\n";
 #endif
-
+#ifndef CONFIG_DISABLE_ENVIRON
+const char g_fmtbadsubstitution[]    = "nsh: %s: bad substitution\n";
+#endif
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -1313,40 +1315,40 @@ int nsh_parse(FAR struct nsh_vtbl_s *vtbl, char *cmdline)
         /* Valid variable char */
         continue;
       } else {
-        /* Not valid variable char */
-        if (src_ptr - var_name_start == 1) {
-          /* Empty, it was not a variable */
-          res_size++;
-          var_name_start = NULL;
-        } else {
-          /* End of variable name */
-          if (bracket == (c != '}')) {
-            /* Bad substitution */
-            goto errout;
-          }
-          do_expand = true;
-          var_name_end = src_ptr - 1;
-          char tmp_char = *var_name_end;
-          *var_name_end = '\0';
-          char *var_value = getenv(var_name_start);
-          *var_name_end = tmp_char;
-          res_size += strlen(var_value);
-          var_name_start = NULL;
-          if (c == '}') {
-            bracket = false;
-            continue;
-          }
+        /* End of variable name */
+        if (bracket && c != '}') {
+          /* Bad substitution */
+          cmdline[strlen(cmdline) - 1] = '\0';
+          nsh_output(vtbl, g_fmtbadsubstitution, cmdline);
+          goto errout;
+        }
+        do_expand = true;
+        var_name_end = src_ptr - 1;
+        char tmp_char = *var_name_end;
+        *var_name_end = '\0';
+        char *var_value = getenv(var_name_start);
+        *var_name_end = tmp_char;
+        res_size += strlen(var_value);
+        var_name_start = NULL;
+        if (c == '}') {
+          bracket = false;
+          continue;
         }
       }
     }
     if (c == '$') {
-      /* Start parsing variable */
-      if (*src_ptr == '{') {
+      /* Start parsing variable, check next char */
+      char nc = *src_ptr;
+      if (nc == '{') {
         bracket = true;
         src_ptr++;
+        var_name_start = src_ptr;
+        continue;
+      } else if ((nc >= 'a' && nc <= 'z') || (nc >= 'A' && nc <= 'Z')) {
+        /* First variable name char must be letter */
+        var_name_start = src_ptr;
+        continue;
       }
-      var_name_start = src_ptr;
-      continue;
     }
     /* Normal char */
     res_size++;
@@ -1364,6 +1366,7 @@ int nsh_parse(FAR struct nsh_vtbl_s *vtbl, char *cmdline)
     src_ptr = cmdline;
     char *res_ptr = cmdline_exp;
     var_name_start = NULL;
+    bracket = false;
 
     while (true) {
       char c = *src_ptr++;
@@ -1373,49 +1376,42 @@ int nsh_parse(FAR struct nsh_vtbl_s *vtbl, char *cmdline)
           /* Valid variable char */
           continue;
         } else {
-          /* Not valid variable char */
-          if (src_ptr - var_name_start == 1) {
-            /* Empty, it was not a variable */
-            *res_ptr++ = *(src_ptr - 1);
-            var_name_start = NULL;
-          } else {
-            /* End of variable name */
-            if (bracket == (c != '}')) {
-              /* Bad substitution */
-              goto errout;
+          /* End of variable name, don't check syntax, it's already done on first pass */
+          var_name_end = src_ptr - 1;
+          char tmp_char = *var_name_end;
+          *var_name_end = '\0';
+          char *var_value = getenv(var_name_start);
+          printf("VAR: %s = %s\n", var_name_start, var_value);
+          *var_name_end = tmp_char;
+          //res_ptr = stpcpy(res_ptr, var_value);
+          if (var_value) {
+            for (int i = 0; true; i++) {
+              char a = var_value[i];
+              if (a == '\0')
+                break;
+              *res_ptr++ = a;
             }
-            do_expand = true;
-            var_name_end = src_ptr - 1;
-            char tmp_char = *var_name_end;
-            *var_name_end = '\0';
-            char *var_value = getenv(var_name_start);
-            printf("VAR: %s = %s\n", var_name_start, var_value);
-            *var_name_end = tmp_char;
-            //res_ptr = stpcpy(res_ptr, var_value);
-            if (var_value) {
-				for (int i = 0; true; i++) {
-					char a = var_value[i];
-					if (a == '\0')
-						break;
-					*res_ptr++ = a;
-				}
-            }
-            var_name_start = NULL;
-            if (c == '}') {
-              bracket = false;
-              continue;
-            }
+          }
+          var_name_start = NULL;
+          if (c == '}') {
+            bracket = false;
+            continue;
           }
         }
       }
       if (c == '$') {
-        /* Start parsing variable */
-        if (*src_ptr == '{') {
+        /* Start parsing variable, check next char */
+        char nc = *src_ptr;
+        if (nc == '{') {
           bracket = true;
           src_ptr++;
+          var_name_start = src_ptr;
+          continue;
+        } else if ((nc >= 'a' && nc <= 'z') || (nc >= 'A' && nc <= 'Z')) {
+          /* First variable name char must be letter */
+          var_name_start = src_ptr;
+          continue;
         }
-        var_name_start = src_ptr;
-        continue;
       }
       /* Normal char */
       *res_ptr++ = c;
