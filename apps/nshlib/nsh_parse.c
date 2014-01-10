@@ -995,12 +995,10 @@ char *nsh_argument(FAR struct nsh_vtbl_s *vtbl, char **saveptr)
       *saveptr = pend;
 
 #ifndef CONFIG_DISABLE_ENVIRON
-      /* Check for references to environment variables */
+      /* Check for built-in variables, environment variables already expanded before */
 
       if (pbegin[0] == '$' && !quoted)
         {
-          /* Check for built-in variables */
-
           if (strcmp(pbegin, g_exitstatus) == 0)
             {
               if (vtbl->np.np_fail)
@@ -1010,21 +1008,6 @@ char *nsh_argument(FAR struct nsh_vtbl_s *vtbl, char **saveptr)
               else
                 {
                   return (char*)g_success;
-                }
-            }
-
-          /* Not a built-in? Return the value of the environment variable with this name */
-
-          else
-            {
-              char *value = getenv(pbegin+1);
-              if (value)
-                {
-                  return value;
-                }
-              else
-                {
-                  return (char*)"";
                 }
             }
         }
