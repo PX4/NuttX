@@ -2119,7 +2119,11 @@ static int fat_mkdir(struct inode *mountpt, const char *relpath, mode_t mode)
   DIR_PUTFSTCLUSTLO(direntry, dircluster);
 
   parentcluster = dirinfo.dir.fd_startcluster;
-  if (fs->fs_type != FSTYPE_FAT32 && parentcluster == fs->fs_rootbase)
+  /*
+    parent cluster for .. is set to 0 on all FAT types (including
+    FAT32). Tested on Windows8 and Linux
+   */
+  if (parentcluster == fs->fs_rootbase)
     {
       parentcluster = 0;
     }
