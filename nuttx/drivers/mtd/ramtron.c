@@ -247,9 +247,9 @@ static struct ramtron_parts_s ramtron_parts[] =
 static void ramtron_lock(FAR struct spi_dev_s *dev);
 static inline void ramtron_unlock(FAR struct spi_dev_s *dev);
 static inline int ramtron_readid(struct ramtron_dev_s *priv);
-static void ramtron_waitwritecomplete(struct ramtron_dev_s *priv);
+static int ramtron_waitwritecomplete(struct ramtron_dev_s *priv);
 static void ramtron_writeenable(struct ramtron_dev_s *priv);
-static inline void ramtron_pagewrite(struct ramtron_dev_s *priv, FAR const uint8_t *buffer,
+static inline int ramtron_pagewrite(struct ramtron_dev_s *priv, FAR const uint8_t *buffer,
                                      off_t offset);
 
 /* MTD driver methods */
@@ -367,7 +367,7 @@ static inline int ramtron_readid(struct ramtron_dev_s *priv)
  * Name: ramtron_waitwritecomplete
  ************************************************************************************/
 
-static void ramtron_waitwritecomplete(struct ramtron_dev_s *priv)
+static int ramtron_waitwritecomplete(struct ramtron_dev_s *priv)
 {
   uint8_t status;
 
@@ -379,20 +379,33 @@ static void ramtron_waitwritecomplete(struct ramtron_dev_s *priv)
 
   (void)SPI_SEND(priv->dev, RAMTRON_RDSR);
   
-  /* Loop as long as the memory is busy with a write cycle */
+  /* Loop as long as the memory is busy with a write cycle,
+   * but limit the cycles.
+   *
+   * RAMTRON FRAM is never busy per spec compared to flash,
+   * and so anything exceeding the default timeout number
+   * is highly suspicious.
+   */
+  unsigned int tries = 100; // XXX should be CONFIG_MTD_RAMTRON_WRITEWAIT_COUNT
 
   do
     {
       /* Send a dummy byte to generate the clock needed to shift out the status */
 
       status = SPI_SEND(priv->dev, RAMTRON_DUMMY);
+      tries--;
     }
-  while ((status & RAMTRON_SR_WIP) != 0);
+  while ((status & RAMTRON_SR_WIP) != 0 && tries > 0);
 
   /* Deselect the FLASH */
 
   SPI_SELECT(priv->dev, SPIDEV_FLASH, false);
   fvdbg("Complete\n");
+
+  if (tries == 0)
+    return -EAGAIN;
+  else
+    return OK;
 }
 
 /************************************************************************************
@@ -436,7 +449,7 @@ static inline void ramtron_sendaddr(const struct ramtron_dev_s *priv, uint32_t a
  * Name:  ramtron_pagewrite
  ************************************************************************************/
 
-static inline void ramtron_pagewrite(struct ramtron_dev_s *priv, FAR const uint8_t *buffer,
+static inline int ramtron_pagewrite(struct ramtron_dev_s *priv, FAR const uint8_t *buffer,
                                      off_t page)
 {
   off_t offset = page << priv->pageshift;
@@ -449,7 +462,10 @@ static inline void ramtron_pagewrite(struct ramtron_dev_s *priv, FAR const uint8
    * improve performance.
    */
 
-  ramtron_waitwritecomplete(priv);
+  int ret = ramtron_waitwritecomplete(priv);
+
+  if (ret)
+    return ret;
 
   /* Enable the write access to the FLASH */
 
@@ -475,6 +491,8 @@ static inline void ramtron_pagewrite(struct ramtron_dev_s *priv, FAR const uint8
 
   SPI_SELECT(priv->dev, SPIDEV_FLASH, false);
   fvdbg("Written\n");
+
+  return OK;
 }
 
 /************************************************************************************
@@ -525,15 +543,21 @@ static ssize_t ramtron_bwrite(FAR struct mtd_dev_s *dev, off_t startblock, size_
 
   /* Lock the SPI bus and write each page to FLASH */
 
+  int ret = nblocks;
+
   ramtron_lock(priv->dev);
   while (blocksleft-- > 0)
     {
-      ramtron_pagewrite(priv, buffer, startblock);
+      if (ramtron_pagewrite(priv, buffer, startblock)) {
+        nblocks = 0;
+        goto error;
+      }
       startblock++;
    }
 
-  ramtron_unlock(priv->dev);
-  return nblocks;
+  error:
+    ramtron_unlock(priv->dev);
+    return nblocks;
 }
 
 /************************************************************************************
@@ -553,7 +577,9 @@ static ssize_t ramtron_read(FAR struct mtd_dev_s *dev, off_t offset, size_t nbyt
    * improve performance.
    */
 
-  ramtron_waitwritecomplete(priv);
+  int ret = ramtron_waitwritecomplete(priv);
+  if (ret)
+    return ret;
 
   /* Lock the SPI bus and select this FLASH part */
 
