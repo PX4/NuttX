@@ -40,13 +40,6 @@
  *  - additional non-jedec standard device: FM25H20 
  *    must be enabled with the CONFIG_RAMTRON_FRAM_NON_JEDEC=y
  * 
- * NOTE:
- *  - frequency is fixed to desired max by RAMTRON_INIT_CLK_MAX
- *    if new devices with different speed arrive, then SETFREQUENCY() 
- *    needs to handle freq changes and INIT_CLK_MAX must be reduced
- *    to fit all devices. Note that STM32_SPI driver is prone to
- *    too high freq. parameters and limit it within physical constraints.
- * 
  * TODO:
  *  - add support for sleep
  *  - add support for faster read FSTRD command
@@ -146,6 +139,7 @@ struct ramtron_dev_s
   uint8_t  pageshift;
   uint16_t nsectors;
   uint32_t npages;
+  uint32_t speed; // overridable via ioctl
   const struct ramtron_parts_s *part;  /* part instance */
 };
 
@@ -154,10 +148,11 @@ struct ramtron_dev_s
  ************************************************************************************/
 
 /* Defines the initial speed compatible with all devices. In case of RAMTRON
- * the defined devices within the part list have all the same speed.
+ * the defined devices within the part list have all the same
+ * speed.
  */
 
-#define RAMTRON_INIT_CLK_MAX    40000000UL
+#define RAMTRON_INIT_CLK_MAX    11*1000*1000UL
 
 static struct ramtron_parts_s ramtron_parts[] =
 {
@@ -244,7 +239,7 @@ static struct ramtron_parts_s ramtron_parts[] =
 
 /* Helpers */
 
-static void ramtron_lock(FAR struct spi_dev_s *dev);
+static void ramtron_lock(FAR struct ramtron_dev_s *priv);
 static inline void ramtron_unlock(FAR struct spi_dev_s *dev);
 static inline int ramtron_readid(struct ramtron_dev_s *priv);
 static int ramtron_waitwritecomplete(struct ramtron_dev_s *priv);
@@ -275,7 +270,7 @@ static int ramtron_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg);
  * Name: ramtron_lock
  ************************************************************************************/
 
-static void ramtron_lock(FAR struct spi_dev_s *dev)
+static void ramtron_lock(FAR struct ramtron_dev_s *priv)
 {
   /* On SPI busses where there are multiple devices, it will be necessary to
    * lock SPI to have exclusive access to the busses for a sequence of
@@ -285,7 +280,7 @@ static void ramtron_lock(FAR struct spi_dev_s *dev)
    * the SPI buss.  We will retain that exclusive access until the bus is unlocked.
    */
 
-  (void)SPI_LOCK(dev, true);
+  (void)SPI_LOCK(priv->dev, true);
 
   /* After locking the SPI bus, the we also need call the setfrequency, setbits, and
    * setmode methods to make sure that the SPI is properly configured for the device.
@@ -293,10 +288,10 @@ static void ramtron_lock(FAR struct spi_dev_s *dev)
    * state.
    */
 
-  SPI_SETMODE(dev, SPIDEV_MODE3);
-  SPI_SETBITS(dev, 8);
-  
-  (void)SPI_SETFREQUENCY(dev, RAMTRON_INIT_CLK_MAX);
+  SPI_SETMODE(priv->dev, SPIDEV_MODE3);
+  SPI_SETBITS(priv->dev, 8);
+
+  (void)SPI_SETFREQUENCY(priv->dev, priv->speed);
 }
 
 /************************************************************************************
@@ -321,7 +316,7 @@ static inline int ramtron_readid(struct ramtron_dev_s *priv)
 
   /* Lock the SPI bus, configure the bus, and select this FLASH part. */
 
-  ramtron_lock(priv->dev);
+  ramtron_lock(priv);
   SPI_SELECT(priv->dev, SPIDEV_FLASH, true);
 
   /* Send the "Read ID (RDID)" command and read the first three ID bytes */
@@ -356,6 +351,7 @@ static inline int ramtron_readid(struct ramtron_dev_s *priv)
       priv->nsectors    = priv->part->size / (1 << RAMTRON_EMULATE_SECTOR_SHIFT);
       priv->pageshift   = RAMTRON_EMULATE_PAGE_SHIFT;
       priv->npages      = priv->part->size / (1 << RAMTRON_EMULATE_PAGE_SHIFT);
+      priv->speed       = priv->part->speed;
       return OK;
     }
  
@@ -542,9 +538,8 @@ static ssize_t ramtron_bwrite(FAR struct mtd_dev_s *dev, off_t startblock, size_
 
   /* Lock the SPI bus and write each page to FLASH */
 
-  int ret = nblocks;
+  ramtron_lock(priv);
 
-  ramtron_lock(priv->dev);
   while (blocksleft-- > 0)
     {
       if (ramtron_pagewrite(priv, buffer, startblock)) {
@@ -572,7 +567,7 @@ static ssize_t ramtron_read(FAR struct mtd_dev_s *dev, off_t offset, size_t nbyt
 
   /* Lock the SPI bus and select this FLASH part */
 
-  ramtron_lock(priv->dev);
+  ramtron_lock(priv);
   SPI_SELECT(priv->dev, SPIDEV_FLASH, true);
 
   /* Send "Read from Memory " instruction */
@@ -651,6 +646,11 @@ static int ramtron_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg)
         fvdbg("BULDERASE: Makes no sense in ramtron. Let's confirm operation as OK\n");
         ret = OK;
         break;
+
+      case MTDIOC_SETSPEED:
+        priv->speed = (unsigned long)arg;
+        fvdbg("set bus speed to %lu\n", (unsigned long)priv->speed);
+        break;
  
       case MTDIOC_XIPBASE:
       default:
@@ -702,6 +702,7 @@ FAR struct mtd_dev_s *ramtron_initialize(FAR struct spi_dev_s *dev)
       priv->mtd.read   = ramtron_read;
       priv->mtd.ioctl  = ramtron_ioctl;
       priv->dev        = dev;
+      priv->speed      = RAMTRON_INIT_CLK_MAX;
 
       /* Deselect the FLASH */
 

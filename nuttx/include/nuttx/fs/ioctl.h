@@ -204,6 +204,8 @@
                                            *      of device memory */
 #define MTDIOC_BULKERASE  _MTDIOC(0x0003) /* IN:  None
                                            * OUT: None */
+#define MTDIOC_SETSPEED   _MTDIOC(0x0004) /* IN:  (unsigned long) desired bus speed
+                                           * OUT: None */
 
 /* NuttX ARP driver ioctl definitions (see netinet/arp.h) *******************/
 
