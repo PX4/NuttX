@@ -649,7 +649,7 @@ static int ramtron_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg)
         break;
 
       case MTDIOC_SETSPEED:
-        if ((unsigned long)arg > 0 && (unsigned long arg) <= RAMTRON_CLK_MAX) {
+        if ((unsigned long)arg > 0 && (unsigned long)arg <= RAMTRON_CLK_MAX) {
           priv->speed = (unsigned long)arg;
           fvdbg("set bus speed to %lu\n", (unsigned long)priv->speed);
         } else {
