@@ -1,6 +1,6 @@
 /************************************************************************************
  * drivers/mtd/ramtron.c
- * Driver for SPI-based RAMTRON NVRAM Devices FM25V10 and others (not tested)
+ * Driver for SPI-based RAMTRON NVRAM Devices FM25V10 and others
  *
  *   Copyright (C) 2011 Uros Platise. All rights reserved.
  *   Copyright (C) 2009-2010, 2012-2013 Gregory Nutt. All rights reserved.
