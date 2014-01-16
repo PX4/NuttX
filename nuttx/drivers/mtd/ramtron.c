@@ -402,10 +402,12 @@ static int ramtron_waitwritecomplete(struct ramtron_dev_s *priv)
   SPI_SELECT(priv->dev, SPIDEV_FLASH, false);
   fvdbg("Complete\n");
 
-  if (tries == 0)
+  if (tries == 0) {
+    fdbg("timeout waiting for write completion\n");
     return -EAGAIN;
-  else
-    return OK;
+  }
+
+  return OK;
 }
 
 /************************************************************************************
@@ -456,17 +458,6 @@ static inline int ramtron_pagewrite(struct ramtron_dev_s *priv, FAR const uint8_
 
   fvdbg("page: %08lx offset: %08lx\n", (long)page, (long)offset);
 
-  /* Wait for any preceding write to complete.  We could simplify things by
-   * perform this wait at the end of each write operation (rather than at
-   * the beginning of ALL operations), but have the wait first will slightly
-   * improve performance.
-   */
-
-  int ret = ramtron_waitwritecomplete(priv);
-
-  if (ret)
-    return ret;
-
   /* Enable the write access to the FLASH */
 
   ramtron_writeenable(priv);
@@ -491,6 +482,14 @@ static inline int ramtron_pagewrite(struct ramtron_dev_s *priv, FAR const uint8_
 
   SPI_SELECT(priv->dev, SPIDEV_FLASH, false);
   fvdbg("Written\n");
+
+  // we wait for write completion now so we can report any errors to
+  // the caller. Otherwise the caller has no way of knowing if the
+  // data is on stable storage
+  int ret = ramtron_waitwritecomplete(priv);
+
+  if (ret)
+    return ret;
 
   return OK;
 }
@@ -571,16 +570,6 @@ static ssize_t ramtron_read(FAR struct mtd_dev_s *dev, off_t offset, size_t nbyt
 
   fvdbg("offset: %08lx nbytes: %d\n", (long)offset, (int)nbytes);
 
-  /* Wait for any preceding write to complete.  We could simplify things by
-   * perform this wait at the end of each write operation (rather than at
-   * the beginning of ALL operations), but have the wait first will slightly
-   * improve performance.
-   */
-
-  int ret = ramtron_waitwritecomplete(priv);
-  if (ret)
-    return ret;
-
   /* Lock the SPI bus and select this FLASH part */
 
   ramtron_lock(priv->dev);
@@ -597,6 +586,20 @@ static ssize_t ramtron_read(FAR struct mtd_dev_s *dev, off_t offset, size_t nbyt
   /* Then read all of the requested bytes */
 
   SPI_RECVBLOCK(priv->dev, buffer, nbytes);
+
+  // read the status register. This isn't strictly needed, but it
+  // gives us a chance to detect if SPI transactions are operating
+  // correctly, which allows us to catch complete device failures in
+  // the read path. We expect the status register to just have the
+  // write enable bit set to the write enable state
+  (void)SPI_SEND(priv->dev, RAMTRON_RDSR);
+  uint8_t status = SPI_SEND(priv->dev, RAMTRON_DUMMY);
+  if ((status & ~RAMTRON_SR_SRWD) == 0) {
+     fdbg("read status failed - got 0x%02x\n", (unsigned)status);
+     SPI_SELECT(priv->dev, SPIDEV_FLASH, false);
+     ramtron_unlock(priv->dev);
+     return -EIO;
+  }
 
   /* Deselect the FLASH and unlock the SPI bus */
 
