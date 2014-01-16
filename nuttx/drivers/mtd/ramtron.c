@@ -152,7 +152,8 @@ struct ramtron_dev_s
  * speed.
  */
 
-#define RAMTRON_INIT_CLK_MAX    11*1000*1000UL
+#define RAMTRON_CLK_MAX      40*1000*1000UL
+#define RAMTRON_INIT_CLK_DEFAULT  11*1000*1000UL
 
 static struct ramtron_parts_s ramtron_parts[] =
 {
@@ -648,9 +649,15 @@ static int ramtron_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg)
         break;
 
       case MTDIOC_SETSPEED:
-        priv->speed = (unsigned long)arg;
-        fvdbg("set bus speed to %lu\n", (unsigned long)priv->speed);
+        if ((unsigned long)arg > 0 && (unsigned long arg) <= RAMTRON_CLK_MAX) {
+          priv->speed = (unsigned long)arg;
+          fvdbg("set bus speed to %lu\n", (unsigned long)priv->speed);
+        } else {
+          ret = -EINVAL; /* Bad argument */
+          fvdbg("inval arg");
+        }
         break;
+      }
  
       case MTDIOC_XIPBASE:
       default:
@@ -702,7 +709,7 @@ FAR struct mtd_dev_s *ramtron_initialize(FAR struct spi_dev_s *dev)
       priv->mtd.read   = ramtron_read;
       priv->mtd.ioctl  = ramtron_ioctl;
       priv->dev        = dev;
-      priv->speed      = RAMTRON_INIT_CLK_MAX;
+      priv->speed      = RAMTRON_INIT_CLK_DEFAULT;
 
       /* Deselect the FLASH */
 
