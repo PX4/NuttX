@@ -230,12 +230,17 @@ static ssize_t at24c_bread(FAR struct mtd_dev_s *dev, off_t startblock,
       uint8_t buf[2];
       buf[1] = offset & 0xff;
       buf[0] = (offset >> 8) & 0xff;
+      uint8_t tries = 100;
 
-      while (I2C_WRITE(priv->dev, buf, 2) < 0)
+      while (I2C_WRITE(priv->dev, buf, 2) < 0 && tries-- > 0)
         {
           fvdbg("wait\n");
           usleep(1000);
         }
+      if (tries == 0) {
+          fdbg("timed out reading at offset %u\n", (unsigned)offset);
+          return 0;
+      }
 
       I2C_READ(priv->dev, buffer, priv->pagesize);
       startblock++;
@@ -286,11 +291,17 @@ static ssize_t at24c_bwrite(FAR struct mtd_dev_s *dev, off_t startblock, size_t 
   while (blocksleft-- > 0)
     {
       uint16_t offset = startblock * priv->pagesize;
-      while (I2C_WRITE(priv->dev, (uint8_t *)&offset, 2) < 0)
+      uint8_t tries = 100;
+
+      while (I2C_WRITE(priv->dev, (uint8_t *)&offset, 2) < 0 && tries-- > 0)
         {
           fvdbg("wait\n");
           usleep(1000);
         }
+      if (tries == 0) {
+          fdbg("timed out writing at offset %u\n", (unsigned)offset);
+          return 0;
+      }
 
       buf[1] = offset & 0xff;
       buf[0] = (offset >> 8) & 0xff;
