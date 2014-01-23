@@ -410,7 +410,7 @@ MEM_DataCopy3:
 	lsr		r3, r3, #0x10
 	strb	r3, [r0], #0x01
 	sub		r2, r2, #0x04
-	b.w		MEM_DataCopy3
+	b.n		MEM_DataCopy3
 
 	.size	memcpy, .-memcpy
 	.end
