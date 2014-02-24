@@ -621,7 +621,7 @@ fat_read_restart:
        * cluster boundary
        */
 
-      if (ff->ff_sectorsincluster < 1)
+      if (buflen != 0 && ff->ff_sectorsincluster < 1)
         {
           /* Find the next cluster in the FAT. */
 
@@ -896,7 +896,7 @@ fat_write_restart:
        * cluster boundary
        */
 
-      if (ff->ff_sectorsincluster < 1)
+      if (buflen != 0 && ff->ff_sectorsincluster < 1)
         {
           /* Extend the current cluster by one (unless lseek was used to
            * move the file position back from the end of the file)
@@ -2119,7 +2119,11 @@ static int fat_mkdir(struct inode *mountpt, const char *relpath, mode_t mode)
   DIR_PUTFSTCLUSTLO(direntry, dircluster);
 
   parentcluster = dirinfo.dir.fd_startcluster;
-  if (fs->fs_type != FSTYPE_FAT32 && parentcluster == fs->fs_rootbase)
+  /*
+    parent cluster for .. is set to 0 on all FAT types (including
+    FAT32). Tested on Windows8 and Linux
+   */
+  if (parentcluster == fs->fs_rootbase)
     {
       parentcluster = 0;
     }
