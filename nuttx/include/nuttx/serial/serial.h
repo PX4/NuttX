@@ -47,7 +47,7 @@
 #include <stdbool.h>
 #include <semaphore.h>
 #ifdef CONFIG_SERIAL_TERMIOS
-#  include <termios.h> 
+#  include <termios.h>
 #endif
 
 #include <nuttx/fs/fs.h>
@@ -77,6 +77,7 @@
 #define uart_txempty(dev)        dev->ops->txempty(dev)
 #define uart_send(dev,ch)        dev->ops->send(dev,ch)
 #define uart_receive(dev,s)      dev->ops->receive(dev,s)
+#define uart_onrxdeque(dev)      if(dev->ops->onrxdeque) dev->ops->onrxdeque(dev)
 
 /************************************************************************************
  * Public Types
@@ -180,6 +181,14 @@ struct uart_ops_s
    */
 
   CODE bool (*txempty)(FAR struct uart_dev_s *dev);
+
+  /*
+   * Drivers can optionally provide this callback which is invoked any time
+   * received characters have been dequeued in uart_read().  The expected
+   * use-case is for reenabling nRTS if the driver is doing software assisted
+   * HW flow control.
+   */
+  CODE void (*onrxdeque)(FAR struct uart_dev_s *dev);
 };
 
 /* This is the device structure used by the driver.  The caller of
@@ -334,6 +343,16 @@ void uart_datasent(FAR uart_dev_t *dev);
 #ifdef CONFIG_SERIAL_REMOVABLE
 void uart_connected(FAR uart_dev_t *dev, bool connected);
 #endif
+
+/************************************************************************************
+ * Name: uart_numrxavail
+ *
+ * Description:
+ *   This function returns the number of characters that are currently available for
+ * reading.
+ *
+ ************************************************************************************/
+ssize_t uart_numrxavail(FAR uart_dev_t *dev);
 
 #undef EXTERN
 #if defined(__cplusplus)

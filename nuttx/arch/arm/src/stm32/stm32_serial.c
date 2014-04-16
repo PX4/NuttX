@@ -310,6 +310,15 @@ struct up_dev_s
 #endif
 };
 
+/*
+   Current STM32s have broken hw based RTS behavior (they assert nRTS after every byte received)
+   To work around this the following define turns on software based management of RTS.  The
+   software solution drives nRTS based on the # of free bytes in the nuttx rx buffer
+*/
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
+#define HWRTS_BROKEN 1
+#endif
+
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
@@ -329,6 +338,7 @@ static bool up_rxavailable(struct uart_dev_s *dev);
 static void up_send(struct uart_dev_s *dev, int ch);
 static void up_txint(struct uart_dev_s *dev, bool enable);
 static bool up_txready(struct uart_dev_s *dev);
+static void up_recvchars(struct up_dev_s *priv);
 
 #ifdef SERIAL_HAVE_DMA
 static int  up_dma_setup(struct uart_dev_s *dev);
@@ -338,6 +348,10 @@ static void up_dma_rxint(struct uart_dev_s *dev, bool enable);
 static bool up_dma_rxavailable(struct uart_dev_s *dev);
 
 static void up_dma_rxcallback(DMA_HANDLE handle, uint8_t status, void *arg);
+#endif
+
+#ifdef HWRTS_BROKEN
+static void up_onrxdeque(struct uart_dev_s *dev);
 #endif
 
 #ifdef CONFIG_PM
@@ -389,6 +403,9 @@ static const struct uart_ops_s g_uart_ops =
   .txint          = up_txint,
   .txready        = up_txready,
   .txempty        = up_txready,
+#ifdef HWRTS_BROKEN
+  .onrxdeque      = up_onrxdeque,
+#endif
 };
 #endif
 
@@ -407,6 +424,9 @@ static const struct uart_ops_s g_uart_dma_ops =
   .txint          = up_txint,
   .txready        = up_txready,
   .txempty        = up_txready,
+#ifdef HWRTS_BROKEN
+  .onrxdeque      = up_onrxdeque,
+#endif
 };
 #endif
 
@@ -1284,7 +1304,7 @@ static void up_set_format(struct uart_dev_s *dev)
   regval  = up_serialin(priv, STM32_USART_CR3_OFFSET);
   regval &= ~(USART_CR3_CTSE|USART_CR3_RTSE);
 
-#ifdef CONFIG_SERIAL_IFLOWCONTROL
+#if defined(CONFIG_SERIAL_IFLOWCONTROL) && !defined(HWRTS_BROKEN)
   if (priv->iflow && (priv->rts_gpio != 0))
     {
       regval |= USART_CR3_RTSE;
@@ -1339,7 +1359,11 @@ static int up_setup(struct uart_dev_s *dev)
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
   if (priv->rts_gpio != 0)
     {
-      stm32_configgpio(priv->rts_gpio);
+      uint32_t config = priv->rts_gpio;
+#ifdef HWRTS_BROKEN
+      config = (config & ~GPIO_MODE_MASK) | GPIO_OUTPUT; /* Instead of letting hw manage this pin, we will bitbang */
+#endif
+      stm32_configgpio(config);
     }
 #endif
 
@@ -1654,7 +1678,7 @@ static int up_interrupt_common(struct up_dev_s *priv)
             * RXNEIE:  We cannot call uart_recvchards of RX interrupts are disabled.
             */
 
-           uart_recvchars(&priv->dev);
+           up_recvchars(priv);
            handled = true;
         }
 
@@ -2251,7 +2275,7 @@ static void up_dma_rxcallback(DMA_HANDLE handle, uint8_t status, void *arg)
 
   if (priv->rxenable && up_dma_rxavailable(&priv->dev))
     {
-      uart_recvchars(&priv->dev);
+      up_recvchars(priv);
     }
 }
 #endif
@@ -2451,7 +2475,7 @@ void up_serialinit(void)
 
   for (i = 0; i < STM32_NUSART; i++)
     {
-        
+
 
       /* Don't create a device for non configured ports */
       if (uart_devs[i] == 0)
@@ -2550,6 +2574,74 @@ void stm32_serial_dma_poll(void)
 #endif
 
   irqrestore(flags);
+}
+#endif
+
+/****************************************************************************
+ * Name: up_recvchars
+ *
+ * Description:
+ *   This is a wrapper for the std uart_recvchars() function.  It adds support
+ * for manually asserting nRTS when the OS buffer is nearly full and deasserting
+ * it when it has more room.  This makes the RTS pin actually work in a useful
+ * way (the stm32 hw implementation is broken - it asserts nRTS as soon as
+ * more than one character is received)
+ *
+ ****************************************************************************/
+static void up_recvchars(struct up_dev_s *priv)
+{
+  uart_recvchars(&priv->dev);
+
+#ifdef HWRTS_BROKEN
+  if (priv->iflow && (priv->rts_gpio != 0))
+    {
+      // We've delivered the chars to the OS FIFO now update RTS state as needed
+      ssize_t numUsed = uart_numrxavail(&priv->dev);
+      uint8_t threshold = 16;
+      if (threshold > priv->dev.recv.size/4) {
+	threshold = priv->dev.recv.size/4;
+      }
+      // If we have less than 16 bytes left in the buffer then raise
+      // RTS to indicate the sender should stop sending
+      bool wantBackoff = (priv->dev.recv.size - numUsed < threshold);
+
+      if (wantBackoff)
+        stm32_gpiowrite(priv->rts_gpio, true); // high means please stop sending
+    }
+#endif
+}
+
+#ifdef HWRTS_BROKEN
+/****************************************************************************
+ * Name: up_onrxdeque
+ *
+ * Description:
+ *   This is a wrapper for the std uart_recvchars() function.  It adds support
+ * for manually asserting nRTS when the OS buffer is nearly full and deasserting
+ * it when it has more room.  This makes the RTS pin actually work in a useful
+ * way (the stm32 hw implementation is broken - it asserts nRTS as soon as
+ * more than one character is received)
+ *
+ ****************************************************************************/
+static void up_onrxdeque(struct uart_dev_s *dev)
+{
+  struct up_dev_s *priv = (struct up_dev_s*)dev->priv;
+
+  if (priv->iflow && (priv->rts_gpio != 0))
+    {
+      // We've delivered the chars to the OS FIFO now update RTS state as needed
+      ssize_t numUsed = uart_numrxavail(dev);
+      uint8_t threshold = 32;
+      if (threshold > priv->dev.recv.size/2) {
+	threshold = priv->dev.recv.size/2;
+      }
+      // If we have 32 bytes free in the buffer then we tell the
+      // sender they can resume
+      bool wantResume = (priv->dev.recv.size - numUsed >= threshold);
+
+      if(wantResume)
+        stm32_gpiowrite(priv->rts_gpio, false); // nRTS low means ready to recv
+    }
 }
 #endif
 

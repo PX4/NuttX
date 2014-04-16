@@ -552,6 +552,8 @@ static ssize_t uart_read(FAR struct file *filep, FAR char *buffer, size_t buflen
 
           dev->recv.tail = tail;
 
+          uart_onrxdeque(dev);
+
 #ifdef CONFIG_SERIAL_TERMIOS
 
           /* Do input processing if any is enabled */
@@ -1171,6 +1173,8 @@ static int uart_open(FAR struct file *filep)
       dev->recv.head = 0;
       dev->recv.tail = 0;
 
+      uart_onrxdeque(dev);
+
       /* initialise termios state */
 
 #ifdef CONFIG_SERIAL_TERMIOS
@@ -1355,4 +1359,16 @@ void uart_connected(FAR uart_dev_t *dev, bool connected)
 #endif
 
 
-
+/************************************************************************************
+ * Name: uart_numrxavail
+ *
+ * Description:
+ *   This function returns the number of characters that are currently available for
+ * reading.
+ *
+ ************************************************************************************/
+ssize_t uart_numrxavail(FAR uart_dev_t *dev)
+{
+  struct uart_buffer_s *buf = &dev->recv;
+  return (buf->head >= buf->tail) ? buf->head - buf->tail : buf->size - buf->tail + buf->head;
+}
