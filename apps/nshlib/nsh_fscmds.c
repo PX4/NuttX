@@ -408,7 +408,7 @@ static int ls_recursive(FAR struct nsh_vtbl_s *vtbl, const char *dirpath,
 static int cat_common(FAR struct nsh_vtbl_s *vtbl, FAR const char *cmd,
                       FAR const char *filename)
 {
-  char buffer[IOBUFFERSIZE];
+  FAR char *buffer;
   int fd;
   int ret = OK;
 
@@ -418,6 +418,13 @@ static int cat_common(FAR struct nsh_vtbl_s *vtbl, FAR const char *cmd,
   if (fd < 0)
     {
       nsh_output(vtbl, g_fmtcmdfailed, cmd, "open", NSH_ERRNO);
+      return ERROR;
+    }
+
+  buffer = (FAR char *)malloc(IOBUFFERSIZE);
+  if(buffer == NULL)
+    {
+      nsh_output(vtbl, g_fmtcmdfailed, cmd, "malloc", NSH_ERRNO);
       return ERROR;
     }
 
@@ -495,6 +502,7 @@ static int cat_common(FAR struct nsh_vtbl_s *vtbl, FAR const char *cmd,
     }
 
    (void)close(fd);
+   free(buffer);
    return ret;
 }
 #endif
