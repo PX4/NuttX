@@ -33,8 +33,8 @@
 //
 //***************************************************************************
 
-#ifndef __INCLUDE_CXX_CCTYPE
-#define __INCLUDE_CXX_CCTYPE
+#ifndef __INCLUDE_CXX_CSTDIO
+#define __INCLUDE_CXX_CSTDIO
 
 //***************************************************************************
 // Included Files
@@ -93,4 +93,4 @@ namespace std
   using ::statfs;
 }
 
-#endif // __INCLUDE_CXX_CCTYPE
+#endif // __INCLUDE_CXX_CSTDIO
