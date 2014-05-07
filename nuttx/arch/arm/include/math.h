@@ -393,6 +393,7 @@ extern long double sinhl _PARAMS((long double));
 extern long double expl _PARAMS((long double));
 extern long double ldexpl _PARAMS((long double, int));
 extern long double logl _PARAMS((long double));
+extern long double log2l _PARAMS((long double));
 extern long double log10l _PARAMS((long double));
 extern long double powl _PARAMS((long double, long double));
 extern long double sqrtl _PARAMS((long double));
