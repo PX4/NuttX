@@ -157,7 +157,10 @@ int    vdprintf(int fd, FAR const char *fmt, va_list ap);
 
 /* Operations on paths */
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 int    statfs(FAR const char *path, FAR struct statfs *buf);
+#pragma GCC diagnostic pop
 
 #undef EXTERN
 #if defined(__cplusplus)

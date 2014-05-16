@@ -252,7 +252,10 @@ EXTERN int sigfillset(FAR sigset_t *set);
 EXTERN int sigaddset(FAR sigset_t *set, int signo);
 EXTERN int sigdelset(FAR sigset_t *set, int signo);
 EXTERN int sigismember(FAR const sigset_t *set, int signo);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 EXTERN int sigaction(int sig, FAR const struct sigaction *act, FAR struct sigaction *oact);
+#pragma GCC diagnostic pop
 EXTERN int sigprocmask(int how, FAR const sigset_t *set, FAR sigset_t *oset);
 EXTERN int sigpending(FAR sigset_t *set);
 EXTERN int sigsuspend(FAR const sigset_t *sigmask);
