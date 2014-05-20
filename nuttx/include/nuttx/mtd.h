@@ -42,7 +42,7 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-
+#include <nuttx/spi.h>
 #include <sys/types.h>
 #include <stdint.h>
 
