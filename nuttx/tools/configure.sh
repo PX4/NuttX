@@ -208,7 +208,8 @@ install "${src_config}" "${dest_config}" || \
 # file
 
 if [ "X${defappdir}" = "Xy" ]; then
-  sed -i -e "/^CONFIG_APPS_DIR/d" "${dest_config}"
+  sed -e "/^CONFIG_APPS_DIR/d" "${dest_config}" > "${dest_config}-temp"
+  mv "${dest_config}-temp" "${dest_config}"
   echo "" >> "${dest_config}"
   echo "# Application configuration" >> "${dest_config}"
   echo "" >> "${dest_config}"
