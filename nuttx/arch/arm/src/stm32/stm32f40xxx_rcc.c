@@ -651,6 +651,15 @@ static void stm32_stdclockconfig(void)
       regval |= STM32_RCC_CFGR_PPRE1;
       putreg32(regval, STM32_RCC_CFGR);
 
+#ifdef CONFIG_RTC_HSECLOCK
+      /* Set the RTC clock divisor */
+
+      regval = getreg32(STM32_RCC_CFGR);
+      regval &= ~RCC_CFGR_RTCPRE_MASK;
+      regval |= RCC_CFGR_RTCPRE(24); /* Assume 24MHz ext clock */
+      putreg32(regval, STM32_RCC_CFGR);
+#endif
+
       /* Set the PLL dividers and multiplers to configure the main PLL */
 
       regval = (STM32_PLLCFG_PLLM | STM32_PLLCFG_PLLN |STM32_PLLCFG_PLLP |
