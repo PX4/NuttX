@@ -1755,12 +1755,13 @@ static int stm32_i2c_process(FAR struct i2c_dev_s *dev, FAR struct i2c_msg_s *ms
     /* Re-enable the FSMC */
     
     stm32_i2c_enablefsmc(ahbenr);
-    stm32_i2c_sem_post(dev);
 
     /* ensure that any ISR happening after we finish can't overwrite any user data */
     priv->dcnt = 0;
     priv->ptr = NULL;
     
+    stm32_i2c_sem_post(dev);
+
     return -errval;
 }
 
