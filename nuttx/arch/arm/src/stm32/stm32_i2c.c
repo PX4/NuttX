@@ -1582,7 +1582,7 @@ static int stm32_i2c_process(FAR struct i2c_dev_s *dev, FAR struct i2c_msg_s *ms
 #if CONFIG_STM32_I2CTIMEOUS_START_STOP > 0
     stm32_i2c_sem_waitstop(priv, CONFIG_STM32_I2CTIMEOUS_START_STOP);
 #else
-    stm32_i2c_sem_waitstop(priv, CONFIG_STM32_I2CTIMEOMS + CONFIG_STM32_I2CTIMEOSEC * 1000000);
+    stm32_i2c_sem_waitstop(priv, CONFIG_STM32_I2CTIMEOMS * 1000UL + CONFIG_STM32_I2CTIMEOSEC * 1000000UL);
 #endif
 #endif
     
@@ -1622,7 +1622,7 @@ static int stm32_i2c_process(FAR struct i2c_dev_s *dev, FAR struct i2c_msg_s *ms
     timeout_us = CONFIG_STM32_I2CTIMEOUS_PER_BYTE * bytecount;
     //i2cvdbg("i2c wait: %d\n", timeout_us);
 #else
-    timeout_us = CONFIG_STM32_I2CTIMEOMS + CONFIG_STM32_I2CTIMEOSEC * 1000000;
+    timeout_us = CONFIG_STM32_I2CTIMEOMS * 1000UL + CONFIG_STM32_I2CTIMEOSEC * 1000000UL;
 #endif
     
     /* Reset I2C trace logic */
