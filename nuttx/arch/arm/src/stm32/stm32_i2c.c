@@ -1154,30 +1154,37 @@ static int stm32_i2c_isr(struct stm32_i2c_priv_s *priv)
     if ((status & I2C_SR1_SB) != 0)
     {
         stm32_i2c_traceevent(priv, I2CEVENT_SENDADDR, priv->msgc);
+
+        /*
+          we check for msgc > 0 here as an unexpected interrupt with
+          I2C_SR1_SB set due to noise on the I2C cable can otherwise
+          cause msgc to wrap causing memory overwrite
+         */
+        if (priv->msgc > 0 && priv->msgv != NULL) {
+            /* Get run-time data */
         
-        /* Get run-time data */
+            priv->ptr   = priv->msgv->buffer;
+            priv->dcnt  = priv->msgv->length;
+            priv->flags = priv->msgv->flags;
         
-        priv->ptr   = priv->msgv->buffer;
-        priv->dcnt  = priv->msgv->length;
-        priv->flags = priv->msgv->flags;
+            /* Send address byte and define addressing mode */
         
-        /* Send address byte and define addressing mode */
+            stm32_i2c_putreg(priv, STM32_I2C_DR_OFFSET,
+                             (priv->flags & I2C_M_TEN) ?
+                             0 : ((priv->msgv->addr << 1) | (priv->flags & I2C_M_READ)));
         
-        stm32_i2c_putreg(priv, STM32_I2C_DR_OFFSET,
-                         (priv->flags & I2C_M_TEN) ?
-                         0 : ((priv->msgv->addr << 1) | (priv->flags & I2C_M_READ)));
+            /* Set ACK for receive mode */
+            
+            if (priv->dcnt > 1 && (priv->flags & I2C_M_READ) != 0)
+            {
+                stm32_i2c_modifyreg(priv, STM32_I2C_CR1_OFFSET, 0, I2C_CR1_ACK);
+            }
         
-        /* Set ACK for receive mode */
+            /* Increment to next pointer and decrement message count */
         
-        if (priv->dcnt > 1 && (priv->flags & I2C_M_READ) != 0)
-        {
-            stm32_i2c_modifyreg(priv, STM32_I2C_CR1_OFFSET, 0, I2C_CR1_ACK);
+            priv->msgv++;
+            priv->msgc--;
         }
-        
-        /* Increment to next pointer and decrement message count */
-        
-        priv->msgv++;
-        priv->msgc--;
     }
     
     /* In 10-bit addressing mode, was first byte sent */
