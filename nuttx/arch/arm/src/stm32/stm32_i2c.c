@@ -1184,6 +1184,9 @@ static int stm32_i2c_isr(struct stm32_i2c_priv_s *priv)
         
             priv->msgv++;
             priv->msgc--;
+        } else {
+            /* clear ISR by writing to DR register */
+            stm32_i2c_putreg(priv, STM32_I2C_DR_OFFSET, 0);
         }
     }
     
@@ -1191,7 +1194,11 @@ static int stm32_i2c_isr(struct stm32_i2c_priv_s *priv)
     
     else if ((status & I2C_SR1_ADD10) != 0)
     {
-        /* TODO: Finish 10-bit mode addressing */
+        /* TODO: Finish 10-bit mode addressing
+           for now just clear ISR by writing to DR register. As we
+           don't do 10 bit addressing this must be a spurious ISR
+        */
+        stm32_i2c_putreg(priv, STM32_I2C_DR_OFFSET, 0);
     }
     
     /* Was address sent, continue with either sending or reading data */
@@ -1251,6 +1258,9 @@ static int stm32_i2c_isr(struct stm32_i2c_priv_s *priv)
 #ifdef CONFIG_I2C_POLLED
             irqrestore(state);
 #endif
+        } else {
+            // throw away the unexpected byte
+            stm32_i2c_getreg(priv, STM32_I2C_DR_OFFSET);
         }
     }
     
