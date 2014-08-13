@@ -5435,9 +5435,11 @@ void up_usbinitialize(void)
 
   up_enable_irq(STM32_IRQ_OTGFS);
 
+#ifdef CONFIG_ARCH_IRQPRIO
   /* Set the interrrupt priority */
 
   up_prioritize_irq(STM32_IRQ_OTGFS, CONFIG_OTGFS_PRI);
+#endif
   return;
 
 errout:

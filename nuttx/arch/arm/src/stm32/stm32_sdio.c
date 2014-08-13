@@ -1664,9 +1664,11 @@ static int stm32_attach(FAR struct sdio_dev_s *dev)
 
       up_enable_irq(STM32_IRQ_SDIO);
 
+#ifdef CONFIG_ARCH_IRQPRIO
       /* Set the interrrupt priority */
 
       up_prioritize_irq(STM32_IRQ_SDIO, CONFIG_SDIO_PRI);
+#endif
     }
 
   return ret;
