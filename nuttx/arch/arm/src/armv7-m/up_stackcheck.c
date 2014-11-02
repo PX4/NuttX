@@ -1,4 +1,9 @@
+#include <nuttx/config.h>
 
+#include <stdint.h>
+
+#include "up_arch.h"
+#include "nvic.h"
 
 void    __cyg_profile_func_enter(void *func, void *caller) __attribute__((naked, no_instrument_function));
 void    __cyg_profile_func_exit(void *func, void *caller)  __attribute__((naked, no_instrument_function));
@@ -7,8 +12,21 @@ void    __stack_overflow_trap(void) __attribute__((naked, no_instrument_function
 void
 __stack_overflow_trap(void)
 {
-    /* if we get here, the stack has overflowed */
-    asm ( "b .");
+  /* if we get here, the stack has overflowed */
+
+  /* force hard fault */
+  uint32_t regval;
+
+  /* Set up for the system reset, retaining the priority group from the
+   * the AIRCR register.
+   */
+
+  regval  = getreg32(NVIC_INTCTRL);
+  regval |= NVIC_INTCTRL_NMIPENDSET;
+  putreg32(regval, NVIC_INTCTRL);
+
+    /* trap */
+    //asm ( "b .");
 }
 
 void
