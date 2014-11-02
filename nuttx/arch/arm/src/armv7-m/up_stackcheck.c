@@ -14,19 +14,17 @@ __stack_overflow_trap(void)
 {
   /* if we get here, the stack has overflowed */
 
-  /* force hard fault */
   uint32_t regval;
 
-  /* Set up for the system reset, retaining the priority group from the
-   * the AIRCR register.
-   */
-
+  /* force hard fault */
   regval  = getreg32(NVIC_INTCTRL);
   regval |= NVIC_INTCTRL_NMIPENDSET;
   putreg32(regval, NVIC_INTCTRL);
 
-    /* trap */
-    //asm ( "b .");
+  /* trap */
+  /* XXX no need to trap it here, the fault handler gets to it
+   asm ( "b .");
+  */
 }
 
 void
