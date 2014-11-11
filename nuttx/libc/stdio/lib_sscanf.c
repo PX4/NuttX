@@ -699,6 +699,10 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
               buf++;
             }
         }
+      else {
+          /* it is not a format specifier, and buf is empty. Stop matching */
+          break;
+      }
     }
 
     /* Clean up - read whitespaces */
