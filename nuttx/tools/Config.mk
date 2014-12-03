@@ -111,10 +111,11 @@ endef
 #
 #   CC - The command to invoke the C compiler
 #   CFLAGS - Options to pass to the C compiler
+#   CCACHE - optional path to ccache
 
 define COMPILE
 	@echo "CC: $1"
-	$(Q) $(CC) -c $(CFLAGS) $1 -o $2
+	$(Q) $(CCACHE) $(CC) -c $(CFLAGS) $1 -o $2
 endef
 
 # COMPILEXX - Default macro to compile one C++ file
@@ -125,10 +126,11 @@ endef
 #
 #   CXX - The command to invoke the C++ compiler
 #   CXXFLAGS - Options to pass to the C++ compiler
+#   CCACHE - optional path to ccache
 
 define COMPILEXX
 	@echo "CXX: $1"
-	$(Q) $(CXX) -c $(CXXFLAGS) $1 -o $2
+	$(Q) $(CCACHE) $(CXX) -c $(CXXFLAGS) $1 -o $2
 endef
 
 # ASSEMBLE - Default macro to assemble one assembly language file
