@@ -51,7 +51,7 @@ char *strncpy(char *dest, const char *src, size_t n)
   char *ret = dest;     /* Value to be returned */
   char *end = dest + n; /* End of dest buffer + 1 byte */
 
-  while ((*dest++ = *src++) != '\0' && dest != end);
+  while ((dest != end) && (*dest++ = *src++) != '\0');
   while (dest != end) *dest++ = '\0';
   return ret;
 }
