@@ -226,7 +226,7 @@ extern double scalbln _PARAMS((double, long int));
 extern double tgamma _PARAMS((double));
 extern double nearbyint _PARAMS((double));
 extern long int lrint _PARAMS((double));
-extern _LONG_LONG_TYPE int llrint _PARAMS((double));
+extern long long int llrint _PARAMS((double));
 extern double round _PARAMS((double));
 extern long int lround _PARAMS((double));
 extern long long int llround _PARAMS((double));
@@ -296,7 +296,7 @@ extern float scalblnf _PARAMS((float, long int));
 extern float tgammaf _PARAMS((float));
 extern float nearbyintf _PARAMS((float));
 extern long int lrintf _PARAMS((float));
-extern _LONG_LONG_TYPE llrintf _PARAMS((float));
+extern long long llrintf _PARAMS((float));
 extern float roundf _PARAMS((float));
 extern long int lroundf _PARAMS((float));
 extern long long int llroundf _PARAMS((float));
@@ -389,7 +389,7 @@ extern long int lrintl _PARAMS((long double));
 extern long long int llrintl _PARAMS((long double));
 extern long double roundl _PARAMS((long double));
 extern long lroundl _PARAMS((long double));
-extern _LONG_LONG_TYPE int llroundl _PARAMS((long double));
+extern long long int llroundl _PARAMS((long double));
 extern long double truncl _PARAMS((long double));
 extern long double remquol _PARAMS((long double, long double, int *));
 extern long double fdiml _PARAMS((long double, long double));
@@ -409,7 +409,7 @@ extern long double erfcl _PARAMS((long double));
 /* Other long double precision functions.  */
 extern _LONG_DOUBLE rintl _PARAMS((_LONG_DOUBLE));
 extern long int lrintl _PARAMS((_LONG_DOUBLE));
-extern _LONG_LONG_TYPE llrintl _PARAMS((_LONG_DOUBLE));
+extern long long llrintl _PARAMS((_LONG_DOUBLE));
 #endif /* __i386__ */
 #endif /* !_LDBL_EQ_DBL */
 
