@@ -652,6 +652,7 @@ static int ramtron_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg)
         {
         if ((unsigned long)arg > 0 && (unsigned long)arg <= RAMTRON_CLK_MAX) {
           priv->speed = (unsigned long)arg;
+          ret = OK;
           fvdbg("set bus speed to %lu\n", (unsigned long)priv->speed);
         } else {
           ret = -EINVAL; /* Bad argument */
