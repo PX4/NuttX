@@ -62,9 +62,12 @@
 #define SDIOWAIT_TRANSFERDONE  (1 << 2) /* Bit 2: Data transfer/DMA done */
 #define SDIOWAIT_TIMEOUT       (1 << 3) /* Bit 3: Timeout */
 #define SDIOWAIT_ERROR         (1 << 4) /* Bit 4: Some other error occurred */
-
-#define SDIOWAIT_ALLEVENTS     0x1f
-
+#if defined(CONFIG_MMCSD_HAVE_SDIOWAIT_WRCOMPLETE)
+#define SDIOWAIT_WRCOMPLETE    (1 << 5) /* Bit 5: Hardware Write Completion */
+# define SDIOWAIT_ALLEVENTS     0x3f
+#else
+# define SDIOWAIT_ALLEVENTS     0x1f
+#endif
 /* Media events are used for enable/disable registered event callbacks */
 
 #define SDIOMEDIA_EJECTED       (1 << 0) /* Bit 0: Mmedia removed */
