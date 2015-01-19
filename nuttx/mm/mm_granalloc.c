@@ -313,9 +313,10 @@ static inline FAR void *gran_common_alloc(FAR struct gran_s *priv, size_t size)
               bitidx += shift;
             }
         }
+
+        gran_leave_critical(priv);
     }
 
-  gran_leave_critical(priv);
   return NULL;
 }
 

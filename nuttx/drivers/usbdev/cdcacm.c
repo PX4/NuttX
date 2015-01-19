@@ -1181,12 +1181,12 @@ static void cdcacm_unbind(FAR struct usbdevclass_driver_s *driver,
         }
       DEBUGASSERT(priv->nwrq == 0);
       irqrestore(flags);
+
+      /* Clear out all data in the circular buffer */
+
+      priv->serdev.xmit.head = 0;
+      priv->serdev.xmit.tail = 0;
     }
-
-  /* Clear out all data in the circular buffer */
-
-  priv->serdev.xmit.head = 0;
-  priv->serdev.xmit.tail = 0;
 }
 
 /****************************************************************************
