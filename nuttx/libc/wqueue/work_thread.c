@@ -175,7 +175,8 @@ static void work_process(FAR struct wqueue_s *wqueue)
            * scheduled wakeup interval?
            */
 
-          remaining = elapsed - work->delay;
+          /* Here: elapsed < work->delay */
+          remaining = work->delay - elapsed;
           if (remaining < next)
             {
               /* Yes.. Then schedule to wake up when the work is ready */
