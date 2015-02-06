@@ -277,8 +277,11 @@ int mkfatfs(FAR const char *pathname, FAR struct fat_format_s *fmt)
     }
 
   /* Allocate a buffer that will be working sector memory */
-
+#ifdef CONFIG_FAT_DMAMEMORY
+  var.fv_sect = (uint8_t*)fat_dma_alloc(var.fv_sectorsize);
+#else
   var.fv_sect = (uint8_t*)kmalloc(var.fv_sectorsize);
+#endif
   if (!var.fv_sect)
     {
       fdbg("Failed to allocate working buffers\n");
@@ -299,7 +302,11 @@ errout:
 
   if (var.fv_sect)
     {
+#ifdef CONFIG_FAT_DMAMEMORY
+      fat_dma_free(var.fv_sect, var.fv_sectorsize);
+#else
       kfree(var.fv_sect);
+#endif
     }
 
   /* Return any reported errors */
