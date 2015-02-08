@@ -72,7 +72,7 @@ namespace std
   using ::uint_fast64_t;
   using ::uint_least8_t;
   using ::uint_least16_t;
-  using ::uint_least32_t;
+  // hackery for GCC 4.9 using ::uint_least32_t;
   using ::uint_least64_t;
   using ::uintmax_t;
   using ::uintptr_t;
