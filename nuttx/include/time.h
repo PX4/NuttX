@@ -127,11 +127,9 @@ struct tm
   int tm_mday;    /* day of the month (1-31) */
   int tm_mon;     /* month (0-11) */
   int tm_year;    /* years since 1900 */
-#if 0 /* not supported */
-  int tm_wday;    /* day of the week (0-6) */
-  int tm_yday;    /* day of the year (0-365) */
-  int tm_isdst;   /* non-0 if daylight savings time is in effect */
-#endif
+  int tm_wday;    /* day of the week (0-6) */                         /*not supported by NuttX*/
+  int tm_yday;    /* day of the year (0-365) */                       /*not supported by NuttX*/
+  int tm_isdst;   /* non-0 if daylight savings time is in effect */   /*not supported by NuttX*/
 };
 
 /* Struct itimerspec is used to define settings for an interval timer */
