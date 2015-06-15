@@ -180,7 +180,12 @@
  * everytime the FIFO receives half this number of bytes.
  */
 
+#if defined(CONFIG_STM32_RXDMA_BUFFER_SIZE_OVERRIDE)
+#  define RXDMA_BUFFER_SIZE   CONFIG_STM32_RXDMA_BUFFER_SIZE_OVERRIDE
+#else
 #  define RXDMA_BUFFER_SIZE   32
+#endif
+
 
 /* DMA priority */
 
