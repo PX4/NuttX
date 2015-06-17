@@ -54,6 +54,7 @@
 
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
+#include <nuttx/fs/ioctl.h>
 #if CONFIG_DEBUG
 #  include <nuttx/arch.h>
 #endif
@@ -678,5 +679,69 @@ errout:
   return ret;
 }
 #endif
+
+/************************************************************************************
+ * Name: pipecommon_ioctl
+ ************************************************************************************/
+
+int pipecommon_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
+{
+  FAR struct inode *inode = filep->f_inode;
+  struct pipe_dev_s *dev   = inode->i_private;
+  int ret = -EINVAL;
+
+  switch (cmd)
+  {
+  case FIONREAD:
+  {
+    int count;
+    irqstate_t state = irqsave();
+      
+    /* determine the number of bytes available in the buffer */
+
+    if (dev->d_wrndx < dev->d_rdndx)
+    { 
+      count = (CONFIG_DEV_PIPE_SIZE - dev->d_rdndx) + dev->d_wrndx;
+    }
+    else
+    {
+      count = dev->d_wrndx - dev->d_rdndx;
+    }
+      
+    irqrestore(state);
+
+    *(int *)arg = count;
+    ret = 0;
+    
+    break;
+  }
+
+  case FIONWRITE:
+  {
+    int count;
+    irqstate_t state = irqsave();
+    
+    /* determine the number of bytes free in the buffer */
+
+    if (dev->d_wrndx < dev->d_rdndx)
+    { 
+      count = (dev->d_rdndx - dev->d_wrndx) - 1;
+    }
+    else
+    {
+      count = ((CONFIG_DEV_PIPE_SIZE - dev->d_wrndx) + dev->d_rdndx) - 1;
+    }
+    
+    irqrestore(state);
+    
+    *(int *)arg = count;
+    ret = 0;
+    
+    break;
+  }
+  }
+
+  return ret;
+}
 
 #endif /* CONFIG_DEV_PIPE_SIZE > 0 */
