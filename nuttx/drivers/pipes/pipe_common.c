@@ -690,12 +690,21 @@ int pipecommon_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   struct pipe_dev_s *dev   = inode->i_private;
   int ret = -EINVAL;
 
+  /* Some sanity checking */
+#if CONFIG_DEBUG
+  if (!dev)
+    {
+       return -EBADF;
+    }
+#endif
+
+  pipecommon_semtake(&dev->d_bfsem);
+
   switch (cmd)
   {
   case FIONREAD:
   {
     int count;
-    irqstate_t state = irqsave();
       
     /* determine the number of bytes available in the buffer */
 
@@ -708,8 +717,6 @@ int pipecommon_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       count = dev->d_wrndx - dev->d_rdndx;
     }
       
-    irqrestore(state);
-
     *(int *)arg = count;
     ret = 0;
     
@@ -719,7 +726,6 @@ int pipecommon_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   case FIONWRITE:
   {
     int count;
-    irqstate_t state = irqsave();
     
     /* determine the number of bytes free in the buffer */
 
@@ -732,14 +738,14 @@ int pipecommon_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       count = ((CONFIG_DEV_PIPE_SIZE - dev->d_wrndx) + dev->d_rdndx) - 1;
     }
     
-    irqrestore(state);
-    
     *(int *)arg = count;
     ret = 0;
     
     break;
   }
   }
+
+  sem_post(&dev->d_bfsem);
 
   return ret;
 }
