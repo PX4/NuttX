@@ -166,9 +166,25 @@ static struct ramtron_parts_s ramtron_parts[] =
     40000000                      /* speed */
   },
   {
+    "FM25V01A",                   /* name */
+    0x21,                         /* id1 */
+    0x08,                         /* id2 */
+    16L*1024L,                    /* size */
+    2,                            /* addr_len */
+    40000000                      /* speed */
+  },
+  {
     "FM25V02",                    /* name */
     0x22,                         /* id1 */
     0x00,                         /* id2 */
+    32L*1024L,                    /* size */
+    2,                            /* addr_len */
+    40000000                      /* speed */
+  },
+  {
+    "FM25V02A",                    /* name */
+    0x22,                         /* id1 */
+    0x08,                         /* id2 */
     32L*1024L,                    /* size */
     2,                            /* addr_len */
     40000000                      /* speed */
@@ -210,6 +226,22 @@ static struct ramtron_parts_s ramtron_parts[] =
     0x24,                         /* id1 */
     0x01,                         /* id2 */
     128L*1024L,                   /* size */
+    3,                            /* addr_len */
+    40000000                      /* speed */
+  },
+  {
+    "FM25V20A",                   /* name */
+    0x25,                         /* id1 */
+    0x08,                         /* id2 */
+    256L*1024L,                   /* size */
+    3,                            /* addr_len */
+    40000000                      /* speed */
+  },
+  {
+    "CY15B104Q",                  /* name */
+    0x26,                         /* id1 */
+    0x08,                         /* id2 */
+    512L*1024L,                   /* size */
     3,                            /* addr_len */
     40000000                      /* speed */
   },
