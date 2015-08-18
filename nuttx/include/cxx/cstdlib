@@ -69,6 +69,9 @@ namespace std
   using ::on_exit;
 #endif
 
+   using ::abs;
+   using ::labs;
+
   using ::strtol;
   using ::strtoul;
   using ::strtod;
