@@ -1,7 +1,7 @@
 /****************************************************************************
  * sched/pthread_create.c
  *
- *   Copyright (C) 2007-2009, 2011, 2013 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007-2009, 2011, 2013-2015 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -112,6 +112,7 @@ static inline void pthread_argsetup(FAR struct pthread_tcb_s *tcb, pthread_addr_
   /* Copy the pthread name into the TCB */
 
   strncpy(tcb->cmn.name, g_pthreadname, CONFIG_TASK_NAME_SIZE);
+  tcb->cmn.name[CONFIG_TASK_NAME_SIZE] = '\0';
 #endif /* CONFIG_TASK_NAME_SIZE */
 
   /* For pthreads, args are strictly pass-by-value; that actual
@@ -237,6 +238,9 @@ int pthread_create(FAR pthread_t *thread, FAR pthread_attr_t *attr,
   int errcode;
   pid_t pid;
   int ret;
+#ifdef HAVE_TASK_GROUP
+  bool group_joined = false;
+#endif
 
   /* If attributes were not supplied, use the default attributes */
 
@@ -367,6 +371,8 @@ int pthread_create(FAR pthread_t *thread, FAR pthread_attr_t *attr,
       errcode = ENOMEM;
       goto errout_with_join;
     }
+
+  group_joined = true;
 #endif
 
   /* Attach the join info to the TCB. */
@@ -450,6 +456,15 @@ errout_with_join:
   ptcb->joininfo = NULL;
 
 errout_with_tcb:
+#ifdef HAVE_TASK_GROUP
+  /* Clear group binding */
+
+  if (ptcb && !group_joined)
+    {
+      ptcb->cmn.group = NULL;
+    }
+#endif
+
   sched_releasetcb((FAR struct tcb_s *)ptcb, TCB_FLAG_TTYPE_PTHREAD);
   return errcode;
 }
