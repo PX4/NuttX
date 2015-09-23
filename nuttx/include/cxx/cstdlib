@@ -75,7 +75,10 @@ namespace std
   using ::strtol;
   using ::strtoul;
   using ::strtod;
-
+#ifdef CONFIG_HAVE_LONG_LONG
+  using ::strtoll;
+  using ::strtoull;
+#endif
   using ::malloc;
   using ::free;
   using ::realloc;
