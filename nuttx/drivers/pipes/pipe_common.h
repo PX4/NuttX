@@ -125,6 +125,7 @@ EXTERN int     pipecommon_open(FAR struct file *filep);
 EXTERN int     pipecommon_close(FAR struct file *filep);
 EXTERN ssize_t pipecommon_read(FAR struct file *, FAR char *, size_t);
 EXTERN ssize_t pipecommon_write(FAR struct file *, FAR const char *, size_t);
+EXTERN int     pipecommon_ioctl(FAR struct file *filep, int cmd, unsigned long arg);
 #ifndef CONFIG_DISABLE_POLL
 EXTERN int     pipecommon_poll(FAR struct file *filep, FAR struct pollfd *fds,
                                bool setup);
