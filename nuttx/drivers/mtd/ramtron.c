@@ -155,7 +155,7 @@ struct ramtron_dev_s
 #define RAMTRON_CLK_MAX      40*1000*1000UL
 #define RAMTRON_INIT_CLK_DEFAULT  11*1000*1000UL
 
-static struct ramtron_parts_s ramtron_parts[] =
+static const struct ramtron_parts_s ramtron_parts[] =
 {
   {
     "FM25V01",                    /* name */
