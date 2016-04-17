@@ -1628,7 +1628,7 @@ static ssize_t mmcsd_writesingle(FAR struct mmcsd_state_s *priv,
 #ifdef CONFIG_SDIO_DMA
   if (priv->dma)
     { 
-      ret = SDIO_DMAPREFLIGHT(priv->dev, buffer, priv->blocksize);
+      ret = SDIO_DMAPREFLIGHT(priv->dev, (uint8_t *)buffer, priv->blocksize);
 
       if (ret != OK)
         {
