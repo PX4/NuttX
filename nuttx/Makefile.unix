@@ -705,7 +705,7 @@ menuconfig:
 # that the archiver is 'ar'
 
 export: pass2deps
-	$(Q) tools/mkexport.sh -w$(WINTOOL) -t "$(TOPDIR)" -l "$(NUTTXLIBS)"
+	$(Q) MAKE=$(MAKE) tools/mkexport.sh -w$(WINTOOL) -t "$(TOPDIR)" -l "$(NUTTXLIBS)"
 
 # General housekeeping targets:  dependencies, cleaning, etc.
 #
