@@ -962,6 +962,14 @@ static off_t fat_seek(FAR struct file *filep, off_t offset, int whence)
 
   DEBUGASSERT(fs != NULL);
 
+  /* Special case for ftell */
+
+  if (offset == 0 && whence == SEEK_CUR) {
+	  /* Quickly return current position */
+
+	  return filep->f_pos;
+  }
+
   /* Map the offset according to the whence option */
 
   switch (whence)
