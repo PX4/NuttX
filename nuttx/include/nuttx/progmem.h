@@ -43,7 +43,6 @@
 #include <nuttx/config.h>
 #include <sys/types.h>
 
-#include <stdint.h>
 #include <stdbool.h>
 
 /****************************************************************************
@@ -70,7 +69,7 @@ extern "C" {
  *
  ****************************************************************************/
 
-uint16_t up_progmem_npages(void);
+size_t up_progmem_npages(void);
 
 /****************************************************************************
  * Name: up_progmem_isuniform
@@ -90,13 +89,13 @@ bool up_progmem_isuniform(void);
  *
  ****************************************************************************/
 
-uint16_t up_progmem_pagesize(uint16_t page);
+size_t up_progmem_pagesize(size_t page);
 
 /****************************************************************************
  * Name: up_progmem_getpage
  *
  * Description:
- *   Address to page conversion 
+ *   Address to page conversion
  *
  * Input Parameters:
  *   addr - Address with of without flash offset (absolute or aligned to page0)
@@ -109,7 +108,23 @@ uint16_t up_progmem_pagesize(uint16_t page);
  *
  ****************************************************************************/
 
-int up_progmem_getpage(uint32_t addr);
+ssize_t up_progmem_getpage(size_t addr);
+
+/****************************************************************************
+ * Name: up_progmem_getaddress
+ *
+ * Description:
+ *   Page to address conversion
+ *
+ * Input Parameters:
+ *   page - page index
+ *
+ * Returned Value:
+ *   Base address of given page, SIZE_MAX if page index is not valid.
+ *
+ ****************************************************************************/
+
+size_t up_progmem_getaddress(size_t page);
 
 /****************************************************************************
  * Name: up_progmem_erasepage
@@ -118,7 +133,7 @@ int up_progmem_getpage(uint32_t addr);
  *   Erase selected page.
  *
  * Input Parameters:
- *   page - 
+ *   page -
  *
  * Returned Value:
  *   Page size or negative value on error.  The following errors are reported
@@ -133,7 +148,7 @@ int up_progmem_getpage(uint32_t addr);
  *
  ****************************************************************************/
 
-int up_progmem_erasepage(uint16_t page);
+ssize_t up_progmem_erasepage(size_t page);
 
 /****************************************************************************
  * Name: up_progmem_ispageerased
@@ -142,7 +157,7 @@ int up_progmem_erasepage(uint16_t page);
  *   Checks whether page is erased
  *
  * Input Parameters:
- *    page - 
+ *    page -
  *
  * Returned Value:
  *   Returns number of bytes written or negative value on error. If it
@@ -153,7 +168,7 @@ int up_progmem_erasepage(uint16_t page);
  *
  ****************************************************************************/
 
-int up_progmem_ispageerased(uint16_t page);
+ssize_t up_progmem_ispageerased(size_t page);
 
 /****************************************************************************
  * Name: up_progmem_write
@@ -184,10 +199,10 @@ int up_progmem_ispageerased(uint16_t page);
  *
  ****************************************************************************/
 
-int up_progmem_write(uint32_t addr, const void *buf, size_t count);
+ssize_t up_progmem_write(size_t addr, const void *buf, size_t count);
 
 /* TODO: Define the following functions and their options:
- *  - up_progmem_protect() 
+ *  - up_progmem_protect()
  *  - up_progmem_unprotect()
  */
 
