@@ -1180,6 +1180,7 @@ static void up_set_format(struct uart_dev_s *dev)
 {
   struct up_dev_s *priv = (struct up_dev_s*)dev->priv;
   uint32_t regval;
+  uint32_t cr1;
 
 #ifdef CONFIG_STM32_STM32F30XX
   /* This first implementation is for U[S]ARTs that support oversampling
@@ -1187,7 +1188,6 @@ static void up_set_format(struct uart_dev_s *dev)
    */
 
   uint32_t usartdiv8;
-  uint32_t cr1;
   uint32_t brr;
 
   /* In case of oversampling by 8, the equation is:
@@ -1246,6 +1246,9 @@ static void up_set_format(struct uart_dev_s *dev)
   uint32_t fraction;
   uint32_t brr;
 
+  /* Load CR1 */
+  cr1 = up_serialin(priv, STM32_USART_CR1_OFFSET);
+
   /* Configure the USART Baud Rate.  The baud rate for the receiver and
    * transmitter (Rx and Tx) are both set to the same value as programmed
    * in the Mantissa and Fraction values of USARTDIV.
@@ -1267,27 +1270,47 @@ static void up_set_format(struct uart_dev_s *dev)
    /* The mantissa part is then */
 
    mantissa   = usartdiv32 >> 5;
-   brr        = mantissa << USART_BRR_MANT_SHIFT;
 
    /* The fractional remainder (with rounding) */
 
    fraction   = (usartdiv32 - (mantissa << 5) + 1) >> 1;
+
+#if defined(CONFIG_STM32_STM32F40XX)
+   /* Check if 8x oversampling is necessary */
+   if (mantissa == 0)
+     {
+       cr1 |= USART_CR1_OVER8;
+       /* Rescale the mantissa */
+
+       mantissa = usartdiv32 >> 4;
+
+       /* The fractional remainder (with rounding) */
+
+       fraction = (usartdiv32 - (mantissa << 4) + 1) >> 1;
+     }
+   else
+     {/* Use 16x Oversampling */
+       cr1 &= ~USART_CR1_OVER8;
+     }
+#endif //CONFIG_STM32_STM32F40XX
+
+   brr        = mantissa << USART_BRR_MANT_SHIFT;
    brr       |= fraction << USART_BRR_FRAC_SHIFT;
+   up_serialout(priv, STM32_USART_CR1_OFFSET, cr1);
    up_serialout(priv, STM32_USART_BRR_OFFSET, brr);
-#endif
+#endif //
 
   /* Configure parity mode */
 
-  regval  = up_serialin(priv, STM32_USART_CR1_OFFSET);
-  regval &= ~(USART_CR1_PCE | USART_CR1_PS | USART_CR1_M);
+  cr1 &= ~(USART_CR1_PCE | USART_CR1_PS | USART_CR1_M);
 
   if (priv->parity == 1)       /* Odd parity */
     {
-      regval |= (USART_CR1_PCE | USART_CR1_PS);
+      cr1 |= (USART_CR1_PCE | USART_CR1_PS);
     }
   else if (priv->parity == 2)  /* Even parity */
     {
-      regval |= USART_CR1_PCE;
+      cr1 |= USART_CR1_PCE;
     }
 
   /* Configure word length (parity uses one of configured bits)
@@ -1302,10 +1325,10 @@ static void up_set_format(struct uart_dev_s *dev)
        *         1 start, 9 data (no parity), n stop.
        */
 
-      regval |= USART_CR1_M;
+      cr1 |= USART_CR1_M;
     }
 
-  up_serialout(priv, STM32_USART_CR1_OFFSET, regval);
+  up_serialout(priv, STM32_USART_CR1_OFFSET, cr1);
 
   /* Configure STOP bits */
 
