@@ -245,6 +245,14 @@ static const struct ramtron_parts_s ramtron_parts[] =
     3,                            /* addr_len */
     40000000                      /* speed */
   },
+ {
+   "MB85RS1MT",                  /* name */
+   0x27,                         /* id1 */
+   0x03,                         /* id2 */
+   128L*1024L,                   /* size */
+   3,                            /* addr_len */
+   25000000                      /* speed */
+ },
 #ifdef CONFIG_RAMTRON_FRAM_NON_JEDEC
   {
     "FM25H20",                    /* name */
@@ -358,6 +366,14 @@ static inline int ramtron_readid(struct ramtron_dev_s *priv)
   for (i = 0; i < 6; i++)
     {
       manufacturer = SPI_SEND(priv->dev, RAMTRON_DUMMY);
+
+      /* Fujitsu parts such as MB85RS1MT only have 1-byte for the manufacturer
+       * ID.  The manufacturer code is "0x4".
+       */
+      if (manufacturer == 0x04)
+        {
+          break;
+        }
     }
 
   memory           = SPI_SEND(priv->dev, RAMTRON_DUMMY);
