@@ -3215,6 +3215,9 @@ static inline void stm32_rxinterrupt(FAR struct stm32_usbdev_s *priv)
 			 * last SETUP packet will be processed.
 			 */
 
+			/* workaround for FIFO lost data */
+			up_udelay(28);
+
 			stm32_rxfifo_read(&priv->epout[EP0], (FAR uint8_t*)&priv->ctrlreq,
 							 USB_SIZEOF_CTRLREQ);
 
