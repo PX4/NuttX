@@ -94,6 +94,9 @@
 #undef CONFIG_NXFSS_PREALLOCATED
 #define CONFIG_NXFSS_PREALLOCATED 1
 
+/* Forward declaration. */
+struct mtd_dev_s;
+
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
