@@ -183,6 +183,7 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
   int             count;
   int             fmtcount;
   int             width;
+  int             hwidth;
   int             base = 10;
   char            tmp[MAXLN];
 
@@ -290,13 +291,13 @@ int vsscanf(FAR char *buf, FAR const char *fmt, va_list ap)
               if (*buf)
                 {
 
-                  /* Was a fieldwidth specified? */
+                  /* Guess a field width using some heuristics */
+                  hwidth = findwidth(buf, fmt);
 
-                  if (!width)
+                  /* Use if no fieldwidth specified or smaller than fieldwidth */
+                  if (!width || hwidth < width)
                     {
-                      /* No... Guess a field width using some heuristics */
-
-                      width = findwidth(buf, fmt);
+                      width = hwidth;
                     }
 
                   /* Copy the string (if we are making an assignment) */
