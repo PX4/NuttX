@@ -45,6 +45,8 @@
  * Included Files
  ****************************************************************************/
 
+#ifndef __cplusplus
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -227,16 +229,29 @@
  * Public Functions
  ****************************************************************************/
 
-#ifdef __cplusplus
-#define EXTERN extern "C"
-extern "C" {
-#else
-#define EXTERN extern
-#endif
+#else /* __cplusplus */
 
-#undef EXTERN
-#ifdef __cplusplus
-}
-#endif
+/* When C++, define the same as above but as functions instead of macro's. */
+
+/****************************************************************************
+ * Inline Functions
+ ****************************************************************************/
+
+inline int islower(int c) { return c >= 'a' && c <= 'z'; }
+inline int isupper(int c) { return c >= 'A' && c <= 'Z'; }
+inline int isdigit(int c) { return c >= '0' && c <= '9'; }
+inline int isalpha(int c) { return islower(c) || isupper(c); }
+inline int isalnum(int c) { return isalpha(c) || isdigit(c); }
+inline int isprint(int c) { return c >= 0x20 && c < 0x7f; }
+inline int iscntrl(int c) { return c >= 0 && !isprint(c); }
+inline int isgraph(int c) { return c > 0x20 && c < 0x7f; }
+inline int ispunct(int c) { return isgraph(c) && !isalnum(c); }
+inline int isblank(int c) { return c == ' ' || c == '\t'; }
+inline int isspace(int c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v'; }
+inline int isxdigit(int c) { return isdigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'); }
+inline int tolower(int c) { return isupper(c) ? c - 'A' + 'a' : c; }
+inline int toupper(int c) { return islower(c) ? c - 'a' + 'A' : c; }
+
+#endif /* __cplusplus */
 
 #endif /* __INCLUDE_CTYPE_H */

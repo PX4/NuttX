@@ -42,219 +42,26 @@
 
 #include <ctype.h>
 
-// Remove macros in favor of real functions
-#undef isalnum
-#undef isalpha
-#undef isblank
-#undef iscntrl
-#undef isdigit
-#undef isgraph
-#undef islower
-#undef isprint
-#undef ispunct
-#undef isspace
-#undef isupper
-#undef isxdigit
-#undef tolower
-#undef toupper
-
 //***************************************************************************
 // Namespace
 //***************************************************************************
 
 namespace std
 {
-
-//***************************************************************************
-// Inline Functions
-//***************************************************************************
-
-//***************************************************************************
-// Name: islower
-//
-// Description:
-//   Checks for an lowercase letter.
-//
-//***************************************************************************
-
-inline int islower(int c)
-{
-  return c >= 'a' && c <= 'z';
+  using ::islower;
+  using ::isupper;
+  using ::isdigit;
+  using ::isalpha;
+  using ::isalnum;
+  using ::isprint;
+  using ::iscntrl;
+  using ::isgraph;
+  using ::ispunct;
+  using ::isblank;
+  using ::isspace;
+  using ::isxdigit;
+  using ::tolower;
+  using ::toupper;
 }
-
-//***************************************************************************
-// Name: isupper
-//
-// Description:
-//   Checks for an uppercase letter.
-//
-//***************************************************************************
-
-inline int isupper(int c)
-{
-  return c >= 'A' && c <= 'Z';
-}
-
-//***************************************************************************
-// Name: isdigit
-//
-// Description:
-//   ANSI standard isdigit implementation.
-//
-//***************************************************************************
-
-inline int isdigit(int c)
-{
-  return c >= '0' && c <= '9';
-}
-
-//***************************************************************************
-// Name: isalpha
-//
-// Description:
-//   Checks for an alphabetic character
-//
-//***************************************************************************
-
-inline int isalpha(int c)
-{
-  return islower(c) || isupper(c);
-}
-
-//***************************************************************************
-// Name: isalnum
-//
-// Description:
-//   Checks for an alphanumeric character
-//
-//***************************************************************************
-
-inline int isalnum(int c)
-{
-  return isalpha(c) || isdigit(c);
-}
-
-//***************************************************************************
-// Name: isprint
-//
-// Description:
-//   Checks for a printable character (including space)
-//
-//***************************************************************************
-
-inline int isprint(int c)
-{
-  return c >= 0x20 && c < 0x7f;
-}
-
-//***************************************************************************
-// Name: iscntrl
-//
-// Description:
-//   Checks for control character.
-//
-//***************************************************************************
-
-inline int iscntrl(int c)
-{
-  return c >= 0 && !isprint(c);
-}
-
-//***************************************************************************
-// Name: isgraph
-//
-// Description:
-//   Checks for a printable character (excluding space)
-//
-//***************************************************************************
-
-inline int isgraph(int c)
-{
-  return c > 0x20 && c < 0x7f;
-}
-
-//***************************************************************************
-// Name: ispunct
-//
-// Description:
-//   Checks for a printable character which is not a space or an
-//   alphanumeric character
-//
-//***************************************************************************
-
-inline int ispunct(int c)
-{
-  return isgraph(c) && !isalnum(c);
-}
-
-//***************************************************************************
-// Name: isblank (since C++11)
-//
-// Description:
-//   Checks for blank characters.  In the "C" and "POSIX" locales,
-//   these are: space and horizontal tab ('\t').
-//
-//***************************************************************************
-
-inline int isblank(int c)
-{
-  return c == ' ' || c == '\t';
-}
-
-//***************************************************************************
-// Name: isspace
-//
-// Description:
-//   Checks  for  white-space characters.  In the "C" and "POSIX" locales,
-//   these are: space, form-feed ('\f'), newline ('\n'), carriage return
-//   ('\r'), horizontal tab ('\t'), and vertical tab ('\v').
-//
-//***************************************************************************
-
-inline int isspace(int c)
-{
-  return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
-}
-
-//***************************************************************************
-// Name: isxdigit
-//
-// Description:
-//   isxdigit() checks for a hexadecimal digits, i.e. one of {0-9,a-f,A-F}
-//
-//***************************************************************************
-
-inline int isxdigit(int c)
-{
-  return isdigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
-}
-
-//***************************************************************************
-// Name: tolower
-//
-// Description:
-//   tolower() converts the letter c to lower case, if possible.
-//
-//***************************************************************************
-
-inline int tolower(int c)
-{
-  return isupper(c) ? c - 'A' + 'a' : c;
-}
-
-//***************************************************************************
-// Name: toupper
-//
-// Description:
-//   toupper() converts the letter c to upper case, if possible.
-//
-//***************************************************************************
-
-inline int toupper(int c)
-{
-  return islower(c) ? c - 'a' + 'A' : c;
-}
-
-} // namespace std
 
 #endif // __INCLUDE_CXX_CCTYPE
