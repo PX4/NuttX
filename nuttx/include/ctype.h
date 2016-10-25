@@ -1,7 +1,7 @@
 /****************************************************************************
  * include/ctype.h
  *
- *   Copyright (C) 2007-2009, 2011 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007-2009, 2011, 2014, 2016 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,30 +45,13 @@
  * Included Files
  ****************************************************************************/
 
-#ifndef __cplusplus
+#include <nuttx/compiler.h>
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-#define _U  01
-#define _L  02
-#define _N  04
-#define _S  010
-#define _P  020
-#define _C  040
-#define _X  0100
-#define _B  0200
-
-/****************************************************************************
- * Name: isblank (since C99 / C++11)
- *
- * Description:
- *   Checks for blank characters.  In the "C" and "POSIX" locales,
- *   these are: space and horizontal tab ('\t').
- *
- ****************************************************************************/
-
-#define isblank(c)   ((c) == ' ' || (c) == '\t')
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 
 /****************************************************************************
  * Name: isspace
@@ -80,9 +63,17 @@
  *
  ****************************************************************************/
 
-#define isspace(c) \
-  ((c) == ' '  || (c) == '\t' || (c) == '\n' || \
-   (c) == '\r' || (c) == '\f' || (c) == '\v')
+#if defined(CONFIG_HAVE_INLINE) || defined(__cplusplus)
+static inline int isspace(int c)
+{
+  return c == ' ' || c == '\t' || c == '\n' || c == '\r' ||
+         c == '\f' || c == '\v';
+}
+#else
+#  define isspace(c) \
+    ((c) == ' '  || (c) == '\t' || (c) == '\n' || (c) == '\r' || \
+     (c) == '\f' || (c) == '\v')
+#endif
 
 /****************************************************************************
  * Name: isascii
@@ -93,7 +84,14 @@
  *
  ****************************************************************************/
 
-#define isascii(c)   ((c) >= 0 && (c) <= 0x7f)
+#if defined(CONFIG_HAVE_INLINE) || defined(__cplusplus)
+static inline int isascii(int c)
+{
+  return c >= 0 && c <= 0x7f;
+}
+#else
+#  define isascii(c)   ((c) >= 0 && (c) <= 0x7f)
+#endif
 
 /****************************************************************************
  * Name: isprint
@@ -103,7 +101,14 @@
  *
  ****************************************************************************/
 
-#define isprint(c)   ((c) >= 0x20 && (c) < 0x7f)
+#if defined(CONFIG_HAVE_INLINE) || defined(__cplusplus)
+static inline int isprint(int c)
+{
+  return c >= 0x20 && c < 0x7f;
+}
+#else
+#  define isprint(c)   ((c) >= 0x20 && (c) < 0x7f)
+#endif
 
 /****************************************************************************
  * Name: isgraph
@@ -113,7 +118,14 @@
  *
  ****************************************************************************/
 
-#define isgraph(c)   ((c) > 0x20 && (c) < 0x7f)
+#if defined(CONFIG_HAVE_INLINE) || defined(__cplusplus)
+static inline int isgraph(int c)
+{
+  return c > 0x20 && c < 0x7f;
+}
+#else
+#  define isgraph(c)   ((c) > 0x20 && (c) < 0x7f)
+#endif
 
 /****************************************************************************
  * Name: iscntrl
@@ -123,7 +135,14 @@
  *
  ****************************************************************************/
 
-#define iscntrl(c) (!isprint(c))
+#if defined(CONFIG_HAVE_INLINE) || defined(__cplusplus)
+static inline int iscntrl(int c)
+{
+  return !isprint(c);
+}
+#else
+#  define iscntrl(c) (!isprint(c))
+#endif
 
 /****************************************************************************
  * Name: islower
@@ -133,7 +152,14 @@
  *
  ****************************************************************************/
 
-#define islower(c)   ((c) >= 'a' && (c) <= 'z')
+#if defined(CONFIG_HAVE_INLINE) || defined(__cplusplus)
+static inline int islower(int c)
+{
+  return c >= 'a' && c <= 'z';
+}
+#else
+#  define islower(c)   ((c) >= 'a' && (c) <= 'z')
+#endif
 
 /****************************************************************************
  * Name: isupper
@@ -143,7 +169,14 @@
  *
  ****************************************************************************/
 
-#define isupper(c)   ((c) >= 'A' && (c) <= 'Z')
+#if defined(CONFIG_HAVE_INLINE) || defined(__cplusplus)
+static inline int isupper(int c)
+{
+  return c >= 'A' && c <= 'Z';
+}
+#else
+#  define isupper(c)   ((c) >= 'A' && (c) <= 'Z')
+#endif
 
 /****************************************************************************
  * Name: isalpha
@@ -153,7 +186,31 @@
  *
  ****************************************************************************/
 
-#define isalpha(c)   (islower(c) || isupper(c))
+#if defined(CONFIG_HAVE_INLINE) || defined(__cplusplus)
+static inline int isalpha(int c)
+{
+  return islower(c) || isupper(c);
+}
+#else
+#  define isalpha(c)   (islower(c) || isupper(c))
+#endif
+
+/****************************************************************************
+ * Name: isblank
+ *
+ * Description:
+ *   Checks for blank characters (space or tab). C++11
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_HAVE_INLINE) || defined(__cplusplus)
+static inline int isblank(int c)
+{
+  return c == ' ' || c == '\t';
+}
+#else
+#  define isblank(c)   ((c) == ' ' || (c) == '\t')
+#endif
 
 /****************************************************************************
  * Name: isdigit
@@ -163,7 +220,14 @@
  *
  ****************************************************************************/
 
-#define isdigit(c)   ((c) >= '0' && (c) <= '9')
+#if defined(CONFIG_HAVE_INLINE) || defined(__cplusplus)
+static inline int isdigit(int c)
+{
+  return c >= '0' && c <= '9';
+}
+#else
+#  define isdigit(c)   ((c) >= '0' && (c) <= '9')
+#endif
 
 /****************************************************************************
  * Name: isalnum
@@ -173,7 +237,14 @@
  *
  ****************************************************************************/
 
-#define isalnum(c)   (isalpha(c) || isdigit(c))
+#if defined(CONFIG_HAVE_INLINE) || defined(__cplusplus)
+static inline int isalnum(int c)
+{
+  return isalpha(c) || isdigit(c);
+}
+#else
+#  define isalnum(c)   (isalpha(c) || isdigit(c))
+#endif
 
 /****************************************************************************
  * Name: ispunct
@@ -184,7 +255,14 @@
  *
  ****************************************************************************/
 
-#define ispunct(c)   (isgraph(c) && !isalnum(c))
+#if defined(CONFIG_HAVE_INLINE) || defined(__cplusplus)
+static inline int ispunct(int c)
+{
+  return isgraph(c) && !isalnum(c);
+}
+#else
+#  define ispunct(c)   (isgraph(c) && !isalnum(c))
+#endif
 
 /****************************************************************************
  * Name: isxdigit
@@ -194,10 +272,19 @@
  *
  ****************************************************************************/
 
-#define isxdigit(c) \
-  (((c) >= '0' && (c) <= '9') || \
-   ((c) >= 'a' && (c) <= 'f') || \
-   ((c) >= 'A' && (c) <= 'F'))
+#if defined(CONFIG_HAVE_INLINE) || defined(__cplusplus)
+static inline int isxdigit(int c)
+{
+  return (c >= '0' && c <= '9') ||
+         (c >= 'a' && c <= 'f') ||
+         (c >= 'A' && c <= 'F');
+}
+#else
+#  define isxdigit(c) \
+    (((c) >= '0' && (c) <= '9') || \
+     ((c) >= 'a' && (c) <= 'f') || \
+     ((c) >= 'A' && (c) <= 'F'))
+#endif
 
 /****************************************************************************
  * Name: toupper
@@ -207,8 +294,15 @@
  *
  ****************************************************************************/
 
-#define toupper(c) \
-  (((c) >= 'a' && (c) <= 'z') ? ((c) - 'a' + 'A') : (c))
+#if defined(CONFIG_HAVE_INLINE) || defined(__cplusplus)
+static inline int toupper(int c)
+{
+  return (c >= 'a' && c <= 'z') ? c - 'a' + 'A' : c;
+}
+#else
+#  define toupper(c) \
+    (((c) >= 'a' && (c) <= 'z') ? ((c) - 'a' + 'A') : (c))
+#endif
 
 /****************************************************************************
  * Name: tolower
@@ -218,8 +312,15 @@
  *
  ****************************************************************************/
 
-#define tolower(c) \
-  (((c) >= 'A' && (c) <= 'Z') ? ((c) - 'A' + 'a') : (c))
+#if defined(CONFIG_HAVE_INLINE) || defined(__cplusplus)
+static inline int tolower(int c)
+{
+  return (c >= 'A' && c <= 'Z') ? (c - 'A' + 'a') : c;
+}
+#else
+#  define tolower(c) \
+    (((c) >= 'A' && (c) <= 'Z') ? ((c) - 'A' + 'a') : (c))
+#endif
 
 /****************************************************************************
  * Public Type Definitions
@@ -229,29 +330,18 @@
  * Public Functions
  ****************************************************************************/
 
-#else /* __cplusplus */
+#ifdef __cplusplus
+#define EXTERN extern "C"
+extern "C"
+{
+#else
+#define EXTERN extern
+#endif
 
-/* When C++, define the same as above but as functions instead of macro's. */
-
-/****************************************************************************
- * Inline Functions
- ****************************************************************************/
-
-inline int islower(int c) { return c >= 'a' && c <= 'z'; }
-inline int isupper(int c) { return c >= 'A' && c <= 'Z'; }
-inline int isdigit(int c) { return c >= '0' && c <= '9'; }
-inline int isalpha(int c) { return islower(c) || isupper(c); }
-inline int isalnum(int c) { return isalpha(c) || isdigit(c); }
-inline int isprint(int c) { return c >= 0x20 && c < 0x7f; }
-inline int iscntrl(int c) { return c >= 0 && !isprint(c); }
-inline int isgraph(int c) { return c > 0x20 && c < 0x7f; }
-inline int ispunct(int c) { return isgraph(c) && !isalnum(c); }
-inline int isblank(int c) { return c == ' ' || c == '\t'; }
-inline int isspace(int c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v'; }
-inline int isxdigit(int c) { return isdigit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'); }
-inline int tolower(int c) { return isupper(c) ? c - 'A' + 'a' : c; }
-inline int toupper(int c) { return islower(c) ? c - 'a' + 'A' : c; }
-
-#endif /* __cplusplus */
+#undef EXTERN
+#ifdef __cplusplus
+}
+#endif
+#pragma GCC diagnostic pop
 
 #endif /* __INCLUDE_CTYPE_H */

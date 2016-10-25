@@ -1,7 +1,7 @@
 //***************************************************************************
 // include/cxx/cctype
 //
-//   Copyright (C) 2009 Gregory Nutt. All rights reserved.
+//   Copyright (C) 2009, 2016 Gregory Nutt. All rights reserved.
 //   Author: Gregory Nutt <gnutt@nuttx.org>
 //
 // Redistribution and use in source and binary forms, with or without
@@ -48,20 +48,21 @@
 
 namespace std
 {
+  using ::isspace;
+  using ::isascii;
+  using ::isprint;
+  using ::isgraph;
+  using ::iscntrl;
   using ::islower;
   using ::isupper;
-  using ::isdigit;
   using ::isalpha;
-  using ::isalnum;
-  using ::isprint;
-  using ::iscntrl;
-  using ::isgraph;
-  using ::ispunct;
   using ::isblank;
-  using ::isspace;
+  using ::isdigit;
+  using ::isalnum;
+  using ::ispunct;
   using ::isxdigit;
-  using ::tolower;
   using ::toupper;
+  using ::tolower;
 }
 
 #endif // __INCLUDE_CXX_CCTYPE
