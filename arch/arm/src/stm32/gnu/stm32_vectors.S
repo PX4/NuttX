@@ -206,6 +206,9 @@ handlers:
 	HANDLER	stm32_pendsv, STM32_IRQ_PENDSV			/* Vector 14: Penable system service request */
 	HANDLER	stm32_systick, STM32_IRQ_SYSTICK		/* Vector 15: System tick */
 
+#if defined(CONFIG_STM32_BOARD_VECTORS)
+#  include <arch/board/board_vectors.h>
+#else
 #if !defined(CONFIG_STM32_NOEXT_VECTORS)
 
 #undef VECTOR
@@ -231,6 +234,7 @@ handlers:
 #endif
 
 #endif /* CONFIG_STM32_NOEXT_VECTORS */
+#endif /* CONFIG_STM32_BOARD_VECTORS */
 
 /* Common IRQ handling logic.  On entry here, the return stack is on either
  * the PSP or the MSP and looks like the following:
