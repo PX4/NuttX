@@ -1190,7 +1190,7 @@ char *__dtoa(double d, int mode, int ndigits, int *decpt, int *sign, char **rve)
 
     case 2:
       leftright = 0;
-      /* no break */
+      /* FALLTHROUGH */
     case 4:
       if (ndigits <= 0)
         {
@@ -1202,7 +1202,7 @@ char *__dtoa(double d, int mode, int ndigits, int *decpt, int *sign, char **rve)
 
     case 3:
       leftright = 0;
-      /* no break */
+      /* FALLTHROUGH */
     case 5:
       i = ndigits + k + 1;
       ilim = i;
