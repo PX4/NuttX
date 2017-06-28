@@ -817,10 +817,11 @@ static const double bigtens[] =
   1e16, 1e32, 1e64, 1e128, 1e256
 };
 
-static const double tinytens[] =
-{
-  1e-16, 1e-32, 1e-64, 1e-128, 1e-256
-};
+// Unused
+// static const double tinytens[] =
+// {
+//   1e-16, 1e-32, 1e-64, 1e-128, 1e-256
+// };
 
 #  define n_bigtens 5
 #else
@@ -1190,7 +1191,7 @@ char *__dtoa(double d, int mode, int ndigits, int *decpt, int *sign, char **rve)
 
     case 2:
       leftright = 0;
-      /* no break */
+      /* FALLTHROUGH */
     case 4:
       if (ndigits <= 0)
         {
@@ -1202,7 +1203,7 @@ char *__dtoa(double d, int mode, int ndigits, int *decpt, int *sign, char **rve)
 
     case 3:
       leftright = 0;
-      /* no break */
+      /* FALLTHROUGH */
     case 5:
       i = ndigits + k + 1;
       ilim = i;
