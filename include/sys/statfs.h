@@ -139,8 +139,11 @@ extern "C"
  * form of the struct statfs.
  */
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 int statfs(FAR const char *path, FAR struct statfs *buf);
 int fstatfs(int fd, FAR struct statfs *buf);
+#pragma GCC diagnostic pop
 
 #undef EXTERN
 #if defined(__cplusplus)

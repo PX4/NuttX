@@ -228,7 +228,10 @@ FAR void *zalloc(size_t);
 FAR void *calloc(size_t, size_t);
 
 #ifdef CONFIG_CAN_PASS_STRUCTS
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 struct mallinfo mallinfo(void);
+#pragma GCC diagnostic pop
 #else
 int      mallinfo(FAR struct mallinfo *info);
 #endif

@@ -154,9 +154,11 @@ extern "C"
 
 int mkdir(FAR const char *pathname, mode_t mode);
 int mkfifo(FAR const char *pathname, mode_t mode);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 int stat(const char *path, FAR struct stat *buf);
 int fstat(int fd, FAR struct stat *buf);
-
+#pragma GCC diagnostic pop
 #undef EXTERN
 #if defined(__cplusplus)
 }

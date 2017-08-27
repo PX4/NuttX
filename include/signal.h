@@ -288,8 +288,11 @@ extern "C"
 
 int kill(pid_t pid, int signo);
 int raise(int signo);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wshadow"
 int sigaction(int signo, FAR const struct sigaction *act,
               FAR struct sigaction *oact);
+#pragma GCC diagnostic pop
 int sigaddset(FAR sigset_t *set, int signo);
 int sigdelset(FAR sigset_t *set, int signo);
 int sigemptyset(FAR sigset_t *set);
