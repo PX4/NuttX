@@ -321,6 +321,9 @@ struct up_dev_s
   const unsigned int rxdma_channel; /* DMA channel assigned */
 #endif
 
+#if defined(CONFIG_NOIRQARGS)
+  int (*const vector)(int irq, void *context, void *arg); /* Interrupt handler */
+#endif
   /* RX DMA state */
 
 #ifdef SERIAL_HAVE_DMA
@@ -377,6 +380,32 @@ static int  up_pm_prepare(struct pm_callback_s *cb, int domain,
                           enum pm_state_e pmstate);
 #endif
 
+#if defined(CONFIG_NOIRQARGS)
+#  ifdef CONFIG_STM32_USART1_SERIALDRIVER
+static int up_interrupt_usart1(int irq, void *context, void *arg);
+#  endif
+#  ifdef CONFIG_STM32_USART2_SERIALDRIVER
+static int up_interrupt_usart2(int irq, void *context, void *arg);
+#  endif
+#  ifdef CONFIG_STM32_USART3_SERIALDRIVER
+static int up_interrupt_usart3(int irq, void *context, void *arg);
+#  endif
+#  ifdef CONFIG_STM32_UART4_SERIALDRIVER
+static int up_interrupt_uart4(int irq, void *context, void *arg);
+#  endif
+#  ifdef CONFIG_STM32_UART5_SERIALDRIVER
+static int up_interrupt_uart5(int irq, void *context, void *arg);
+#  endif
+#  ifdef CONFIG_STM32_USART6_SERIALDRIVER
+static int up_interrupt_usart6(int irq, void *context, void *arg);
+#  endif
+#  ifdef CONFIG_STM32_UART7_SERIALDRIVER
+static int up_interrupt_uart7(int irq, void *context, void *arg);
+#  endif
+#  ifdef CONFIG_STM32_UART8_SERIALDRIVER
+static int up_interrupt_uart8(int irq, void *context, void *arg);
+#  endif
+#endif
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -542,7 +571,9 @@ static struct up_dev_s g_usart1priv =
   .rxdma_channel = DMAMAP_USART1_RX,
   .rxfifo        = g_usart1rxfifo,
 #endif
-
+#if defined(CONFIG_NOIRQARGS)
+  .vector        = up_interrupt_usart1,
+#endif
 #ifdef CONFIG_USART1_RS485
   .rs485_dir_gpio = GPIO_USART1_RS485_DIR,
 #  if (CONFIG_USART1_RS485_DIR_POLARITY == 0)
@@ -602,6 +633,9 @@ static struct up_dev_s g_usart2priv =
 #ifdef CONFIG_USART2_RXDMA
   .rxdma_channel = DMAMAP_USART2_RX,
   .rxfifo        = g_usart2rxfifo,
+#endif
+#if defined(CONFIG_NOIRQARGS)
+  .vector        = up_interrupt_usart2,
 #endif
 
 #ifdef CONFIG_USART2_RS485
@@ -663,6 +697,9 @@ static struct up_dev_s g_usart3priv =
 #ifdef CONFIG_USART3_RXDMA
   .rxdma_channel = DMAMAP_USART3_RX,
   .rxfifo        = g_usart3rxfifo,
+#endif
+#if defined(CONFIG_NOIRQARGS)
+  .vector        = up_interrupt_usart3,
 #endif
 
 #ifdef CONFIG_USART3_RS485
@@ -729,6 +766,9 @@ static struct up_dev_s g_uart4priv =
   .rxdma_channel = DMAMAP_UART4_RX,
   .rxfifo        = g_uart4rxfifo,
 #endif
+#if defined(CONFIG_NOIRQARGS)
+  .vector        = up_interrupt_uart4,
+#endif
 
 #ifdef CONFIG_UART4_RS485
   .rs485_dir_gpio = GPIO_UART4_RS485_DIR,
@@ -794,6 +834,9 @@ static struct up_dev_s g_uart5priv =
   .rxdma_channel = DMAMAP_UART5_RX,
   .rxfifo        = g_uart5rxfifo,
 #endif
+#if defined(CONFIG_NOIRQARGS)
+  .vector        = up_interrupt_uart5,
+#endif
 
 #ifdef CONFIG_UART5_RS485
   .rs485_dir_gpio = GPIO_UART5_RS485_DIR,
@@ -854,6 +897,9 @@ static struct up_dev_s g_usart6priv =
 #ifdef CONFIG_USART6_RXDMA
   .rxdma_channel = DMAMAP_USART6_RX,
   .rxfifo        = g_usart6rxfifo,
+#endif
+#if defined(CONFIG_NOIRQARGS)
+  .vector        = up_interrupt_uart6,
 #endif
 
 #ifdef CONFIG_USART6_RS485
@@ -916,6 +962,9 @@ static struct up_dev_s g_uart7priv =
   .rxdma_channel = DMAMAP_UART7_RX,
   .rxfifo        = g_uart7rxfifo,
 #endif
+#if defined(CONFIG_NOIRQARGS)
+  .vector         = up_interrupt_uart7,
+#endif
 
 #ifdef CONFIG_UART7_RS485
   .rs485_dir_gpio = GPIO_UART7_RS485_DIR,
@@ -976,6 +1025,9 @@ static struct up_dev_s g_uart8priv =
 #ifdef CONFIG_UART8_RXDMA
   .rxdma_channel = DMAMAP_UART8_RX,
   .rxfifo        = g_uart8rxfifo,
+#endif
+#if defined(CONFIG_NOIRQARGS)
+  .vector         = up_interrupt_uart8,
 #endif
 
 #ifdef CONFIG_UART8_RS485
@@ -1736,7 +1788,11 @@ static int up_attach(struct uart_dev_s *dev)
 
   /* Attach and enable the IRQ */
 
+#if defined(CONFIG_NOIRQARGS)
+  ret = irq_attach(priv->irq, priv->vector, NULL);
+#else
   ret = irq_attach(priv->irq, up_interrupt, priv);
+#endif
   if (ret == OK)
     {
       /* Enable the interrupt (RX and TX interrupts are still disabled
@@ -1767,7 +1823,7 @@ static void up_detach(struct uart_dev_s *dev)
 }
 
 /****************************************************************************
- * Name: up_interrupt
+ * Name: up_interrupt_common
  *
  * Description:
  *   This is the USART interrupt handler.  It will be invoked when an
@@ -2508,6 +2564,72 @@ static bool up_txready(struct uart_dev_s *dev)
   struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
   return ((up_serialin(priv, STM32_USART_SR_OFFSET) & USART_SR_TXE) != 0);
 }
+
+#if defined(CONFIG_NOIRQARGS)
+/****************************************************************************
+ * Name: up_interrupt_u[s]art[n]
+ *
+ * Description:
+ *   Interrupt handlers for U[S]ART[n] where n=1,..,6.
+ *
+ ****************************************************************************/
+
+#  ifdef CONFIG_STM32_USART1_SERIALDRIVER
+static int up_interrupt_usart1(int irq, void *context, void *arg)
+{
+  return up_interrupt(irq, context, &g_usart1priv);
+}
+#  endif
+
+#  ifdef CONFIG_STM32_USART2_SERIALDRIVER
+static int up_interrupt_usart2(int irq, void *context, void *arg)
+{
+  return up_interrupt(irq, context, &g_usart2priv);
+}
+#  endif
+
+#  ifdef CONFIG_STM32_USART3_SERIALDRIVER
+static int up_interrupt_usart3(int irq, void *context, void *arg)
+{
+  return up_interrupt(irq, context, &g_usart3priv);
+}
+#  endif
+
+#  ifdef CONFIG_STM32_UART4_SERIALDRIVER
+static int up_interrupt_uart4(int irq, void *context, void *arg)
+{
+  return up_interrupt(irq, context, &g_uart4priv);
+}
+#  endif
+
+#  ifdef CONFIG_STM32_UART5_SERIALDRIVER
+static int up_interrupt_uart5(int irq, void *context, void *arg)
+{
+  return up_interrupt(irq, context, &g_uart5priv);
+}
+#  endif
+
+#  ifdef CONFIG_STM32_USART6_SERIALDRIVER
+static int up_interrupt_usart6(int irq, void *context, void *arg)
+{
+  return up_interrupt(irq, context, &g_usart6priv);
+}
+#  endif
+
+#  ifdef CONFIG_STM32_UART7_SERIALDRIVER
+static int up_interrupt_uart7(int irq, void *context, void *arg)
+{
+  return up_interrupt(irq, context, &g_uart7priv);
+}
+#  endif
+
+#  ifdef CONFIG_STM32_UART8_SERIALDRIVER
+static int up_interrupt_uart8(int irq, void *context, void *arg)
+{
+  return up_interrupt(irq, context, &g_uart8priv);
+}
+#  endif
+#endif
 
 /****************************************************************************
  * Name: up_dma_rxcallback
