@@ -89,7 +89,11 @@ void irq_dispatch(int irq, FAR void *context)
         }
 #else
       vector = g_irqvector[irq].handler;
-      arg    = g_irqvector[irq].arg;
+#  if defined(CONFIG_NOIRQARGS)
+          arg    = NULL;
+#  else
+          arg    = g_irqvector[irq].arg;
+#  endif
 #endif
     }
 

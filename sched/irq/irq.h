@@ -72,7 +72,9 @@
 struct irq_info_s
 {
   xcpt_t handler;  /* Address of the interrupt handler */
+#if !defined(CONFIG_NOIRQARGS)
   FAR void *arg;   /* The argument provided to the interrupt handler. */
+#endif
 };
 
 /****************************************************************************

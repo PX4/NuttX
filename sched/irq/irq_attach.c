@@ -112,7 +112,11 @@ int irq_attach(int irq, xcpt_t isr, FAR void *arg)
       /* Save the new ISR and its argument in the table. */
 
       g_irqvector[ndx].handler = isr;
+#if defined(CONFIG_NOIRQARGS)
+      ASSERT(arg == NULL);
+#else
       g_irqvector[ndx].arg     = arg;
+#endif
 
       leave_critical_section(flags);
       ret = OK;

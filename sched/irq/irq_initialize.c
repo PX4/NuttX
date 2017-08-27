@@ -88,6 +88,8 @@ void irq_initialize(void)
   for (i = 0; i < TAB_SIZE; i++)
     {
       g_irqvector[i].handler = irq_unexpected_isr;
+#if !defined(CONFIG_NOIRQARGS)
       g_irqvector[i].arg     = NULL;
+#endif
     }
 }
