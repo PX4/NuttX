@@ -60,6 +60,7 @@
 #include <nuttx/syslog/ramlog.h>
 
 #include <nuttx/irq.h>
+#include "syslog.h"
 
 #ifdef CONFIG_RAMLOG
 
