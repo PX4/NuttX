@@ -950,7 +950,7 @@ static int up_interrupts(int irq, void *context, FAR void *arg)
        * the TX data register.
        */
 
-      if ((s1 & UART_S1_TDRE) != 0)
+      if ((s1 & UART_S1_TDRE) != 0 && (priv->ie & UART_C2_TIE) != 0)
 #endif
         {
           /* Process outgoing bytes */
