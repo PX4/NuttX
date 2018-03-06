@@ -84,6 +84,39 @@ struct kinetis_dmaregs_s
 };
 #endif
 
+typedef enum _KINETIS_DMA_REQUEST_SRC {
+  KINETIS_DMA_REQUEST_SRC_UART0_RX = 2,
+  KINETIS_DMA_REQUEST_SRC_UART0_TX = 3,
+  KINETIS_DMA_REQUEST_SRC_UART1_RX = 4,
+  KINETIS_DMA_REQUEST_SRC_UART1_TX = 5,
+  KINETIS_DMA_REQUEST_SRC_UART2_RX = 6,
+  KINETIS_DMA_REQUEST_SRC_UART2_TX = 7,
+  KINETIS_DMA_REQUEST_SRC_UART3_RX = 8,
+  KINETIS_DMA_REQUEST_SRC_UART3_TX = 9,
+  KINETIS_DMA_REQUEST_SRC_UART4_RXTX = 10,
+  KINETIS_DMA_REQUEST_SRC_LPUART0_RX = 58,
+  KINETIS_DMA_REQUEST_SRC_LPUART0_TX = 59,
+
+  // todo tab23-1
+} KINETIS_DMA_REQUEST_SRC;
+
+typedef enum _KINETIS_DMA_DIRECTION {
+  KINETIS_DMA_DIRECTION_PERIPHERAL_TO_MEMORY,
+  KINETIS_DMA_DIRECTION_MEMORY_TO_PERIPHERAL
+} KINETIS_DMA_DIRECTION;
+
+/* Kinetis data transfer size */
+typedef enum _KINETIS_DMA_DATA_SZ {
+  KINETIS_DMA_DATA_SZ_8BIT = 0,
+  KINETIS_DMA_DATA_SZ_16BIT = 1,
+  KINETIS_DMA_DATA_SZ_32BIT = 2,
+} KINETIS_DMA_DATA_SZ;
+
+typedef struct _kinetis_dmachannel_config {
+  bool circular;                ///< Circular DMA
+  bool halfcomplete_interrupt;  ///< Enables an interrupt to be triggered when half of the bytes have been transferred
+} kinetis_dmachannel_config;
+
 /****************************************************************************
  * Public Data
  ****************************************************************************/
@@ -115,7 +148,7 @@ extern "C"
  *
  ****************************************************************************/
 
-void kinetis_dmainitilaize(void);
+void kinetis_dmainitialize(void);
 
 /****************************************************************************
  * Name: kinetis_dmachannel
@@ -131,7 +164,10 @@ void kinetis_dmainitilaize(void);
  *
  ****************************************************************************/
 
-DMA_HANDLE kinetis_dmachannel(void);
+DMA_HANDLE kinetis_dmachannel(KINETIS_DMA_REQUEST_SRC src,
+                              uint32_t per_addr,
+                              KINETIS_DMA_DATA_SZ per_data_sz,
+                              KINETIS_DMA_DIRECTION dir);
 
 /****************************************************************************
  * Name: kinetis_dmafree
@@ -156,8 +192,13 @@ void kinetis_dmafree(DMA_HANDLE handle);
  *
  ****************************************************************************/
 
+/*
 int kinetis_dmarxsetup(DMA_HANDLE handle, uint32_t control, uint32_t config,
                        uint32_t srcaddr, uint32_t destaddr, size_t nbytes);
+*/
+int kinetis_dmasetup(DMA_HANDLE handle, uint32_t mem_addr, KINETIS_DMA_DATA_SZ mem_data_sz,
+                     size_t nbytes, const kinetis_dmachannel_config *config);
+
 
 /****************************************************************************
  * Name: kinetis_dmastart

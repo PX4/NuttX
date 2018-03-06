@@ -53,22 +53,86 @@
 #include "kinetis_config.h"
 #include "chip.h"
 #include "kinetis_dma.h"
+#include "chip/kinetis_dmamux.h"
+#include "chip/kinetis_sim.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
+#define DMA_N_CHANNELS 32         // Total number of channels
+#define DMA_CHN_PER_GROUP 16      // Number of channels per group
+
+/****************************************************************************
+ * Private Types
+ ****************************************************************************/
+ struct kinetis_dma_ch
+ {
+    bool                  used;
+    uint8_t               ind;
+    uint8_t               irq;
+    KINETIS_DMA_DIRECTION dir;
+    dma_callback_t        callback;
+    void                  *arg;
+
+    KINETIS_DMA_REQUEST_SRC src;
+ };
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
+static struct kinetis_dma_ch channels[DMA_N_CHANNELS];
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
+static int kinetis_dmainterrupt_int(int irq, void *context, struct kinetis_dma_ch *ch) {
+
+  // Clear bit in the interrupt
+  putreg8(ch->ind, KINETIS_DMA_CINT);
+
+  // Invoke the callback
+  if (ch->callback)
+    {
+      int result = 0; // todo
+      ch->callback((DMA_HANDLE)&ch, ch->arg, result);
+    }
+
+  return OK;
+}
+
+static int kinetis_dmainterrupt(int irq, void *context, void *arg)
+{
+  int irq_int = *(int *)arg;
+  uint32_t regval;
+  regval = getreg32(KINETIS_DMA_INT);
+  // Channel irq_int and irq_int + DMA_CHN_PER_GROUP use the same arg. Check which one requested an interrupt
+  if ((regval & (1 << irq_int)) != 0)
+    {
+      kinetis_dmainterrupt_int(irq, context, &channels[irq_int]);
+      // todo handle return value!!!
+    }
+
+  if ((regval & (1 << (irq_int + DMA_CHN_PER_GROUP))) != 0)
+    {
+      kinetis_dmainterrupt_int(irq, context, &channels[irq_int + DMA_CHN_PER_GROUP]);
+      // todo handle return value!!!
+    }
+
+  return OK;
+}
+
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+
+size_t kinetis_dmaresidual(DMA_HANDLE handle)
+{
+  struct kinetis_dma_ch *ch = (struct kinetis_dma_ch *)handle;
+  return getreg16(KINETIS_DMA_TCD_CITER(ch->ind)) & 0x7FFF;
+}
 
 
 /****************************************************************************
@@ -82,8 +146,36 @@
  *
  ****************************************************************************/
 
-void kinetis_dmainitilaize(void)
+void weak_function up_dmainitialize(void)
 {
+  int i;
+  uint32_t regval;
+
+  for (i = 0; i < DMA_N_CHANNELS; i++) {
+    channels[i].ind = i;
+    channels[i].used = false;
+    channels[i].irq = KINETIS_IRQ_FIRST + (i % DMA_CHN_PER_GROUP);
+
+    if (i < DMA_CHN_PER_GROUP) {
+      /* Attach DMA interrupt */
+      (void)irq_attach(channels[i].irq, kinetis_dmainterrupt, (void *)i);
+    }
+  }
+
+  // Enable clocking for DMA
+  regval  = getreg32(KINETIS_SIM_SCGC7);
+  regval |= SIM_SCGC7_DMA;
+  putreg32(regval, KINETIS_SIM_SCGC7);
+
+  // Configure DMA for round robin arbitration
+  regval = 0;
+  regval |= DMA_CR_ERCA | DMA_CR_ERGA;
+  putreg32(regval, KINETIS_DMA_CR);
+
+  /* Enable clocking for the DMA mux*/
+  regval  = getreg32(KINETIS_SIM_SCGC6);
+  regval |= SIM_SCGC6_DMAMUX0;
+  putreg32(regval, KINETIS_SIM_SCGC6);
 
 }
 
@@ -101,9 +193,54 @@ void kinetis_dmainitilaize(void)
  *
  ****************************************************************************/
 
-DMA_HANDLE kinetis_dmachannel(void)
+DMA_HANDLE kinetis_dmachannel(KINETIS_DMA_REQUEST_SRC src, uint32_t per_addr, KINETIS_DMA_DATA_SZ per_data_sz, KINETIS_DMA_DIRECTION dir)
 {
-	return NULL;
+  int i;
+  int ch_ind = -1;
+  uint8_t regval;
+  irqstate_t flags;
+  struct kinetis_dma_ch *ch;
+
+  // Find available channel
+  flags = enter_critical_section();
+  for (i = 0; i < DMA_N_CHANNELS; i++) {
+    if (!channels[i].used) {
+      ch_ind = i;
+      channels[ch_ind].used = true;
+      break;
+    }
+  }
+  leave_critical_section(flags);
+
+  if (ch_ind == -1) {
+    // No available channel
+    return NULL;
+  }
+  ch = &channels[ch_ind];
+  ch->dir = dir;
+
+  /* DMAMUX */
+  // Set DMA channel source and disable the mux for this channel
+  ch->src = src;
+  regval = 0;
+  //regval |= (uint8_t)src; todo
+  putreg8(regval, KINETIS_DMAMUX_CHCFG(ch_ind));
+
+  /* DMA */
+  // Set peripheral address in TCD
+  if (ch->dir == KINETIS_DMA_DIRECTION_PERIPHERAL_TO_MEMORY) {
+    putreg32(per_addr, KINETIS_DMA_TCD_SADDR(ch->ind));
+    putreg16(0, KINETIS_DMA_TCD_SOFF(ch->ind));
+    putreg16(((uint16_t)per_data_sz) << DMA_TCD_ATTR_SSIZE_SHIFT, KINETIS_DMA_TCD_ATTR(ch->ind));
+  } else if (ch->dir == KINETIS_DMA_DIRECTION_MEMORY_TO_PERIPHERAL) {
+    putreg32(per_addr, KINETIS_DMA_TCD_DADDR(ch->ind));
+    putreg16(0, KINETIS_DMA_TCD_DOFF(ch->ind));
+    putreg16(((uint16_t)per_data_sz) << DMA_TCD_ATTR_DSIZE_SHIFT, KINETIS_DMA_TCD_ATTR(ch->ind));
+  } else {
+    return NULL;
+  }
+
+  return (DMA_HANDLE)ch;
 }
 
 /****************************************************************************
@@ -121,7 +258,19 @@ DMA_HANDLE kinetis_dmachannel(void)
 
 void kinetis_dmafree(DMA_HANDLE handle)
 {
+  struct kinetis_dma_ch *ch = (struct kinetis_dma_ch *)handle;
+  uint8_t regval;
+  irqstate_t flags;
 
+  DEBUGASSERT(handle != NULL);
+
+  // Disable DMA channel in the dmamux
+  regval = 0;
+  putreg8(regval, KINETIS_DMAMUX_CHCFG(ch->ind));
+
+  flags = enter_critical_section();
+  ch->used = false;
+  leave_critical_section(flags);
 }
 
 /****************************************************************************
@@ -132,10 +281,45 @@ void kinetis_dmafree(DMA_HANDLE handle)
  *
  ****************************************************************************/
 
-int kinetis_dmarxsetup(DMA_HANDLE handle, uint32_t control, uint32_t config,
-                  uint32_t srcaddr, uint32_t destaddr, size_t nbytes)
+int kinetis_dmasetup(DMA_HANDLE handle, uint32_t mem_addr, KINETIS_DMA_DATA_SZ mem_data_sz, size_t nbytes, const kinetis_dmachannel_config *config)
 {
-  return -1;
+  struct kinetis_dma_ch *ch = (struct kinetis_dma_ch *)handle;
+  uint16_t regval = 0;
+
+  DEBUGASSERT(handle != NULL);
+
+  if (ch->dir == KINETIS_DMA_DIRECTION_PERIPHERAL_TO_MEMORY) {
+    putreg32(mem_addr, KINETIS_DMA_TCD_DADDR(ch->ind));
+    putreg16(1, KINETIS_DMA_TCD_DOFF(ch->ind));
+    putreg16(((uint16_t)mem_data_sz) << DMA_TCD_ATTR_DSIZE_SHIFT, KINETIS_DMA_TCD_ATTR(ch->ind));
+  } else if (ch->dir == KINETIS_DMA_DIRECTION_MEMORY_TO_PERIPHERAL) {
+    putreg32(mem_addr, KINETIS_DMA_TCD_SADDR(ch->ind));
+    putreg16(1, KINETIS_DMA_TCD_SOFF(ch->ind));
+    putreg16(((uint16_t)mem_data_sz) << DMA_TCD_ATTR_SSIZE_SHIFT, KINETIS_DMA_TCD_ATTR(ch->ind));
+  } else {
+    return -1;
+  }
+
+  regval = getreg16(KINETIS_DMA_TCD_CSR(ch->ind));
+
+  regval &= ~DMA_TCD_CSR_MAJORLINKCH_MASK;
+  // Link channel with itself
+  regval |= config->circular ? (ch->ind | DMA_TCD_CSR_MAJORELINK) : 0;
+  // Enable major half complete and major complete interrupts
+  regval |= config->halfcomplete_interrupt ? DMA_TCD_CSR_INTHALF : 0;
+  regval |= DMA_TCD_CSR_INTMAJOR;
+
+  putreg16(regval, KINETIS_DMA_TCD_CSR(ch->ind));
+
+  regval = nbytes & 0x7FFF;
+  // todo: ensure that 0<= nbytes <= 0x7FFF!
+  putreg16(regval, KINETIS_DMA_TCD_BITER(ch->ind));
+  putreg16(regval, KINETIS_DMA_TCD_CITER(ch->ind));
+
+  // Set minor loop count
+  putreg16(1, KINETIS_DMA_TCD_NBYTES(ch->ind));
+
+  return OK;
 }
 
 /****************************************************************************
@@ -148,7 +332,27 @@ int kinetis_dmarxsetup(DMA_HANDLE handle, uint32_t control, uint32_t config,
 
 int kinetis_dmastart(DMA_HANDLE handle, dma_callback_t callback, void *arg)
 {
-  return -1;
+  struct kinetis_dma_ch *ch = (struct kinetis_dma_ch *)handle;
+  uint8_t regval;
+
+  DEBUGASSERT(handle != NULL);
+
+  ch->callback = callback;
+  ch->arg = arg;
+
+  // todo move
+  regval = getreg8(KINETIS_DMAMUX_CHCFG(ch->ind));
+  regval |= (uint8_t)ch->src;
+  regval |= DMAMUX_CHCFG_ENBL;
+  putreg8(regval, KINETIS_DMAMUX_CHCFG(ch->ind));
+
+  // Enable request register for this channel
+  putreg8(ch->ind, KINETIS_DMA_SERQ);
+
+
+  // todo: enble also error interrupt register? (seei)?
+  // todo: set ssrt? (24.3.10)?
+  return OK;
 }
 
 
@@ -164,6 +368,11 @@ int kinetis_dmastart(DMA_HANDLE handle, dma_callback_t callback, void *arg)
 
 void kinetis_dmastop(DMA_HANDLE handle)
 {
+  struct kinetis_dma_ch *ch = (struct kinetis_dma_ch *)handle;
+
+  DEBUGASSERT(handle != NULL);
+
+  putreg8(ch->ind, KINETIS_DMA_CERQ);
 }
 
 /****************************************************************************
@@ -177,6 +386,8 @@ void kinetis_dmastop(DMA_HANDLE handle)
 #ifdef CONFIG_DEBUG_DMA
 void kinetis_dmasample(DMA_HANDLE handle, struct kinetis_dmaregs_s *regs)
 {
+
+  DEBUGASSERT(handle != NULL);
 
 }
 #endif
@@ -193,6 +404,7 @@ void kinetis_dmasample(DMA_HANDLE handle, struct kinetis_dmaregs_s *regs)
 void kinetis_dmadump(DMA_HANDLE handle, const struct kinetis_dmaregs_s *regs,
                 const char *msg)
 {
+  DEBUGASSERT(handle != NULL);
 
 }
 #endif
