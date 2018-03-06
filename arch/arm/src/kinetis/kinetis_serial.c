@@ -60,6 +60,7 @@
 #include <arch/serial.h>
 #include <arch/board/board.h>
 
+#include "cache.h"
 #include "up_arch.h"
 #include "up_internal.h"
 
@@ -68,6 +69,8 @@
 #include "chip/kinetis_uart.h"
 #include "chip/kinetis_pinmux.h"
 #include "kinetis.h"
+#include "kinetis_dma.h"
+#include "kinetis_uart.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -95,26 +98,32 @@
 #    define CONSOLE_DEV         g_uart0port /* UART0 is console */
 #    define TTYS0_DEV           g_uart0port /* UART0 is ttyS0 */
 #    define UART0_ASSIGNED      1
+#    define UART0_CONSOLE       1
 #elif defined(CONFIG_UART1_SERIAL_CONSOLE)
 #    define CONSOLE_DEV         g_uart1port /* UART1 is console */
 #    define TTYS0_DEV           g_uart1port /* UART1 is ttyS0 */
 #    define UART1_ASSIGNED      1
+#    define UART1_CONSOLE       1
 #elif defined(CONFIG_UART2_SERIAL_CONSOLE)
 #    define CONSOLE_DEV         g_uart2port /* UART2 is console */
 #    define TTYS0_DEV           g_uart2port /* UART2 is ttyS0 */
 #    define UART2_ASSIGNED      1
+#    define UART2_CONSOLE       1
 #elif defined(CONFIG_UART3_SERIAL_CONSOLE)
 #    define CONSOLE_DEV         g_uart3port /* UART3 is console */
 #    define TTYS0_DEV           g_uart3port /* UART3 is ttyS0 */
 #    define UART3_ASSIGNED      1
+#    define UART3_CONSOLE       1
 #elif defined(CONFIG_UART4_SERIAL_CONSOLE)
 #    define CONSOLE_DEV         g_uart4port /* UART4 is console */
 #    define TTYS0_DEV           g_uart4port /* UART4 is ttyS0 */
 #    define UART4_ASSIGNED      1
+#    define UART4_CONSOLE       1
 #elif defined(CONFIG_UART5_SERIAL_CONSOLE)
 #    define CONSOLE_DEV         g_uart5port /* UART5 is console */
 #    define TTYS5_DEV           g_uart5port /* UART5 is ttyS0 */
 #    define UART5_ASSIGNED      1
+#    define UART5_CONSOLE       1
 #else
 #  undef CONSOLE_DEV                        /* No console */
 #  if defined(CONFIG_KINETIS_UART0)
@@ -136,6 +145,23 @@
 #    define TTYS0_DEV           g_uart5port /* UART5 is ttyS0 */
 #    define UART5_ASSIGNED      1
 #  endif
+#endif
+
+/* Is DMA used on the console UART? */
+
+#undef SERIAL_HAVE_CONSOLE_DMA
+#if defined(CONFIG_UART0_RXDMA) && defined(UART0_CONSOLE)
+#  define SERIAL_HAVE_CONSOLE_DMA 1
+#elif defined(CONFIG_UART1_RXDMA) && defined(UART1_CONSOLE)
+#  define SERIAL_HAVE_CONSOLE_DMA 1
+#elif defined(CONFIG_UART2_RXDMA) && defined(UART2_CONSOLE)
+#  define SERIAL_HAVE_CONSOLE_DMA 1
+#elif defined(CONFIG_UART3_RXDMA) && defined(UART3_CONSOLE)
+#  define SERIAL_HAVE_CONSOLE_DMA 1
+#elif defined(CONFIG_UART4_RXDMA) && defined(UART4_CONSOLE)
+#  define SERIAL_HAVE_CONSOLE_DMA 1
+#elif defined(CONFIG_UART5_RXDMA) && defined(UART5_CONSOLE)
+#  define SERIAL_HAVE_CONSOLE_DMA 1
 #endif
 
 /* Pick ttys1.  This could be any of UART0-5 excluding the console UART. */
@@ -230,6 +256,33 @@
 #  define UART5_ASSIGNED      1
 #endif
 
+/* The DMA buffer size when using RX DMA to emulate a FIFO.
+ *
+ * When streaming data, the generic serial layer will be called every time
+ * the FIFO receives half this number of bytes.
+ *
+ * This buffer size should be an even multiple of the Cortex-M7 D-Cache line
+ * size, ARMV7M_DCACHE_LINESIZE, so that it can be individually invalidated.
+ *
+ * Should there be a Cortex-M7 without a D-Cache, ARMV7M_DCACHE_LINESIZE
+ * would be zero!
+ */
+
+#  if !defined(ARMV7M_DCACHE_LINESIZE) || ARMV7M_DCACHE_LINESIZE == 0
+#    undef ARMV7M_DCACHE_LINESIZE
+#    define ARMV7M_DCACHE_LINESIZE 32
+#  endif
+
+#  if !defined(CONFIG_KINETIS_SERIAL_RXDMA_BUFFER_SIZE) || \
+      (CONFIG_KINETIS_SERIAL_RXDMA_BUFFER_SIZE < ARMV7M_DCACHE_LINESIZE)
+#    undef CONFIG_KINETIS_SERIAL_RXDMA_BUFFER_SIZE
+#    define CONFIG_KINETIS_SERIAL_RXDMA_BUFFER_SIZE ARMV7M_DCACHE_LINESIZE
+#  endif
+
+#  define RXDMA_BUFFER_MASK   ((uint32_t)(ARMV7M_DCACHE_LINESIZE - 1))
+#  define RXDMA_BUFFER_SIZE   ((CONFIG_KINETIS_SERIAL_RXDMA_BUFFER_SIZE \
+                                + RXDMA_BUFFER_MASK) & ~RXDMA_BUFFER_MASK)
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -260,6 +313,18 @@ struct up_dev_s
 #ifdef CONFIG_SERIAL_OFLOWCONTROL
   uint32_t  cts_gpio;  /* UART CTS GPIO pin configuration */
 #endif
+
+#ifdef SERIAL_HAVE_DMA
+  const KINETIS_DMA_REQUEST_SRC rxdma_reqsrc;
+#endif
+
+/* RX DMA state */
+#ifdef SERIAL_HAVE_DMA
+  DMA_HANDLE        rxdma;     /* currently-open receive DMA stream */
+  uint32_t          rxdmanext; /* Next byte in the DMA buffer to be read */
+  char      *const  rxfifo;    /* Receive DMA buffer */
+#endif
+
 };
 
 /****************************************************************************
@@ -289,6 +354,16 @@ static bool up_txready(struct uart_dev_s *dev);
 static bool up_txempty(struct uart_dev_s *dev);
 #endif
 
+#ifdef SERIAL_HAVE_DMA
+static int  up_dma_nextrx(struct up_dev_s *priv);
+static int  up_dma_setup(struct uart_dev_s *dev);
+static void up_dma_shutdown(struct uart_dev_s *dev);
+static int  up_dma_receive(struct uart_dev_s *dev, unsigned int *status);
+static bool up_dma_rxavailable(struct uart_dev_s *dev);
+
+static void up_dma_rxcallback(DMA_HANDLE handle, void *arg, int result);
+#endif
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -316,31 +391,85 @@ static const struct uart_ops_s g_uart_ops =
 #endif
 };
 
+#ifdef SERIAL_HAVE_DMA
+static const struct uart_ops_s g_uart_dma_ops =
+{
+  .setup          = up_dma_setup,
+  .shutdown       = up_dma_shutdown,
+  .attach         = up_attach,
+  .detach         = up_detach,
+  .ioctl          = up_ioctl,
+  .receive        = up_dma_receive,
+  .rxint          = up_rxint,
+  .rxavailable    = up_dma_rxavailable,
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
+  .rxflowcontrol  = up_rxflowcontrol,
+#endif
+  .send           = up_send,
+  .txint          = up_txint,
+  .txready        = up_txready,
+#ifdef CONFIG_KINETIS_UARTFIFOS
+  .txempty        = up_txempty,
+#else
+  .txempty        = up_txready,
+#endif
+};
+#endif
+
 /* I/O buffers */
 
 #ifdef CONFIG_KINETIS_UART0
 static char g_uart0rxbuffer[CONFIG_UART0_RXBUFSIZE];
 static char g_uart0txbuffer[CONFIG_UART0_TXBUFSIZE];
+# ifdef CONFIG_UART0_RXDMA
+static char g_uart0rxfifo[RXDMA_BUFFER_SIZE]
+  __attribute__((aligned(ARMV7M_DCACHE_LINESIZE)));
+# endif
 #endif
+
 #ifdef CONFIG_KINETIS_UART1
 static char g_uart1rxbuffer[CONFIG_UART1_RXBUFSIZE];
 static char g_uart1txbuffer[CONFIG_UART1_TXBUFSIZE];
+# ifdef CONFIG_UART1_RXDMA
+static char g_uart1rxfifo[RXDMA_BUFFER_SIZE]
+  __attribute__((aligned(ARMV7M_DCACHE_LINESIZE)));
+# endif
 #endif
+
 #ifdef CONFIG_KINETIS_UART2
 static char g_uart2rxbuffer[CONFIG_UART2_RXBUFSIZE];
 static char g_uart2txbuffer[CONFIG_UART2_TXBUFSIZE];
+# ifdef CONFIG_UART2_RXDMA
+static char g_uart2rxfifo[RXDMA_BUFFER_SIZE]
+  __attribute__((aligned(ARMV7M_DCACHE_LINESIZE)));
+# endif
 #endif
+
 #ifdef CONFIG_KINETIS_UART3
 static char g_uart3rxbuffer[CONFIG_UART3_RXBUFSIZE];
 static char g_uart3txbuffer[CONFIG_UART3_TXBUFSIZE];
+# ifdef CONFIG_UART3_RXDMA
+static char g_uart3rxfifo[RXDMA_BUFFER_SIZE]
+  __attribute__((aligned(ARMV7M_DCACHE_LINESIZE)));
+# endif
 #endif
+
 #ifdef CONFIG_KINETIS_UART4
 static char g_uart4rxbuffer[CONFIG_UART4_RXBUFSIZE];
 static char g_uart4txbuffer[CONFIG_UART4_TXBUFSIZE];
+# ifdef CONFIG_UART4_RXDMA
+static char g_uart4rxfifo[RXDMA_BUFFER_SIZE]
+  __attribute__((aligned(ARMV7M_DCACHE_LINESIZE)));
+# endif
 #endif
+
 #ifdef CONFIG_KINETIS_UART5
 static char g_uart5rxbuffer[CONFIG_UART5_RXBUFSIZE];
 static char g_uart5txbuffer[CONFIG_UART5_TXBUFSIZE];
+# ifdef CONFIG_UART5_RXDMA
+static char g_uart5rxfifo[RXDMA_BUFFER_SIZE]
+  __attribute__((aligned(ARMV7M_DCACHE_LINESIZE)));
+# endif
 #endif
 
 /* This describes the state of the Kinetis UART0 port. */
@@ -367,6 +496,11 @@ static struct up_dev_s g_uart0priv =
   .iflow         = true,
   .rts_gpio      = PIN_UART0_RTS,
 #endif
+#ifdef CONFIG_UART0_RXDMA
+  .rxdma_reqsrc = KINETIS_DMA_REQUEST_SRC_UART0_RX,
+  .rxfifo = g_uart0rxfifo,
+#endif
+
 };
 
 static uart_dev_t g_uart0port =
@@ -381,7 +515,11 @@ static uart_dev_t g_uart0port =
     .size   = CONFIG_UART0_TXBUFSIZE,
     .buffer = g_uart0txbuffer,
    },
+#ifdef CONFIG_UART0_RXDMA
+  .ops      = &g_uart_dma_ops,
+#else
   .ops      = &g_uart_ops,
+#endif
   .priv     = &g_uart0priv,
 };
 #endif
@@ -410,6 +548,10 @@ static struct up_dev_s g_uart1priv =
   .iflow         = true,
   .rts_gpio      = PIN_UART1_RTS,
 #endif
+#ifdef CONFIG_UART1_RXDMA
+  .rxdma_reqsrc = KINETIS_DMA_REQUEST_SRC_UART1_RX,
+  .rxfifo = g_uart1rxfifo,
+#endif
 };
 
 static uart_dev_t g_uart1port =
@@ -424,7 +566,11 @@ static uart_dev_t g_uart1port =
     .size   = CONFIG_UART1_TXBUFSIZE,
     .buffer = g_uart1txbuffer,
    },
+#ifdef CONFIG_UART1_RXDMA
+  .ops      = &g_uart_dma_ops,
+#else
   .ops      = &g_uart_ops,
+#endif
   .priv     = &g_uart1priv,
 };
 #endif
@@ -453,6 +599,10 @@ static struct up_dev_s g_uart2priv =
   .iflow         = true,
   .rts_gpio      = PIN_UART2_RTS,
 #endif
+#ifdef CONFIG_UART2_RXDMA
+  .rxdma_reqsrc = KINETIS_DMA_REQUEST_SRC_UART2_RX,
+  .rxfifo = g_uart2rxfifo,
+#endif
 };
 
 static uart_dev_t g_uart2port =
@@ -467,7 +617,11 @@ static uart_dev_t g_uart2port =
     .size   = CONFIG_UART2_TXBUFSIZE,
     .buffer = g_uart2txbuffer,
    },
+#ifdef CONFIG_UART2_RXDMA
+  .ops      = &g_uart_dma_ops,
+#else
   .ops      = &g_uart_ops,
+#endif
   .priv     = &g_uart2priv,
 };
 #endif
@@ -496,6 +650,10 @@ static struct up_dev_s g_uart3priv =
   .iflow         = true,
   .rts_gpio      = PIN_UART3_RTS,
 #endif
+#ifdef CONFIG_UART3_RXDMA
+  .rxdma_reqsrc = KINETIS_DMA_REQUEST_SRC_UART3_RX,
+  .rxfifo = g_uart3rxfifo,
+#endif
 };
 
 static uart_dev_t g_uart3port =
@@ -510,7 +668,11 @@ static uart_dev_t g_uart3port =
     .size   = CONFIG_UART3_TXBUFSIZE,
     .buffer = g_uart3txbuffer,
    },
+#ifdef CONFIG_UART3_RXDMA
+  .ops      = &g_uart_dma_ops,
+#else
   .ops      = &g_uart_ops,
+#endif
   .priv     = &g_uart3priv,
 };
 #endif
@@ -539,6 +701,10 @@ static struct up_dev_s g_uart4priv =
   .iflow         = true,
   .rts_gpio      = PIN_UART4_RTS,
 #endif
+#ifdef CONFIG_UART4_RXDMA
+  .rxdma_reqsrc = KINETIS_DMA_REQUEST_SRC_UART4_RXTX,
+  .rxfifo = g_uart4rxfifo,
+#endif
 };
 
 static uart_dev_t g_uart4port =
@@ -553,7 +719,11 @@ static uart_dev_t g_uart4port =
     .size   = CONFIG_UART4_TXBUFSIZE,
     .buffer = g_uart4txbuffer,
    },
+#ifdef CONFIG_UART4_RXDMA
+  .ops      = &g_uart_dma_ops,
+#else
   .ops      = &g_uart_ops,
+#endif
   .priv     = &g_uart4priv,
 };
 #endif
@@ -582,6 +752,10 @@ static struct up_dev_s g_uart5priv =
   .iflow         = true,
   .rts_gpio      = PIN_UART5_RTS,
 #endif
+#ifdef CONFIG_UART5_RXDMA
+  .rxdma_reqsrc = KINETIS_DMA_REQUEST_SRC_UART5_RX,
+  .rxfifo = g_uart5rxfifo,
+#endif
 };
 
 static uart_dev_t g_uart5port =
@@ -596,7 +770,11 @@ static uart_dev_t g_uart5port =
     .size   = CONFIG_UART5_TXBUFSIZE,
     .buffer = g_uart5txbuffer,
    },
+#ifdef CONFIG_UART5_RXDMA
+  .ops      = &g_uart_dma_ops,
+#else
   .ops      = &g_uart_ops,
+#endif
   .priv     = &g_uart5priv,
 };
 #endif
@@ -679,6 +857,29 @@ static void up_disableuartint(struct up_dev_s *priv, uint8_t *ie)
 #endif
 
 /****************************************************************************
+ * Name: get_and_clear_uart_status
+ *
+ * Description:
+ *   Clears the error flags of the uart if an error occurred in s1 and returns the status
+ *
+ * Input Parameters:
+ *   u_dev_s
+ *
+ * Returns Value:
+ *   Uart status s1
+ *
+ ****************************************************************************/
+static uint8_t get_and_clear_uart_status(struct up_dev_s *priv) {
+  uint8_t s1;
+  s1 = up_serialin(priv, KINETIS_UART_S1_OFFSET);
+  if ((s1 & 0x0F) != 0) {
+    // Clear status flag if an error occurred
+    (void)up_serialin(priv, KINETIS_UART_D_OFFSET);
+  }
+  return s1;
+}
+
+/****************************************************************************
  * Name: up_setup
  *
  * Description:
@@ -727,6 +928,71 @@ static int up_setup(struct uart_dev_s *dev)
 }
 
 /****************************************************************************
+ * Name: up_dma_setup
+ *
+ * Description:
+ *   Configure the UART baud, bits, parity, etc. This method is called the
+ *   first time that the serial port is opened.
+ *
+ ****************************************************************************/
+#ifdef SERIAL_HAVE_DMA
+static int up_dma_setup(struct uart_dev_s *dev)
+{
+  struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
+  int result;
+  uint8_t regval;
+  DMA_HANDLE rxdma = NULL;
+
+  /* Do the basic UART setup first, unless we are the console */
+  if (!dev->isconsole)
+    {
+      result = up_setup(dev);
+      if (result != OK)
+        {
+          return result;
+        }
+    }
+
+  /* Acquire the DMA channel.*/
+  rxdma = kinetis_dmachannel(priv->rxdma_reqsrc,
+                             priv->uartbase + KINETIS_UART_D_OFFSET,
+                             KINETIS_DMA_DATA_SZ_8BIT,
+                             KINETIS_DMA_DIRECTION_PERIPHERAL_TO_MEMORY);
+  if (rxdma == NULL) {
+    // A DMA channel could not be acquired
+    return -1;
+  }
+
+  /* Configure for circular DMA reception into the RX FIFO */
+  const kinetis_dmachannel_config config = {
+    .circular = true,
+    .halfcomplete_interrupt = true
+  };
+  kinetis_dmasetup(rxdma, (uint32_t)priv->rxfifo, RXDMA_BUFFER_SIZE, &config);
+
+  /* Reset our DMA shadow pointer to match the address just
+   * programmed above.
+   */
+  priv->rxdmanext = 0;
+
+  /* Enable receive DMA for the UART */
+  regval = up_serialin(priv, KINETIS_UART_C5_OFFSET);
+  regval |= UART_C5_RDMAS;
+  up_serialout(priv, KINETIS_UART_C5_OFFSET, regval);
+
+  /* Start the DMA channel, and arrange for callbacks at the half and
+   * full points in the FIFO.  This ensures that we have half a FIFO
+   * worth of time to claim bytes before they are overwritten.
+   */
+
+  kinetis_dmastart(rxdma, up_dma_rxcallback, (void *)dev);
+
+  priv->rxdma = rxdma;
+  return OK;
+}
+#endif
+
+/****************************************************************************
  * Name: up_shutdown
  *
  * Description:
@@ -747,6 +1013,36 @@ static void up_shutdown(struct uart_dev_s *dev)
 
   kinetis_uartreset(priv->uartbase);
 }
+
+/****************************************************************************
+ * Name: up_dma_shutdown
+ *
+ * Description:
+ *   Disable the UART.  This method is called when the serial
+ *   port is closed
+ *
+ ****************************************************************************/
+
+#ifdef SERIAL_HAVE_DMA
+static void up_dma_shutdown(struct uart_dev_s *dev)
+{
+  struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
+  DMA_HANDLE rxdma = priv->rxdma;
+  priv->rxdma = NULL;
+
+  /* Perform the normal UART shutdown */
+
+  up_shutdown(dev);
+
+  /* Stop the DMA channel */
+
+  kinetis_dmastop(rxdma);
+
+  /* Release the DMA channel */
+
+  kinetis_dmafree(rxdma);
+}
+#endif
 
 /****************************************************************************
  * Name: up_attach
@@ -1257,6 +1553,65 @@ static int up_receive(struct uart_dev_s *dev, uint32_t *status)
 }
 
 /****************************************************************************
+ * Name: up_dma_receive
+ *
+ * Description:
+ *   Called (usually) from the interrupt level to receive one
+ *   character from the UART.  Error bits associated with the
+ *   receipt are provided in the return 'status'.
+ *
+ ****************************************************************************/
+
+#ifdef SERIAL_HAVE_DMA
+static int up_dma_receive(struct uart_dev_s *dev, unsigned int *status)
+{
+  struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
+  int c = 0;
+  uint8_t s1;
+
+  /* If additional bytes have been added to the DMA buffer, then we will need
+   * to invalidate the DMA buffer before reading the byte.
+   */
+
+  /* Clear uart errors and return status information */
+  s1 = get_and_clear_uart_status(priv);
+  if (status)
+    {
+      *status = (uint32_t)s1;
+    }
+
+  if (up_dma_nextrx(priv) != priv->rxdmanext)
+    {
+
+      /* Invalidate the DMA buffer */
+
+      arch_invalidate_dcache((uintptr_t)priv->rxfifo,
+                             (uintptr_t)priv->rxfifo + RXDMA_BUFFER_SIZE);
+
+      /* Now read from the DMA buffer */
+      c = priv->rxfifo[priv->rxdmanext];
+
+      priv->rxdmanext++;
+      if (priv->rxdmanext == RXDMA_BUFFER_SIZE)
+        {
+          // HACK: Skip the first byte since it is duplicate of last one.
+          if (up_dma_nextrx(priv) != 0)
+            {
+              priv->rxdmanext = 1;
+            }
+          else
+            {
+              // Try to catch race conditions that will spin on the whole buffer again.
+              priv->rxdmanext = 0;
+            }
+        }
+    }
+
+  return c;
+}
+#endif
+
+/****************************************************************************
  * Name: up_rxint
  *
  * Description:
@@ -1324,6 +1679,27 @@ static bool up_rxavailable(struct uart_dev_s *dev)
   return (up_serialin(priv, KINETIS_UART_S1_OFFSET) & UART_S1_RDRF) != 0;
 #endif
 }
+
+/****************************************************************************
+ * Name: up_dma_rxavailable
+ *
+ * Description:
+ *   Return true if the receive register is not empty
+ *
+ ****************************************************************************/
+
+#ifdef SERIAL_HAVE_DMA
+static bool up_dma_rxavailable(struct uart_dev_s *dev)
+{
+  struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
+
+  /* Compare our receive pointer to the current DMA pointer, if they
+   * do not match, then there are bytes to be received.
+   */
+
+  return (up_dma_nextrx(priv) != priv->rxdmanext);
+}
+#endif
 
 /****************************************************************************
  * Name: up_rxflowcontrol
@@ -1395,6 +1771,26 @@ static bool up_rxflowcontrol(struct uart_dev_s *dev,
 #endif
 
   return false;
+}
+#endif
+
+/****************************************************************************
+ * Name: up_dma_nextrx
+ *
+ * Description:
+ *   Returns the index into the RX FIFO where the DMA will place the next
+ *   byte that it receives.
+ *
+ ****************************************************************************/
+
+#ifdef SERIAL_HAVE_DMA
+static int up_dma_nextrx(struct up_dev_s *priv)
+{
+  size_t dmaresidual;
+
+  dmaresidual = kinetis_dmaresidual(priv->rxdma);
+
+  return (RXDMA_BUFFER_SIZE - (int)dmaresidual) % RXDMA_BUFFER_SIZE;
 }
 #endif
 
@@ -1503,6 +1899,27 @@ static bool up_txempty(struct uart_dev_s *dev)
 #endif
 
 /****************************************************************************
+ * Name: up_dma_rxcallback
+ *
+ * Description:
+ *   This function checks the current DMA state and calls the generic
+ *   serial stack when bytes appear to be available.
+ *
+ ****************************************************************************/
+
+#ifdef SERIAL_HAVE_DMA
+static void up_dma_rxcallback(DMA_HANDLE handle, void *arg, int result)
+{
+  struct uart_dev_s *dev = (struct uart_dev_s *)arg;
+
+  if (up_dma_rxavailable(dev))
+    {
+      uart_recvchars(dev);
+    }
+}
+#endif
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -1574,6 +1991,11 @@ unsigned int kinetis_uart_serialinit(unsigned int first)
 
 #ifdef HAVE_UART_CONSOLE
   (void)uart_register("/dev/console", &CONSOLE_DEV);
+
+#ifdef SERIAL_HAVE_CONSOLE_DMA
+  /* If we need to re-initialise the console to enable DMA do that here. */
+  up_dma_setup(&CONSOLE_DEV);
+#endif
 #endif
 
   /* Register all UARTs */
@@ -1602,6 +2024,70 @@ unsigned int kinetis_uart_serialinit(unsigned int first)
 #endif
   return first;
 }
+
+/****************************************************************************
+ * Name: kinetis_serial_dma_poll
+ *
+ * Description:
+ *   Checks receive DMA buffers for received bytes that have not accumulated
+ *   to the point where the DMA half/full interrupt has triggered.
+ *
+ *   This function should be called from a timer or other periodic context.
+ *
+ ****************************************************************************/
+
+#ifdef SERIAL_HAVE_DMA
+void kinetis_serial_dma_poll(void)
+{
+    irqstate_t flags;
+
+    flags = enter_critical_section();
+
+#ifdef CONFIG_UART0_RXDMA
+  if (g_uart0priv.rxdma != NULL)
+    {
+      up_dma_rxcallback(g_uart0priv.rxdma, (void *)&g_uart0port, 0);
+    }
+#endif
+
+#ifdef CONFIG_UART1_RXDMA
+  if (g_uart1priv.rxdma != NULL)
+    {
+      up_dma_rxcallback(g_uart1priv.rxdma, (void *)&g_uart1port, 0);
+    }
+#endif
+
+#ifdef CONFIG_UART2_RXDMA
+  if (g_uart2priv.rxdma != NULL)
+    {
+      up_dma_rxcallback(g_uart2priv.rxdma, (void *)&g_uart2port, 0);
+    }
+#endif
+
+#ifdef CONFIG_UART3_RXDMA
+  if (g_uart3priv.rxdma != NULL)
+    {
+      up_dma_rxcallback(g_uart3priv.rxdma, (void *)&g_uart3port, 0);
+    }
+#endif
+
+#ifdef CONFIG_UART4_RXDMA
+  if (g_uart4priv.rxdma != NULL)
+    {
+      up_dma_rxcallback(g_uart4priv.rxdma, (void *)&g_uart4port, 0);
+    }
+#endif
+
+#ifdef CONFIG_UART5_RXDMA
+  if (g_uart5priv.rxdma != NULL)
+    {
+      up_dma_rxcallback(g_uart5priv.rxdma, (void *)&g_uart5port, 0);
+    }
+#endif
+
+  leave_critical_section(flags);
+}
+#endif
 
 /****************************************************************************
  * Name: up_putc

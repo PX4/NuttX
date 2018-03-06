@@ -282,10 +282,15 @@ config ARCH_FAMILY_K66
 	select KINETIS_HAVE_LPUART0
 	select KINETIS_HAVE_TPM1
 	select KINETIS_HAVE_TPM2
+	select KINETIS_HAVE_DMA
 
 menu "Kinetis Peripheral Support"
 
 config KINETIS_HAVE_FTM3
+	bool
+	default n
+
+config KINETIS_HAVE_DMA
 	bool
 	default n
 
@@ -649,6 +654,8 @@ config KINETIS_FTFL
 config KINETIS_DMA
 	bool "DMA"
 	default n
+	depends on KINETIS_HAVE_DMA
+	select ARCH_DMA
 	---help---
 		Support DMA
 
