@@ -539,7 +539,7 @@
                                                     /* Bit 0:  Reserved */
 #define DMA_CR_EDBG                       (1 << 1)  /* Bit 1:  Enable debug */
 #define DMA_CR_ERCA                       (1 << 2)  /* Bit 2:  Enable round robin channel arbitration */
-                                                    /* Bit 3:  Reserved */
+#define DMA_CR_ERGA                       (1 << 3)  /* Bit 3:  Enable round robin group arbitration */
 #define DMA_CR_HOE                        (1 << 4)  /* Bit 4:  Halt on error */
 #define DMA_CR_HALT                       (1 << 5)  /* Bit 5:  Halt DMA operations */
 #define DMA_CR_CLM                        (1 << 6)  /* Bit 6:  Continuous link mode */
