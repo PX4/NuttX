@@ -94,10 +94,54 @@ typedef enum _KINETIS_DMA_REQUEST_SRC {
   KINETIS_DMA_REQUEST_SRC_UART3_RX = 8,
   KINETIS_DMA_REQUEST_SRC_UART3_TX = 9,
   KINETIS_DMA_REQUEST_SRC_UART4_RXTX = 10,
+  KINETIS_DMA_REQUEST_SRC_I2S0_RX = 12,
+  KINETIS_DMA_REQUEST_SRC_I2S0_TX = 13,
+  KINETIS_DMA_REQUEST_SRC_SPI0_RX = 14,
+  KINETIS_DMA_REQUEST_SRC_SPI0_TX = 15,
+  KINETIS_DMA_REQUEST_SRC_SPI1_RX = 16,
+  KINETIS_DMA_REQUEST_SRC_SPI1_TX = 17,
+  KINETIS_DMA_REQUEST_SRC_I2C0__I2C3 = 18,
+  KINETIS_DMA_REQUEST_SRC_I2C1__I2C2 = 19,
+  KINETIS_DMA_REQUEST_SRC_FTM0_CH0 = 20,
+  KINETIS_DMA_REQUEST_SRC_FTM0_CH1 = 21,
+  KINETIS_DMA_REQUEST_SRC_FTM0_CH2 = 22,
+  KINETIS_DMA_REQUEST_SRC_FTM0_CH3 = 23,
+  KINETIS_DMA_REQUEST_SRC_FTM0_CH4 = 24,
+  KINETIS_DMA_REQUEST_SRC_FTM0_CH5 = 25,
+  KINETIS_DMA_REQUEST_SRC_FTM0_CH6 = 26,
+  KINETIS_DMA_REQUEST_SRC_FTM0_CH7 = 27,
+  KINETIS_DMA_REQUEST_SRC_FTM1_TPM1_CH0 = 28,
+  KINETIS_DMA_REQUEST_SRC_FTM1_TPM1_CH1 = 29,
+  KINETIS_DMA_REQUEST_SRC_FTM2_TPM2_CH0 = 30,
+  KINETIS_DMA_REQUEST_SRC_FTM2_TPM2_CH1 = 31,
+  KINETIS_DMA_REQUEST_SRC_FTM3_CH0 = 32,
+  KINETIS_DMA_REQUEST_SRC_FTM3_CH1 = 33,
+  KINETIS_DMA_REQUEST_SRC_FTM3_CH2 = 34,
+  KINETIS_DMA_REQUEST_SRC_FTM3_CH3 = 35,
+  KINETIS_DMA_REQUEST_SRC_FTM3_CH4 = 36,
+  KINETIS_DMA_REQUEST_SRC_FTM3_CH5 = 37,
+  KINETIS_DMA_REQUEST_SRC_FTM3_CH6__SPI2_RX = 38,
+  KINETIS_DMA_REQUEST_SRC_FTM3_CH7__SPI2_TX = 39,
+  KINETIS_DMA_REQUEST_SRC_ADC0 = 40,
+  KINETIS_DMA_REQUEST_SRC_ADC1 = 41,
+  KINETIS_DMA_REQUEST_SRC_CMP0 = 42,
+  KINETIS_DMA_REQUEST_SRC_CMP1 = 43,
+  KINETIS_DMA_REQUEST_SRC_CMP2__CMP3 = 44,
+  KINETIS_DMA_REQUEST_SRC_DAC0 = 45,
+  KINETIS_DMA_REQUEST_SRC_DAC1 = 46,
+  KINETIS_DMA_REQUEST_SRC_CMT = 47,
+  KINETIS_DMA_REQUEST_SRC_PDB = 48,
+  KINETIS_DMA_REQUEST_SRC_PCM_A = 49,
+  KINETIS_DMA_REQUEST_SRC_PCM_B = 50,
+  KINETIS_DMA_REQUEST_SRC_PCM_C = 51,
+  KINETIS_DMA_REQUEST_SRC_PCM_D = 52,
+  KINETIS_DMA_REQUEST_SRC_PCM_E = 53,
+  KINETIS_DMA_REQUEST_SRC_TIMER0 = 54,
+  KINETIS_DMA_REQUEST_SRC_TIMER1 = 55,
+  KINETIS_DMA_REQUEST_SRC_TIMER2 = 56,
+  KINETIS_DMA_REQUEST_SRC_TIMER3 = 57,
   KINETIS_DMA_REQUEST_SRC_LPUART0_RX = 58,
   KINETIS_DMA_REQUEST_SRC_LPUART0_TX = 59,
-
-  // todo tab23-1
 } KINETIS_DMA_REQUEST_SRC;
 
 typedef enum _KINETIS_DMA_DIRECTION {
@@ -157,6 +201,12 @@ void kinetis_dmainitialize(void);
  *   Allocate a DMA channel.  This function sets aside a DMA channel and
  *   gives the caller exclusive access to the DMA channel.
  *
+ * Input Parameters:
+ *   src  - DMA request source
+ *   per_addr - Address of the peripheral data
+ *   per_data_sz - Peripheral data size        todo at the moment only 8bit is supported
+ *   dir - transfer direction
+ *
  * Returned Value:
  *   One success, this function returns a non-NULL, void* DMA channel
  *   handle.  NULL is returned on any failure.  This function can fail only
@@ -190,14 +240,18 @@ void kinetis_dmafree(DMA_HANDLE handle);
  * Description:
  *   Configure DMA for one transfer.
  *
+ * Input Parameters:
+ *   mem_addr  - Memory address
+ *   mem_data_sz - Memory data size     todo at the moment only 8bit is supported
+ *   ntransfers - Number of transfers. Must be 0<= ntransfers <= 0x7FFF
+ *   config - Channel configuration
+ *
+ * Returned Value:
+ *   result: 0 if ok, negative else
+ *
  ****************************************************************************/
-
-/*
-int kinetis_dmarxsetup(DMA_HANDLE handle, uint32_t control, uint32_t config,
-                       uint32_t srcaddr, uint32_t destaddr, size_t nbytes);
-*/
 int kinetis_dmasetup(DMA_HANDLE handle, uint32_t mem_addr, KINETIS_DMA_DATA_SZ mem_data_sz,
-                     size_t nbytes, const kinetis_dmachannel_config *config);
+                     size_t ntransfers, const kinetis_dmachannel_config *config);
 
 
 /****************************************************************************
@@ -221,6 +275,18 @@ int kinetis_dmastart(DMA_HANDLE handle, dma_callback_t callback, void *arg);
  ****************************************************************************/
 
 void kinetis_dmastop(DMA_HANDLE handle);
+
+/****************************************************************************
+ * Name: kinetis_dmaresidual
+ *
+ * Description:
+ *   Returns the number of transfers left
+ *
+ * Returned Value:
+ *   Residual transfers
+ ****************************************************************************/
+
+size_t kinetis_dmaresidual(DMA_HANDLE handle);
 
 /****************************************************************************
  * Name: kinetis_dmasample
