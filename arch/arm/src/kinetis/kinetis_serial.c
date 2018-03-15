@@ -60,6 +60,7 @@
 #include <arch/serial.h>
 #include <arch/board/board.h>
 
+#include "cache.h"
 #include "up_arch.h"
 #include "up_internal.h"
 
@@ -69,6 +70,7 @@
 #include "chip/kinetis_pinmux.h"
 #include "kinetis.h"
 #include "kinetis_dma.h"
+#include "kinetis_uart.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -85,14 +87,6 @@
  */
 
 #if defined(HAVE_UART_DEVICE) && defined(USE_SERIALDRIVER)
-
-/* Is DMA available on any (enabled) UART? */
-#undef SERIAL_HAVE_DMA
-#if defined(CONFIG_UART0_RXDMA) || defined(CONFIG_UART1_RXDMA) || \
-    defined(CONFIG_UART2_RXDMA) || defined(CONFIG_UART3_RXDMA) || \
-    defined(CONFIG_UART4_RXDMA)  || defined(CONFIG_UART5_RXDMA)
-#  define SERIAL_HAVE_DMA 1
-#endif
 
 /* Which UART with be tty0/console and which tty1-4?  The console will always
  * be ttyS0.  If there is no console then will use the lowest numbered UART.
@@ -239,6 +233,22 @@
 #  define UART5_ASSIGNED      1
 #endif
 
+/* The DMA buffer size when using RX DMA to emulate a FIFO.
+ *
+ * When streaming data, the generic serial layer will be called every time
+ * the FIFO receives half this number of bytes.
+ *
+ * This buffer size should be an even multiple of the Cortex-M7 D-Cache line
+ * size, ARMV7M_DCACHE_LINESIZE, so that it can be individually invalidated.
+ *
+ * Should there be a Cortex-M7 without a D-Cache, ARMV7M_DCACHE_LINESIZE
+ * would be zero!
+ */
+
+#  if !defined(ARMV7M_DCACHE_LINESIZE) || ARMV7M_DCACHE_LINESIZE == 0
+#    undef ARMV7M_DCACHE_LINESIZE
+#    define ARMV7M_DCACHE_LINESIZE 32
+#  endif
 
 #define RXDMA_BUFFER_SIZE 32
 
@@ -280,7 +290,6 @@ struct up_dev_s
 /* RX DMA state */
 #ifdef SERIAL_HAVE_DMA
   DMA_HANDLE        rxdma;     /* currently-open receive DMA stream */
-  bool              rxenable;  /* DMA-based reception en/disable */
   uint32_t          rxdmanext; /* Next byte in the DMA buffer to be read */
   char      *const  rxfifo;    /* Receive DMA buffer */
 #endif
@@ -319,7 +328,6 @@ static int  up_dma_nextrx(struct up_dev_s *priv);
 static int  up_dma_setup(struct uart_dev_s *dev);
 static void up_dma_shutdown(struct uart_dev_s *dev);
 static int  up_dma_receive(struct uart_dev_s *dev, unsigned int *status);
-static void up_dma_rxint(struct uart_dev_s *dev, bool enable);
 static bool up_dma_rxavailable(struct uart_dev_s *dev);
 
 static void up_dma_rxcallback(DMA_HANDLE handle, void *arg, int result);
@@ -361,7 +369,7 @@ static const struct uart_ops_s g_uart_dma_ops =
   .detach         = up_detach,
   .ioctl          = up_ioctl,
   .receive        = up_dma_receive,
-  .rxint          = up_dma_rxint,
+  .rxint          = up_rxint,
   .rxavailable    = up_dma_rxavailable,
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
   .rxflowcontrol  = up_rxflowcontrol,
@@ -384,6 +392,7 @@ static char g_uart0rxbuffer[CONFIG_UART0_RXBUFSIZE];
 static char g_uart0txbuffer[CONFIG_UART0_TXBUFSIZE];
 # ifdef CONFIG_UART0_RXDMA
 static char g_uart0rxfifo[RXDMA_BUFFER_SIZE];
+  __attribute__((aligned(ARMV7M_DCACHE_LINESIZE)));
 # endif
 #endif
 
@@ -391,7 +400,8 @@ static char g_uart0rxfifo[RXDMA_BUFFER_SIZE];
 static char g_uart1rxbuffer[CONFIG_UART1_RXBUFSIZE];
 static char g_uart1txbuffer[CONFIG_UART1_TXBUFSIZE];
 # ifdef CONFIG_UART1_RXDMA
-static char g_uart1rxfifo[RXDMA_BUFFER_SIZE];
+static char g_uart1rxfifo[RXDMA_BUFFER_SIZE]
+  __attribute__((aligned(ARMV7M_DCACHE_LINESIZE)));
 # endif
 #endif
 
@@ -399,7 +409,8 @@ static char g_uart1rxfifo[RXDMA_BUFFER_SIZE];
 static char g_uart2rxbuffer[CONFIG_UART2_RXBUFSIZE];
 static char g_uart2txbuffer[CONFIG_UART2_TXBUFSIZE];
 # ifdef CONFIG_UART2_RXDMA
-static char g_uart2rxfifo[RXDMA_BUFFER_SIZE];
+static char g_uart2rxfifo[RXDMA_BUFFER_SIZE]
+  __attribute__((aligned(ARMV7M_DCACHE_LINESIZE)));
 # endif
 #endif
 
@@ -407,7 +418,8 @@ static char g_uart2rxfifo[RXDMA_BUFFER_SIZE];
 static char g_uart3rxbuffer[CONFIG_UART3_RXBUFSIZE];
 static char g_uart3txbuffer[CONFIG_UART3_TXBUFSIZE];
 # ifdef CONFIG_UART3_RXDMA
-static char g_uart3rxfifo[RXDMA_BUFFER_SIZE];
+static char g_uart3rxfifo[RXDMA_BUFFER_SIZE]
+  __attribute__((aligned(ARMV7M_DCACHE_LINESIZE)));
 # endif
 #endif
 
@@ -415,7 +427,8 @@ static char g_uart3rxfifo[RXDMA_BUFFER_SIZE];
 static char g_uart4rxbuffer[CONFIG_UART4_RXBUFSIZE];
 static char g_uart4txbuffer[CONFIG_UART4_TXBUFSIZE];
 # ifdef CONFIG_UART4_RXDMA
-static char g_uart4rxfifo[RXDMA_BUFFER_SIZE];
+static char g_uart4rxfifo[RXDMA_BUFFER_SIZE]
+  __attribute__((aligned(ARMV7M_DCACHE_LINESIZE)));
 # endif
 #endif
 
@@ -423,7 +436,8 @@ static char g_uart4rxfifo[RXDMA_BUFFER_SIZE];
 static char g_uart5rxbuffer[CONFIG_UART5_RXBUFSIZE];
 static char g_uart5txbuffer[CONFIG_UART5_TXBUFSIZE];
 # ifdef CONFIG_UART5_RXDMA
-static char g_uart5rxfifo[RXDMA_BUFFER_SIZE];
+static char g_uart5rxfifo[RXDMA_BUFFER_SIZE]
+  __attribute__((aligned(ARMV7M_DCACHE_LINESIZE)));
 # endif
 #endif
 
@@ -812,6 +826,29 @@ static void up_disableuartint(struct up_dev_s *priv, uint8_t *ie)
 #endif
 
 /****************************************************************************
+ * Name: get_and_clear_uart_status
+ *
+ * Description:
+ *   Clears the error flags of the uart if an error occurred in s1 and returns the status
+ *
+ * Input Parameters:
+ *   u_dev_s
+ *
+ * Returns Value:
+ *   Uart status s1
+ *
+ ****************************************************************************/
+static uint8_t get_and_clear_uart_status(struct up_dev_s *priv) {
+  uint8_t s1;
+  s1 = up_serialin(priv, KINETIS_UART_S1_OFFSET);
+  if ((s1 & 0x0F) != 0) {
+    // Clear status flag if an error occurred
+    (void)up_serialin(priv, KINETIS_UART_D_OFFSET);
+  }
+  return s1;
+}
+
+/****************************************************************************
  * Name: up_setup
  *
  * Description:
@@ -873,6 +910,7 @@ static int up_dma_setup(struct uart_dev_s *dev)
   struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
   int result;
   uint8_t regval;
+  DMA_HANDLE rxdma = NULL;
 
   /* Do the basic UART setup first, unless we are the console */
   if (!dev->isconsole)
@@ -885,12 +923,11 @@ static int up_dma_setup(struct uart_dev_s *dev)
     }
 
   /* Acquire the DMA channel.*/
-  priv->rxdma = kinetis_dmachannel(priv->rxdma_reqsrc,
-                                   priv->uartbase + KINETIS_UART_D_OFFSET,
-                                   KINETIS_DMA_DATA_SZ_8BIT,
-                                   KINETIS_DMA_DIRECTION_PERIPHERAL_TO_MEMORY);
-
-  if (priv->rxdma == NULL) {
+  rxdma = kinetis_dmachannel(priv->rxdma_reqsrc,
+                             priv->uartbase + KINETIS_UART_D_OFFSET,
+                             KINETIS_DMA_DATA_SZ_8BIT,
+                             KINETIS_DMA_DIRECTION_PERIPHERAL_TO_MEMORY);
+  if (rxdma == NULL) {
     // A DMA channel could not be acquired
     return -1;
   }
@@ -900,7 +937,7 @@ static int up_dma_setup(struct uart_dev_s *dev)
     .circular = true,
     .halfcomplete_interrupt = true
   };
-  kinetis_dmasetup(priv->rxdma, (uint32_t)priv->rxfifo, KINETIS_DMA_DATA_SZ_8BIT, RXDMA_BUFFER_SIZE, &config);
+  kinetis_dmasetup(rxdma, (uint32_t)priv->rxfifo, KINETIS_DMA_DATA_SZ_8BIT, RXDMA_BUFFER_SIZE, &config);
 
   /* Reset our DMA shadow pointer to match the address just
    * programmed above.
@@ -908,23 +945,18 @@ static int up_dma_setup(struct uart_dev_s *dev)
   priv->rxdmanext = 0;
 
   /* Enable receive DMA for the UART */
-  regval = getreg8(priv->uartbase + KINETIS_UART_C5_OFFSET);
+  regval = up_serialin(priv, KINETIS_UART_C5_OFFSET);
   regval |= UART_C5_RDMAS;
-  putreg8(regval, priv->uartbase + KINETIS_UART_C5_OFFSET);
-
-  regval = getreg8(priv->uartbase + KINETIS_UART_C2_OFFSET);
-  regval |= UART_C2_RIE;
-  putreg8(regval, priv->uartbase + KINETIS_UART_C2_OFFSET);
-
-  // todo move this to up_dma_rxint?
+  up_serialout(priv, KINETIS_UART_C5_OFFSET, regval);
 
   /* Start the DMA channel, and arrange for callbacks at the half and
    * full points in the FIFO.  This ensures that we have half a FIFO
    * worth of time to claim bytes before they are overwritten.
    */
 
-  kinetis_dmastart(priv->rxdma, up_dma_rxcallback, (void *)dev);
+  kinetis_dmastart(rxdma, up_dma_rxcallback, (void *)dev);
 
+  priv->rxdma = rxdma;
   return OK;
 }
 #endif
@@ -964,6 +996,8 @@ static void up_shutdown(struct uart_dev_s *dev)
 static void up_dma_shutdown(struct uart_dev_s *dev)
 {
   struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
+  DMA_HANDLE rxdma = priv->rxdma;
+  priv->rxdma = NULL;
 
   /* Perform the normal UART shutdown */
 
@@ -971,12 +1005,11 @@ static void up_dma_shutdown(struct uart_dev_s *dev)
 
   /* Stop the DMA channel */
 
-  kinetis_dmastop(priv->rxdma);
+  kinetis_dmastop(rxdma);
 
   /* Release the DMA channel */
 
-  kinetis_dmafree(priv->rxdma);
-  priv->rxdma = NULL;
+  kinetis_dmafree(rxdma);
 }
 #endif
 
@@ -1503,13 +1536,27 @@ static int up_dma_receive(struct uart_dev_s *dev, unsigned int *status)
 {
   struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
   int c = 0;
+  uint8_t s1;
 
   /* If additional bytes have been added to the DMA buffer, then we will need
    * to invalidate the DMA buffer before reading the byte.
    */
 
+  /* Clear uart errors and return status information */
+  s1 = get_and_clear_uart_status(priv);
+  if (status)
+    {
+      *status = (uint32_t)s1;
+    }
+
   if (up_dma_nextrx(priv) != priv->rxdmanext)
     {
+
+      /* Invalidate the DMA buffer */
+
+      arch_invalidate_dcache((uintptr_t)priv->rxfifo,
+                             (uintptr_t)priv->rxfifo + RXDMA_BUFFER_SIZE - 1);
+
       /* Now read from the DMA buffer */
       c = priv->rxfifo[priv->rxdmanext];
 
@@ -1562,31 +1609,6 @@ static void up_rxint(struct uart_dev_s *dev, bool enable)
 
   leave_critical_section(flags);
 }
-
-/****************************************************************************
- * Name: up_dma_rxint
- *
- * Description:
- *   Call to enable or disable RX interrupts
- *
- ****************************************************************************/
-
-#ifdef SERIAL_HAVE_DMA
-static void up_dma_rxint(struct uart_dev_s *dev, bool enable)
-{
-  struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
-
-  /* En/disable DMA reception.
-   *
-   * Note that it is not safe to check for available bytes and immediately
-   * pass them to uart_recvchars as that could potentially recurse back
-   * to us again.  Instead, bytes must wait until the next up_dma_poll or
-   * DMA event.
-   */
-
-  priv->rxenable = enable;
-}
-#endif
 
 /****************************************************************************
  * Name: up_rxavailable
@@ -1849,11 +1871,14 @@ static bool up_txempty(struct uart_dev_s *dev)
 static void up_dma_rxcallback(DMA_HANDLE handle, void *arg, int result)
 {
   struct uart_dev_s *dev = (struct uart_dev_s *)arg;
-  struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
 
-  if (priv->rxenable && up_dma_rxavailable(dev))
+  if (up_dma_rxavailable(dev))
     {
       uart_recvchars(dev);
+    }
+  else
+    {
+      (void)get_and_clear_uart_status(dev->priv);
     }
 }
 #endif
