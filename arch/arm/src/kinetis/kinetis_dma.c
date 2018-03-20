@@ -81,6 +81,7 @@
     uint8_t               ind;
     uint8_t               irq;
     KINETIS_DMA_DIRECTION dir;
+    KINETIS_DMA_DATA_SZ   data_sz;
     dma_callback_t        callback;
     void                  *arg;
  };
@@ -219,20 +220,15 @@ void weak_function up_dmainitialize(void)
 DMA_HANDLE kinetis_dmachannel(KINETIS_DMA_REQUEST_SRC src, uint32_t per_addr, KINETIS_DMA_DATA_SZ per_data_sz, KINETIS_DMA_DIRECTION dir)
 {
   int i;
-  int ch_ind = -1;
-  uint8_t regval;
+  int ch_ind;
+  uint8_t regval8;
+  uint16_t regval16;
   irqstate_t flags;
   struct kinetis_dma_ch *ch;
 
-  if (per_data_sz != KINETIS_DMA_DATA_SZ_8BIT) {
-    // todo: Adapt SMLOE and NBYTES in NBYTES_MLOFFNO as well as SOFF, SLAST in case of KINETIS_DMA_DIRECTION_PERIPHERAL_TO_MEMORY.
-    // todo: also adapt the check ntransfers > 0x7FFF in kinetis_dmasetup
-    // todo: similar in case of KINETIS_DMA_DIRECTION_MEMORY_TO_PERIPHERAL
-    return NULL;
-  }
-
   // Find available channel
   flags = enter_critical_section();
+  ch_ind = -1;
   for (i = 0; i < DMA_N_CHANNELS; i++) {
     if (!channels[i].used) {
       ch_ind = i;
@@ -247,13 +243,16 @@ DMA_HANDLE kinetis_dmachannel(KINETIS_DMA_REQUEST_SRC src, uint32_t per_addr, KI
     return NULL;
   }
   ch = &channels[ch_ind];
+
+  /* Copy arguments */
   ch->dir = dir;
+  ch->data_sz = per_data_sz;
 
   /* DMAMUX */
   // Set DMA channel source and enable it
-  regval = (uint8_t)src;
-  regval |= DMAMUX_CHCFG_ENBL;
-  putreg8(regval, KINETIS_DMAMUX_CHCFG(ch_ind));
+  regval8 = (uint8_t)src;
+  regval8 |= DMAMUX_CHCFG_ENBL;
+  putreg8(regval8, KINETIS_DMAMUX_CHCFG(ch_ind));
 
   /* DMA */
   // Set peripheral address in TCD
@@ -261,16 +260,23 @@ DMA_HANDLE kinetis_dmachannel(KINETIS_DMA_REQUEST_SRC src, uint32_t per_addr, KI
     putreg32(per_addr, KINETIS_DMA_TCD_SADDR(ch->ind));
     putreg16(0, KINETIS_DMA_TCD_SOFF(ch->ind));
     putreg32(0, KINETIS_DMA_TCD_SLAST(ch->ind));
-    putreg16(((uint16_t)per_data_sz) << DMA_TCD_ATTR_SSIZE_SHIFT, KINETIS_DMA_TCD_ATTR(ch->ind));
   } else if (ch->dir == KINETIS_DMA_DIRECTION_MEMORY_TO_PERIPHERAL) {
     putreg32(per_addr, KINETIS_DMA_TCD_DADDR(ch->ind));
     putreg16(0, KINETIS_DMA_TCD_DOFF(ch->ind));
     putreg32(0, KINETIS_DMA_TCD_DLASTSGA(ch->ind));
-    putreg16(((uint16_t)per_data_sz) << DMA_TCD_ATTR_DSIZE_SHIFT, KINETIS_DMA_TCD_ATTR(ch->ind));
   } else {
     ch->used = false;
     return NULL;
   }
+
+  // Set data sizes
+  regval16 = 0;
+  regval16 |= ((uint16_t)per_data_sz) << DMA_TCD_ATTR_SSIZE_SHIFT;
+  regval16 |= ((uint16_t)per_data_sz) << DMA_TCD_ATTR_DSIZE_SHIFT;
+  putreg16(regval16, KINETIS_DMA_TCD_ATTR(ch->ind));
+
+  // Set minor loop count
+  putreg32(1 << (uint8_t)per_data_sz, KINETIS_DMA_TCD_NBYTES(ch->ind));
 
   return (DMA_HANDLE)ch;
 }
@@ -313,36 +319,27 @@ void kinetis_dmafree(DMA_HANDLE handle)
  *
  ****************************************************************************/
 
-int kinetis_dmasetup(DMA_HANDLE handle, uint32_t mem_addr, KINETIS_DMA_DATA_SZ mem_data_sz, size_t ntransfers, const kinetis_dmachannel_config *config)
+int kinetis_dmasetup(DMA_HANDLE handle, uint32_t mem_addr, size_t ntransfers, const kinetis_dmachannel_config *config)
 {
   struct kinetis_dma_ch *ch = (struct kinetis_dma_ch *)handle;
   uint16_t regval = 0;
-  uint32_t nbytes = (uint32_t)ntransfers * (uint32_t)(1 << (uint8_t)mem_data_sz);
+  uint32_t nbytes;
 
   if (ntransfers > 0x7FFF) {
     return -1;
   }
 
-  if (mem_data_sz != KINETIS_DMA_DATA_SZ_8BIT) {
-    // todo: allow other data sizes
-    return -1;
-  }
-
   DEBUGASSERT(handle != NULL);
 
+  nbytes = (uint32_t)ntransfers * (uint32_t)(1 << (uint8_t)ch->data_sz);
   if (ch->dir == KINETIS_DMA_DIRECTION_PERIPHERAL_TO_MEMORY) {
     putreg32(mem_addr, KINETIS_DMA_TCD_DADDR(ch->ind));
-    putreg16(1 << (uint8_t)mem_data_sz, KINETIS_DMA_TCD_DOFF(ch->ind));
+    putreg16(1 << (uint8_t)ch->data_sz, KINETIS_DMA_TCD_DOFF(ch->ind));
     putreg32(-nbytes, KINETIS_DMA_TCD_DLASTSGA(ch->ind));
-    regval |= ((uint16_t)mem_data_sz) << DMA_TCD_ATTR_DSIZE_SHIFT;
-    putreg16(regval, KINETIS_DMA_TCD_ATTR(ch->ind));
   } else if (ch->dir == KINETIS_DMA_DIRECTION_MEMORY_TO_PERIPHERAL) {
     putreg32(mem_addr, KINETIS_DMA_TCD_SADDR(ch->ind));
-    putreg16(1 << (uint8_t)mem_data_sz, KINETIS_DMA_TCD_SOFF(ch->ind));
+    putreg16(1 << (uint8_t)ch->data_sz, KINETIS_DMA_TCD_SOFF(ch->ind));
     putreg32(-nbytes, KINETIS_DMA_TCD_SLAST(ch->ind));
-    regval = getreg16(KINETIS_DMA_TCD_ATTR(ch->ind));
-    regval |= ((uint16_t)mem_data_sz) << DMA_TCD_ATTR_SSIZE_SHIFT;
-    putreg16(regval, KINETIS_DMA_TCD_ATTR(ch->ind));
   } else {
     return -1;
   }
@@ -360,9 +357,6 @@ int kinetis_dmasetup(DMA_HANDLE handle, uint32_t mem_addr, KINETIS_DMA_DATA_SZ m
   // Set major loop count
   putreg16(ntransfers, KINETIS_DMA_TCD_BITER(ch->ind));
   putreg16(ntransfers, KINETIS_DMA_TCD_CITER(ch->ind));
-
-  // Set minor loop count
-  putreg32(1 << (uint8_t)mem_data_sz, KINETIS_DMA_TCD_NBYTES(ch->ind));
 
   return OK;
 }

@@ -204,7 +204,9 @@ void kinetis_dmainitialize(void);
  * Input Parameters:
  *   src  - DMA request source
  *   per_addr - Address of the peripheral data
- *   per_data_sz - Peripheral data size        todo at the moment only 8bit is supported
+ *   per_data_sz - Peripheral data size (register size). Note that if this does not
+ *                 agree with the peripheral register size, DMA transfers will
+ *                 silently fail during operation.
  *   dir - transfer direction
  *
  * Returned Value:
@@ -242,7 +244,6 @@ void kinetis_dmafree(DMA_HANDLE handle);
  *
  * Input Parameters:
  *   mem_addr  - Memory address
- *   mem_data_sz - Memory data size     todo at the moment only 8bit is supported
  *   ntransfers - Number of transfers. Must be 0<= ntransfers <= 0x7FFF
  *   config - Channel configuration
  *
@@ -250,7 +251,7 @@ void kinetis_dmafree(DMA_HANDLE handle);
  *   result: 0 if ok, negative else
  *
  ****************************************************************************/
-int kinetis_dmasetup(DMA_HANDLE handle, uint32_t mem_addr, KINETIS_DMA_DATA_SZ mem_data_sz,
+int kinetis_dmasetup(DMA_HANDLE handle, uint32_t mem_addr,
                      size_t ntransfers, const kinetis_dmachannel_config *config);
 
 
