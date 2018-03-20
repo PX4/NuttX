@@ -250,7 +250,15 @@
 #    define ARMV7M_DCACHE_LINESIZE 32
 #  endif
 
-#define RXDMA_BUFFER_SIZE 32
+#  if !defined(CONFIG_KINETIS_SERIAL_RXDMA_BUFFER_SIZE) || \
+      (CONFIG_KINETIS_SERIAL_RXDMA_BUFFER_SIZE < ARMV7M_DCACHE_LINESIZE)
+#    undef CONFIG_KINETIS_SERIAL_RXDMA_BUFFER_SIZE
+#    define CONFIG_KINETIS_SERIAL_RXDMA_BUFFER_SIZE ARMV7M_DCACHE_LINESIZE
+#  endif
+
+#  define RXDMA_BUFFER_MASK   (ARMV7M_DCACHE_LINESIZE - 1)
+#  define RXDMA_BUFFER_SIZE   ((CONFIG_KINETIS_SERIAL_RXDMA_BUFFER_SIZE \
+                                + RXDMA_BUFFER_MASK) & ~RXDMA_BUFFER_MASK)
 
 /****************************************************************************
  * Private Types
@@ -937,7 +945,7 @@ static int up_dma_setup(struct uart_dev_s *dev)
     .circular = true,
     .halfcomplete_interrupt = true
   };
-  kinetis_dmasetup(rxdma, (uint32_t)priv->rxfifo, KINETIS_DMA_DATA_SZ_8BIT, RXDMA_BUFFER_SIZE, &config);
+  kinetis_dmasetup(rxdma, (uint32_t)priv->rxfifo, RXDMA_BUFFER_SIZE, &config);
 
   /* Reset our DMA shadow pointer to match the address just
    * programmed above.
