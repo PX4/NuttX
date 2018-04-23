@@ -347,7 +347,7 @@ int kinetis_dmasetup(DMA_HANDLE handle, uint32_t mem_addr, size_t ntransfers, co
   regval = 0;
   regval &= ~DMA_TCD_CSR_MAJORLINKCH_MASK;
   // Link channel with itself
-  regval |= config->circular ? (ch->ind | DMA_TCD_CSR_MAJORELINK) : 0;
+  regval |= config->circular ? ((((uint16_t)ch->ind) << 8) | DMA_TCD_CSR_MAJORELINK) : 0;
   // Enable major half complete and major complete interrupts
   regval |= config->halfcomplete_interrupt ? DMA_TCD_CSR_INTHALF : 0;
   regval |= DMA_TCD_CSR_INTMAJOR;

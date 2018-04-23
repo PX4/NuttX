@@ -279,7 +279,7 @@
 #    define CONFIG_KINETIS_SERIAL_RXDMA_BUFFER_SIZE ARMV7M_DCACHE_LINESIZE
 #  endif
 
-#  define RXDMA_BUFFER_MASK   (ARMV7M_DCACHE_LINESIZE - 1)
+#  define RXDMA_BUFFER_MASK   ((uint32_t)(ARMV7M_DCACHE_LINESIZE - 1))
 #  define RXDMA_BUFFER_SIZE   ((CONFIG_KINETIS_SERIAL_RXDMA_BUFFER_SIZE \
                                 + RXDMA_BUFFER_MASK) & ~RXDMA_BUFFER_MASK)
 
@@ -422,7 +422,7 @@ static const struct uart_ops_s g_uart_dma_ops =
 static char g_uart0rxbuffer[CONFIG_UART0_RXBUFSIZE];
 static char g_uart0txbuffer[CONFIG_UART0_TXBUFSIZE];
 # ifdef CONFIG_UART0_RXDMA
-static char g_uart0rxfifo[RXDMA_BUFFER_SIZE];
+static char g_uart0rxfifo[RXDMA_BUFFER_SIZE]
   __attribute__((aligned(ARMV7M_DCACHE_LINESIZE)));
 # endif
 #endif
@@ -1586,7 +1586,7 @@ static int up_dma_receive(struct uart_dev_s *dev, unsigned int *status)
       /* Invalidate the DMA buffer */
 
       arch_invalidate_dcache((uintptr_t)priv->rxfifo,
-                             (uintptr_t)priv->rxfifo + RXDMA_BUFFER_SIZE - 1);
+                             (uintptr_t)priv->rxfifo + RXDMA_BUFFER_SIZE);
 
       /* Now read from the DMA buffer */
       c = priv->rxfifo[priv->rxdmanext];
@@ -1594,7 +1594,16 @@ static int up_dma_receive(struct uart_dev_s *dev, unsigned int *status)
       priv->rxdmanext++;
       if (priv->rxdmanext == RXDMA_BUFFER_SIZE)
         {
-          priv->rxdmanext = 0;
+          // HACK: Skip the first byte since it is duplicate of last one.
+          if (up_dma_nextrx(priv) != 0)
+            {
+              priv->rxdmanext = 1;
+            }
+          else
+            {
+              // Try to catch race conditions that will spin on the whole buffer again.
+              priv->rxdmanext = 0;
+            }
         }
     }
 
@@ -1781,7 +1790,7 @@ static int up_dma_nextrx(struct up_dev_s *priv)
 
   dmaresidual = kinetis_dmaresidual(priv->rxdma);
 
-  return (RXDMA_BUFFER_SIZE - (int)dmaresidual);
+  return (RXDMA_BUFFER_SIZE - (int)dmaresidual) % RXDMA_BUFFER_SIZE;
 }
 #endif
 
