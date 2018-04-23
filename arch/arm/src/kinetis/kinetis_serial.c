@@ -98,26 +98,32 @@
 #    define CONSOLE_DEV         g_uart0port /* UART0 is console */
 #    define TTYS0_DEV           g_uart0port /* UART0 is ttyS0 */
 #    define UART0_ASSIGNED      1
+#    define UART0_CONSOLE       1
 #elif defined(CONFIG_UART1_SERIAL_CONSOLE)
 #    define CONSOLE_DEV         g_uart1port /* UART1 is console */
 #    define TTYS0_DEV           g_uart1port /* UART1 is ttyS0 */
 #    define UART1_ASSIGNED      1
+#    define UART1_CONSOLE       1
 #elif defined(CONFIG_UART2_SERIAL_CONSOLE)
 #    define CONSOLE_DEV         g_uart2port /* UART2 is console */
 #    define TTYS0_DEV           g_uart2port /* UART2 is ttyS0 */
 #    define UART2_ASSIGNED      1
+#    define UART2_CONSOLE       1
 #elif defined(CONFIG_UART3_SERIAL_CONSOLE)
 #    define CONSOLE_DEV         g_uart3port /* UART3 is console */
 #    define TTYS0_DEV           g_uart3port /* UART3 is ttyS0 */
 #    define UART3_ASSIGNED      1
+#    define UART3_CONSOLE       1
 #elif defined(CONFIG_UART4_SERIAL_CONSOLE)
 #    define CONSOLE_DEV         g_uart4port /* UART4 is console */
 #    define TTYS0_DEV           g_uart4port /* UART4 is ttyS0 */
 #    define UART4_ASSIGNED      1
+#    define UART4_CONSOLE       1
 #elif defined(CONFIG_UART5_SERIAL_CONSOLE)
 #    define CONSOLE_DEV         g_uart5port /* UART5 is console */
 #    define TTYS5_DEV           g_uart5port /* UART5 is ttyS0 */
 #    define UART5_ASSIGNED      1
+#    define UART5_CONSOLE       1
 #else
 #  undef CONSOLE_DEV                        /* No console */
 #  if defined(CONFIG_KINETIS_UART0)
@@ -139,6 +145,23 @@
 #    define TTYS0_DEV           g_uart5port /* UART5 is ttyS0 */
 #    define UART5_ASSIGNED      1
 #  endif
+#endif
+
+/* Is DMA used on the console UART? */
+
+#undef SERIAL_HAVE_CONSOLE_DMA
+#if defined(CONFIG_UART0_RXDMA) && defined(UART0_CONSOLE)
+#  define SERIAL_HAVE_CONSOLE_DMA 1
+#elif defined(CONFIG_UART1_RXDMA) && defined(UART1_CONSOLE)
+#  define SERIAL_HAVE_CONSOLE_DMA 1
+#elif defined(CONFIG_UART2_RXDMA) && defined(UART2_CONSOLE)
+#  define SERIAL_HAVE_CONSOLE_DMA 1
+#elif defined(CONFIG_UART3_RXDMA) && defined(UART3_CONSOLE)
+#  define SERIAL_HAVE_CONSOLE_DMA 1
+#elif defined(CONFIG_UART4_RXDMA) && defined(UART4_CONSOLE)
+#  define SERIAL_HAVE_CONSOLE_DMA 1
+#elif defined(CONFIG_UART5_RXDMA) && defined(UART5_CONSOLE)
+#  define SERIAL_HAVE_CONSOLE_DMA 1
 #endif
 
 /* Pick ttys1.  This could be any of UART0-5 excluding the console UART. */
@@ -679,7 +702,7 @@ static struct up_dev_s g_uart4priv =
   .rts_gpio      = PIN_UART4_RTS,
 #endif
 #ifdef CONFIG_UART4_RXDMA
-  .rxdma_reqsrc = KINETIS_DMA_REQUEST_SRC_UART4_RX,
+  .rxdma_reqsrc = KINETIS_DMA_REQUEST_SRC_UART4_RXTX,
   .rxfifo = g_uart4rxfifo,
 #endif
 };
@@ -1959,6 +1982,11 @@ unsigned int kinetis_uart_serialinit(unsigned int first)
 
 #ifdef HAVE_UART_CONSOLE
   (void)uart_register("/dev/console", &CONSOLE_DEV);
+
+#ifdef SERIAL_HAVE_CONSOLE_DMA
+  /* If we need to re-initialise the console to enable DMA do that here. */
+  up_dma_setup(&CONSOLE_DEV);
+#endif
 #endif
 
   /* Register all UARTs */
