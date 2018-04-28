@@ -1059,6 +1059,7 @@ config KINETIS_SERIAL_RXDMA_BUFFER_SIZE
 
 endmenu # Kinetis UART Configuration
 
+
 menu "Kinetis LPUART0 Configuration"
 	depends on KINETIS_LPUART0
 
@@ -1114,13 +1115,6 @@ config LPUART0_OFLOWCONTROL
 	select SERIAL_OFLOWCONTROL
 	---help---
 		Enable LPUART0 CTS flow control
-
-config LPUART0_DMA
-	bool "LPUART0 DMA support"
-	default n
-	select SERIAL_DMA
-	---help---
-		Enable DMA transfers on LPUART0
 
 endmenu # Kinetis LPUART0 Configuration
 
@@ -1179,13 +1173,6 @@ config LPUART1_OFLOWCONTROL
 	select SERIAL_OFLOWCONTROL
 	---help---
 		Enable LPUART1 CTS flow control
-
-config LPUART1_DMA
-	bool "LPUART1 DMA support"
-	default n
-	select SERIAL_DMA
-	---help---
-		Enable DMA transfers on LPUART1
 
 endmenu # Kinetis LPUART1 Configuration
 
