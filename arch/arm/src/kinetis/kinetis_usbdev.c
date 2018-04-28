@@ -74,7 +74,7 @@
 #include "chip/kinetis_sim.h"
 #include "chip/kinetis_fmc.h"
 
-#if defined(CONFIG_USBDEV) && defined(CONFIG_KINETIS_USBOTG)
+#if defined(CONFIG_USBDEV)
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -2115,7 +2115,7 @@ static void khci_ep0setup(struct khci_usbdev_s *priv)
           {
             /* Disable B device from performing HNP */
 
-#ifdef CONFIG_USBOTG
+#ifdef CONFIG_KINETIS_USBOTG
             if (value.w == USBOTG_FEATURE_B_HNP_ENABLE)
               {
                 /* Disable HNP */
@@ -2194,7 +2194,7 @@ static void khci_ep0setup(struct khci_usbdev_s *priv)
           {
             /* Enable B device to perform HNP */
 
-#ifdef CONFIG_USBOTG
+#ifdef CONFIG_KINETIS_USBOTG
             if (value.w == USBOTG_FEATURE_B_HNP_ENABLE)
               {
                 /* Enable HNP */
@@ -2728,7 +2728,7 @@ static int khci_interrupt(int irq, void *context, FAR void *arg)
   uint16_t usbir;
   uint32_t regval;
   int i;
-#ifdef CONFIG_USBOTG
+#ifdef CONFIG_KINETIS_USBOTG
   uint16_t otgir;
 #endif
 
@@ -2738,7 +2738,7 @@ static int khci_interrupt(int irq, void *context, FAR void *arg)
 
   usbir = khci_getreg(KINETIS_USB0_ISTAT) & khci_getreg(KINETIS_USB0_INTEN);
 
-#if !defined(CONFIG_USBOTG)
+#if !defined(CONFIG_KINETIS_USBOTG)
   usbtrace(TRACE_INTENTRY(KHCI_TRACEINTID_INTERRUPT), usbir);
 #else
   otgir = khci_getreg(KINETIS_USB0_OTGISTAT) & khci_getreg(KINETIS_USB0_OTGICR);
@@ -2752,7 +2752,7 @@ static int khci_interrupt(int irq, void *context, FAR void *arg)
   {
     /* Check if the 1 millisecond timer has expired */
 
-    if ((otgir & USBOTG_INT_T1MSEC) != 0)
+    if ((otgir & USB_OTGISTAT_ONEMSEC) != 0)
       {
         usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_T1MSEC), otgir);
 
@@ -2765,7 +2765,7 @@ static int khci_interrupt(int irq, void *context, FAR void *arg)
 
           /* Clear Interrupt 1 msec timer Flag */
 
-          khci_putreg(USBOTG_INT_T1MSEC, KINETIS_USB0_ISTAT);
+          khci_putreg(USB_OTGISTAT_ONEMSEC, KINETIS_USB0_OTGISTAT);
       }
   }
 #endif
@@ -2819,7 +2819,7 @@ static int khci_interrupt(int irq, void *context, FAR void *arg)
       khci_ep0configure(priv);
       priv->devstate = DEVSTATE_DEFAULT;
 
-#ifdef CONFIG_USBOTG
+#ifdef CONFIG_KINETIS_USBOTG
         /* Disable and deactivate HNP */
 #warning Missing Logic
 #endif
@@ -2829,17 +2829,17 @@ static int khci_interrupt(int irq, void *context, FAR void *arg)
       goto interrupt_exit;
     }
 
-#ifdef  CONFIG_USBOTG
+#ifdef  CONFIG_KINETIS_USBOTG
   /* Check if the ID Pin Changed State */
 
-  if ((otgir & USBOTG_INT_ID) != 0)
+  if ((otgir & USB_OTGISTAT_IDCHG) != 0)
     {
       usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_OTGID), otgir);
 
       /* Re-detect and re-initialize */
 #warning "Missing logic"
 
-      khci_putreg(USBOTG_INT_ID, KINETIS_USB0_ISTAT);
+      khci_putreg(USB_OTGISTAT_IDCHG, KINETIS_USB0_OTGISTAT);
     }
 #endif
 
@@ -2894,7 +2894,7 @@ static int khci_interrupt(int irq, void *context, FAR void *arg)
     {
       usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_IDLE), usbir);
 
-#ifdef  CONFIG_USBOTG
+#ifdef  CONFIG_KINETIS_USBOTG
       /* If Suspended, Try to switch to Host */
 #warning "Missing logic"
 #else
@@ -2904,11 +2904,26 @@ static int khci_interrupt(int irq, void *context, FAR void *arg)
       khci_putreg(USB_INT_SLEEP, KINETIS_USB0_ISTAT);
     }
 
+  /* Check for asynchronous resume interrupt */
+
+  if ((khci_getreg(KINETIS_USB0_USBTRC0) & USB_USBTRC0_RESUME_INT) != 0)
+    {
+      /* Just clear the asynchronous resume interrupt enable */
+
+      regval = khci_getreg(KINETIS_USB0_USBTRC0);
+      regval &= ~USB_USBTRC0_USBRESMEN;
+      khci_putreg(regval, KINETIS_USB0_USBTRC0);
+    }
+
   /*  It is pointless to continue servicing if the device is in suspend mode. */
 
   if ((khci_getreg(KINETIS_USB0_USBCTRL) & USB_USBCTRL_SUSP) != 0)
     {
-      /* Just clear the interrupt and return */
+      /* If we are still suspended then re-enable asynchronous resume interrupt */
+
+      regval = khci_getreg(KINETIS_USB0_USBTRC0);
+      regval |= USB_USBTRC0_USBRESMEN;
+      khci_putreg(regval, KINETIS_USB0_USBTRC0);
 
       usbtrace(TRACE_INTDECODE(KHCI_TRACEINTID_SUSPENDED), khci_getreg(KINETIS_USB0_CTL));
       goto interrupt_exit;
@@ -2946,7 +2961,7 @@ static int khci_interrupt(int irq, void *context, FAR void *arg)
 
 interrupt_exit:
   kinetis_clrpend(KINETIS_IRQ_USBOTG);
-#ifdef  CONFIG_USBOTG
+#ifdef  CONFIG_KINETIS_USBOTG
   usbtrace(TRACE_INTEXIT(KHCI_TRACEINTID_INTERRUPT), usbir | otgir);
 #else
   usbtrace(TRACE_INTEXIT(KHCI_TRACEINTID_INTERRUPT), usbir);
@@ -2983,6 +2998,10 @@ static void khci_suspend(struct khci_usbdev_s *priv)
   regval |= USB_INT_RESUME;
   khci_putreg(regval, KINETIS_USB0_INTEN);
 
+  regval  = khci_getreg(KINETIS_USB0_USBCTRL);
+  regval |= USB_USBCTRL_SUSP | USB_USBCTRL_PDE;
+  khci_putreg(regval, KINETIS_USB0_USBCTRL);
+
   regval = khci_getreg(KINETIS_USB0_USBTRC0);
   regval |= USB_USBTRC0_USBRESMEN;
   khci_putreg(regval, KINETIS_USB0_USBTRC0);
@@ -2993,9 +3012,6 @@ static void khci_suspend(struct khci_usbdev_s *priv)
 
   kinetis_usbsuspend((struct usbdev_s *)priv, false);
 
-  regval  = khci_getreg(KINETIS_USB0_USBCTRL);
-  regval |= USB_USBCTRL_SUSP;
-  khci_putreg(regval, KINETIS_USB0_USBCTRL);
 }
 
 /****************************************************************************
@@ -3041,7 +3057,7 @@ static void khci_resume(struct khci_usbdev_s *priv)
   /* Unsuspend */
 
   regval  = khci_getreg(KINETIS_USB0_USBCTRL);
-  regval &= ~USB_USBCTRL_SUSP;
+  regval &= ~(USB_USBCTRL_SUSP | USB_USBCTRL_PDE);
   khci_putreg(regval, KINETIS_USB0_USBCTRL);
 
   /* Enable the IDLE interrupt */
@@ -4034,9 +4050,9 @@ static void khci_attach(struct khci_usbdev_s *priv)
 
       /* Enable OTG */
 
-#ifdef CONFIG_USBOTG
+#ifdef CONFIG_KINETIS_USBOTG
       regval  = khci_getreg(KINETIS_USB0_OTGCTL);
-      regval |= (USBOTG_CON_DPPULUP | USBOTG_CON_OTGEN);
+      regval |= (USB_OTGCTL_DPHIGH | USB_OTGCTL_OTGEN);
       khci_putreg(regval, KINETIS_USB0_OTGCTL);
 #endif
 
@@ -4567,4 +4583,4 @@ int usbdev_unregister(struct usbdevclass_driver_s *driver)
   leave_critical_section(flags);
   return OK;
 }
-#endif /* CONFIG_USBDEV && CONFIG_KHCI_USB */
+#endif /* CONFIG_USBDEV */
