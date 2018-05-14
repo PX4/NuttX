@@ -64,9 +64,10 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-
-#define DMA_N_CHANNELS 32         // Total number of channels
-#define DMA_CHN_PER_GROUP 16      // Number of channels per group
+#ifndef DMA_CHN_PER_GROUP
+// No groups. Set number of channels per group to total number of dma channels
+#   define DMA_CHN_PER_GROUP KINETIS_NDMACH       /* Number of channels per group */
+#endif
 
 #ifndef CONFIG_DMA_PRI
 #  define CONFIG_DMA_PRI NVIC_SYSH_PRIORITY_DEFAULT
@@ -90,7 +91,7 @@
  * Private Data
  ****************************************************************************/
 
-static struct kinetis_dma_ch channels[DMA_N_CHANNELS];
+static struct kinetis_dma_ch channels[KINETIS_NDMACH];
 
 /****************************************************************************
  * Private Functions
@@ -157,7 +158,7 @@ void weak_function up_dmainitialize(void)
   uint32_t regval;
   int ret;
 
-  for (i = DMA_N_CHANNELS - 1; i >= 0; i--) {
+  for (i = KINETIS_NDMACH - 1; i >= 0; i--) {
     channels[i].ind = i;
     channels[i].used = false;
 
@@ -200,7 +201,6 @@ void weak_function up_dmainitialize(void)
   regval  = getreg32(KINETIS_SIM_SCGC6);
   regval |= SIM_SCGC6_DMAMUX0;
   putreg32(regval, KINETIS_SIM_SCGC6);
-
 }
 
 /****************************************************************************
@@ -217,7 +217,7 @@ void weak_function up_dmainitialize(void)
  *
  ****************************************************************************/
 
-DMA_HANDLE kinetis_dmachannel(KINETIS_DMA_REQUEST_SRC src, uint32_t per_addr, KINETIS_DMA_DATA_SZ per_data_sz, KINETIS_DMA_DIRECTION dir)
+DMA_HANDLE kinetis_dmachannel(uint8_t src, uint32_t per_addr, KINETIS_DMA_DATA_SZ per_data_sz, KINETIS_DMA_DIRECTION dir)
 {
   int i;
   int ch_ind;
@@ -229,7 +229,7 @@ DMA_HANDLE kinetis_dmachannel(KINETIS_DMA_REQUEST_SRC src, uint32_t per_addr, KI
   // Find available channel
   flags = enter_critical_section();
   ch_ind = -1;
-  for (i = 0; i < DMA_N_CHANNELS; i++) {
+  for (i = 0; i < KINETIS_NDMACH; i++) {
     if (!channels[i].used) {
       ch_ind = i;
       channels[ch_ind].used = true;

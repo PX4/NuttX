@@ -66,6 +66,7 @@
 
 #include "kinetis_config.h"
 #include "chip.h"
+#include "chip/kinetis_dmamux.h"
 #include "chip/kinetis_uart.h"
 #include "chip/kinetis_pinmux.h"
 #include "kinetis.h"
@@ -315,7 +316,7 @@ struct up_dev_s
 #endif
 
 #ifdef SERIAL_HAVE_DMA
-  const KINETIS_DMA_REQUEST_SRC rxdma_reqsrc;
+  const uint8_t rxdma_reqsrc;
 #endif
 
 /* RX DMA state */
