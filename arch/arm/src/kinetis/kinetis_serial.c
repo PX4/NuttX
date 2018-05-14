@@ -66,6 +66,7 @@
 
 #include "kinetis_config.h"
 #include "chip.h"
+#include "chip/kinetis_dmamux.h"
 #include "chip/kinetis_uart.h"
 #include "chip/kinetis_pinmux.h"
 #include "kinetis.h"
@@ -315,7 +316,7 @@ struct up_dev_s
 #endif
 
 #ifdef SERIAL_HAVE_DMA
-  const KINETIS_DMA_REQUEST_SRC rxdma_reqsrc;
+  const uint8_t rxdma_reqsrc;
 #endif
 
 /* RX DMA state */
@@ -331,8 +332,6 @@ struct up_dev_s
  * Private Function Prototypes
  ****************************************************************************/
 
-static int  up_setup(struct uart_dev_s *dev);
-static void up_shutdown(struct uart_dev_s *dev);
 static int  up_attach(struct uart_dev_s *dev);
 static void up_detach(struct uart_dev_s *dev);
 #ifdef CONFIG_DEBUG_FEATURES
@@ -340,9 +339,13 @@ static int  up_interrupt(int irq, void *context, FAR void *arg);
 #endif
 static int  up_interrupts(int irq, void *context, FAR void *arg);
 static int  up_ioctl(struct file *filep, int cmd, unsigned long arg);
-static int  up_receive(struct uart_dev_s *dev, uint32_t *status);
 static void up_rxint(struct uart_dev_s *dev, bool enable);
+#ifndef SERIAL_HAVE_DMA
+static int  up_setup(struct uart_dev_s *dev);
+static void up_shutdown(struct uart_dev_s *dev);
+static int  up_receive(struct uart_dev_s *dev, uint32_t *status);
 static bool up_rxavailable(struct uart_dev_s *dev);
+#endif
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
 static bool up_rxflowcontrol(struct uart_dev_s *dev, unsigned int nbuffered,
                              bool upper);
@@ -360,6 +363,8 @@ static int  up_dma_setup(struct uart_dev_s *dev);
 static void up_dma_shutdown(struct uart_dev_s *dev);
 static int  up_dma_receive(struct uart_dev_s *dev, unsigned int *status);
 static bool up_dma_rxavailable(struct uart_dev_s *dev);
+static uint8_t get_and_clear_uart_status(struct up_dev_s *priv);
+
 
 static void up_dma_rxcallback(DMA_HANDLE handle, void *arg, int result);
 #endif
@@ -368,6 +373,7 @@ static void up_dma_rxcallback(DMA_HANDLE handle, void *arg, int result);
  * Private Data
  ****************************************************************************/
 
+#ifndef SERIAL_HAVE_DMA
 static const struct uart_ops_s g_uart_ops =
 {
   .setup          = up_setup,
@@ -390,6 +396,7 @@ static const struct uart_ops_s g_uart_ops =
   .txempty        = up_txready,
 #endif
 };
+#endif
 
 #ifdef SERIAL_HAVE_DMA
 static const struct uart_ops_s g_uart_dma_ops =
@@ -869,6 +876,7 @@ static void up_disableuartint(struct up_dev_s *priv, uint8_t *ie)
  *   Uart status s1
  *
  ****************************************************************************/
+#ifdef SERIAL_HAVE_DMA
 static uint8_t get_and_clear_uart_status(struct up_dev_s *priv) {
   uint8_t s1;
   s1 = up_serialin(priv, KINETIS_UART_S1_OFFSET);
@@ -878,6 +886,7 @@ static uint8_t get_and_clear_uart_status(struct up_dev_s *priv) {
   }
   return s1;
 }
+#endif
 
 /****************************************************************************
  * Name: up_setup
@@ -1520,7 +1529,7 @@ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
  *   receipt are provided in the return 'status'.
  *
  ****************************************************************************/
-
+#ifndef SERIAL_HAVE_DMA
 static int up_receive(struct uart_dev_s *dev, uint32_t *status)
 {
   struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
@@ -1551,6 +1560,7 @@ static int up_receive(struct uart_dev_s *dev, uint32_t *status)
 
   return (int)up_serialin(priv, KINETIS_UART_D_OFFSET);
 }
+#endif
 
 /****************************************************************************
  * Name: up_dma_receive
@@ -1658,6 +1668,7 @@ static void up_rxint(struct uart_dev_s *dev, bool enable)
  *
  ****************************************************************************/
 
+#ifndef SERIAL_HAVE_DMA
 static bool up_rxavailable(struct uart_dev_s *dev)
 {
   struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
@@ -1679,6 +1690,7 @@ static bool up_rxavailable(struct uart_dev_s *dev)
   return (up_serialin(priv, KINETIS_UART_S1_OFFSET) & UART_S1_RDRF) != 0;
 #endif
 }
+#endif
 
 /****************************************************************************
  * Name: up_dma_rxavailable
