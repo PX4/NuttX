@@ -844,7 +844,7 @@ void kinetis_lpuartconfigure(uintptr_t uart_base, uint32_t baud,
 
   /* Check for 9-bit operation */
 
-  if (nbits == 9)
+  if (nbits == 9 || (nbits == 8 && parity != 0))
     {
       regval |= LPUART_CTRL_M;
     }
