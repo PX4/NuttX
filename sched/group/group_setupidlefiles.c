@@ -78,8 +78,9 @@ int group_setupidlefiles(FAR struct task_tcb_s *tcb)
 #if CONFIG_NFILE_DESCRIPTORS > 0 || CONFIG_NSOCKET_DESCRIPTORS > 0
   FAR struct task_group_s *group = tcb->cmn.group;
 #endif
-#if CONFIG_NFILE_DESCRIPTORS > 0 && defined(CONFIG_DEV_CONSOLE)
-  int fd;
+#if CONFIG_NFILE_DESCRIPTORS > 0 && (defined(CONFIG_DEV_CONSOLE) || \
+  defined(CONFIG_DEV_NULL))
+  int fd = -1;
 #endif
 
 #if CONFIG_NFILE_DESCRIPTORS > 0 || CONFIG_NSOCKET_DESCRIPTORS > 0
@@ -98,34 +99,48 @@ int group_setupidlefiles(FAR struct task_tcb_s *tcb)
   net_initlist(&group->tg_socketlist);
 #endif
 
-  /* Open stdin, dup to get stdout and stderr. This should always
-   * be the first file opened and, hence, should always get file
-   * descriptor 0.
+  /* Attempt to open /dev/console for stdin or use /dev/null if there is no
+   * /dev/console. Then dup the console or null to get stdout and stderr.
+   * One of these should always be the first file opened and, hence, should
+   * always get file descriptor (fd) 0.
+   *
+   * In the absence of /dev/console, we must use dev/null to preserve the relation of fds 0..2
+   * to stdin, stdout and stderr.
+   *
    */
 
-#if CONFIG_NFILE_DESCRIPTORS > 0 && defined(CONFIG_DEV_CONSOLE)
+#if CONFIG_NFILE_DESCRIPTORS > 0 && (defined(CONFIG_DEV_CONSOLE) || \
+  defined(CONFIG_DEV_NULL))
+#  if defined(CONFIG_DEV_CONSOLE)
   fd = open("/dev/console", O_RDWR);
+#  endif
+#  if defined(CONFIG_DEV_NULL)
+  if (fd < 0) {
+	  fd = open("/dev/null", O_RDWR);
+  }
+#  endif
+
   if (fd == 0)
     {
-      /* Successfully opened /dev/console as stdin (fd == 0) */
+      /* Successfully opened /dev/console or /dev/null as stdin (fd == 0) */
 
       (void)fs_dupfd2(0, 1);
       (void)fs_dupfd2(0, 2);
     }
   else
     {
-      /* We failed to open /dev/console OR for some reason, we opened
-       * it and got some file descriptor other than 0.
+      /* We failed to open /dev/console or /dev/null OR for some reason, we
+       * opened it and got some file descriptor other than 0.
        */
 
       if (fd > 0)
         {
-          sinfo("Open /dev/console fd: %d\n", fd);
+          sinfo("Open /dev/console or /dev/null fd: %d\n", fd);
           (void)close(fd);
         }
       else
         {
-          serr("ERROR: Failed to open /dev/console: %d\n", errno);
+          serr("ERROR: Failed to open /dev/console or /dev/null: %d\n", errno);
         }
 
       return -ENFILE;
