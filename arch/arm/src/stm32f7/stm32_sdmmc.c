@@ -1919,6 +1919,7 @@ static void stm32_clock(FAR struct sdio_dev_s *dev, enum sdio_clock_e rate)
             clckr = (STM32_SDMMC_CLCKR_SDWIDEXFR | STM32_SDMMC_CLKCR_CLKEN);
             break;
           }
+	/* FALLTHROUGH */
 
       /* SD normal operation clocking (narrow 1-bit mode) */
 
