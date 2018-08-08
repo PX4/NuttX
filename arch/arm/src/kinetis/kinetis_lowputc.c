@@ -556,9 +556,12 @@ void kinetis_uartconfigure(uintptr_t uart_base, uint32_t baud,
       DEBUGASSERT(parity == 0);
     }
 
-  /* Check for 9-bit operation */
+  /* Check for 9-bit operation or enter 9 bit mode for 8 bit with parity
+   * see K66 Sub-Family Reference Manual, Rev. 2, May 2015
+   * 59.5.4 Data format
+   */
 
-  if (nbits == 9)
+  if (nbits == 9 || (nbits == 8 && parity != 0))
     {
       regval |= UART_C1_M;
     }
@@ -609,7 +612,7 @@ void kinetis_uartconfigure(uintptr_t uart_base, uint32_t baud,
 
   /* Set the BRFA field (retaining other bits in the UARTx_C4 register) */
 
-  regval  = getreg8(uart_base+KINETIS_UART_C4_OFFSET) & UART_C4_BRFA_MASK;
+  regval  = getreg8(uart_base+KINETIS_UART_C4_OFFSET)& ~UART_C4_BRFA_MASK;
   regval |= ((uint8_t)brfa << UART_C4_BRFA_SHIFT) & UART_C4_BRFA_MASK;
   putreg8(regval, uart_base+KINETIS_UART_C4_OFFSET);
 
@@ -841,7 +844,7 @@ void kinetis_lpuartconfigure(uintptr_t uart_base, uint32_t baud,
 
   /* Check for 9-bit operation */
 
-  if (nbits == 9)
+  if (nbits == 9 || (nbits == 8 && parity != 0))
     {
       regval |= LPUART_CTRL_M;
     }
