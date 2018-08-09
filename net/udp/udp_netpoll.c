@@ -192,15 +192,7 @@ int udp_pollsetup(FAR struct socket *psock, FAR struct pollfd *fds)
 
   info->dev = udp_find_laddr_device(conn);
 
-  /* Setup the UDP remote connection */
-
-  ret = udp_connect(conn, NULL);
-  if (ret)
-    {
-      goto errout_with_lock;
-    }
-
-  /* Allocate a TCP/IP callback structure */
+  /* Allocate a UDP callback structure */
 
   cb = udp_callback_alloc(info->dev, conn);
   if (!cb)
