@@ -369,6 +369,7 @@ static void kinetis_restoreuartint(struct kinetis_dev_s *priv, uint32_t ie)
  * Name: kinetis_disableuartint
  ****************************************************************************/
 
+#if defined(HAVE_LPUART_PUTC) && defined(HAVE_LPUART_CONSOLE)
 static void kinetis_disableuartint(struct kinetis_dev_s *priv, uint32_t *ie)
 {
   irqstate_t flags;
@@ -382,6 +383,7 @@ static void kinetis_disableuartint(struct kinetis_dev_s *priv, uint32_t *ie)
   kinetis_restoreuartint(priv, 0);
   leave_critical_section(flags);
 }
+#endif
 
 /****************************************************************************
  * Name: kinetis_setup
