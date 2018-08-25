@@ -74,7 +74,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define I2C_TIMEOUT  (20*1000/CONFIG_USEC_PER_TICK)   /* 20 mS */
+#define I2C_TIMEOUT  USEC2TICK(20*1000)   /* 20 mS */
 
 #define I2C_DEFAULT_FREQUENCY 400000
 
@@ -790,6 +790,7 @@ static void kinetis_i2c_setfrequency(struct kinetis_i2cdev_s *priv,
 static int kinetis_i2c_start(struct kinetis_i2cdev_s *priv)
 {
   struct i2c_msg_s *msg;
+  systime_t start;
 
   i2cinfo("START msg=%p\n", priv->msgs);
   msg = priv->msgs;
@@ -805,9 +806,18 @@ static int kinetis_i2c_start(struct kinetis_i2cdev_s *priv)
     }
   else
     {
-      /* We are not currently the bus master, so wait for bus ready */
+      /* We are not currently the bus master, wait for bus ready or timeout */
 
-      while (kinetis_i2c_getreg(priv, KINETIS_I2C_S_OFFSET) & I2C_S_BUSY);
+      start = clock_systimer();
+
+      while (kinetis_i2c_getreg(priv, KINETIS_I2C_S_OFFSET) & I2C_S_BUSY)
+        {
+          if (clock_systimer() - start > I2C_TIMEOUT)
+            {
+              priv->state = STATE_TIMEOUT;
+              return -EIO;
+            }
+        }
 
       /* Become the bus master in transmit mode (send start) */
 
@@ -817,13 +827,18 @@ static int kinetis_i2c_start(struct kinetis_i2cdev_s *priv)
 
   if (I2C_M_READ & msg->flags)  /* DEBUG: should happen always */
     {
-      /* Wait until start condition establishes control of the bus */
+      /* Wait until start condition establishes control of the bus or
+       * a timeout occurs
+       */
 
-      while (1)
+      start = clock_systimer();
+
+      while ((kinetis_i2c_getreg(priv, KINETIS_I2C_S_OFFSET) & I2C_S_BUSY) == 0)
         {
-          if (kinetis_i2c_getreg(priv, KINETIS_I2C_S_OFFSET) & I2C_S_BUSY)
+          if (clock_systimer() - start > I2C_TIMEOUT)
             {
-              break;
+              priv->state = STATE_TIMEOUT;
+              return -EIO;
             }
         }
     }
@@ -1167,7 +1182,10 @@ static int kinetis_i2c_transfer(struct i2c_master_s *dev,
         {
           /* Initiate the transfer, in case restart is required */
 
-          kinetis_i2c_start(priv);
+          if (kinetis_i2c_start(priv) < 0)
+            {
+              goto timeout;
+            }
         }
 
       /* Wait for transfer complete */
@@ -1183,20 +1201,14 @@ static int kinetis_i2c_transfer(struct i2c_master_s *dev,
 
   /* Disable interrupts */
 
+timeout:
   kinetis_i2c_putreg(priv, I2C_C1_IICEN, KINETIS_I2C_C1_OFFSET);
 
   /* Release access to I2C bus */
 
   kinetis_i2c_sem_post(priv);
 
-  if (priv->state != STATE_OK)
-    {
-      return -EIO;
-    }
-  else
-    {
-      return 0;
-    }
+  return (priv->state != STATE_OK) ? -EIO : 0;
 }
 
 /************************************************************************************
