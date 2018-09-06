@@ -268,6 +268,17 @@ int arp_send(in_addr_t ipaddr)
       ipaddr = dripaddr;
     }
 
+  /* The destination address is on the local network.  Check if it is
+   * the sub-net broadcast address.
+   */
+
+  else if (net_ipv4addr_broadcast(ipaddr, dev->d_netmask))
+    {
+      /* Yes.. We don't need to send the ARP request */
+
+      return OK;
+    }
+
   /* Allocate resources to receive a callback.  This and the following
    * initialization is performed with the network lock because we don't
    * want anything to happen until we are ready.

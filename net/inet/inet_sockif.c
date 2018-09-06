@@ -1,7 +1,7 @@
 /****************************************************************************
  * net/inet/inet_sockif.c
  *
- *   Copyright (C) 2017 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2017-2018 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -685,14 +685,36 @@ static int inet_connect(FAR struct socket *psock,
 #if defined(CONFIG_NET_UDP) && defined(NET_UDP_HAVE_STACK)
       case SOCK_DGRAM:
         {
-          int ret = udp_connect(psock->s_conn, addr);
-          if (ret < 0)
+          FAR struct udp_conn_s *conn;
+          int ret;
+
+          /* We will accept connecting to a addr == NULL for disconnection.
+           * However, the correct way is to disconnect is to provide an
+           * address with sa_family == AF_UNSPEC.
+           */
+
+          if (addr != NULL && addr->sa_family == AF_UNSPEC)
             {
+              addr = NULL;
+            }
+
+          /* Perform the connect/disconnect operation */
+
+          conn = (FAR struct udp_conn_s *)psock->s_conn;
+          ret  = udp_connect(conn, addr);
+          if (ret < 0 || addr == NULL)
+            {
+              /* Failed to connect or explicitly disconnected */
+
               psock->s_flags &= ~_SF_CONNECTED;
+              conn->flags    &= ~_UDP_FLAG_CONNECTMODE;
             }
           else
             {
+              /* Successfully connected */
+
               psock->s_flags |= _SF_CONNECTED;
+              conn->flags    |= _UDP_FLAG_CONNECTMODE;
             }
 
           return ret;
