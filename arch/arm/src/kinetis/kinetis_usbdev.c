@@ -106,6 +106,11 @@
 #define CONFIG_USBDEV_NOWRITEAHEAD 1  /* Fixes some problems with IN transfers */
 
 /* Interrupts ***************************************************************/
+
+#ifndef CONFIG_KINETIS_USBOTG_PRIO
+#  define CONFIG_KINETIS_USBOTG_PRIO NVIC_SYSH_PRIORITY_DEFAULT
+#endif
+
 /* Initial interrupt sets */
 
 #ifdef CONFIG_USB_SOFINTS
@@ -4402,7 +4407,7 @@ void up_usbinitialize(void)
 #ifdef CONFIG_ARCH_IRQPRIO
   /* Set the interrupt priority */
 
-  up_prioritize_irq(KINETIS_IRQ_USBOTG, 112);
+  up_prioritize_irq(KINETIS_IRQ_USBOTG, CONFIG_KINETIS_USBOTG_PRIO);
 #endif
 
   khci_hwinitalize(priv);
