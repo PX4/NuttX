@@ -1,0 +1,8 @@
+CONFIG:
+  default: stm32f4discovery/nsh
+  choices:
+    stm32f4discovery/nsh:
+      short: stm32f4discovery/nsh
+      buildType: MinSizeRel
+      settings:
+        CONFIG: stm32f4discovery/nsh

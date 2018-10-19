@@ -110,8 +110,9 @@
 #define L_tmpnam   CONFIG_LIBC_MAX_TMPFILE
 
 /* The maximum number of unique temporary file names that can be generated */
-
-#define TMP_MAX 56800235584ull
+#ifndef TMP_MAX
+#  define TMP_MAX 56800235584ull
+#endif
 
 /****************************************************************************
  * Public Type Definitions
