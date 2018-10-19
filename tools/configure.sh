@@ -342,5 +342,5 @@ if [ ! -z `which gmake 2>/dev/null` ]; then
   MAKE_BIN=gmake
 fi
 
-${MAKE_BIN} olddefconfig 1>/dev/null
+V=1 ${MAKE_BIN} olddefconfig
 
