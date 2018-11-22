@@ -1487,6 +1487,15 @@ config ARCH_BOARD_TAP_V3_2
 	---help---
 		Select his option for V18S board
 
+config ARCH_BOARD_TAP_V3_3
+        bool "V18S02 board"
+        depends on ARCH_CHIP_STM32F7
+        select ARCH_HAVE_LEDS
+        select ARCH_HAVE_BUTTONS
+        select ARCH_HAVE_IRQBUTTONS
+        ---help---
+                Select his option for V18S board
+
 config ARCH_BOARD_CUSTOM
 	bool "Custom development board"
 	---help---
@@ -1701,6 +1710,7 @@ config ARCH_BOARD
 	default "sim"                      if ARCH_BOARD_SIM
 	default "moxa"                     if ARCH_BOARD_MOXA
 	default "tap-v3-2"                 if ARCH_BOARD_TAP_V3_2
+	default "tap-v3-3"                 if ARCH_BOARD_TAP_V3_3
 
 comment "Common Board Options"
 
@@ -2159,9 +2169,6 @@ source "configs/zkit-arm-1769/Kconfig"
 endif
 if ARCH_BOARD_SIM
 source "configs/sim/Kconfig"
-endif
-if ARCH_BOARD_TAP_V3_2
-source "configs/tap-v3-2/Kconfig"
 endif
 if ARCH_BOARD_CUSTOM
 source "configs/dummy/Kconfig"
