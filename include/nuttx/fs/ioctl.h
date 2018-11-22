@@ -231,6 +231,12 @@
                                            *      the block with specific debug
                                            *      command and data.
                                            * OUT: None.  */
+#define BIOC_FLUSH      _BIOC(0x000C)     /* Flush write cachee
+                                           * IN:  None
+                                           * OUT: None.  */
+#define BIOC_ALLOCSECT2 _BIOC(0x000D)     /* Allocate a logical sector step 2
+                                           * IN:  Logical sector
+                                           * OUT: None.  */
 
 /* NuttX MTD driver ioctl definitions ***************************************/
 

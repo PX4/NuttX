@@ -64,11 +64,12 @@
 #include <nuttx/mtd/smart.h>
 #include <nuttx/fs/smart.h>
 
+//#define CONFIG_SMARTFS_DEBUG
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-//#define CONFIG_SMART_LOCAL_CHECKFREE
 
 #define SMART_STATUS_COMMITTED    0x80
 #define SMART_STATUS_RELEASED     0x40
@@ -109,11 +110,11 @@
 #define SMART_FMT_VERSION_POS     (SMART_FMT_POS1 + 4)
 #define SMART_FMT_NAMESIZE_POS    (SMART_FMT_POS1 + 5)
 #define SMART_FMT_ROOTDIRS_POS    (SMART_FMT_POS1 + 6)
+#define SMART_SIGNATURE_SIZE      (SMART_FMT_ROOTDIRS_POS+1)
 #define SMARTFS_FMT_WEAR_POS      36
 #define SMART_WEAR_LEVEL_FORMAT_SIG 32
 #define SMART_PARTNAME_SIZE         4
 
-#define SMART_FIRST_DIR_SECTOR      3       /* First root directory sector */
 #define SMART_FIRST_ALLOC_SECTOR    12      /* First logical sector number we will
                                              * use for assignment of requested Alloc
                                              * sectors.  All enries below this are
@@ -143,6 +144,7 @@
 #define smart_free(d, p)        kmm_free(p)
 #endif
 
+#ifdef CONFIG_MTD_SMART_WEAR_LEVEL
 #define SMART_WEAR_FULL_RELOCATE_THRESHOLD  8
 #define SMART_WEAR_REORG_THRESHOLD          14
 #define SMART_WEAR_MIN_LEVEL                5
@@ -183,6 +185,7 @@ static const uint8_t gWearBitToLevelMap4[] =
   7, 13, 10, 14, 6, 15, 5, 4,
   3, 12, 9,  8,  2, 11, 1, 0
 };
+#endif
 
 /****************************************************************************
  * Private Types
@@ -234,8 +237,14 @@ struct smart_struct_s
   uint32_t              erasesize;        /* Size of an erase block */
   FAR uint8_t          *releasecount;     /* Count of released sectors per erase block */
   FAR uint8_t          *freecount;        /* Count of free sectors per erase block */
+#ifndef CONFIG_MTD_BYTE_WRITE
   FAR char             *rwbuffer;         /* Our sector read/write buffer */
-  char                  partname[SMART_PARTNAME_SIZE]; /* Optional partition name */
+#endif
+#ifdef CONFIG_SMART_CACHE
+  uint16_t              currentsector;    /* Current sector in rwbuffer */
+  bool                  isdirty;          /* true if current rwbuffer is dirty */
+#endif
+  char                  partname[SMART_PARTNAME_SIZE]; /* Optional paßrtition name */
   uint8_t               formatversion;    /* Format version on the device */
   uint8_t               formatstatus;     /* Indicates the status of the device format */
   uint8_t               namesize;         /* Length of filenames on this device */
@@ -377,6 +386,8 @@ static int smart_findfreephyssector(FAR struct smart_struct_s *dev, uint8_t canr
 static int smart_writesector(FAR struct smart_struct_s *dev, unsigned long arg);
 static inline int smart_allocsector(FAR struct smart_struct_s *dev,
                  unsigned long requested);
+static inline int smart_allocsector2(FAR struct smart_struct_s *dev,
+                 ssize_t logsector);
 #endif
 static int smart_readsector(FAR struct smart_struct_s *dev, unsigned long arg);
 
@@ -385,8 +396,10 @@ static int smart_read_wearstatus(FAR struct smart_struct_s *dev);
 static int smart_relocate_static_data(FAR struct smart_struct_s *dev, uint16_t block);
 #endif
 
+#ifdef CONFIG_SMART_RELOCATE
 static int smart_relocate_sector(FAR struct smart_struct_s *dev,
                  uint16_t oldsector, uint16_t newsector);
+#endif
 
 #ifdef CONFIG_SMART_DEV_LOOP
 static ssize_t smart_loop_read(FAR struct file *filep, FAR char *buffer,
@@ -433,6 +446,67 @@ static const struct file_operations g_fops =
  * Private Functions
  ****************************************************************************/
 
+#ifdef CONFIG_SMART_CACHE
+static int smart_flush(FAR struct smart_struct_s *dev)
+{
+  int ret;
+
+  if (dev->isdirty) {
+    /* Write the data back to the device */
+    MTD_ERASE(dev->mtd, dev->currentsector, 1);
+    ret = MTD_BWRITE(dev->mtd, dev->currentsector, 1, (FAR uint8_t *) dev->rwbuffer);
+    if (ret < 0)
+    {
+      ferr("ERROR: Error %d writing to device\n", -ret);
+    }
+    dev->isdirty = false;
+  }
+
+  return OK;
+}
+#endif
+
+#ifdef CONFIG_SMART_DUMP
+static void smart_dump(FAR struct smart_struct_s *dev, char *message)
+{
+  printf("** sector mapping: %s\n", message);
+  for (uint16_t sector = 0; sector < dev->totalsectors; sector++)
+    {
+      if (dev->sMap[sector] != 0xffff)
+          printf("logical -> physical : %d -> %d\n", sector, dev->sMap[sector]);
+    }
+}
+#endif
+
+static ssize_t smart_bytewrite(FAR struct smart_struct_s *dev, size_t offset,
+        int nbytes, FAR const uint8_t *buffer);
+
+#ifdef CONFIG_SMART_MAP_METADATA
+static void smart_save_meta(FAR struct smart_struct_s *dev)
+{
+  /* save sMap at block 1 */
+
+  MTD_BWRITE(dev->mtd, 1, dev->mtdBlksPerSector,
+                 (FAR uint8_t *) dev->sMap);
+#ifdef ONFIG_SMARTFS_DEBUG
+  ferr("save meta\n");
+#endif
+}
+
+static void smart_load_meta(FAR struct smart_struct_s *dev)
+{
+  /* load sMap at block 1 */
+
+  uint16_t readaddress = 1 * dev->geo.blocksize;
+  MTD_READ(dev->mtd, readaddress,
+           sizeof(uint16_t) * dev->totalsectors + (dev->neraseblocks << 1),
+           (FAR uint8_t *) dev->sMap);
+#ifdef CONFIG_SMARTFS_DEBUG
+  ferr("load meta\n");
+#endif
+}
+#endif
+
 /****************************************************************************
  * Name: smart_open
  *
@@ -455,7 +529,29 @@ static int smart_open(FAR struct inode *inode)
 
 static int smart_close(FAR struct inode *inode)
 {
+  FAR struct smart_struct_s *dev;
+
   finfo("Entry\n");
+
+#ifdef CONFIG_SMARTFS_MULTI_ROOT_DIRS
+  dev = ((FAR struct smart_multiroot_device_s *)inode->i_private)->dev;
+#else
+  dev = (struct smart_struct_s *)inode->i_private;
+#endif
+
+#ifdef CONFIG_SMART_CACHE
+  smart_flush(dev);
+#endif
+
+#ifdef CONFIG_SMART_MAP_METADATA
+  smart_save_meta(dev);
+#endif
+  int ret = MTD_IOCTL(dev->mtd, MTDIOC_FLUSH, 0);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   return OK;
 }
 
@@ -805,6 +901,11 @@ static ssize_t smart_reload(struct smart_struct_s *dev, FAR uint8_t *buffer,
   /* Read the full erase block into the buffer */
 
   finfo("Read %d blocks starting at block %d\n", mtdBlocks, mtdStartBlock);
+
+#ifdef CONFIG_SMART_CACHE
+  smart_flush(dev);
+#endif
+
   nread = MTD_BREAD(dev->mtd, mtdStartBlock, mtdBlocks, buffer);
   if (nread != mtdBlocks)
     {
@@ -1095,11 +1196,13 @@ static int smart_setsectorsize(FAR struct smart_struct_s *dev, uint16_t size)
   dev->cache_nextbirth = 0;
 #endif
 
+#ifndef CONFIG_MTD_BYTE_WRITE
   if (dev->rwbuffer != NULL)
     {
       smart_free(dev, dev->rwbuffer);
       dev->rwbuffer = NULL;
     }
+#endif
 
 #ifdef CONFIG_MTD_SMART_WEAR_LEVEL
   if (dev->wearstatus != NULL)
@@ -1245,6 +1348,7 @@ static int smart_setsectorsize(FAR struct smart_struct_s *dev, uint16_t size)
   dev->uneven_wearcount = 0;
 #endif
 
+#ifndef CONFIG_MTD_BYTE_WRITE
   /* Allocate a read/write buffer */
 
   dev->rwbuffer = (FAR char *) smart_malloc(dev, size, "RW Buffer");
@@ -1253,6 +1357,12 @@ static int smart_setsectorsize(FAR struct smart_struct_s *dev, uint16_t size)
       ferr("ERROR: Error allocating SMART read/write buffer\n");
       goto errexit;
     }
+#endif
+
+#ifdef CONFIG_SMART_CACHE
+  dev->currentsector = 0xffff;
+  dev->isdirty = false;
+#endif
 
   return OK;
 
@@ -1319,17 +1429,11 @@ static ssize_t smart_bytewrite(FAR struct smart_struct_s *dev, size_t offset,
   ssize_t       ret;
 
 #ifdef CONFIG_MTD_BYTE_WRITE
-  /* Check if the underlying MTD device supports write */
+  /* Use the MTD's write method to write individual bytes */
 
-  if (dev->mtd->write != NULL)
-    {
-      /* Use the MTD's write method to write individual bytes */
+  ret = MTD_WRITE(dev->mtd, offset, nbytes, buffer);
 
-      ret = dev->mtd->write(dev->mtd, offset, nbytes, buffer);
-    }
-  else
-#endif
-    {
+#else
       /* Perform block-based read-modify-write */
 
       uint32_t  startblock;
@@ -1345,17 +1449,29 @@ static ssize_t smart_bytewrite(FAR struct smart_struct_s *dev, size_t offset,
 
       /* Do a block read */
 
-      ret = MTD_BREAD(dev->mtd, startblock, nblocks, (FAR uint8_t *) dev->rwbuffer);
-      if (ret < 0)
-        {
-          ferr("ERROR: Error %d reading from device\n", -ret);
-          goto errout;
-        }
+#ifdef CONFIG_SMART_CACHE
+      if ( startblock != dev->currentsector ) {
+         smart_flush(dev);
+#endif
+         /* read next sector */
+         ret = MTD_BREAD(dev->mtd, startblock, nblocks, (FAR uint8_t *) dev->rwbuffer);
+         if (ret < 0)
+         {
+            ferr("ERROR: Error %d reading from device\n", -ret);
+            goto errout;
+         }
+#ifdef CONFIG_SMART_CACHE
+         dev->currentsector = startblock;
+      } else {
+         dev->isdirty = true;
+      }
+#endif
 
       /* Modify the data */
 
       memcpy(&dev->rwbuffer[offset - startblock * dev->geo.blocksize], buffer, nbytes);
 
+#ifndef CONFIG_SMART_CACHE
       /* Write the data back to the device */
 
       ret = MTD_BWRITE(dev->mtd, startblock, nblocks, (FAR uint8_t *) dev->rwbuffer);
@@ -1364,11 +1480,15 @@ static ssize_t smart_bytewrite(FAR struct smart_struct_s *dev, size_t offset,
           ferr("ERROR: Error %d writing to device\n", -ret);
           goto errout;
         }
-    }
+#endif
 
   ret = nbytes;
+#endif
 
+#ifndef CONFIG_MTD_BYTE_WRITE
 errout:
+#endif
+
   return ret;
 }
 
@@ -1829,18 +1949,23 @@ static int smart_set_wear_level(FAR struct smart_struct_s *dev, uint16_t block,
  *
  ****************************************************************************/
 
-static int smart_scan(FAR struct smart_struct_s *dev)
+static int smart_scan(FAR struct smart_struct_s *dev, bool recover)
 {
   int       sector;
   int       ret;
   uint16_t  totalsectors;
-  uint16_t  sectorsize, prerelease;
+  uint16_t  sectorsize;
+  uint16_t  prerelease;
   uint16_t  logicalsector;
+#ifndef CONFIG_SMART_MAP_METADATA
   uint16_t  loser;
+#endif
   uint32_t  readaddress;
+#ifndef CONFIG_SMART_MAP_METADATA
   uint32_t  offset;
   uint16_t  seq1;
   uint16_t  seq2;
+#endif
   struct    smart_sect_header_s header;
 #ifdef CONFIG_MTD_SMART_MINIMIZE_RAM
   int       dupsector;
@@ -1863,6 +1988,8 @@ static int smart_scan(FAR struct smart_struct_s *dev)
    */
 
   sectorsize = 0xffff;
+
+#if 0
   offset = 16384;
 
   while (sectorsize == 0xffff)
@@ -1899,6 +2026,9 @@ static int smart_scan(FAR struct smart_struct_s *dev)
           sectorsize = CONFIG_MTD_SMART_SECTOR_SIZE;
         }
     }
+#else
+    sectorsize = CONFIG_MTD_SMART_SECTOR_SIZE;
+#endif
 
   /* Now set the sectorsize and other sectorsize derived variables */
 
@@ -1942,7 +2072,7 @@ static int smart_scan(FAR struct smart_struct_s *dev)
 #ifndef CONFIG_MTD_SMART_MINIMIZE_RAM
   for (sector = 0; sector < totalsectors; sector++)
     {
-      dev->sMap[sector] = -1;
+      dev->sMap[sector] = 0xffff;
     }
 #else
   /* Clear all logical sector used bits */
@@ -1950,10 +2080,34 @@ static int smart_scan(FAR struct smart_struct_s *dev)
   memset(dev->sBitMap, 0, (dev->totalsectors + 7) >> 3);
 #endif
 
+#ifdef CONFIG_SMART_MAP_METADATA
+  if (!recover)
+    smart_load_meta(dev);
+#endif
+
+#ifdef CONFIG_SMARTFS_DEBUG
+  int totalfreecount = 0;
+  ferr("===============neraseblocks = %d\n", dev->neraseblocks);
+  for (int i=0; i<dev->neraseblocks; i++) {
+    if (dev->freecount[i] > dev->sectorsPerBlk) {
+      ferr("Abnormal freecount: block %d freecount %d\n", i, dev->freecount[i]);
+    }
+    totalfreecount += dev->freecount[i];
+  }
+  ferr("Total sectors: %d, free sectors: %d\n", totalsectors, totalfreecount);
+#endif
+
   /* Now scan the MTD device */
 
   for (sector = 0; sector < totalsectors; sector++)
     {
+
+#ifdef CONFIG_SMART_MAP_METADATA
+      if (!recover) {
+        if (sector > 0)
+          break;
+      } else {
+#endif
       finfo("Scan sector %d\n", sector);
 
       /* Calculate the read address for this sector */
@@ -1975,28 +2129,9 @@ static int smart_scan(FAR struct smart_struct_s *dev)
 #if CONFIG_SMARTFS_ERASEDSTATE == 0x00
       if (logicalsector == 0)
         {
-          logicalsector = -1;
+          logicalsector = 0xffff;
         }
 #endif
-
-      /* Test if this sector has been committed */
-
-      if ((header.status & SMART_STATUS_COMMITTED) ==
-              (CONFIG_SMARTFS_ERASEDSTATE & SMART_STATUS_COMMITTED))
-        {
-          continue;
-        }
-
-      /* This block is commited, therefore not free.  Update the
-       * erase block's freecount.
-       */
-
-#ifdef CONFIG_MTD_SMART_PACK_COUNTS
-      smart_add_count(dev, dev->freecount, sector / dev->sectorsPerBlk, -1);
-#else
-      dev->freecount[sector / dev->sectorsPerBlk]--;
-#endif
-      dev->freesectors--;
 
       /* Test if this sector has been release and if it has,
        * update the erase block's releasecount.
@@ -2018,6 +2153,28 @@ static int smart_scan(FAR struct smart_struct_s *dev)
           continue;
         }
 
+      /* Test if this sector has been committed */
+
+      if ((header.status & SMART_STATUS_COMMITTED) ==
+              (CONFIG_SMARTFS_ERASEDSTATE & SMART_STATUS_COMMITTED))
+        {
+          /* uncommited, erased */
+          continue;
+        }
+
+      /* used */
+
+      /* This block is commited, therefore not free.  Update the
+       * erase block's freecount.
+       */
+
+#ifdef CONFIG_MTD_SMART_PACK_COUNTS
+      smart_add_count(dev, dev->freecount, sector / dev->sectorsPerBlk, -1);
+#else
+      dev->freecount[sector / dev->sectorsPerBlk]--;
+#endif
+      dev->freesectors--;
+
       if ((header.status & SMART_STATUS_VERBITS) != SMART_STATUS_VERSION)
         {
           continue;
@@ -2033,6 +2190,9 @@ static int smart_scan(FAR struct smart_struct_s *dev)
                logicalsector, sector);
           continue;
         }
+#ifdef CONFIG_SMART_MAP_METADATA
+      }
+#endif
 
       /* If this is logical sector zero, then read in the signature
        * information to validate the format signature.
@@ -2041,10 +2201,11 @@ static int smart_scan(FAR struct smart_struct_s *dev)
       if (logicalsector == 0)
         {
           /* Read the sector data */
+          FAR uint8_t headerbuf[SMART_SIGNATURE_SIZE];
 
-          ret = MTD_READ(dev->mtd, readaddress, 32,
-                         (FAR uint8_t *)dev->rwbuffer);
-          if (ret != 32)
+          ret = MTD_READ(dev->mtd, readaddress, SMART_SIGNATURE_SIZE,
+                         (FAR uint8_t *)headerbuf);
+          if (ret != SMART_SIGNATURE_SIZE)
             {
               ferr("ERROR: Error reading physical sector %d.\n", sector);
               goto err_out;
@@ -2052,10 +2213,10 @@ static int smart_scan(FAR struct smart_struct_s *dev)
 
           /* Validate the format signature */
 
-          if (dev->rwbuffer[SMART_FMT_POS1] != SMART_FMT_SIG1 ||
-              dev->rwbuffer[SMART_FMT_POS2] != SMART_FMT_SIG2 ||
-              dev->rwbuffer[SMART_FMT_POS3] != SMART_FMT_SIG3 ||
-              dev->rwbuffer[SMART_FMT_POS4] != SMART_FMT_SIG4)
+          if (headerbuf[SMART_FMT_POS1] != SMART_FMT_SIG1 ||
+              headerbuf[SMART_FMT_POS2] != SMART_FMT_SIG2 ||
+              headerbuf[SMART_FMT_POS3] != SMART_FMT_SIG3 ||
+              headerbuf[SMART_FMT_POS4] != SMART_FMT_SIG4)
             {
               /* Invalid signature on a sector claiming to be sector 0!
                * What should we do?  Release it?
@@ -2067,11 +2228,11 @@ static int smart_scan(FAR struct smart_struct_s *dev)
           /* Mark the volume as formatted and set the sector size */
 
           dev->formatstatus = SMART_FMT_STAT_FORMATTED;
-          dev->namesize = dev->rwbuffer[SMART_FMT_NAMESIZE_POS];
-          dev->formatversion = dev->rwbuffer[SMART_FMT_VERSION_POS];
+          dev->namesize = headerbuf[SMART_FMT_NAMESIZE_POS];
+          dev->formatversion = headerbuf[SMART_FMT_VERSION_POS];
 
 #ifdef CONFIG_SMARTFS_MULTI_ROOT_DIRS
-          dev->rootdirentries = dev->rwbuffer[SMART_FMT_ROOTDIRS_POS];
+          dev->rootdirentries = headerbuf[SMART_FMT_ROOTDIRS_POS];
 
           /* If rootdirentries is greater than 1, then we need to register
            * additional block devices.
@@ -2116,6 +2277,7 @@ static int smart_scan(FAR struct smart_struct_s *dev)
 #endif
         }
 
+#if 0
       /* Test for duplicate logical sectors on the device */
 
 #ifndef CONFIG_MTD_SMART_MINIMIZE_RAM
@@ -2173,7 +2335,7 @@ static int smart_scan(FAR struct smart_struct_s *dev)
 #if CONFIG_SMARTFS_ERASEDSTATE == 0x00
               if (duplogsector == 0)
                 {
-                  duplogsector = -1;
+                  duplogsector = 0xffff;
                 }
 #endif
 
@@ -2270,6 +2432,7 @@ static int smart_scan(FAR struct smart_struct_s *dev)
               goto err_out;
             }
         }
+#endif
 
 #ifndef CONFIG_MTD_SMART_MINIMIZE_RAM
       /* Update the logical to physical sector map */
@@ -2308,13 +2471,21 @@ static int smart_scan(FAR struct smart_struct_s *dev)
     {
       /* Read the sector data */
 
-      ret = MTD_BREAD(dev->mtd, sector * dev->mtdBlksPerSector,
+#ifdef CONFIG_SMART_CACHE
+      if (sector != dev->currentsector) {
+        smart_flush(dev);
+#endif
+        ret = MTD_BREAD(dev->mtd, sector * dev->mtdBlksPerSector,
               dev->mtdBlksPerSector, (uint8_t *) dev->rwbuffer);
-      if (ret != dev->mtdBlksPerSector)
+        if (ret != dev->mtdBlksPerSector)
         {
           ferr("ERROR: Error reading physical sector %d.\n", sector);
           goto err_out;
         }
+#ifdef CONFIG_SMART_CACHE
+        dev->currentsector = sector;
+#endif
+      }
 
       /* Check for old format wear leveling */
 
@@ -2366,11 +2537,11 @@ static int smart_scan(FAR struct smart_struct_s *dev)
   smart_read_wearstatus(dev);
 #endif
 
-  finfo("SMART Scan\n");
-  finfo("   Erase size:   %10d\n", dev->sectorsPerBlk * dev->sectorsize);
-  finfo("   Erase count:  %10d\n", dev->neraseblocks);
-  finfo("   Sect/block:   %10d\n", dev->sectorsPerBlk);
-  finfo("   MTD Blk/Sect: %10d\n", dev->mtdBlksPerSector);
+  ferr("SMART Scan\n");
+  ferr("   Erase size:   %10d\n", dev->sectorsPerBlk * dev->sectorsize);
+  ferr("   Erase count:  %10d\n", dev->neraseblocks);
+  ferr("   Sect/block:   %10d\n", dev->sectorsPerBlk);
+  ferr("   MTD Blk/Sect: %10d\n", dev->mtdBlksPerSector);
 
   /* Validate the geometry */
 
@@ -2430,7 +2601,7 @@ static inline int smart_getformat(FAR struct smart_struct_s *dev,
     {
       /* Perform the scan */
 
-      ret = smart_scan(dev);
+      ret = smart_scan(dev, false);
 
       if (ret != OK)
         {
@@ -2686,14 +2857,22 @@ static int smart_relocate_static_data(FAR struct smart_struct_s *dev, uint16_t b
         {
           /* Read the next sector from this erase block */
 
-          ret = MTD_BREAD(dev->mtd, sector * dev->mtdBlksPerSector,
+#ifdef CONFIG_SMART_CACHE
+          if (sector != dev->currentsector) {
+            smart_flush(dev);
+#endif
+            ret = MTD_BREAD(dev->mtd, sector * dev->mtdBlksPerSector,
               dev->mtdBlksPerSector, (FAR uint8_t *) dev->rwbuffer);
-          if (ret != dev->mtdBlksPerSector)
+            if (ret != dev->mtdBlksPerSector)
             {
               ferr("ERROR: Error reading sector %d\n", sector);
               ret = -EIO;
               goto errout;
             }
+#ifdef CONFIG_SMART_CACHE
+            dev->currentsector = sector;
+          }
+#endif
 
           /* Test if the block is in use */
 
@@ -2798,6 +2977,11 @@ static int smart_relocate_static_data(FAR struct smart_struct_s *dev, uint16_t b
 #endif
 
 errout:
+
+#ifdef CONFIG_SMART_MAP_METADATA
+  smart_save_meta(dev);
+#endif
+
   return ret;
 }
 #endif
@@ -2927,10 +3111,17 @@ static inline int smart_llformat(FAR struct smart_struct_s *dev, unsigned long a
       return ret;
     }
 
+#ifdef CONFIG_MTD_BYTE_WRITE
+  char headerbuf[SMART_SIGNATURE_SIZE];
+  memset(headerbuf, CONFIG_SMARTFS_ERASEDSTATE, SMART_SIGNATURE_SIZE);
+#else
+  char *headerbuf = dev->rwbuffer;
+  memset(dev->rwbuffer, CONFIG_SMARTFS_ERASEDSTATE, dev->sectorsize);
+#endif
+
   /* Now construct a logical sector zero header to write to the device. */
 
-  sectorheader = (FAR struct smart_sect_header_s *) dev->rwbuffer;
-  memset(dev->rwbuffer, CONFIG_SMARTFS_ERASEDSTATE, dev->sectorsize);
+  sectorheader = (FAR struct smart_sect_header_s *) headerbuf;
 
 #if SMART_STATUS_VERSION == 1
 #ifdef CONFIG_MTD_SMART_ENABLE_CRC
@@ -2972,17 +3163,17 @@ static inline int smart_llformat(FAR struct smart_struct_s *dev, unsigned long a
 
   /* Now add the format signature to the sector */
 
-  dev->rwbuffer[SMART_FMT_POS1] = SMART_FMT_SIG1;
-  dev->rwbuffer[SMART_FMT_POS2] = SMART_FMT_SIG2;
-  dev->rwbuffer[SMART_FMT_POS3] = SMART_FMT_SIG3;
-  dev->rwbuffer[SMART_FMT_POS4] = SMART_FMT_SIG4;
+  headerbuf[SMART_FMT_POS1] = SMART_FMT_SIG1;
+  headerbuf[SMART_FMT_POS2] = SMART_FMT_SIG2;
+  headerbuf[SMART_FMT_POS3] = SMART_FMT_SIG3;
+  headerbuf[SMART_FMT_POS4] = SMART_FMT_SIG4;
 
-  dev->rwbuffer[SMART_FMT_VERSION_POS] = SMART_FMT_VERSION;
-  dev->rwbuffer[SMART_FMT_NAMESIZE_POS] = CONFIG_SMARTFS_MAXNAMLEN;
+  headerbuf[SMART_FMT_VERSION_POS] = SMART_FMT_VERSION;
+  headerbuf[SMART_FMT_NAMESIZE_POS] = CONFIG_SMARTFS_MAXNAMLEN;
 
   /* Record the number of root directory entries we have */
 
-  dev->rwbuffer[SMART_FMT_ROOTDIRS_POS] = (uint8_t) (arg & 0xff);
+  headerbuf[SMART_FMT_ROOTDIRS_POS] = (uint8_t) (arg & 0xff);
 
 #ifdef CONFIG_SMART_CRC_8
   sectorheader->crc8 = smart_calc_sector_crc(dev);
@@ -2992,10 +3183,19 @@ static inline int smart_llformat(FAR struct smart_struct_s *dev, unsigned long a
   *((uint32_t *) sectorheader->crc32) = smart_calc_sector_crc(dev);
 #endif
 
+#ifdef CONFIG_MTD_BYTE_WRITE
+
+  wrcount = MTD_WRITE(dev->mtd, 0, SMART_SIGNATURE_SIZE, headerbuf);
+  if (wrcount != SMART_SIGNATURE_SIZE) {
+      ferr("ERROR: write signature failed\n");
+      return -EIO;
+  }
+
+#else
   /* Write the sector to the flash */
 
   wrcount = MTD_BWRITE(dev->mtd, 0, dev->mtdBlksPerSector,
-          (FAR uint8_t *) dev->rwbuffer);
+          (FAR uint8_t *) headerbuf);
   if (wrcount != dev->mtdBlksPerSector)
     {
       /* The block is not empty!!  What to do? */
@@ -3006,6 +3206,7 @@ static inline int smart_llformat(FAR struct smart_struct_s *dev, unsigned long a
 
       return -EIO;
     }
+#endif
 
   /* Now initialize our internal control variables */
 
@@ -3016,7 +3217,7 @@ static inline int smart_llformat(FAR struct smart_struct_s *dev, unsigned long a
     }
 
   dev->formatstatus = SMART_FMT_STAT_UNKNOWN;
-  dev->freesectors = dev->availSectPerBlk * dev->geo.neraseblocks - 1;
+  dev->freesectors = dev->availSectPerBlk * dev->geo.neraseblocks - 2;
   dev->releasesectors = 0;
 #ifdef CONFIG_MTD_SMART_WEAR_LEVEL
   dev->uneven_wearcount = 0;
@@ -3063,7 +3264,7 @@ static inline int smart_llformat(FAR struct smart_struct_s *dev, unsigned long a
     {
       /* Mark all other logical sectors as non-existant */
 
-      dev->sMap[x] = -1;
+      dev->sMap[x] = 0xffff;
     }
 #endif
 
@@ -3078,6 +3279,18 @@ static inline int smart_llformat(FAR struct smart_struct_s *dev, unsigned long a
     }
 #endif
 
+  dev->sMap[1] = 1;
+  dev->freecount[1]--;
+#ifdef CONFIG_SMART_MAP_METADATA
+  smart_save_meta(dev);
+#endif
+
+  ret = MTD_IOCTL(dev->mtd, MTDIOC_FLUSH, 0);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
   return OK;
 }
 #endif /* CONFIG_FS_WRITABLE */
@@ -3089,6 +3302,7 @@ static inline int smart_llformat(FAR struct smart_struct_s *dev, unsigned long a
  *
  ****************************************************************************/
 
+#ifdef CONFIG_SMART_RELOCATE
 static int smart_relocate_sector(FAR struct smart_struct_s *dev,
     uint16_t oldsector, uint16_t newsector)
 {
@@ -3207,6 +3421,7 @@ errout:
 
   return ret;
 }
+#endif
 
 /****************************************************************************
  * Name: smart_relocate_block
@@ -3217,6 +3432,7 @@ errout:
  *
  ****************************************************************************/
 
+#ifdef CONFIG_SMART_RELOCATE
 static int smart_relocate_block(FAR struct smart_struct_s *dev, uint16_t block)
 {
   uint16_t    newsector, oldrelease;
@@ -3455,8 +3671,14 @@ errout:
 #else
   dev->freecount[block] = freecount;
 #endif
+
+#ifdef CONFIG_SMART_MAP_METADATA
+  smart_save_meta(dev);
+#endif
+
   return ret;
 }
+#endif
 
 /****************************************************************************
  * Name: smart_findfreephyssector
@@ -3486,9 +3708,7 @@ static int smart_findfreephyssector(FAR struct smart_struct_s *dev,
    * available in each erase block.
    */
 
-#ifdef CONFIG_MTD_SMART_WEAR_LEVEL
 retry:
-#endif
   allocfreecount = 0;
   allocblock = 0xffff;
 #ifdef CONFIG_MTD_SMART_WEAR_LEVEL
@@ -3552,6 +3772,7 @@ retry:
             {
               allocblock = block;
               allocfreecount = count;
+              break;
             }
         }
 
@@ -3673,15 +3894,21 @@ retry:
           return -1;
         }
 
-      if ((*((FAR uint16_t *) header.logicalsector) == 0xffff) &&
-#if SMART_STATUS_VERSION == 1
-          (*((FAR uint16_t *) &header.seq) == 0xffff) &&
-#else
-          (header.seq == CONFIG_SMARTFS_ERASEDSTATE) &&
-#endif
-          ((header.status & SMART_STATUS_COMMITTED) ==
-           (CONFIG_SMARTFS_ERASEDSTATE & SMART_STATUS_COMMITTED)))
+      /* Use this sector, if it is not committed or it is released */
+
+      if (((header.status & SMART_STATUS_COMMITTED) ==
+           (CONFIG_SMARTFS_ERASEDSTATE & SMART_STATUS_COMMITTED)) ||
+           ((header.status & SMART_STATUS_RELEASED) !=
+           (CONFIG_SMARTFS_ERASEDSTATE & SMART_STATUS_RELEASED)))
         {
+#ifdef CONFIG_SMARTFS_DEBUG
+          if ((header.status & SMART_STATUS_COMMITTED) ==
+           (CONFIG_SMARTFS_ERASEDSTATE & SMART_STATUS_COMMITTED)) {
+            ferr("choose uncommited physical sector %d\n", x);
+          } else {
+            ferr("choose released physical sector %d\n", x);
+          }
+#endif
           physicalsector = x;
           dev->lastallocblock = allocblock;
           break;
@@ -3690,7 +3917,11 @@ retry:
 
   if (physicalsector == 0xffff)
     {
-      ferr("ERROR: Program bug!  Expected a free sector\n");
+      if (dev->freecount[allocblock]>0)
+        dev->freecount[allocblock]--;
+
+      ferr("Cannot find free sector in alloc block %d, try next block\n", allocblock);
+      goto retry;
     }
 
   if (physicalsector >= dev->totalsectors)
@@ -3710,7 +3941,7 @@ retry:
  *
  ****************************************************************************/
 
-#ifdef CONFIG_FS_WRITABLE
+#if defined(CONFIG_FS_WRITABLE) && defined(CONFIG_SMART_RELOCATE)
 static int smart_garbagecollect(FAR struct smart_struct_s *dev)
 {
   uint16_t  collectblock;
@@ -3922,7 +4153,7 @@ static int smart_write_wearstatus(struct smart_struct_s *dev)
           /* Data doesn't fit in a single sector.  Use the reserved sectors */
 
           sector++;
-          if (sector >= SMART_FIRST_DIR_SECTOR)
+          if (sector >= SMARTFS_ROOT_DIR_SECTOR)
             {
               /* Error, wear status bit too large! */
 
@@ -4060,7 +4291,7 @@ static inline int smart_read_wearstatus(FAR struct smart_struct_s *dev)
           /* Data doesn't fit in a single sector.  Use the reserved sectors */
 
           sector++;
-          if (sector >= SMART_FIRST_DIR_SECTOR)
+          if (sector >= SMARTFS_ROOT_DIR_SECTOR)
             {
               /* Error, wear status bit too large! */
 
@@ -4108,8 +4339,21 @@ static int smart_write_alloc_sector(FAR struct smart_struct_s *dev,
   uint8_t   sectsize;
   FAR struct smart_sect_header_s  *header;
 
+#ifdef CONFIG_SMART_CACHE
+  if (physical != dev->currentsector) {
+    smart_flush(dev);
+  }
+  dev->currentsector = physical;
+#endif
+
+#ifdef CONFIG_MTD_BYTE_WRITE
+  struct smart_sect_header_s header_buf;
+  header = (FAR struct smart_sect_header_s *)&header_buf;
+  memset(header, CONFIG_SMARTFS_ERASEDSTATE, sizeof(struct smart_sect_header_s));
+#else
   memset(dev->rwbuffer, CONFIG_SMARTFS_ERASEDSTATE, dev->sectorsize);
   header = (FAR struct smart_sect_header_s *) dev->rwbuffer;
+#endif
   *((FAR uint16_t *) header->logicalsector) = logical;
 #if SMART_STATUS_VERSION == 1
 #ifdef CONFIG_MTD_SMART_ENABLE_CRC
@@ -4138,6 +4382,12 @@ static int smart_write_alloc_sector(FAR struct smart_struct_s *dev,
   /* Write the header to the physical sector location */
 
 #ifndef CONFIG_MTD_SMART_ENABLE_CRC
+#ifndef CONFIG_SMART_CACHE
+
+#ifdef CONFIG_MTD_BYTE_WRITE
+  MTD_WRITE(dev->mtd, physical * dev->mtdBlksPerSector * dev->geo.blocksize,
+            sizeof(struct smart_sect_header_s), (FAR uint8_t *)header);
+#else
   finfo("Write MTD block %d\n", physical * dev->mtdBlksPerSector);
   ret = MTD_BWRITE(dev->mtd, physical * dev->mtdBlksPerSector, 1,
       (FAR uint8_t *) dev->rwbuffer);
@@ -4152,6 +4402,9 @@ static int smart_write_alloc_sector(FAR struct smart_struct_s *dev,
 
       return -EIO;
     }
+#endif
+
+#endif
 #endif  /* CONFIG_MTD_SMART_ENABLE_CRC */
 
   return ret;
@@ -4227,16 +4480,20 @@ static int smart_writesector(FAR struct smart_struct_s *dev,
                     unsigned long arg)
 {
   int         ret;
+#ifdef CONFIG_SMART_RELOCATE
   bool        needsrelocate = FALSE;
-  uint32_t    mtdblock;
-  uint16_t    physsector, oldphyssector, block;
-  FAR struct  smart_read_write_s *req;
-  FAR struct  smart_sect_header_s *header;
-  size_t      offset;
   uint8_t     byte;
-#if defined(CONFIG_MTD_SMART_WEAR_LEVEL) || !defined(CONFIG_MTD_SMART_ENABLE_CRC)
-  uint16_t    x;
+  FAR struct  smart_sect_header_s *header;
+  uint16_t    oldphyssector, block;
 #endif
+  uint32_t    mtdblock;
+  uint16_t    physsector;
+  FAR struct  smart_read_write_s *req;
+#ifdef CONFIG_SMART_RELOCATE
+  FAR struct  smart_sect_header_s *header;
+#endif
+  size_t      offset;
+
 #ifdef CONFIG_MTD_SMART_ENABLE_CRC
   FAR struct  smart_allocsector_s *allocsector;
 #endif
@@ -4255,7 +4512,9 @@ static int smart_writesector(FAR struct smart_struct_s *dev,
       ret = -EINVAL;
       goto errout;
     }
+#ifdef CONFIG_SMART_RELOCATE
   header = (FAR struct smart_sect_header_s *) dev->rwbuffer;
+#endif
 
 #ifdef CONFIG_MTD_SMART_WEAR_LEVEL
   /* Test if an adjustement to the wear levels is needed */
@@ -4267,7 +4526,7 @@ static int smart_writesector(FAR struct smart_struct_s *dev,
 
       offset = dev->minwearlevel;
       finfo("Reducing wear level bits by %d\n", offset);
-      for (x = 0; x < dev->geo.neraseblocks; x++)
+      for (uint16_t x = 0; x < dev->geo.neraseblocks; x++)
         {
           smart_set_wear_level(dev, x, smart_get_wear_level(dev, x) - offset);
         }
@@ -4294,17 +4553,30 @@ static int smart_writesector(FAR struct smart_struct_s *dev,
       goto errout;
     }
 
+  mtdblock = physsector * dev->mtdBlksPerSector;
+
+#ifndef CONFIG_MTD_BYTE_WRITE
   /* Read the sector data into our buffer */
 
-  mtdblock = physsector * dev->mtdBlksPerSector;
-  ret = MTD_BREAD(dev->mtd, mtdblock, dev->mtdBlksPerSector, (FAR uint8_t *)
+#ifdef CONFIG_SMART_CACHE
+  if (mtdblock != dev->currentsector) {
+    smart_flush(dev);
+#endif
+    ret = MTD_BREAD(dev->mtd, mtdblock, dev->mtdBlksPerSector, (FAR uint8_t *)
           dev->rwbuffer);
-  if (ret != dev->mtdBlksPerSector)
+    if (ret != dev->mtdBlksPerSector)
     {
       ferr("ERROR: Error reading phys sector %d\n", physsector);
       ret = -EIO;
       goto errout;
     }
+#ifdef CONFIG_SMART_CACHE
+    dev->currentsector = mtdblock;
+  }
+#endif
+#endif
+
+#ifdef CONFIG_SMART_RELOCATE
 
   /* Test if we need to relocate the sector to perform the write */
 
@@ -4338,19 +4610,19 @@ static int smart_writesector(FAR struct smart_struct_s *dev,
    * Test if there is a conflict in the data.
    */
 
-  for (x = 0; x < req->count; x++)
+  for (uint32_t i = 0; i < req->count; i++)
     {
       /* Test if the next byte can be written to the flash */
 
-      byte = dev->rwbuffer[sizeof(struct smart_sect_header_s) + req->offset + x];
+      byte = dev->rwbuffer[sizeof(struct smart_sect_header_s) + req->offset + i];
 #if CONFIG_SMARTFS_ERASEDSTATE == 0xff
-      if (((byte ^ req->buffer[x]) | byte) != byte)
+      if (((byte ^ req->buffer[i]) | byte) != byte)
         {
           needsrelocate = TRUE;
           break;
         }
 #else
-      if (((byte ^ req->buffer[x]) | req->buffer[x]) != req->buffer[x])
+      if (((byte ^ req->buffer[i]) | req->buffer[i]) != req->buffer[i])
         {
           needsrelocate = TRUE;
           break;
@@ -4406,6 +4678,7 @@ static int smart_writesector(FAR struct smart_struct_s *dev,
       header->status &= SMART_STATUS_COMMITTED;
 #endif
     }
+#endif /* CONFIG_SMART_RELOCATE */
 
 #ifdef CONFIG_MTD_SMART_ENABLE_CRC
   /* When CRC is enabled and we have a temp alloc, then fill in the RW buffer
@@ -4476,12 +4749,16 @@ static int smart_writesector(FAR struct smart_struct_s *dev,
 
 #else  /* CONFIG_MTD_SMART_ENABLE_CRC */
 
+#if !defined(CONFIG_SMART_CACHE) && defined(CONFIG_MTD_SMART_ENABLE_CRC)
   /* Now copy the data to the sector buffer. */
 
   memcpy(&dev->rwbuffer[sizeof(struct smart_sect_header_s) + req->offset],
           req->buffer, req->count);
+#endif
 
 #endif  /* CONFIG_MTD_SMART_ENABLE_CRC */
+
+#ifdef CONFIG_SMART_RELOCATE
 
   /* Now write the sector buffer to the device. */
 
@@ -4562,6 +4839,10 @@ static int smart_writesector(FAR struct smart_struct_s *dev,
 
       smart_erase_block_if_empty(dev, block, FALSE);
 
+#ifdef CONFIG_SMART_MAP_METADATA
+      smart_save_meta(dev);
+#endif
+
       /* Since we performed a relocation, do garbage collection to
        * ensure we don't fill up our flash with released blocks.
        */
@@ -4569,6 +4850,7 @@ static int smart_writesector(FAR struct smart_struct_s *dev,
       smart_garbagecollect(dev);
     }
   else  /* needsrelocate */
+#endif /* CONFIG_SMART_RELOCATE */
     {
 #ifdef CONFIG_MTD_SMART_ENABLE_CRC
       /* Write the entire sector to FLASH when CRC enabled */
@@ -4639,7 +4921,6 @@ static int smart_readsector(FAR struct smart_struct_s *dev,
 #endif
 #else
   uint32_t  readaddr;
-  struct smart_sect_header_s header;
 #endif
 
   finfo("Entry\n");
@@ -4665,7 +4946,9 @@ static int smart_readsector(FAR struct smart_struct_s *dev,
 #endif
   if (physsector == 0xffff)
     {
+#ifndef CONFIG_SMART_DUMP
       ferr("ERROR: Logical sector %d not allocated\n", req->logsector);
+#endif
       ret = -EINVAL;
       goto errout;
     }
@@ -4721,6 +5004,7 @@ static int smart_readsector(FAR struct smart_struct_s *dev,
 
 #else /* CONFIG_MTD_SMART_ENABLE_CRC */
 
+#if 0
   /* Read the sector header data to validate as a sanity check */
 
   ret = MTD_READ(dev->mtd, physsector * dev->mtdBlksPerSector * dev->geo.blocksize,
@@ -4745,14 +5029,30 @@ static int smart_readsector(FAR struct smart_struct_s *dev,
       ret = -EIO;
       goto errout;
     }
+#endif
 
   /* Read the sector data into the buffer */
 
+#ifdef CONFIG_SMART_CACHE
+  if ( (sizeof(struct smart_sect_header_s) + req->count) == (dev->mtdBlksPerSector * dev->geo.blocksize)) {
+     if (physsector != dev->currentsector) {
+         smart_flush(dev);
+         MTD_BREAD(dev->mtd, physsector, dev->mtdBlksPerSector, (uint8_t *) dev->rwbuffer);
+         dev->currentsector = physsector;
+     }
+     memcpy((FAR uint8_t *)req->buffer, &dev->rwbuffer[sizeof(struct smart_sect_header_s) + req->offset], req->count);
+     ret = req->count;
+  } else {
+     readaddr = physsector * dev->mtdBlksPerSector * dev->geo.blocksize + sizeof(struct smart_sect_header_s) + req->offset; 
+     ret = MTD_READ(dev->mtd, readaddr, req->count, (FAR uint8_t *)(req->buffer));
+  }
+#else
   readaddr = (uint32_t) physsector * dev->mtdBlksPerSector * dev->geo.blocksize +
     req->offset + sizeof(struct smart_sect_header_s);
 
   ret = MTD_READ(dev->mtd, readaddr, req->count, (FAR uint8_t *)
           req->buffer);
+#endif
   if (ret != req->count)
     {
       ferr("ERROR: Error reading phys sector %d\n", physsector);
@@ -4779,10 +5079,6 @@ static inline int smart_allocsector(FAR struct smart_struct_s *dev,
                     unsigned long requested)
 {
   uint16_t  logsector = 0xffff; /* Logical sector number selected */
-  uint16_t  physicalsector;     /* The selected physical sector */
-#ifndef CONFIG_MTD_SMART_ENABLE_CRC
-  int       ret;
-#endif
   int       x;
 
   /* Validate that we have enough sectors available to perform an
@@ -4791,6 +5087,7 @@ static inline int smart_allocsector(FAR struct smart_struct_s *dev,
    */
 
   if (dev->freesectors <= (dev->sectorsPerBlk << 0) + 4)
+#ifdef CONFIG_SMART_RELOCATE
     {
       /* Do a garbage collect and then test freesectors again */
 
@@ -4821,6 +5118,9 @@ static inline int smart_allocsector(FAR struct smart_struct_s *dev,
           return -ENOSPC;
         }
     }
+#else
+    return -ENOSPC;
+#endif
 
   /* Check if a specific sector is being requested and allocate that
    * sector if it isn't already in use.
@@ -4831,7 +5131,7 @@ static inline int smart_allocsector(FAR struct smart_struct_s *dev,
       /* Validate the sector is not already allocated */
 
 #ifndef CONFIG_MTD_SMART_MINIMIZE_RAM
-      if (dev->sMap[requested] == (uint16_t) -1)
+      if (dev->sMap[requested] == (uint16_t) 0xffff)
 #else
       if (!(dev->sBitMap[requested >> 3] & (1 << (requested & 0x07))))
 #endif
@@ -4863,14 +5163,14 @@ static inline int smart_allocsector(FAR struct smart_struct_s *dev,
 
   /* Check if we need to scan for an available logical sector */
 
-  if (logsector == 0xffff)
+  if (logsector == 0xffff || logsector == 0xfffe)
     {
       /* Loop through all sectors and find one to allocate */
 
       for (x = SMART_FIRST_ALLOC_SECTOR; x < dev->totalsectors; x++)
         {
 #ifndef CONFIG_MTD_SMART_MINIMIZE_RAM
-          if (dev->sMap[x] == (uint16_t) -1)
+          if (dev->sMap[x] == (uint16_t) 0xffff)
 #else
           if (!(dev->sBitMap[x >> 3] & (1 << (x & 0x07))))
 #endif
@@ -4929,6 +5229,28 @@ static inline int smart_allocsector(FAR struct smart_struct_s *dev,
       return -EIO;
     }
 
+   if (requested != 0xfffe) {
+     int ret = smart_allocsector2(dev, logsector);
+     if (ret != OK)
+       return ret;
+   }
+
+   /* Return the logical sector number */
+
+   return logsector;
+}
+
+static inline int smart_allocsector2(FAR struct smart_struct_s *dev, ssize_t logsector)
+{
+  uint16_t  physicalsector;     /* The selected physical sector */
+#ifndef CONFIG_MTD_SMART_ENABLE_CRC
+  int       ret=OK;
+#endif
+
+  if (logsector == 0xffff)
+     return -EIO;
+
+#ifdef CONFIG_SMART_RELOCATE
   /* Check if we need to do garbage collection.  We have to
    * ensure we keep enough reserved free sectors to perform garbage
    * collection as it involves moving sectors from blocks with
@@ -4937,6 +5259,7 @@ static inline int smart_allocsector(FAR struct smart_struct_s *dev,
    */
 
   smart_garbagecollect(dev);
+#endif
 
   /* Find a free physical sector */
 
@@ -5002,12 +5325,13 @@ static inline int smart_allocsector(FAR struct smart_struct_s *dev,
   smart_add_count(dev, dev->freecount, physicalsector / dev->sectorsPerBlk, -1);
 #else
   dev->freecount[physicalsector / dev->sectorsPerBlk]--;
+#ifdef CONFIG_SMARTFS_DEBUG
+  ferr("freecount --: logical %d physical %d freecount = %d\n", logsector, physicalsector, dev->freecount[physicalsector / dev->sectorsPerBlk]);
+#endif
 #endif
   dev->freesectors--;
 
-  /* Return the logical sector number */
-
-  return logsector;
+  return OK;
 }
 #endif /* CONFIG_FS_WRITABLE */
 
@@ -5038,7 +5362,7 @@ static inline int smart_freesector(FAR struct smart_struct_s *dev,
       /* Validate the sector is actually allocated */
 
 #ifndef CONFIG_MTD_SMART_MINIMIZE_RAM
-      if (dev->sMap[logicalsector] == (uint16_t) -1)
+      if (dev->sMap[logicalsector] == (uint16_t) 0xffff)
 #else
       if (!(dev->sBitMap[logicalsector >> 3] & (1 << (logicalsector & 0x07))))
 #endif
@@ -5099,14 +5423,19 @@ static inline int smart_freesector(FAR struct smart_struct_s *dev,
   block = physsector / dev->sectorsPerBlk;
 #ifdef CONFIG_MTD_SMART_PACK_COUNTS
   smart_add_count(dev, dev->releasecount, block, 1);
+  smart_add_count(dev, dev->freecount, block, 1);
 #else
   dev->releasecount[block]++;
+  dev->freecount[block]++;
+#ifdef CONFIG_SMARTFS_DEBUG
+  ferr("freecount ++: block %d logical %d physical %d count %d\n", block, logicalsector, physsector, dev->freecount[block]);
+#endif
 #endif
 
   /* Unmap this logical sector */
 
 #ifndef CONFIG_MTD_SMART_MINIMIZE_RAM
-  dev->sMap[logicalsector] = (uint16_t) -1;
+  dev->sMap[logicalsector] = (uint16_t) 0xffff;
 #else
   dev->sBitMap[logicalsector >> 3] &= ~(1 << (logicalsector & 0x07));
   smart_update_cache(dev, logicalsector, 0xffff);
@@ -5115,6 +5444,11 @@ static inline int smart_freesector(FAR struct smart_struct_s *dev,
   /* If this block has only released blocks, then erase it */
 
   smart_erase_block_if_empty(dev, block, FALSE);
+
+#ifdef CONFIG_SMART_MAP_METADATA
+  smart_save_meta(dev);
+#endif
+
   ret = OK;
 
 errout:
@@ -5255,10 +5589,10 @@ static int smart_ioctl(FAR struct inode *inode, int cmd, unsigned long arg)
 
 #ifndef CONFIG_MTD_SMART_MINIMIZE_RAM
       procfs_data->formatsector = dev->sMap[0];
-      procfs_data->dirsector = dev->sMap[3];
+      procfs_data->dirsector = dev->sMap[SMARTFS_ROOT_DIR_SECTOR];
 #else
       procfs_data->formatsector = smart_cache_lookup(dev, 0);
-      procfs_data->dirsector = smart_cache_lookup(dev, 3);
+      procfs_data->dirsector = smart_cache_lookup(dev, SMARTFS_ROOT_DIR_SECTOR);
 #endif
 
 #ifdef CONFIG_MTD_SMART_SECTOR_ERASE_DEBUG
@@ -5291,6 +5625,23 @@ static int smart_ioctl(FAR struct inode *inode, int cmd, unsigned long arg)
 #endif
 
       break;
+
+    case BIOC_FLUSH:
+#ifdef CONFIG_SMART_MAP_METADATA
+      smart_save_meta(dev);
+#endif
+      ret = MTD_IOCTL(dev->mtd, MTDIOC_FLUSH, 0);
+      if (ret < 0)
+      {
+         return ret;
+      }
+
+      ret = OK;
+      goto ok_out;
+
+    case BIOC_ALLOCSECT2:
+      ret = smart_allocsector2(dev, arg);
+      goto ok_out;
     }
 
   /* No other block driver ioctl commands are not recognized by this
@@ -5414,7 +5765,7 @@ int smart_initialize(int minor, FAR struct mtd_dev_s *mtd, FAR const char *partn
 
       /* Do a scan of the device */
 
-      ret = smart_scan(dev);
+      ret = smart_scan(dev, false);
       if (ret < 0)
         {
           ferr("ERROR: smart_scan failed: %d\n", -ret);
@@ -5453,18 +5804,19 @@ int smart_initialize(int minor, FAR struct mtd_dev_s *mtd, FAR const char *partn
       ret = register_blockdriver(dev->rwbuffer, &g_bops, 0, rootdirdev);
 
 #else
+      char device_name[20];
       if (partname != NULL)
         {
-          snprintf(dev->rwbuffer, 18, "/dev/smart%d%s", minor, partname);
+          snprintf(device_name, 18, "/dev/smart%d%s", minor, partname);
         }
       else
         {
-          snprintf(dev->rwbuffer, 18, "/dev/smart%d", minor);
+          snprintf(device_name, 18, "/dev/smart%d", minor);
         }
 
       /* Inode private data is a reference to the SMART device structure */
 
-      ret = register_blockdriver(dev->rwbuffer, &g_bops, 0, dev);
+      ret = register_blockdriver(device_name, &g_bops, 0, dev);
 #endif
 
       if (ret < 0)
@@ -5487,7 +5839,9 @@ errout:
   smart_free(dev, dev->sBitMap);
   smart_free(dev, dev->sCache);
 #endif
+#ifndef CONFIG_MTD_BYTE_WRITE
   smart_free(dev, dev->rwbuffer);
+#endif
 #ifdef CONFIG_MTD_SMART_WEAR_LEVEL
   smart_free(dev, dev->wearstatus);
 #endif

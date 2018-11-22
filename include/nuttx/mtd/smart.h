@@ -46,6 +46,12 @@
 #include <sys/types.h>
 #include <stdint.h>
 
+#define CONFIG_SMART_MAP_METADATA
+//#define CONFIG_SMART_CACHE
+//#define CONFIG_SMART_LOCAL_CHECKFREE
+//#define CONFIG_SMART_RELOCATE
+//#define CONFIG_SMART_DUMP
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/

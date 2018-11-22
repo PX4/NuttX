@@ -69,6 +69,53 @@ static struct smartfs_mountpt_s *g_mounthead = NULL;
  * Public Functions
  ****************************************************************************/
 
+int smartfs_readsector(struct smartfs_mountpt_s *fs, uint16_t sector)
+{
+  struct smart_read_write_s readwrite;
+  int ret;
+
+#ifdef CONFIG_SMARTFS_SECTOR_CACHE
+  if (sector != fs->fs_currsector) {
+#endif
+     readwrite.logsector = sector;
+     readwrite.count = fs->fs_llformat.availbytes;
+     readwrite.buffer = (uint8_t *)fs->fs_rwbuffer;
+     readwrite.offset = 0;
+     ret = FS_IOCTL(fs, BIOC_READSECT, (unsigned long) &readwrite);
+
+#ifdef CONFIG_SMARTFS_SECTOR_CACHE
+     fs->fs_currsector = sector;
+     fs->fs_currsize = ret;
+  } else {
+     ret = fs->fs_currsize;
+  }
+#endif
+
+  return ret;
+}
+
+int smartfs_writesector(struct smartfs_mountpt_s *fs, uint16_t sector, uint8_t *buffer, uint16_t offset, uint16_t count)
+{
+  struct smart_read_write_s readwrite;
+
+  readwrite.logsector = sector;
+  readwrite.count = count;
+  readwrite.buffer = buffer;
+  readwrite.offset = offset;
+  return FS_IOCTL(fs, BIOC_WRITESECT, (unsigned long) &readwrite);
+}
+
+int smartfs_readchain(struct smartfs_mountpt_s *fs, uint16_t sector)
+{
+  struct smart_read_write_s readwrite;
+
+  readwrite.logsector = sector;
+  readwrite.count = sizeof(struct smartfs_chain_header_s);
+  readwrite.buffer = (uint8_t *)fs->fs_chainbuffer;
+  readwrite.offset = 0;
+  return FS_IOCTL(fs, BIOC_READSECT, (unsigned long) &readwrite);
+}
+
 /****************************************************************************
  * Name: smartfs_semtake
  ****************************************************************************/
@@ -304,6 +351,11 @@ int smartfs_mount(struct smartfs_mountpt_s *fs, bool writeable)
 #endif /* CONFIG_SMARTFS_MULTI_ROOT_DIRS */
 
   fs->fs_rwbuffer = (char *) kmm_malloc(fs->fs_llformat.availbytes);
+#ifdef CONFIG_SMARTFS_SECTOR_CACHE
+  fs->fs_currsector = 0xffff;
+  fs->fs_currsize = 0;
+#endif
+  fs->fs_chainbuffer = (char *)kmm_malloc(sizeof(struct smartfs_chain_header_s));
   fs->fs_workbuffer = (char *) kmm_malloc(256);
   fs->fs_rootsector = SMARTFS_ROOT_DIR_SECTOR;
 
@@ -418,6 +470,7 @@ int smartfs_unmount(struct smartfs_mountpt_s *fs)
       /* Free the buffers */
 
       kmm_free(fs->fs_rwbuffer);
+      kmm_free(fs->fs_chainbuffer);
       kmm_free(fs->fs_workbuffer);
 
       /* Set the buffer's to invalid value to catch program bugs */
@@ -492,7 +545,6 @@ int smartfs_finddirentry(struct smartfs_mountpt_s *fs,
   uint16_t    entrysize;
   uint16_t    offset;
   struct      smartfs_chain_header_s *header;
-  struct      smart_read_write_s readwrite;
   struct      smartfs_entry_header_s *entry;
 
   /* Initialize directory level zero as the root sector */
@@ -589,11 +641,7 @@ int smartfs_finddirentry(struct smartfs_mountpt_s *fs,
             {
               /* Read the next directory in the chain */
 
-              readwrite.logsector = dirsector;
-              readwrite.count = fs->fs_llformat.availbytes;
-              readwrite.buffer = (uint8_t *)fs->fs_rwbuffer;
-              readwrite.offset = 0;
-              ret = FS_IOCTL(fs, BIOC_READSECT, (unsigned long) &readwrite);
+              ret = smartfs_readsector(fs, dirsector);
               if (ret < 0)
                 {
                   goto errout;
@@ -602,13 +650,12 @@ int smartfs_finddirentry(struct smartfs_mountpt_s *fs,
               /* Point to next sector in chain */
 
               header = (struct smartfs_chain_header_s *) fs->fs_rwbuffer;
-              dirsector = SMARTFS_NEXTSECTOR(header);
 
               /* Search for the entry */
 
               offset = sizeof(struct smartfs_chain_header_s);
               entry = (struct smartfs_entry_header_s *) &fs->fs_rwbuffer[offset];
-              while (offset < readwrite.count)
+              while (offset < fs->fs_llformat.availbytes)
                 {
                   /* Test if this entry is valid and active */
 
@@ -659,7 +706,7 @@ int smartfs_finddirentry(struct smartfs_mountpt_s *fs,
                           direntry->flags = entry->flags;
                           direntry->utc = entry->utc;
 #endif
-                          direntry->dsector = readwrite.logsector;
+                          direntry->dsector = dirsector;
                           direntry->doffset = offset;
                           direntry->dfirst = dirstack[depth];
                           if (direntry->name == NULL)
@@ -669,6 +716,9 @@ int smartfs_finddirentry(struct smartfs_mountpt_s *fs,
 
                           memset(direntry->name, 0, fs->fs_llformat.namesize + 1);
                           strncpy(direntry->name, entry->name, fs->fs_llformat.namesize);
+#ifdef CONFIG_SMARTFS_ENTRY_DATLEN
+                          direntry->datlen = entry->datlen;
+#else
                           direntry->datlen = 0;
 
                           /* Scan the file's sectors to calculate the length and perform
@@ -686,17 +736,13 @@ int smartfs_finddirentry(struct smartfs_mountpt_s *fs,
                             {
                               dirsector = entry->firstsector;
 #endif
-                              readwrite.count = sizeof(struct smartfs_chain_header_s);
-                              readwrite.buffer = (uint8_t *)fs->fs_rwbuffer;
-                              readwrite.offset = 0;
+                              header = (struct smartfs_chain_header_s *) fs->fs_chainbuffer;
 
                               while (dirsector != SMARTFS_ERASEDSTATE_16BIT)
                                 {
                                   /* Read the next sector of the file */
 
-                                  readwrite.logsector = dirsector;
-                                  ret = FS_IOCTL(fs, BIOC_READSECT,
-                                                 (unsigned long) &readwrite);
+                                  ret = smartfs_readchain(fs, dirsector);
                                   if (ret < 0)
                                     {
                                       ferr("ERROR: Error in sector chain at %d!\n",
@@ -714,6 +760,7 @@ int smartfs_finddirentry(struct smartfs_mountpt_s *fs,
                                   dirsector = SMARTFS_NEXTSECTOR(header);
                                 }
                             }
+#endif
 
                           *parentdirsector = dirstack[depth];
                           *filename = segment;
@@ -767,15 +814,17 @@ int smartfs_finddirentry(struct smartfs_mountpt_s *fs,
 
               /* Test if a directory entry was found and break if it was */
 
-              if (offset < readwrite.count)
+              if (offset < fs->fs_llformat.availbytes)
                 {
                   break;
                 }
+
+              dirsector = SMARTFS_NEXTSECTOR(header);
             }
 
           /* If we found a dir entry, then continue searching */
 
-          if (offset < readwrite.count)
+          if (offset < fs->fs_llformat.availbytes)
             {
               /* Update the segment pointer */
 
@@ -828,7 +877,6 @@ int smartfs_createentry(FAR struct smartfs_mountpt_s *fs,
                         FAR struct smartfs_entry_s *direntry,
                         uint16_t sectorno, FAR struct smartfs_ofile_s *sf)
 {
-  struct    smart_read_write_s readwrite;
   int       ret;
   uint16_t  psector;
   uint16_t  nextsector;
@@ -836,7 +884,7 @@ int smartfs_createentry(FAR struct smartfs_mountpt_s *fs,
   uint16_t  found;
   uint16_t  entrysize;
   struct    smartfs_entry_header_s *entry;
-  struct    smartfs_chain_header_s *chainheader;
+  struct    smartfs_chain_header_s *header;
 
   /* Start at the 1st sector in the parent directory */
 
@@ -860,11 +908,7 @@ int smartfs_createentry(FAR struct smartfs_mountpt_s *fs,
     {
       /* Read the next sector */
 
-      readwrite.logsector = psector;
-      readwrite.count = fs->fs_llformat.availbytes;
-      readwrite.offset = 0;
-      readwrite.buffer = (uint8_t *) fs->fs_rwbuffer;
-      ret = FS_IOCTL(fs, BIOC_READSECT, (unsigned long) &readwrite);
+      ret = smartfs_readsector(fs, psector);
       if (ret < 0)
         {
           goto errout;
@@ -872,14 +916,14 @@ int smartfs_createentry(FAR struct smartfs_mountpt_s *fs,
 
       /* Get the next chained sector */
 
-      chainheader = (struct smartfs_chain_header_s *) fs->fs_rwbuffer;
-      nextsector = SMARTFS_NEXTSECTOR(chainheader);
+      header = (struct smartfs_chain_header_s *) fs->fs_rwbuffer;
+      nextsector = SMARTFS_NEXTSECTOR(header);
 
       /* Search for an empty entry in this sector */
 
       offset = sizeof(struct smartfs_chain_header_s);
       entry = (struct smartfs_entry_header_s *) &fs->fs_rwbuffer[offset];
-      while (offset + entrysize < readwrite.count)
+      while (offset + entrysize < fs->fs_llformat.availbytes)
         {
           /* Check if this entry is available */
 
@@ -931,12 +975,8 @@ int smartfs_createentry(FAR struct smartfs_mountpt_s *fs,
 
           /* Chain the next sector into this sector sector */
 
-          *((uint16_t *) chainheader->nextsector) = nextsector;
-          readwrite.offset = offsetof(struct smartfs_chain_header_s,
-              nextsector);
-          readwrite.count = sizeof(uint16_t);
-          readwrite.buffer = chainheader->nextsector;
-          ret = FS_IOCTL(fs, BIOC_WRITESECT, (unsigned long) &readwrite);
+          ret = smartfs_writesector(fs, psector, (uint8_t *)&nextsector,
+                                    offsetof(struct smartfs_chain_header_s, nextsector), sizeof(uint16_t));
           if (ret < 0)
             {
               ferr("ERROR: Error chaining sector %d\n", nextsector);
@@ -993,8 +1033,8 @@ int smartfs_createentry(FAR struct smartfs_mountpt_s *fs,
            */
 
           memset(sf->buffer, CONFIG_SMARTFS_ERASEDSTATE, fs->fs_llformat.availbytes);
-          chainheader = (struct smartfs_chain_header_s *) sf->buffer;
-          chainheader->type = SMARTFS_SECTOR_TYPE_FILE;
+          header = (struct smartfs_chain_header_s *) sf->buffer;
+          header->type = SMARTFS_SECTOR_TYPE_FILE;
           sf->bflags = SMARTFS_BFLAG_DIRTY | SMARTFS_BFLAG_NEWALLOC;
         }
       else
@@ -1002,18 +1042,15 @@ int smartfs_createentry(FAR struct smartfs_mountpt_s *fs,
         {
           if ((type & SMARTFS_DIRENT_TYPE) == SMARTFS_DIRENT_TYPE_DIR)
             {
-              chainheader->type = SMARTFS_SECTOR_TYPE_DIR;
+              header->type = SMARTFS_SECTOR_TYPE_DIR;
             }
           else
             {
-              chainheader->type = SMARTFS_SECTOR_TYPE_FILE;
+              header->type = SMARTFS_SECTOR_TYPE_FILE;
             }
 
-          readwrite.count = 1;
-          readwrite.offset = offsetof(struct smartfs_chain_header_s, type);
-          readwrite.buffer = (uint8_t *) &chainheader->type;
-          readwrite.logsector = nextsector;
-          ret = FS_IOCTL(fs, BIOC_WRITESECT, (unsigned long) &readwrite);
+          ret = smartfs_writesector(fs, nextsector, (uint8_t *) &header->type,
+                                    offsetof(struct smartfs_chain_header_s, type), 1);
           if (ret < 0)
             {
               ferr("ERROR: Error %d setting new sector type for sector %d\n",
@@ -1036,6 +1073,9 @@ int smartfs_createentry(FAR struct smartfs_mountpt_s *fs,
   smartfs_wrle16(&entry->utc, time(NULL));
 #else
   entry->firstsector = nextsector;
+#ifdef CONFIG_SMARTFS_ENTRY_DATLEN
+  entry->datlen = 0;
+#endif
   entry->utc = time(NULL);
 #endif
   memset(entry->name, 0, fs->fs_llformat.namesize);
@@ -1043,11 +1083,8 @@ int smartfs_createentry(FAR struct smartfs_mountpt_s *fs,
 
   /* Now write the new entry to the parent directory sector */
 
-  readwrite.logsector = psector;
-  readwrite.offset = offset;
-  readwrite.count = entrysize;
-  readwrite.buffer = (uint8_t *) &fs->fs_rwbuffer[offset];
-  ret = FS_IOCTL(fs, BIOC_WRITESECT, (unsigned long) &readwrite);
+  ret = smartfs_writesector(fs, psector, (uint8_t *) &fs->fs_rwbuffer[offset],
+                            offset, entrysize);
   if (ret < 0)
     {
       goto errout;
@@ -1102,7 +1139,6 @@ int smartfs_deleteentry(struct smartfs_mountpt_s *fs,
   uint16_t                        offset;
   struct smartfs_entry_header_s  *direntry;
   struct smartfs_chain_header_s  *header;
-  struct smart_read_write_s       readwrite;
 
   /* Okay, delete the file.  Loop through each sector and release them
    *
@@ -1118,17 +1154,13 @@ int smartfs_deleteentry(struct smartfs_mountpt_s *fs,
    */
 
   nextsector = entry->firstsector;
-  header = (struct smartfs_chain_header_s *) fs->fs_rwbuffer;
-  readwrite.offset = 0;
-  readwrite.count = sizeof(struct smartfs_chain_header_s);
-  readwrite.buffer = (uint8_t *) fs->fs_rwbuffer;
+  header = (struct smartfs_chain_header_s *) fs->fs_chainbuffer;
   while (nextsector != SMARTFS_ERASEDSTATE_16BIT)
     {
       /* Read the next sector into our buffer */
 
       sector = nextsector;
-      readwrite.logsector = sector;
-      ret = FS_IOCTL(fs, BIOC_READSECT, (unsigned long) &readwrite);
+      ret = smartfs_readchain(fs, sector);
       if (ret < 0)
         {
           ferr("ERROR: Error reading sector %d\n", nextsector);
@@ -1143,11 +1175,7 @@ int smartfs_deleteentry(struct smartfs_mountpt_s *fs,
 
   /* Remove the entry from the directory tree */
 
-  readwrite.logsector = entry->dsector;
-  readwrite.offset = 0;
-  readwrite.count = fs->fs_llformat.availbytes;
-  readwrite.buffer = (uint8_t *) fs->fs_rwbuffer;
-  ret = FS_IOCTL(fs, BIOC_READSECT, (unsigned long) &readwrite);
+  ret = smartfs_readsector(fs, entry->dsector);
   if (ret < 0)
     {
       ferr("ERROR: Error reading directory info at sector %d\n",
@@ -1174,10 +1202,8 @@ int smartfs_deleteentry(struct smartfs_mountpt_s *fs,
 
   /* Write the updated flags back to the sector */
 
-  readwrite.offset = entry->doffset;
-  readwrite.count = sizeof(uint16_t);
-  readwrite.buffer = (uint8_t *) &direntry->flags;
-  ret = FS_IOCTL(fs, BIOC_WRITESECT, (unsigned long) &readwrite);
+  ret = smartfs_writesector(fs, entry->dsector, (uint8_t *) &direntry->flags,
+                            entry->doffset, sizeof(uint16_t));
   if (ret < 0)
     {
       ferr("ERROR: Error marking entry inactive at sector %d\n",
@@ -1235,15 +1261,11 @@ int smartfs_deleteentry(struct smartfs_mountpt_s *fs,
           /* Now loop through the dir sectors to find ourselves in the chain */
 
           sector = entry->dfirst;
-          readwrite.offset = 0;
-          readwrite.count = sizeof(struct smartfs_chain_header_s);
-          readwrite.buffer = (uint8_t *) fs->fs_rwbuffer;
           while (sector != SMARTFS_ERASEDSTATE_16BIT)
             {
               /* Read the header for the next sector */
 
-              readwrite.logsector = sector;
-              ret = FS_IOCTL(fs, BIOC_READSECT, (unsigned long) &readwrite);
+              ret = smartfs_readsector(fs, sector);
               if (ret < 0)
                 {
                   ferr("ERROR: Error reading sector %d\n", nextsector);
@@ -1257,10 +1279,8 @@ int smartfs_deleteentry(struct smartfs_mountpt_s *fs,
                   /* We found ourselves in the chain.  Update the chain. */
 
                   SMARTFS_NEXTSECTOR(header) = nextsector;
-                  readwrite.offset = offsetof(struct smartfs_chain_header_s, nextsector);
-                  readwrite.count = sizeof(uint16_t);
-                  readwrite.buffer = header->nextsector;
-                  ret = FS_IOCTL(fs, BIOC_WRITESECT, (unsigned long) &readwrite);
+                  ret = smartfs_writesector(fs, sector, (uint8_t *)header->nextsector,
+                                            offsetof(struct smartfs_chain_header_s, nextsector), sizeof(uint16_t));
                   if (ret < 0)
                     {
                       ferr("ERROR: Error unchaining sector (%d)\n", nextsector);
@@ -1314,7 +1334,6 @@ int smartfs_countdirentries(struct smartfs_mountpt_s *fs,
   int                             count;
   struct smartfs_entry_header_s  *direntry;
   struct smartfs_chain_header_s  *header;
-  struct smart_read_write_s       readwrite;
 
   /* Walk through the directory's sectors and count entries */
 
@@ -1324,11 +1343,7 @@ int smartfs_countdirentries(struct smartfs_mountpt_s *fs,
     {
       /* Read the next sector into our buffer */
 
-      readwrite.logsector = nextsector;
-      readwrite.offset = 0;
-      readwrite.count = fs->fs_llformat.availbytes;
-      readwrite.buffer = (uint8_t *) fs->fs_rwbuffer;
-      ret = FS_IOCTL(fs, BIOC_READSECT, (unsigned long) &readwrite);
+      ret = smartfs_readsector(fs, nextsector);
       if (ret < 0)
         {
           ferr("ERROR: Error reading sector %d\n", nextsector);
@@ -1349,7 +1364,7 @@ int smartfs_countdirentries(struct smartfs_mountpt_s *fs,
       offset = sizeof(struct smartfs_chain_header_s);
       entrysize = sizeof(struct smartfs_entry_header_s) + fs->fs_llformat.namesize;
       direntry = (struct smartfs_entry_header_s *) &fs->fs_rwbuffer[offset];
-      while (offset + entrysize < readwrite.count)
+      while (offset + entrysize < fs->fs_llformat.availbytes)
         {
 #ifdef CONFIG_SMARTFS_ALIGNED_ACCESS
           if (((smartfs_rdle16(&direntry->flags) & SMARTFS_DIRENT_EMPTY) !=
@@ -1397,22 +1412,17 @@ int smartfs_truncatefile(struct smartfs_mountpt_s *fs,
   uint16_t                        nextsector;
   uint16_t                        sector;
   struct smartfs_chain_header_s  *header;
-  struct smart_read_write_s       readwrite;
 
   /* Walk through the directory's sectors and count entries */
 
   nextsector = entry->firstsector;
-  header = (struct smartfs_chain_header_s *) fs->fs_rwbuffer;
+  header = (struct smartfs_chain_header_s *) fs->fs_chainbuffer;
 
   while (nextsector != SMARTFS_ERASEDSTATE_16BIT)
     {
       /* Read the next sector's header into our buffer */
 
-      readwrite.logsector = nextsector;
-      readwrite.offset = 0;
-      readwrite.count = sizeof(struct smartfs_chain_header_s);
-      readwrite.buffer = (uint8_t *) fs->fs_rwbuffer;
-      ret = FS_IOCTL(fs, BIOC_READSECT, (unsigned long) &readwrite);
+      ret = smartfs_readchain(fs, nextsector);
       if (ret < 0)
         {
           ferr("ERROR: Error reading sector %d header\n", nextsector);
@@ -1445,10 +1455,15 @@ int smartfs_truncatefile(struct smartfs_mountpt_s *fs,
           memset(fs->fs_rwbuffer, CONFIG_SMARTFS_ERASEDSTATE, fs->fs_llformat.availbytes);
           header->type = SMARTFS_SECTOR_TYPE_FILE;
 
+#ifdef CONFIG_SMARTFS_SECTOR_CACHE
+          /* invalidate cache in fs->fs_rwbuffer */
+          fs->fs_currsector = 0xffff;
+          fs->fs_currsize = 0;
+#endif
+
           /* Now write the new sector data */
 
-          readwrite.count = fs->fs_llformat.availbytes;
-          ret = FS_IOCTL(fs, BIOC_WRITESECT, (unsigned long) &readwrite);
+          ret = smartfs_writesector(fs, nextsector, (uint8_t *) fs->fs_rwbuffer, 0, fs->fs_llformat.availbytes);
           if (ret < 0)
             {
               ferr("ERROR: Error blanking 1st sector (%d) of file\n", nextsector);
@@ -1488,11 +1503,7 @@ int smartfs_truncatefile(struct smartfs_mountpt_s *fs,
        * the sector buffer in the open file context.
        */
 
-      readwrite.logsector = entry->firstsector;
-      readwrite.offset = 0;
-      readwrite.count = sizeof(struct smartfs_chain_header_s);
-      readwrite.buffer = (uint8_t *) fs->fs_rwbuffer;
-      ret = FS_IOCTL(fs, BIOC_READSECT, (unsigned long) &readwrite);
+      //smartfs_readchain(fs, entry->firstsector);
 
       memset(sf->buffer, CONFIG_SMARTFS_ERASEDSTATE, fs->fs_llformat.availbytes);
       header = (struct smartfs_chain_header_s *) sf->buffer;

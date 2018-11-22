@@ -188,15 +188,6 @@
 #define FS_BOPS(f)        (f)->fs_blkdriver->u.i_bops
 #define FS_IOCTL(f,c,a)   (FS_BOPS(f)->ioctl ? FS_BOPS(f)->ioctl((f)->fs_blkdriver,c,a) : (-ENOSYS))
 
-/* The logical sector number of the root directory. */
-
-#define SMARTFS_ROOT_DIR_SECTOR   3
-
-/* Defines the sector types */
-
-#define SMARTFS_SECTOR_TYPE_DIR   1
-#define SMARTFS_SECTOR_TYPE_FILE  2
-
 #ifndef CONFIG_SMARTFS_DIRDEPTH
 #  define CONFIG_SMARTFS_DIRDEPTH 8
 #endif
@@ -219,6 +210,10 @@
 #ifdef CONFIG_MTD_SMART_ENABLE_CRC
 #define CONFIG_SMARTFS_USE_SECTOR_BUFFER
 #endif
+
+#define CONFIG_SMARTFS_SECTOR_CACHE
+#define CONFIG_SMARTFS_ENTRY_DATLEN
+//#define CONFIG_SMARTFS_DUMP
 
 /****************************************************************************
  * Public Types
@@ -252,7 +247,10 @@ struct smartfs_entry_header_s
                                       15:   Empty entry
                                       14:   Active entry
                                       12-0: Permissions bits */
-  int16_t           firstsector;  /* Sector number of the name */
+  uint16_t          firstsector;  /* Sector number of the name */
+#ifdef CONFIG_SMARTFS_ENTRY_DATLEN
+  uint32_t          datlen;       /* file size in byte, 0 for directory */
+#endif
   uint32_t          utc;          /* Time stamp */
   char              name[0];      /* inode name */
 };
@@ -325,8 +323,13 @@ struct smartfs_mountpt_s
   bool                        fs_mounted;   /* true: The file system is ready */
   struct smart_format_s       fs_llformat;  /* Low level device format info */
   char                       *fs_rwbuffer;  /* Read/Write working buffer */
+  char                       *fs_chainbuffer; /* Chain header buffer */
   char                       *fs_workbuffer;/* Working buffer */
   uint8_t                     fs_rootsector;/* Root directory sector num */
+#ifdef CONFIG_SMARTFS_SECTOR_CACHE
+  uint16_t                    fs_currsector; /* Current sector read for fs_rwbuffer */
+  int                         fs_currsize;   /* Current data size of fs_rwbuffer */
+#endif
 };
 
 /****************************************************************************
@@ -336,6 +339,10 @@ struct smartfs_mountpt_s
 /****************************************************************************
  * Internal function prototypes
  ****************************************************************************/
+
+int smartfs_readsector(struct smartfs_mountpt_s *fs, uint16_t sector);
+int smartfs_writesector(struct smartfs_mountpt_s *fs, uint16_t sector, uint8_t *buffer, uint16_t offset, uint16_t count);
+int smartfs_readchain(struct smartfs_mountpt_s *fs, uint16_t sector);
 
 /* Semaphore access for internal use */
 
