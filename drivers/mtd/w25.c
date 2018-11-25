@@ -56,6 +56,7 @@
 #include <nuttx/spi/spi.h>
 #include <nuttx/mtd/mtd.h>
 
+#define CONFIG_W25_SYNC_WRITE
 //#define CONFIG_W25_DEBUG
 //#define CONFIG_W25_SPI_DEBUG
 //#define CONFIG_W25_CACHE_DEBUG
@@ -136,12 +137,12 @@
 #define W25_JEDEC_CAPACITY_128MBIT 0x18  /* 4096x4096 = 128Mbit memory capacity */
 #define W25_JEDEC_CAPACITY_2048MBIT 0x21  /* 2048x131072 = 256Mbit memory capacity */
 
-#define NSECTORS_8MBIT             256   /* 256 sectors x 4096 bytes/sector = 1Mb */
-#define NSECTORS_16MBIT            512   /* 512 sectors x 4096 bytes/sector = 2Mb */
-#define NSECTORS_32MBIT            1024  /* 1024 sectors x 4096 bytes/sector = 4Mb */
-#define NSECTORS_64MBIT            2048  /* 2048 sectors x 4096 bytes/sector = 8Mb */
-#define NSECTORS_128MBIT           4096  /* 4096 sectors x 4096 bytes/sector = 16Mb */
-#define NSECTORS_2048MBIT          2048  /* 2048 sectors x 128K bytes/sector = 256Mb */
+#define NBLOCKS_8MBIT             256   /* 256 blocks x 4096 bytes/block = 1Mb */
+#define NBLOCKS_16MBIT            512   /* 512 blocks x 4096 bytes/block = 2Mb */
+#define NBLOCKS_32MBIT            1024  /* 1024 blocks x 4096 bytes/block = 4Mb */
+#define NBLOCKS_64MBIT            2048  /* 2048 blocks x 4096 bytes/block = 8Mb */
+#define NBLOCKS_128MBIT           4096  /* 4096 blocks x 4096 bytes/block = 16Mb */
+#define NBLOCKS_2048MBIT          2048  /* 2048 blocks x 128K bytes/block = 256Mb */
 
 /* Status register bit definitions */
 
@@ -199,16 +200,15 @@
 /* Chip Geometries ******************************************************************/
 /* All members of the family support uniform 4K-byte sectors and 256 byte pages */
 
-#define W25_SECTOR_SHIFT           17        /* Sector size 1 << 17 = 128Kb */
-#define W25_SECTOR_SIZE            (1 << 17) /* Sector size 1 << 17 = 128Kb */
+#define W25_BLOCK_SHIFT            17        /* Sector size 1 << 17 = 128Kb */
+#define W25_BLOCK_SIZE             (1 << 17) /* Sector size 1 << 17 = 128Kb */
 #define W25_PAGE_SHIFT             11        /* Sector size 1 << 11 = 2048b */
 #define W25_PAGE_SIZE              (1 << 11)  /* Sector size 1 << 11 = 2048b */
 #define W25_DIE_SHIFT              27
+#define W25_SPARE_SIZE             64        /* 16*4 bytes spare size */
 
-#ifdef CONFIG_W25_SECTOR512                  /* Simulate a 512 byte sector */
-#  define W25_SECTOR512_SHIFT      15        /* Sector size 1 << 15 = 32768 bytes */
-#  define W25_SECTOR512_SIZE       (1 << 15) /* Sector size 1 << 15 = 32768 bytes */
-#endif
+#define W25_SECTOR_SHIFT           15        /* Sector size 1 << 15 = 32768 bytes */
+#define W25_SECTOR_SIZE            (1 << 15) /* Sector size 1 << 15 = 32768 bytes */
 
 #define W25_ERASED_STATE           0xff      /* State of FLASH when erased */
 
@@ -243,16 +243,17 @@ struct w25_dev_s
 {
   struct mtd_dev_s      mtd;         /* MTD interface */
   FAR struct spi_dev_s *spi;         /* Saved SPI interface instance */
-  uint16_t              nsectors;    /* Number of erase sectors */
+  uint16_t              nblocks;    /* Number of erase blocks */
   uint8_t               prev_instr;  /* Previous instruction given to W25 device */
 
-#if defined(CONFIG_W25_SECTOR512) && !defined(CONFIG_W25_READONLY)
+#if !defined(CONFIG_W25_READONLY)
   uint8_t               flags;       /* Buffered sector flags */
   uint16_t              esectno;     /* Erase sector number in the cache*/
-  FAR uint8_t          *sector;      /* Allocated sector data */
+  FAR uint8_t           *block;      /* Allocated block data */
 #endif
 
   uint32_t              lastaddr;    /* Last erase or program address */
+  FAR uint8_t           *page_buf;   /* page buffer */
 };
 
 /************************************************************************************
@@ -270,36 +271,35 @@ static void w25_unprotect(FAR struct w25_dev_s *priv);
 static uint8_t w25_waitcomplete(FAR struct w25_dev_s *priv);
 static inline void w25_wren(FAR struct w25_dev_s *priv);
 static inline void w25_wrdi(FAR struct w25_dev_s *priv);
-static int w25_sectorerase(FAR struct w25_dev_s *priv, off_t offset);
 static ssize_t w25_byteread(FAR struct w25_dev_s *priv, off_t offset,
                           size_t nbytes, FAR uint8_t *buffer);
 static ssize_t w25_pageread(FAR struct w25_dev_s *priv, off_t address,
                           size_t nbytes, bool spare, FAR uint8_t *buffer);
 #ifndef CONFIG_W25_READONLY
+static int w25_erase2(FAR struct w25_dev_s *priv, off_t startblock, size_t nblocks);
+static int w25_blockerase(FAR struct w25_dev_s *priv, size_t block);
 static ssize_t w25_bytewrite(FAR struct w25_dev_s *priv, off_t address,
                              size_t nbytes, FAR const uint8_t *buffer);
 static ssize_t w25_pagewrite(FAR struct w25_dev_s *priv, off_t address,
-                          size_t nbytes, FAR const uint8_t *buffer);
+                          size_t nbytes, bool spare, FAR const uint8_t *buffer);
 #endif
-#ifdef CONFIG_W25_SECTOR512
+
 static int w25_cacheflush(struct w25_dev_s *priv);
-static ssize_t w25_cacheread(struct w25_dev_s *priv, off_t sector, FAR uint8_t **buffer);
-static int w25_cacheerase(struct w25_dev_s *priv, off_t sector);
-static ssize_t w25_cachewrite(FAR struct w25_dev_s *priv, off_t sector, FAR const uint8_t *buffer);
+static ssize_t w25_cacheread(struct w25_dev_s *priv, size_t sector, FAR uint8_t **buffer);
+static int w25_cacheerase(struct w25_dev_s *priv, size_t sector);
+static ssize_t w25_cachewrite(FAR struct w25_dev_s *priv, size_t sector, FAR const uint8_t *buffer);
 #ifdef CONFIG_MTD_BYTE_WRITE
-static ssize_t w25_cachebytewrite(FAR struct w25_dev_s *priv, off_t offset,
+static ssize_t w25_cachebytewrite(FAR struct w25_dev_s *priv, size_t offset,
                                size_t nbytes, FAR const uint8_t *buffer);
-#endif
 #endif
 
 /* MTD driver methods */
 
-static int w25_erase(FAR struct mtd_dev_s *dev, off_t startblock, size_t nblocks);
-static int w25_erase2(FAR struct mtd_dev_s *dev, off_t startblock, size_t nblocks);
-static ssize_t w25_bread(FAR struct mtd_dev_s *dev, off_t startblock,
-                           size_t nblocks, FAR uint8_t *buf);
-static ssize_t w25_bwrite(FAR struct mtd_dev_s *dev, off_t startblock,
-                            size_t nblocks, FAR const uint8_t *buf);
+static int w25_erase(FAR struct mtd_dev_s *dev, off_t startsector, size_t nsectors);
+static ssize_t w25_bread(FAR struct mtd_dev_s *dev, off_t startsector,
+                           size_t nsectors, FAR uint8_t *buf);
+static ssize_t w25_bwrite(FAR struct mtd_dev_s *dev, off_t startsector,
+                            size_t nsectors, FAR const uint8_t *buf);
 static ssize_t w25_read(FAR struct mtd_dev_s *dev, off_t offset,
                         size_t nbytes, FAR uint8_t *buffer);
 static int w25_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg);
@@ -318,8 +318,8 @@ static void w25_dump(FAR struct mtd_dev_s *dev)
   FAR struct w25_dev_s *priv = (FAR struct w25_dev_s *)dev;
   uint8_t buffer[256];
 
-  for (int sector = 0; sector < priv->nsectors; sector ++) {
-      w25_byteread(priv, sector << W25_SECTOR512_SHIFT, 256, buffer);
+  for (int sector = 0; sector < priv->nblocks; sector ++) {
+      w25_byteread(priv, sector << W25_SECTOR_SHIFT, 256, buffer);
 
       bool hasdata = false;
       for (int i=0; i<256; i++) {
@@ -471,9 +471,11 @@ static inline int w25_readid(struct w25_dev_s *priv)
 
   w25_lock(priv->spi);
 
+#ifndef CONFIG_W25_SYNC_WRITE
   /* Wait for any preceding write or erase operation to complete. */
 
   (void)w25_waitcomplete(priv);
+#endif
 
   /* Select this FLASH part. */
 
@@ -515,7 +517,7 @@ static inline int w25_readid(struct w25_dev_s *priv)
 
       if (capacity == W25_JEDEC_CAPACITY_8MBIT)
         {
-           priv->nsectors = NSECTORS_8MBIT;
+           priv->nblocks = NBLOCKS_8MBIT;
         }
 
       /* 16M-bit / 2M-byte (2,097,152)
@@ -525,7 +527,7 @@ static inline int w25_readid(struct w25_dev_s *priv)
 
       else if (capacity == W25_JEDEC_CAPACITY_16MBIT)
         {
-           priv->nsectors = NSECTORS_16MBIT;
+           priv->nblocks = NBLOCKS_16MBIT;
         }
 
       /* 32M-bit / M-byte (4,194,304)
@@ -535,7 +537,7 @@ static inline int w25_readid(struct w25_dev_s *priv)
 
       else if (capacity == W25_JEDEC_CAPACITY_32MBIT)
         {
-           priv->nsectors = NSECTORS_32MBIT;
+           priv->nblocks = NBLOCKS_32MBIT;
         }
 
       /* 64M-bit / 8M-byte (8,388,608)
@@ -545,7 +547,7 @@ static inline int w25_readid(struct w25_dev_s *priv)
 
       else if (capacity == W25_JEDEC_CAPACITY_64MBIT)
         {
-           priv->nsectors = NSECTORS_64MBIT;
+           priv->nblocks = NBLOCKS_64MBIT;
         }
 
       /* 128M-bit / 16M-byte (16,777,216)
@@ -555,11 +557,11 @@ static inline int w25_readid(struct w25_dev_s *priv)
 
       else if (capacity == W25_JEDEC_CAPACITY_128MBIT)
         {
-           priv->nsectors = NSECTORS_128MBIT;
+           priv->nblocks = NBLOCKS_128MBIT;
         }
       else if (capacity == W25_JEDEC_CAPACITY_2048MBIT)
         {
-           priv->nsectors = NSECTORS_2048MBIT;
+           priv->nblocks = NBLOCKS_2048MBIT;
         }
       else
         {
@@ -587,9 +589,11 @@ static void w25_unprotect(FAR struct w25_dev_s *priv)
 
   w25_lock(priv->spi);
 
+#ifndef CONFIG_W25_SYNC_WRITE
   /* Wait for any preceding write or erase operation to complete. */
 
   (void)w25_waitcomplete(priv);
+#endif
 
   /* Send "Write enable (WREN)" */
 
@@ -654,15 +658,17 @@ static uint8_t w25_waitcomplete(struct w25_dev_s *priv)
     }
   while (1);
 
-#ifdef CONFIG_W25_DEBUG
   if (status & W25_ERR_ERASE) {
-    ferr("erase error sector = %08x\n", priv->lastaddr >> W25_SECTOR_SHIFT);
+#ifdef CONFIG_W25_DEBUG
+    ferr("erase error block = %08x\n", priv->lastaddr >> W25_BLOCK_SHIFT);
+#endif
   }
 
   if (status & W25_ERR_PROGRAM) {
-    ferr("progrem error sector = %08x\n", priv->lastaddr >> W25_SECTOR_SHIFT);
-  }
+#ifdef CONFIG_W25_DEBUG
+    ferr("program error block = %08x\n", priv->lastaddr >> W25_BLOCK_SHIFT);
 #endif
+  }
 
   return status;
 }
@@ -706,20 +712,24 @@ static inline void w25_wrdi(struct w25_dev_s *priv)
 }
 
 /************************************************************************************
- * Name:  w25_sectorerase
+ * Name:  w25_blockerase
  ************************************************************************************/
 
-static int w25_sectorerase(struct w25_dev_s *priv, off_t sector)
+static int w25_blockerase(struct w25_dev_s *priv, size_t block)
 {
-  off_t address = sector << W25_SECTOR_SHIFT;
+  int ret = OK;
+  off_t address = block << W25_BLOCK_SHIFT;
 
 #ifdef CONFIG_W25_SPI_DEBUG
   ferr("sector: %08lx\n", (long)sector);
 #endif
 
+
+#ifndef CONFIG_W25_SYNC_WRITE
   /* Wait for any preceding write or erase operation to complete. */
 
   (void)w25_waitcomplete(priv);
+#endif
 
   priv->lastaddr = address;
 
@@ -751,7 +761,18 @@ static int w25_sectorerase(struct w25_dev_s *priv, off_t sector)
 
   SPI_SELECT(priv->spi, SPIDEV_FLASH(0), false);
 
-  return OK;
+#ifdef CONFIG_W25_SYNC_WRITE
+  /* Wait for any preceding write or erase operation to complete. */
+  uint8_t status = w25_waitcomplete(priv);
+  if (status & W25_ERR_ERASE) {
+#ifdef CONFIG_W25_DEBUG
+    ferr("erase error block = %08x\n", priv->lastaddr >> W25_BLOCK_SHIFT);
+#endif
+    ret = -EIO;
+  }
+#endif
+
+  return ret;
 }
 
 /************************************************************************************
@@ -759,18 +780,20 @@ static int w25_sectorerase(struct w25_dev_s *priv, off_t sector)
  ************************************************************************************/
 
 static ssize_t w25_pageread(FAR struct w25_dev_s *priv, off_t address, size_t nbytes,
-                         bool spare, FAR uint8_t *buffer)
+                            bool spare, FAR uint8_t *buffer)
 {
 #ifdef CONFIG_W25_SPI_DEBUG
   ferr("address: %08lx nbytes: %d\n", (long)address, (int)nbytes);
 #endif
 
-  if (nbytes > W25_PAGE_SIZE)
+  if ((spare && (nbytes != W25_SPARE_SIZE)) || (nbytes > W25_PAGE_SIZE))
     return -EFAULT;
 
+#ifndef CONFIG_W25_SYNC_WRITE
   /* Wait for any preceding write or erase operation to complete. */
 
   (void)w25_waitcomplete(priv);
+#endif
 
   w25_select_die(priv->spi, (uint8_t)(address>>W25_DIE_SHIFT));
 
@@ -779,8 +802,8 @@ static ssize_t w25_pageread(FAR struct w25_dev_s *priv, off_t address, size_t nb
   w25_wrdi(priv);
 
   /* Read page data into cache */
+
   uint16_t page = address >> W25_PAGE_SHIFT;
-  uint16_t column = address & ((1 << W25_PAGE_SHIFT) - 1);
 
   SPI_SELECT(priv->spi, SPIDEV_FLASH(0), true);
   (void)SPI_SEND(priv->spi, W25_RDPAGE);
@@ -794,14 +817,14 @@ static ssize_t w25_pageread(FAR struct w25_dev_s *priv, off_t address, size_t nb
   uint8_t status = w25_waitcomplete(priv);
   if (status & W25_ERR_ECC ) {
 #ifdef CONFIG_W25_DEBUG
-     uint16_t ecc_page;
-     w25_read_last_ecc_address(priv->spi, &ecc_page);
-     uint8_t status2 = w25_read_reg(priv->spi, 0xA0);
-     uint8_t status3 = w25_read_reg(priv->spi, 0xB0);
-     ferr("ecc error sector = %08x, page = %04x, column = %04x, last ecc page = %04x, status = (%02x, %02x, %02x)\n", address>>W25_SECTOR_SHIFT, page, column, ecc_page, status2, status3, status);
-     /* TODO: Mark badblock and update bad block table */
+    uint16_t ecc_page;
+
+    w25_read_last_ecc_address(priv->spi, &ecc_page);
+    uint8_t status2 = w25_read_reg(priv->spi, 0xA0);
+    uint8_t status3 = w25_read_reg(priv->spi, 0xB0);
+    ferr("ecc error block = %08x, page = %04x, last ecc page = %04x, status = (%02x, %02x, %02x)\n", address>>W25_BLOCK_SHIFT, page, ecc_page, status2, status3, status);
 #endif
-     return -EIO;
+    return -EIO;
   }
 
   SPI_SELECT(priv->spi, SPIDEV_FLASH(0), true);
@@ -818,20 +841,31 @@ static ssize_t w25_pageread(FAR struct w25_dev_s *priv, off_t address, size_t nb
 
   /* Send the address high byte first. */
 
-  if (spare)
-	column = W25_PAGE_SIZE;
-
-  (void)SPI_SEND(priv->spi, (column >> 8) & 0xff);
-  (void)SPI_SEND(priv->spi, column & 0xff);
+  (void)SPI_SEND(priv->spi, 0);
+  (void)SPI_SEND(priv->spi, 0);
   (void)SPI_SEND(priv->spi, W25_DUMMY);
 
   /* Then read all of the requested bytes */
 
-  SPI_RECVBLOCK(priv->spi, buffer, nbytes);
+  SPI_RECVBLOCK(priv->spi, priv->page_buf, W25_PAGE_SIZE+W25_SPARE_SIZE);
 
   /* Deselect the FLASH */
 
   SPI_SELECT(priv->spi, SPIDEV_FLASH(0), false);
+
+  if (spare)
+    memcpy(buffer, (FAR uint8_t *)(priv->page_buf+W25_PAGE_SIZE), W25_SPARE_SIZE);
+  else {
+    if ((priv->page_buf[W25_PAGE_SIZE] != W25_ERASED_STATE) ||
+        (priv->page_buf[W25_PAGE_SIZE+1] != W25_ERASED_STATE)) {
+      ferr("bad block = %08x, page = %04x\n", address>>W25_BLOCK_SHIFT, page);
+      /* bad block */
+      return -EIO;
+    }
+
+    uint16_t column = address & ((1 << W25_PAGE_SHIFT) - 1);
+    memcpy(buffer, (FAR uint8_t *)(priv->page_buf+column), nbytes);
+  }
 
   return nbytes;
 }
@@ -842,17 +876,21 @@ static ssize_t w25_pageread(FAR struct w25_dev_s *priv, off_t address, size_t nb
 
 #ifndef CONFIG_W25_READONLY
 static ssize_t w25_pagewrite(struct w25_dev_s *priv, off_t address,
-                          size_t nbytes, FAR const uint8_t *buffer)
+                          size_t nbytes, bool spare, FAR const uint8_t *buffer)
 {
+  int ret = nbytes;
+
 #ifdef CONFIG_W25_SPI_DEBUG
   ferr("address: %08lx nwords: %d\n", (long)address, (int)nbytes);
 #endif
 
-  if (nbytes > W25_PAGE_SIZE)
+  if ((spare && (nbytes > W25_SPARE_SIZE)) || (nbytes > W25_PAGE_SIZE))
     return -EFAULT;
 
+#ifndef CONFIG_W25_SYNC_WRITE
   /* Wait for any preceding write or erase operation to complete. */
   (void)w25_waitcomplete(priv);
+#endif
 
    uint16_t page = address >> W25_PAGE_SHIFT;
    uint16_t column = address & ((1 << W25_PAGE_SHIFT) - 1);
@@ -872,6 +910,10 @@ static ssize_t w25_pagewrite(struct w25_dev_s *priv, off_t address,
    SPI_SEND(priv->spi, W25_PP);
    priv->prev_instr = W25_PP;
 
+   /* Align column to end of page to write spare */
+   if (spare)
+     column = W25_PAGE_SIZE;
+
    /* Send the address high byte first. */
 
    (void)SPI_SEND(priv->spi, (column >> 8) & 0xff);
@@ -879,7 +921,7 @@ static ssize_t w25_pagewrite(struct w25_dev_s *priv, off_t address,
 
    /* Then send the page of data */
 
-   SPI_SNDBLOCK(priv->spi, buffer, W25_PAGE_SIZE);
+   SPI_SNDBLOCK(priv->spi, buffer, nbytes);
    SPI_SELECT(priv->spi, SPIDEV_FLASH(0), false);
 
    SPI_SELECT(priv->spi, SPIDEV_FLASH(0), true);
@@ -897,11 +939,23 @@ static ssize_t w25_pagewrite(struct w25_dev_s *priv, off_t address,
 
    SPI_SELECT(priv->spi, SPIDEV_FLASH(0), false);
 
+#ifdef CONFIG_W25_SYNC_WRITE
+  /* Wait for any preceding write or erase operation to complete. */
+  uint8_t status = w25_waitcomplete(priv);
+
+  if (status & W25_ERR_PROGRAM) {
+#ifdef CONFIG_W25_DEBUG
+    ferr("program error block = %08x\n", address >> W25_BLOCK_SHIFT);
+#endif
+    ret = -EIO;
+  }
+#endif
+
    /* Disable writing */
 
    w25_wrdi(priv);
 
-   return nbytes;
+   return ret;
 }
 #endif
 
@@ -936,7 +990,7 @@ static ssize_t w25_bytewrite(FAR struct w25_dev_s *priv, off_t offset,
     {
       /* All bytes within one programmable page.  Just do the write. */
 
-      ret = w25_pagewrite(priv, offset, nbytes, buffer);
+      ret = w25_pagewrite(priv, offset, nbytes, false, buffer);
       if (ret != nbytes)
         goto errout;
     }
@@ -946,7 +1000,7 @@ static ssize_t w25_bytewrite(FAR struct w25_dev_s *priv, off_t offset,
 
       count = nbytes;
       bytestowrite = W25_PAGE_SIZE - (offset & (W25_PAGE_SIZE-1));
-      ret = w25_pagewrite(priv, offset, bytestowrite, buffer);
+      ret = w25_pagewrite(priv, offset, bytestowrite, false, buffer);
       if (ret != bytestowrite)
         goto errout;
 
@@ -960,7 +1014,7 @@ static ssize_t w25_bytewrite(FAR struct w25_dev_s *priv, off_t offset,
 
       while (count >= W25_PAGE_SIZE)
         {
-          ret = w25_pagewrite(priv, offset, W25_PAGE_SIZE, &buffer[index]);
+          ret = w25_pagewrite(priv, offset, W25_PAGE_SIZE, false, &buffer[index]);
           if (ret != W25_PAGE_SIZE)
             goto errout;
 
@@ -975,7 +1029,7 @@ static ssize_t w25_bytewrite(FAR struct w25_dev_s *priv, off_t offset,
 
       if (count > 0)
         {
-          ret = w25_pagewrite(priv, offset, count, &buffer[index]);
+          ret = w25_pagewrite(priv, offset, count, false, &buffer[index]);
           if (ret != count)
             goto errout;
         }
@@ -991,7 +1045,7 @@ errout:
  * Name: w25_cacheflush
  ************************************************************************************/
 
-#if defined(CONFIG_W25_SECTOR512) && !defined(CONFIG_W25_READONLY)
+#if !defined(CONFIG_W25_READONLY)
 static int w25_cacheflush(struct w25_dev_s *priv)
 {
   int ret;
@@ -1008,10 +1062,10 @@ static int w25_cacheflush(struct w25_dev_s *priv)
 #ifdef CONFIG_W25_CACHE_DEBUG
       ferr("byte write: esectno = %d\n", priv->esectno);
 #endif
-      ssize_t nwrite = w25_bytewrite(priv, (off_t)priv->esectno << W25_SECTOR_SHIFT,
-                                     W25_SECTOR_SIZE, priv->sector);
-      if (nwrite != W25_SECTOR_SIZE) {
-        ret = -EIO;
+      ssize_t nwrite = w25_bytewrite(priv, (off_t)priv->esectno << W25_BLOCK_SHIFT,
+                                     W25_BLOCK_SIZE, priv->block);
+      if (nwrite != W25_BLOCK_SIZE) {
+        ret = (int)nwrite;
         goto errout;
       }
 
@@ -1032,8 +1086,8 @@ errout:
  * Name: w25_cacheread
  ************************************************************************************/
 
-#if defined(CONFIG_W25_SECTOR512) && !defined(CONFIG_W25_READONLY)
-static ssize_t w25_cacheread(struct w25_dev_s *priv, off_t sector, FAR uint8_t **buffer)
+#if !defined(CONFIG_W25_READONLY)
+static ssize_t w25_cacheread(struct w25_dev_s *priv, size_t sector, FAR uint8_t **buffer)
 {
   off_t esectno;
   int   shift;
@@ -1045,7 +1099,7 @@ static ssize_t w25_cacheread(struct w25_dev_s *priv, off_t sector, FAR uint8_t *
    * shift to the right by 3 to get the sector number in 4096 increments.
    */
 
-  shift    = W25_SECTOR_SHIFT - W25_SECTOR512_SHIFT;
+  shift    = W25_BLOCK_SHIFT - W25_SECTOR_SHIFT;
   esectno  = sector >> shift;
 #ifdef CONFIG_W25_CACHE_DEBUG
   ferr("sector: %ld esectno: %d shift=%d\n", sector, esectno, shift);
@@ -1063,8 +1117,8 @@ static ssize_t w25_cacheread(struct w25_dev_s *priv, off_t sector, FAR uint8_t *
 
       /* Read the erase block into the cache */
 
-      ret = w25_byteread(priv, (esectno << W25_SECTOR_SHIFT), W25_SECTOR_SIZE, priv->sector);
-      if (ret != W25_SECTOR_SIZE)
+      ret = w25_byteread(priv, (esectno << W25_BLOCK_SHIFT), W25_BLOCK_SIZE, priv->block);
+      if (ret != W25_BLOCK_SIZE)
          goto errout;
 
       /* Mark the sector as cached */
@@ -1076,7 +1130,7 @@ static ssize_t w25_cacheread(struct w25_dev_s *priv, off_t sector, FAR uint8_t *
       CLR_ERASED(priv);         /* The underlying FLASH has not been erased */
     }
 
-    ret = W25_SECTOR512_SIZE;
+    ret = W25_SECTOR_SIZE;
 
 errout:
 
@@ -1086,7 +1140,7 @@ errout:
 
   /* Return the address in the cache that holds this sector */
 
-  *buffer = &priv->sector[index << W25_SECTOR512_SHIFT];
+  *buffer = &priv->block[index << W25_SECTOR_SHIFT];
 
   return ret;
 }
@@ -1096,8 +1150,8 @@ errout:
  * Name: w25_cacheerase
  ************************************************************************************/
 
-#if defined(CONFIG_W25_SECTOR512) && !defined(CONFIG_W25_READONLY)
-static int w25_cacheerase(struct w25_dev_s *priv, off_t sector)
+#if !defined(CONFIG_W25_READONLY)
+static int w25_cacheerase(struct w25_dev_s *priv, size_t sector)
 {
   FAR uint8_t *cache_buf;
   int ret;
@@ -1111,7 +1165,7 @@ static int w25_cacheerase(struct w25_dev_s *priv, off_t sector)
    */
 
   ret = w25_cacheread(priv, sector, &cache_buf);
-  if (ret != W25_SECTOR512_SIZE)
+  if (ret != W25_SECTOR_SIZE)
     goto errout;
 
   /* Erase the block containing this sector if it is not already erased.
@@ -1121,10 +1175,10 @@ static int w25_cacheerase(struct w25_dev_s *priv, off_t sector)
 
   if (!IS_ERASED(priv))
     {
-      off_t esectno  = sector >> (W25_SECTOR_SHIFT - W25_SECTOR512_SHIFT);
+      off_t esectno  = sector >> (W25_BLOCK_SHIFT - W25_SECTOR_SHIFT);
       finfo("sector: %ld esectno: %d\n", sector, esectno);
 
-      ret = w25_sectorerase(priv, esectno);
+      ret = w25_blockerase(priv, esectno);
       if (ret < 0)
         goto errout;
 
@@ -1136,7 +1190,7 @@ static int w25_cacheerase(struct w25_dev_s *priv, off_t sector)
    * time).
    */
 
-  memset(cache_buf, W25_ERASED_STATE, W25_SECTOR512_SIZE);
+  memset(cache_buf, W25_ERASED_STATE, W25_SECTOR_SIZE);
   SET_DIRTY(priv);
 
   ret = OK;
@@ -1150,8 +1204,8 @@ errout:
  * Name: w25_cachewrite
  ************************************************************************************/
 
-#if defined(CONFIG_W25_SECTOR512) && !defined(CONFIG_W25_READONLY)
-static ssize_t w25_cachewrite(FAR struct w25_dev_s *priv, off_t sector, FAR const uint8_t *buffer)
+#if !defined(CONFIG_W25_READONLY)
+static ssize_t w25_cachewrite(FAR struct w25_dev_s *priv, size_t sector, FAR const uint8_t *buffer)
 {
   FAR uint8_t *cache_buf;
   ssize_t ret;
@@ -1164,7 +1218,7 @@ static ssize_t w25_cachewrite(FAR struct w25_dev_s *priv, off_t sector, FAR cons
    */
 
   ret = w25_cacheread(priv, sector, &cache_buf);
-  if (ret != W25_SECTOR512_SIZE)
+  if (ret != W25_SECTOR_SIZE)
     goto errout;
 
   /* Erase the block containing this sector if it is not already erased.
@@ -1174,12 +1228,12 @@ static ssize_t w25_cachewrite(FAR struct w25_dev_s *priv, off_t sector, FAR cons
 
   if (!IS_ERASED(priv))
     {
-      off_t esectno  = sector >> (W25_SECTOR_SHIFT - W25_SECTOR512_SHIFT);
+      off_t esectno  = sector >> (W25_BLOCK_SHIFT - W25_SECTOR_SHIFT);
 #ifdef CONFIG_W25_CACHE_DEBUG
       ferr("sector: %ld esectno: %d\n", sector, esectno);
 #endif
 
-      ret = w25_sectorerase(priv, esectno);
+      ret = w25_blockerase(priv, esectno);
       if (ret < 0)
         goto errout;
 
@@ -1188,23 +1242,23 @@ static ssize_t w25_cachewrite(FAR struct w25_dev_s *priv, off_t sector, FAR cons
 
   /* Copy the new sector data into cached erase block */
 
-  memcpy(cache_buf, buffer, W25_SECTOR512_SIZE);
+  memcpy(cache_buf, buffer, W25_SECTOR_SIZE);
   SET_DIRTY(priv);
 
-  ret = W25_SECTOR512_SIZE;
+  ret = W25_SECTOR_SIZE;
 
 errout:
   return ret;
 }
 #endif
 
-#if defined(CONFIG_MTD_BYTE_WRITE) &&  defined(CONFIG_W25_SECTOR512) && !defined(CONFIG_W25_READONLY)
-static ssize_t w25_cachebytewrite(FAR struct w25_dev_s *priv, off_t offset,
+#if defined(CONFIG_MTD_BYTE_WRITE) && !defined(CONFIG_W25_READONLY)
+static ssize_t w25_cachebytewrite(FAR struct w25_dev_s *priv, size_t offset,
                                size_t nbytes, FAR const uint8_t *buffer)
 {
   FAR uint8_t *cache_buf;
-  off_t sector = offset >> W25_SECTOR512_SHIFT;
-  off_t buff_offset = offset - (sector << W25_SECTOR512_SHIFT);
+  off_t sector = offset >> W25_SECTOR_SHIFT;
+  off_t buff_offset = offset - (sector << W25_SECTOR_SHIFT);
   ssize_t ret;
 
 #ifdef CONFIG_W25_CACHE_DEBUG
@@ -1216,7 +1270,7 @@ static ssize_t w25_cachebytewrite(FAR struct w25_dev_s *priv, off_t offset,
    */
 
   ret = w25_cacheread(priv, sector, &cache_buf);
-  if (ret != W25_SECTOR512_SIZE)
+  if (ret != W25_SECTOR_SIZE)
     goto errout;
 
   cache_buf += buff_offset;
@@ -1228,12 +1282,12 @@ static ssize_t w25_cachebytewrite(FAR struct w25_dev_s *priv, off_t offset,
 
   if (!IS_ERASED(priv))
     {
-      off_t esectno  = sector >> (W25_SECTOR_SHIFT - W25_SECTOR512_SHIFT);
+      off_t esectno  = sector >> (W25_BLOCK_SHIFT - W25_SECTOR_SHIFT);
 #ifdef CONFIG_W25_CACHE_DEBUG
       ferr("sector: %ld esectno: %d\n", sector, esectno);
 #endif
 
-      ret = w25_sectorerase(priv, esectno);
+      ret = w25_blockerase(priv, esectno);
       if (ret < 0)
         goto errout;
 
@@ -1256,39 +1310,35 @@ errout:
  * Name: w25_erase
  ************************************************************************************/
 
-static int w25_erase(FAR struct mtd_dev_s *dev, off_t startblock, size_t nblocks)
+static int w25_erase(FAR struct mtd_dev_s *dev, off_t startsector, size_t nsectors)
 {
 #ifdef CONFIG_W25_READONLY
   return -EACESS;
 #else
   FAR struct w25_dev_s *priv = (FAR struct w25_dev_s *)dev;
-  size_t blocksleft = nblocks;
+  size_t sectorleft = nsectors;
   int ret;
 
 #ifdef CONFIG_W25_API_DEBUG
-  ferr("startblock: %08lx nblocks: %d\n", (long)startblock, (int)nblocks);
+  ferr("startsector: %08lx nsectors: %d\n", (long)startsector, (int)nsectors);
 #endif
 
   /* Lock access to the SPI bus until we complete the erase */
 
   w25_lock(priv->spi);
 
-  while (blocksleft-- > 0)
+  while (sectorleft-- > 0)
     {
       /* Erase each sector */
 
-#ifdef CONFIG_W25_SECTOR512
-      ret = w25_cacheerase(priv, startblock);
-#else
-      ret = w25_sectorerase(priv, startblock);
-#endif
+      ret = w25_cacheerase(priv, startsector);
       if (ret < 0)
         goto errout;
 
-      startblock++;
+      startsector++;
     }
 
-  ret = (int)nblocks;
+  ret = (int)nsectors;
 
 errout:
 
@@ -1297,12 +1347,11 @@ errout:
 #endif
 }
 
-static int w25_erase2(FAR struct mtd_dev_s *dev, off_t startblock, size_t nblocks)
+static int w25_erase2(FAR struct w25_dev_s *priv, off_t startblock, size_t nblocks)
 {
 #ifdef CONFIG_W25_READONLY
   return -EACESS
 #else
-  FAR struct w25_dev_s *priv = (FAR struct w25_dev_s *)dev;
   size_t blocksleft = nblocks;
   int ret;
 
@@ -1318,17 +1367,15 @@ static int w25_erase2(FAR struct mtd_dev_s *dev, off_t startblock, size_t nblock
     {
       /* Erase each sector */
 
-      ret = w25_sectorerase(priv, startblock);
+      ret = w25_blockerase(priv, startblock);
       if (ret < 0)
         goto errout;
 
       startblock++;
     }
 
-#ifdef CONFIG_W25_SECTOR512
-  memset(priv->sector, W25_ERASED_STATE, W25_SECTOR_SIZE);
+  memset(priv->block, W25_ERASED_STATE, W25_BLOCK_SIZE);
   SET_ERASED(priv);
-#endif
 
   ret = (int)nblocks;
 
@@ -1342,40 +1389,32 @@ errout:
  * Name: w25_bread
  ************************************************************************************/
 
-static ssize_t w25_bread(FAR struct mtd_dev_s *dev, off_t startblock,
-                         size_t nblocks, FAR uint8_t *buffer)
+static ssize_t w25_bread(FAR struct mtd_dev_s *dev, off_t startsector,
+                         size_t nsectors, FAR uint8_t *buffer)
 {
   ssize_t ret;
   FAR struct w25_dev_s *priv = (FAR struct w25_dev_s *)dev;
 
 #ifdef CONFIG_W25_API_DEBUG
-  ferr("startblock: %08lx nblocks: %d\n", (long)startblock, (int)nblocks);
+  ferr("startsector: %08lx nsectors: %d\n", (long)startsector, (int)nsectors);
 #endif
 
   /* Lock the SPI bus and write all of the pages to FLASH */
 
   w25_lock(priv->spi);
 
-  /* On this device, we can handle the block read just like the byte-oriented read */
+  /* On this device, we can handle the sector read just like the byte-oriented read */
 
-#ifdef CONFIG_W25_SECTOR512
-  for (int i=0; i<nblocks; i++)
+  for (int i=0; i<nsectors; i++)
    {
       FAR uint8_t *cache_buf;
-      ret = w25_cacheread(priv, startblock+i, &cache_buf);
-      if (ret != W25_SECTOR512_SIZE)
+      ret = w25_cacheread(priv, startsector+i, &cache_buf);
+      if (ret != W25_SECTOR_SIZE)
         goto errout;
 
-      memcpy(buffer + (i<<W25_SECTOR512_SHIFT), cache_buf, W25_SECTOR512_SIZE);
+      memcpy(buffer + (i<<W25_SECTOR_SHIFT), cache_buf, W25_SECTOR_SIZE);
     }
-  ret = nblocks;
-#else
-  ret = w25_byteread(priv, startblock << W25_SECTOR_SHIFT, nblocks << W25_SECTOR_SHIFT, buffer);
-  if (ret != (nblocks << W25_SECTOR_SHIFT))
-    goto errout;
-
-  ret >>= W25_SECTOR_SHIFT;
-#endif
+  ret = nsectors;
 
 errout:
 
@@ -1388,8 +1427,8 @@ errout:
  * Name: w25_bwrite
  ************************************************************************************/
 
-static ssize_t w25_bwrite(FAR struct mtd_dev_s *dev, off_t startblock,
-                          size_t nblocks, FAR const uint8_t *buffer)
+static ssize_t w25_bwrite(FAR struct mtd_dev_s *dev, off_t startsector,
+                          size_t nsectors, FAR const uint8_t *buffer)
 {
 #ifdef CONFIG_W25_READONLY
   return -EACCESS;
@@ -1398,27 +1437,21 @@ static ssize_t w25_bwrite(FAR struct mtd_dev_s *dev, off_t startblock,
   ssize_t ret;
 
 #ifdef CONFIG_W25_API_DEBUG
-  ferr("startblock: %08lx nblocks: %d\n", (long)startblock, (int)nblocks);
+  ferr("startsector: %08lx nsectors: %d\n", (long)startsector, (int)nsectors);
 #endif
 
   /* Lock the SPI bus and write all of the pages to FLASH */
 
   w25_lock(priv->spi);
 
-#if defined(CONFIG_W25_SECTOR512)
-  for (int i=0; i<nblocks; i++)
+  for (int i=0; i<nsectors; i++)
    {
-    ret = w25_cachewrite(priv, startblock+i, buffer);
-    if (ret != W25_SECTOR512_SIZE)
+    ret = w25_cachewrite(priv, startsector+i, buffer);
+    if (ret != W25_SECTOR_SIZE)
       goto errout;
    }
-#else
-  ret = w25_bytewrite(priv, startblock << W25_SECTOR_SHIFT, nblocks << W25_SECTOR_SHIFT, buffer);
-  if (ret != (nblocks << W25_SECTOR_SHIFT))
-    goto errout;
-#endif
 
-  ret = nblocks;
+  ret = nsectors;
 
 errout:
   w25_unlock(priv->spi);
@@ -1514,18 +1547,17 @@ static ssize_t w25_read(FAR struct mtd_dev_s *dev, off_t offset,
 
   w25_lock(priv->spi);
 
-#ifdef CONFIG_W25_SECTOR512
   ssize_t nread = nbytes;
   while (nbytes > 0) {
-    uint16_t sector = offset >> W25_SECTOR512_SHIFT;
-    uint16_t buffer_offset = offset - (sector << W25_SECTOR512_SHIFT);
-    uint16_t read_count = W25_SECTOR512_SIZE - buffer_offset;
+    uint16_t sector = offset >> W25_SECTOR_SHIFT;
+    uint16_t buffer_offset = offset - (sector << W25_SECTOR_SHIFT);
+    uint16_t read_count = W25_SECTOR_SIZE - buffer_offset;
     if (read_count > nbytes)
         read_count = nbytes;
 
     FAR uint8_t *cache_buf;
     ret = w25_cacheread(priv, sector, &cache_buf);
-    if (ret != W25_SECTOR512_SIZE)
+    if (ret != W25_SECTOR_SIZE)
       goto errout;
 
     memcpy((FAR uint8_t *)buffer, cache_buf + buffer_offset, read_count);
@@ -1534,9 +1566,6 @@ static ssize_t w25_read(FAR struct mtd_dev_s *dev, off_t offset,
     nbytes -= read_count;
   }
   ret = nread;
-#else
-  ret = w25_byteread(priv, offset, nbytes, buffer);
-#endif
 
 errout:
 
@@ -1567,11 +1596,10 @@ static ssize_t w25_write(FAR struct mtd_dev_s *dev, off_t offset,
   w25_lock(priv->spi);
 
   ssize_t nwritten = nbytes;
-#ifdef CONFIG_W25_SECTOR512
   while (nbytes > 0) {
-    uint16_t sector = offset >> W25_SECTOR512_SHIFT;
-    uint16_t buffer_offset = offset - (sector << W25_SECTOR512_SHIFT);
-    uint16_t write_count = W25_SECTOR512_SIZE - buffer_offset;
+    uint16_t sector = offset >> W25_SECTOR_SHIFT;
+    uint16_t buffer_offset = offset - (sector << W25_SECTOR_SHIFT);
+    uint16_t write_count = W25_SECTOR_SIZE - buffer_offset;
     if (write_count > nbytes)
       write_count = nbytes;
 
@@ -1583,11 +1611,6 @@ static ssize_t w25_write(FAR struct mtd_dev_s *dev, off_t offset,
     offset += write_count;
     nbytes -= write_count;
   }
-#else
-  ret = w25_bytewrite(priv, offset, nbytes, buffer);
-  if (ret != nbytes)
-    goto errout;
-#endif
 
   ret = nwritten;
 
@@ -1629,15 +1652,9 @@ static int w25_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg)
                * appear so.
                */
 
-#ifdef CONFIG_W25_SECTOR512
-              geo->blocksize    = (1 << W25_SECTOR512_SHIFT);
-              geo->erasesize    = (1 << W25_SECTOR512_SHIFT);
-              geo->neraseblocks = priv->nsectors << (W25_SECTOR_SHIFT - W25_SECTOR512_SHIFT);
-#else
-              geo->blocksize    = W25_SECTOR_SIZE;
-              geo->erasesize    = W25_SECTOR_SIZE;
-              geo->neraseblocks = priv->nsectors;
-#endif
+              geo->blocksize    = (1 << W25_SECTOR_SHIFT);
+              geo->erasesize    = (1 << W25_SECTOR_SHIFT);
+              geo->neraseblocks = priv->nblocks << (W25_BLOCK_SHIFT - W25_SECTOR_SHIFT);
               ret               = OK;
 
               finfo("blocksize: %d erasesize: %d neraseblocks: %d\n",
@@ -1651,19 +1668,11 @@ static int w25_ioctl(FAR struct mtd_dev_s *dev, int cmd, unsigned long arg)
 
       case MTDIOC_BULKERASE:
         {
-            int nerased;
+          /* Erase the entire device */
 
-            /* Erase the entire device */
-
-#ifdef CONFIG_W25_SECTOR512
-            nerased = w25_erase2(dev, 0, priv->nsectors);
-#else
-            nerased = w25_erase(dev, 0, priv->nsectors);
-#endif
-            if (nerased == priv->nsectors)
-              ret = OK;
-            else if (ret > 0)
-              ret = -EIO;
+          ret = w25_erase2(priv, 0, priv->nblocks);
+          if (ret == priv->nblocks)
+            ret = OK;
         }
         break;
 
@@ -1757,11 +1766,10 @@ FAR struct mtd_dev_s *w25_initialize(FAR struct spi_dev_s *spi)
           w25_unprotect(priv);
 #endif
 
-#ifdef CONFIG_W25_SECTOR512        /* Simulate a 512 byte sector */
           /* Allocate a buffer for the erase block cache */
 
-          priv->sector = (FAR uint8_t *)kmm_malloc(W25_SECTOR_SIZE);
-          if (!priv->sector)
+          priv->block = (FAR uint8_t *)kmm_malloc(W25_BLOCK_SIZE);
+          if (!priv->block)
             {
               /* Allocation failed! Discard all of that work we just did and return NULL */
 
@@ -1769,11 +1777,12 @@ FAR struct mtd_dev_s *w25_initialize(FAR struct spi_dev_s *spi)
               kmm_free(priv);
               return NULL;
             }
-#endif
         }
     }
 
     priv->lastaddr = 0xffffffff;
+
+    priv->page_buf = (FAR uint8_t *)kmm_malloc(W25_PAGE_SIZE+W25_SPARE_SIZE);
 
   //w25_read_bbm(priv->spi);
 

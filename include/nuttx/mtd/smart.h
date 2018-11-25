@@ -52,6 +52,13 @@
 //#define CONFIG_SMART_RELOCATE
 //#define CONFIG_SMART_DUMP
 
+#if ( CONFIG_SMARTFS_ERASEDSTATE == 0xff )
+#define SMART_SMAP_INVALID         0xffff
+#else
+#define SMART_SMAP_INVALID         0
+#endif
+#define SMART_SMAP_INVALID2        0xfffe
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/

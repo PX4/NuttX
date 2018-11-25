@@ -58,6 +58,7 @@
 #include <nuttx/fs/dirent.h>
 #include <nuttx/fs/ioctl.h>
 #include <nuttx/mtd/mtd.h>
+#include <nuttx/mtd/smart.h>
 #include <nuttx/fs/smart.h>
 
 #include "smartfs.h"
@@ -394,13 +395,13 @@ static int smartfs_open(FAR struct file *filep, const char *relpath,
 
       /* Yes... test if the parent directory is valid */
 
-      if (parentdirsector != 0xFFFF)
+      if (parentdirsector != SMART_SMAP_INVALID)
         {
           /* We can create in the given parent directory */
 
           ret = smartfs_createentry(fs, parentdirsector, filename,
                                     SMARTFS_DIRENT_TYPE_FILE, mode,
-                                    &sf->entry, 0xFFFF, sf);
+                                    &sf->entry, SMART_SMAP_INVALID, sf);
           if (ret != OK)
             {
               goto errout_with_buffer;
@@ -980,7 +981,7 @@ static ssize_t smartfs_write(FAR struct file *filep, const char *buffer,
         {
           /* First get a new chained sector */
 
-          ret = FS_IOCTL(fs, BIOC_ALLOCSECT, 0xFFFF);
+          ret = FS_IOCTL(fs, BIOC_ALLOCSECT, SMART_SMAP_INVALID);
           if (ret < 0)
             {
               ferr("ERROR: Error %d allocating new sector\n", ret);
@@ -1035,7 +1036,7 @@ static ssize_t smartfs_write(FAR struct file *filep, const char *buffer,
             {
               /* Allocate a new sector */
 
-              ret = FS_IOCTL(fs, BIOC_ALLOCSECT, 0xFFFE);
+              ret = FS_IOCTL(fs, BIOC_ALLOCSECT, SMART_SMAP_INVALID2);
               if (ret < 0)
                 {
                   ferr("ERROR: Error %d allocating new sector\n", ret);
@@ -1897,7 +1898,7 @@ static int smartfs_mkdir(struct inode *mountpt, const char *relpath, mode_t mode
       /* It doesn't exist ... we can create it, but only if we have
        * the right permissions and if the parentdirsector is valid. */
 
-      if (parentdirsector == 0xFFFF)
+      if (parentdirsector == SMART_SMAP_INVALID)
         {
           /* Invalid entry in the path (non-existant dir segment) */
 
@@ -1909,7 +1910,7 @@ static int smartfs_mkdir(struct inode *mountpt, const char *relpath, mode_t mode
       /* Create the directory */
 
       ret = smartfs_createentry(fs, parentdirsector, filename,
-          SMARTFS_DIRENT_TYPE_DIR, mode, &entry, 0xFFFF, NULL);
+          SMARTFS_DIRENT_TYPE_DIR, mode, &entry, SMART_SMAP_INVALID, NULL);
       if (ret != OK)
         {
           goto errout_with_semaphore;
@@ -2083,7 +2084,7 @@ int smartfs_rename(struct inode *mountpt, const char *oldrelpath,
 
   /* Test if the new parent directory is valid */
 
-  if (newparentdirsector != 0xFFFF)
+  if (newparentdirsector != SMART_SMAP_INVALID)
     {
       /* We can move to the given parent directory */
 

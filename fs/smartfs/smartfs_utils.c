@@ -53,6 +53,7 @@
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/fs/ioctl.h>
+#include <nuttx/mtd/smart.h>
 
 #include "smartfs.h"
 
@@ -634,7 +635,7 @@ int smartfs_finddirentry(struct smartfs_mountpt_s *fs,
           offset = 0xFFFF;
 
 #if CONFIG_SMARTFS_ERASEDSTATE == 0xFF
-          while (dirsector != 0xFFFF)
+          while (dirsector != SMART_SMAP_INVALID)
 #else
           while (dirsector != 0)
 #endif
@@ -848,7 +849,7 @@ int smartfs_finddirentry(struct smartfs_mountpt_s *fs,
             }
           else
             {
-              *parentdirsector = 0xFFFF;
+              *parentdirsector = SMART_SMAP_INVALID;
               *filename = NULL;
             }
 
@@ -965,7 +966,7 @@ int smartfs_createentry(FAR struct smartfs_mountpt_s *fs,
         {
           /* Allocate a new sector and chain it to the last one */
 
-          ret = FS_IOCTL(fs, BIOC_ALLOCSECT, 0xFFFF);
+          ret = FS_IOCTL(fs, BIOC_ALLOCSECT, SMART_SMAP_INVALID);
           if (ret < 0)
             {
               goto errout;
@@ -1011,11 +1012,11 @@ int smartfs_createentry(FAR struct smartfs_mountpt_s *fs,
 #endif
 #endif  /* CONFIG_SMARTFS_ERASEDSTATE == 0xFF */
 
-  if (sectorno == 0xFFFF)
+  if (sectorno == SMART_SMAP_INVALID)
     {
       /* Allocate a new sector for the file / dir */
 
-      ret = FS_IOCTL(fs, BIOC_ALLOCSECT, 0xFFFF);
+      ret = FS_IOCTL(fs, BIOC_ALLOCSECT, SMART_SMAP_INVALID);
       if (ret < 0)
         {
           goto errout;
