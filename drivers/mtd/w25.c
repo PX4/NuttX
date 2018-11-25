@@ -282,6 +282,8 @@ static ssize_t w25_bytewrite(FAR struct w25_dev_s *priv, off_t address,
                              size_t nbytes, FAR const uint8_t *buffer);
 static ssize_t w25_pagewrite(FAR struct w25_dev_s *priv, off_t address,
                           size_t nbytes, bool spare, FAR const uint8_t *buffer);
+static int w25_mark_badblock(FAR struct w25_dev_s *priv, size_t block);
+static bool w25_is_badblock(FAR struct w25_dev_s *priv, size_t block);
 #endif
 
 static int w25_cacheflush(struct w25_dev_s *priv);
@@ -311,6 +313,57 @@ static ssize_t w25_write(FAR struct mtd_dev_s *dev, off_t offset,
 /************************************************************************************
  * Private Data
  ************************************************************************************/
+
+#ifndef CONFIG_W25_READONLY
+static int w25_mark_badblock(FAR struct w25_dev_s *priv, size_t block)
+{
+  int ret;
+  off_t address = (block << W25_BLOCK_SHIFT);
+  uint8_t spare_buf[W25_SPARE_SIZE];
+
+  ssize_t nbytes;
+
+  nbytes = w25_pageread(priv, address, W25_SPARE_SIZE, true, (FAR uint8_t *)spare_buf);
+  if (nbytes != W25_SPARE_SIZE) {
+    ret = -EFAULT;
+    goto errout;
+  }
+
+  /* Mark bad block */
+  spare_buf[0] = 0;
+  spare_buf[1] = 0;
+
+  nbytes = w25_pagewrite(priv, address, W25_SPARE_SIZE, true, (FAR uint8_t *)spare_buf);
+  if (nbytes != W25_SPARE_SIZE) {
+    ret = -EFAULT;
+    goto errout;
+  }
+
+  ret = OK;
+
+errout:
+  return ret;
+}
+
+static bool w25_is_badblock(FAR struct w25_dev_s *priv, size_t block)
+{
+  off_t address = (block << W25_BLOCK_SHIFT);
+  uint8_t spare_buf[W25_SPARE_SIZE];
+
+  ssize_t nbytes;
+
+  nbytes = w25_pageread(priv, address, W25_SPARE_SIZE, true, (FAR uint8_t *)spare_buf);
+  if (nbytes != W25_SPARE_SIZE) {
+    //TODO: Check whether set block as good or bad when read spare data failed
+    return false;
+  }
+
+  if ((spare_buf[0] != W25_ERASED_STATE) || (spare_buf[1] != W25_ERASED_STATE))
+    return true;
+
+  return false;
+}
+#endif
 
 #ifdef CONFIG_W25_DUMP
 static void w25_dump(FAR struct mtd_dev_s *dev)
@@ -662,12 +715,14 @@ static uint8_t w25_waitcomplete(struct w25_dev_s *priv)
 #ifdef CONFIG_W25_DEBUG
     ferr("erase error block = %08x\n", priv->lastaddr >> W25_BLOCK_SHIFT);
 #endif
+    w25_mark_badblock(priv, priv->lastaddr >> W25_BLOCK_SHIFT);
   }
 
   if (status & W25_ERR_PROGRAM) {
 #ifdef CONFIG_W25_DEBUG
     ferr("program error block = %08x\n", priv->lastaddr >> W25_BLOCK_SHIFT);
 #endif
+    w25_mark_badblock(priv, priv->lastaddr >> W25_BLOCK_SHIFT);
   }
 
   return status;
@@ -724,6 +779,11 @@ static int w25_blockerase(struct w25_dev_s *priv, size_t block)
   ferr("sector: %08lx\n", (long)sector);
 #endif
 
+  if (w25_is_badblock(priv, block)) {
+    ferr("bad block %d\n", block);
+    ret = -EIO;
+    goto errout;
+  }
 
 #ifndef CONFIG_W25_SYNC_WRITE
   /* Wait for any preceding write or erase operation to complete. */
@@ -768,10 +828,12 @@ static int w25_blockerase(struct w25_dev_s *priv, size_t block)
 #ifdef CONFIG_W25_DEBUG
     ferr("erase error block = %08x\n", priv->lastaddr >> W25_BLOCK_SHIFT);
 #endif
+    w25_mark_badblock(priv, address >> W25_BLOCK_SHIFT);
     ret = -EIO;
   }
 #endif
 
+errout:
   return ret;
 }
 
@@ -816,6 +878,7 @@ static ssize_t w25_pageread(FAR struct w25_dev_s *priv, off_t address, size_t nb
 
   uint8_t status = w25_waitcomplete(priv);
   if (status & W25_ERR_ECC ) {
+    w25_mark_badblock(priv, address >> W25_BLOCK_SHIFT);
 #ifdef CONFIG_W25_DEBUG
     uint16_t ecc_page;
 
@@ -944,6 +1007,7 @@ static ssize_t w25_pagewrite(struct w25_dev_s *priv, off_t address,
   uint8_t status = w25_waitcomplete(priv);
 
   if (status & W25_ERR_PROGRAM) {
+    w25_mark_badblock(priv, address >> W25_BLOCK_SHIFT);
 #ifdef CONFIG_W25_DEBUG
     ferr("program error block = %08x\n", address >> W25_BLOCK_SHIFT);
 #endif
