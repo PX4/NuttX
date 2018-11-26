@@ -235,7 +235,6 @@ struct smart_struct_s
 #endif
   uint16_t              neraseblocks;     /* Number of erase blocks or sub-sectors */
   uint16_t              lastallocblock;   /* Last  block we allocated a sector from */
-  uint16_t              freesectors;      /* Total number of free sectors */
   uint16_t              releasesectors;   /* Total number of released sectors */
   uint16_t              mtdBlksPerSector; /* Number of MTD blocks per SMART Sector */
   uint16_t              sectorsPerBlk;    /* Number of sectors per erase block */
@@ -382,7 +381,9 @@ static ssize_t smart_read(FAR struct inode *inode, unsigned char *buffer,
                  size_t start_sector, unsigned int nsectors);
 #ifdef CONFIG_FS_WRITABLE
 static ssize_t smart_write(FAR struct inode *inode, const unsigned char *buffer,
-                 size_t start_sector, unsigned int nsectors);
+                           size_t start_sector, unsigned int nsectors);
+static ssize_t smart_bytewrite(FAR struct smart_struct_s *dev, size_t offset,
+                               int nbytes, FAR const uint8_t *buffer);
 #endif
 static int     smart_geometry(FAR struct inode *inode, struct geometry *geometry);
 static int     smart_ioctl(FAR struct inode *inode, int cmd, unsigned long arg);
@@ -461,8 +462,6 @@ static void smart_dump(FAR struct smart_struct_s *dev, char *message)
 }
 #endif
 
-static ssize_t smart_bytewrite(FAR struct smart_struct_s *dev, size_t offset,
-        int nbytes, FAR const uint8_t *buffer);
 
 #ifdef CONFIG_SMART_MAP_METADATA
 static void smart_save_meta(FAR struct smart_struct_s *dev)
@@ -489,6 +488,27 @@ static void smart_load_meta(FAR struct smart_struct_s *dev)
 #endif
 }
 #endif
+
+static uint16_t smart_get_freesectors(FAR struct smart_struct_s *dev)
+{
+  uint16_t freesectors = 0;
+
+  for (int block = 0; block < dev->neraseblocks; block++)
+  {
+    if ((dev->freecount[block] > 0) && (dev->freecount[block] <= dev->sectorsPerBlk)) {
+        freesectors += dev->freecount[block];
+    }
+#ifdef CONFIG_SMARTFS_DEBUG
+    else if (dev->freecount[block] == SMART_FREECOUNT_BADBLOCK) {
+      ferr("Bad block: block %d\n", block);
+    } else {
+      ferr("Unknown freecount: block %d freecount %d\n", block, dev->freecount[block]);
+    }
+#endif
+  }
+
+  return freesectors;
+}
 
 /****************************************************************************
  * Name: smart_open
@@ -768,6 +788,7 @@ int smart_checkfree(FAR struct smart_struct_s *dev, int lineno)
   static uint8_t  *prev_freecount = NULL;
   static uint8_t  *prev_releasecount = NULL;
 #endif
+  uint16_t        freesectors = smart_get_freesectors(dev);
 
   freecount = 0;
   for (x = 0; x < dev->neraseblocks; x++)
@@ -782,10 +803,10 @@ int smart_checkfree(FAR struct smart_struct_s *dev, int lineno)
   /* Test if the calculated freesectors equals the reported value */
 
 #ifdef CONFIG_DEBUG_FS
-  if (freecount != dev->freesectors)
+  if (freecount != freesectors)
     {
-      fwarn("WARNING: Free count incorrect in line %d!  Calculated=%d, dev->freesectors=%d\n",
-           lineno, freecount, dev->freesectors);
+      fwarn("WARNING: Free count incorrect in line %d!  Calculated=%d, freesectors=%d\n",
+           lineno, freecount, freesectors);
 
       /* Determine what changed from the last time which caused this error */
 
@@ -817,7 +838,6 @@ int smart_checkfree(FAR struct smart_struct_s *dev, int lineno)
        * to get us back in line.
        */
 
-      dev->freesectors = freecount;
       return -EIO;
     }
 
@@ -848,7 +868,7 @@ int smart_checkfree(FAR struct smart_struct_s *dev, int lineno)
 
   /* Save the previous freesectors count */
 
-  prev_freesectors = dev->freesectors;
+  prev_freesectors = freesectors;
   prev_releasesectors = dev->releasesectors;
 #endif
 
@@ -2040,9 +2060,10 @@ static int smart_scan(FAR struct smart_struct_s *dev, bool fullscan)
                 dev->freecount[physsector] = SMART_FREECOUNT_BADBLOCK;
 
                 physsector++;
-                if (physsector > totalsectors)
+                if (physsector >= totalsectors)
                   goto err_out;
 
+                /* TODO: set up maximum retry blocks */
                 continue;
               }
               else
@@ -2141,8 +2162,23 @@ static int smart_scan(FAR struct smart_struct_s *dev, bool fullscan)
 
 #ifdef CONFIG_SMART_MAP_METADATA
       /* Do not do full scan to save boot time */
-      if (!fullscan)
-          break;
+      if (!fullscan) {
+
+        /* Do not scan block if freecount is normal or bad block */
+        if ((dev->freecount[physsector / dev->sectorsPerBlk] >= 0) &&
+            (dev->freecount[physsector / dev->sectorsPerBlk] <= dev->sectorsPerBlk)) {
+          continue;
+        } else if (dev->freecount[physsector / dev->sectorsPerBlk] == SMART_FREECOUNT_BADBLOCK) {
+          continue;
+        } else {
+          /* There is problem in freecount of this block.
+             Reset freecount and do physical sector in following logic */
+          /* TODO: remove sectorsPerBlk logic */
+          ferr("Abnormal freecount found: block %d count %d\n", physsector / dev->sectorsPerBlk,
+                dev->freecount[physsector / dev->sectorsPerBlk]);
+          dev->freecount[physsector / dev->sectorsPerBlk] = dev->availSectPerBlk;
+        }
+      }
 #endif
 
       finfo("Scan phyical sector %d\n", physsector);
@@ -2158,6 +2194,9 @@ static int smart_scan(FAR struct smart_struct_s *dev, bool fullscan)
       if (ret != sizeof(struct smart_sect_header_s))
         {
           ferr("Error: Read physical sector %d error, ret = %d\n", physsector, ret);
+          if (ret == -EIO) {
+            dev->freecount[physsector / dev->sectorsPerBlk] = SMART_FREECOUNT_BADBLOCK;
+          }
           continue;
         }
 
@@ -2209,7 +2248,8 @@ static int smart_scan(FAR struct smart_struct_s *dev, bool fullscan)
 #ifdef CONFIG_MTD_SMART_PACK_COUNTS
       smart_add_count(dev, dev->freecount, physsector / dev->sectorsPerBlk, -1);
 #else
-      dev->freecount[physsector / dev->sectorsPerBlk]--;
+      if (dev->freecount[physsector / dev->sectorsPerBlk] > 0)
+        dev->freecount[physsector / dev->sectorsPerBlk]--;
 #endif
       if ((header.status & SMART_STATUS_VERBITS) != SMART_STATUS_VERSION)
         {
@@ -2404,13 +2444,6 @@ static int smart_scan(FAR struct smart_struct_s *dev, bool fullscan)
 #endif
     }
 
-    dev->freesectors = 0;
-    for (int block = 0; block < dev->neraseblocks; block++)
-    {
-      if (dev->freecount[block] != SMART_FREECOUNT_BADBLOCK)
-        dev->freesectors += dev->freecount[block];
-    }
-
 #if defined (CONFIG_MTD_SMART_WEAR_LEVEL) && (SMART_STATUS_VERSION == 1)
 #ifdef CONFIG_MTD_SMART_CONVERT_WEAR_FORMAT
 
@@ -2467,12 +2500,12 @@ static int smart_scan(FAR struct smart_struct_s *dev, bool fullscan)
 
           /* Update the free and release sector counts */
 
-          dev->freesectors--;
           dev->releasesectors++;
 
 #ifndef CONFIG_MTD_SMART_MINIMIZE_RAM
           dev->sMap[SMART_SIGNATURE_SECTOR] = newsector;
-          dev->freecount[newsector / dev->sectorsPerBlk]--;
+          if (dev->freecount[newsector / dev->sectorsPerBlk] > 0)
+            dev->freecount[newsector / dev->sectorsPerBlk]--;
           dev->releasecount[sector / dev->sectorsPerBlk]++;
 #else
           smart_update_cache(dev, SMART_SIGNATURE_SECTOR, newsector);
@@ -2496,7 +2529,7 @@ static int smart_scan(FAR struct smart_struct_s *dev, bool fullscan)
   ferr("   Erase count:  %10d\n", dev->neraseblocks);
   ferr("   Sect/block:   %10d\n", dev->sectorsPerBlk);
   ferr("   MTD Blk/Sect: %10d\n", dev->mtdBlksPerSector);
-  ferr("   Free setors:  %10d\n", dev->freesectors);
+  ferr("   Free setors:  %10d\n", smart_get_freesectors(dev));
 
   /* Validate the geometry */
 
@@ -2579,7 +2612,7 @@ static inline int smart_getformat(FAR struct smart_struct_s *dev,
   fmt->availbytes = dev->sectorsize - sizeof(struct smart_sect_header_s);
   fmt->nsectors = dev->totalsectors;
 
-  fmt->nfreesectors = dev->freesectors;
+  fmt->nfreesectors = smart_get_freesectors(dev);
   fmt->namesize = dev->namesize;
 #ifdef CONFIG_SMARTFS_MULTI_ROOT_DIRS
   fmt->nrootdirentries = dev->rootdirentries;
@@ -2588,11 +2621,11 @@ static inline int smart_getformat(FAR struct smart_struct_s *dev,
 
   /* Add the released sectors to the reported free sector count */
 
-  fmt->nfreesectors += dev->releasesectors;
+  //fmt->nfreesectors += dev->releasesectors;
 
   /* Subtract the reserved sector count */
 
-  fmt->nfreesectors -= dev->sectorsPerBlk + 4;
+  //fmt->nfreesectors -= dev->sectorsPerBlk + 4;
 
   ret = OK;
 
@@ -2658,7 +2691,6 @@ static void smart_erase_block_if_empty(FAR struct smart_struct_s *dev,
           prerelease = 0;
         }
 
-      dev->freesectors += dev->availSectPerBlk - prerelease - freecount;
       dev->releasesectors -= releasecount - prerelease;
 
 #ifdef CONFIG_MTD_SMART_PACK_COUNTS
@@ -2889,8 +2921,6 @@ static int smart_relocate_static_data(FAR struct smart_struct_s *dev, uint16_t b
                 }
             }
 
-          dev->freesectors--;
-
 #ifndef CONFIG_MTD_SMART_MINIMIZE_RAM
           dev->sMap[*((FAR uint16_t *) header->logicalsector)] = newsector;
 #else
@@ -2900,7 +2930,8 @@ static int smart_relocate_static_data(FAR struct smart_struct_s *dev, uint16_t b
 #ifdef CONFIG_MTD_SMART_PACK_COUNTS
           smart_add_count(dev, dev->freecount, block, -1);
 #else
-          dev->freecount[block]--;
+          if (dev->freecount[block] > 0)
+            dev->freecount[block]--;
 #endif  /* CONFIG_MTD_SMART_PACK_COUNTS */
         }
 
@@ -3156,7 +3187,6 @@ static inline int smart_llformat(FAR struct smart_struct_s *dev, unsigned long a
     }
 
   dev->formatstatus = SMART_FMT_STAT_UNKNOWN;
-  dev->freesectors = dev->availSectPerBlk * dev->geo.neraseblocks - 2;
   dev->releasesectors = 0;
 #ifdef CONFIG_MTD_SMART_WEAR_LEVEL
   dev->uneven_wearcount = 0;
@@ -3192,7 +3222,8 @@ static inline int smart_llformat(FAR struct smart_struct_s *dev, unsigned long a
 #ifdef CONFIG_MTD_SMART_PACK_COUNTS
   smart_set_count(dev, dev->freecount, SMART_SIGNATURE_SECTOR, dev->availSectPerBlk - 1);
 #else
-  dev->freecount[SMART_SIGNATURE_SECTOR]--;
+  if (dev->freecount[SMART_SIGNATURE_SECTOR] > 0)
+    dev->freecount[SMART_SIGNATURE_SECTOR]--;
 #endif
 
   /* Now initialize the logical to physical sector map */
@@ -3219,7 +3250,8 @@ static inline int smart_llformat(FAR struct smart_struct_s *dev, unsigned long a
 #endif
 
   dev->sMap[SMART_METADATA_SECTOR] = 1;
-  dev->freecount[SMART_METADATA_SECTOR]--;
+  if (dev->freecount[SMART_METADATA_SECTOR] > 0)
+    dev->freecount[SMART_METADATA_SECTOR]--;
 #ifdef CONFIG_SMART_MAP_METADATA
   smart_save_meta(dev);
 #endif
@@ -3386,6 +3418,7 @@ static int smart_relocate_block(FAR struct smart_struct_s *dev, uint16_t block)
 #ifdef CONFIG_MTD_SMART_ENABLE_CRC
   FAR struct smart_allocsector_s *allocsector;
 #endif
+  uint32_t    freesectors = smart_get_freesectors(dev);
 
   /* Perform collection on block with the most released sectors.
    * First mark the block as having no free sectors so we don't
@@ -3397,7 +3430,7 @@ static int smart_relocate_block(FAR struct smart_struct_s *dev, uint16_t block)
 #ifdef CONFIG_SMART_LOCAL_CHECKFREE
   if (smart_checkfree(dev, __LINE__) != OK)
     {
-      fwarn("   ...while relocating block %d, free=%d\n", block, dev->freesectors);
+      fwarn("   ...while relocating block %d, free=%d\n", block, freesectors);
     }
 #endif
 
@@ -3412,7 +3445,7 @@ static int smart_relocate_block(FAR struct smart_struct_s *dev, uint16_t block)
 
   /* Ensure we aren't relocating a block containing the only free sectors */
 
-  if (freecount >= dev->freesectors)
+  if (freecount >= freesectors)
     {
       ferr("ERROR: Program bug!  Relocating the only block (%d) with free sectors!\n",
            block);
@@ -3529,7 +3562,8 @@ static int smart_relocate_block(FAR struct smart_struct_s *dev, uint16_t block)
 #ifdef CONFIG_MTD_SMART_PACK_COUNTS
       smart_add_count(dev, dev->freecount, newsector / dev->sectorsPerBlk, -1);
 #else
-      dev->freecount[newsector / dev->sectorsPerBlk]--;
+      if (dev->freecount[newsector / dev->sectorsPerBlk] > 0)
+        dev->freecount[newsector / dev->sectorsPerBlk]--;
 #endif
     }
 
@@ -3572,13 +3606,11 @@ static int smart_relocate_block(FAR struct smart_struct_s *dev, uint16_t block)
 
 #ifdef CONFIG_MTD_SMART_PACK_COUNTS
   oldrelease = smart_get_count(dev, dev->releasecount, block);
-  dev->freesectors += oldrelease-prerelease;
   dev->releasesectors -= oldrelease-prerelease;
   smart_set_count(dev, dev->freecount, block, dev->availSectPerBlk-prerelease);
   smart_set_count(dev, dev->releasecount, block, prerelease);
 #else
   oldrelease = dev->releasecount[block];
-  dev->freesectors += oldrelease-prerelease;
   dev->releasesectors -= oldrelease-prerelease;
   dev->freecount[block] = dev->availSectPerBlk-prerelease;
   dev->releasecount[block] = prerelease;
@@ -3779,7 +3811,7 @@ retry:
 #endif
 
       {
-        ferr("ERROR: Program bug!  Expected a free sector, free=%d\n", dev->freesectors);
+        ferr("ERROR: Program bug!  Expected a free sector, free=%d\n", smart_get_freesectors(dev));
         for (x = 0; x < dev->neraseblocks; x++)
           {
             printf("%d ", dev->freecount[x]);
@@ -3902,6 +3934,7 @@ static int smart_garbagecollect(FAR struct smart_struct_s *dev)
 #ifdef CONFIG_MTD_SMART_PACK_COUNTS
   uint8_t   count;
 #endif
+  uint16_t  freesectors = smart_get_freesectors(dev);
 
   while (collect)
     {
@@ -3911,7 +3944,7 @@ static int smart_garbagecollect(FAR struct smart_struct_s *dev)
        * free sectors.  If it is, then we will do garbage collection.
        */
 
-      if (dev->releasesectors > dev->freesectors && dev->freesectors <
+      if (dev->releasesectors > freesectors && freesectors <
           (dev->totalsectors >> 5))
         {
           collect = TRUE;
@@ -3919,7 +3952,7 @@ static int smart_garbagecollect(FAR struct smart_struct_s *dev)
 
       /* Test if we have more reached our reserved free sector limit */
 
-      if (dev->freesectors <= (dev->sectorsPerBlk << 0) + 4)
+      if (freesectors <= (dev->sectorsPerBlk << 0) + 4)
         {
           collect = TRUE;
         }
@@ -3979,7 +4012,7 @@ static int smart_garbagecollect(FAR struct smart_struct_s *dev)
 #ifdef CONFIG_MTD_SMART_PACK_COUNTS
           finfo("Collecting block %d, free=%d released=%d, totalfree=%d, totalrelease=%d\n",
               collectblock, smart_get_count(dev, dev->freecount, collectblock),
-              smart_get_count(dev, dev->releasecount, collectblock), dev->freesectors, dev->releasesectors);
+              smart_get_count(dev, dev->releasecount, collectblock), freesectors, dev->releasesectors);
 #else
           finfo("Collecting block %d, free=%d released=%d\n",
               collectblock, dev->freecount[collectblock],
@@ -4750,9 +4783,9 @@ static int smart_writesector(FAR struct smart_struct_s *dev,
       smart_add_count(dev, dev->freecount, physsector / dev->sectorsPerBlk, -1);
 #else
       dev->releasecount[block]++;
-      dev->freecount[physsector / dev->sectorsPerBlk]--;
+      if (dev->freecount < dev->sectorsPerBlk)
+        dev->freecount[physsector / dev->sectorsPerBlk]--;
 #endif
-      dev->freesectors--;
       dev->releasesectors++;
 
 #ifdef CONFIG_SMART_LOCAL_CHECKFREE
@@ -5003,31 +5036,32 @@ static inline int smart_allocsector(FAR struct smart_struct_s *dev,
 {
   uint16_t  logsector = SMART_SMAP_INVALID; /* Logical sector number selected */
   int       x;
+  uint16_t  freesectors = smart_get_freesectors(dev);
 
   /* Validate that we have enough sectors available to perform an
    * allocation.  We have to ensure we keep enough reserved sectors
    * on hand to do released sector garbage collection.
    */
 
-  if (dev->freesectors <= (dev->sectorsPerBlk << 0) + 4)
+  if (freesectors <= (dev->sectorsPerBlk << 0) + 4)
 #ifdef CONFIG_SMART_RELOCATE
     {
       /* Do a garbage collect and then test freesectors again */
 
-      if (dev->releasesectors + dev->freesectors > dev->sectorsPerBlk + 4)
+      if (dev->releasesectors + freesectors > dev->sectorsPerBlk + 4)
         {
 
           for (x = 0; x < dev->availSectPerBlk; x++)
             {
               smart_garbagecollect(dev);
 
-              if (dev->freesectors > dev->availSectPerBlk + 4)
+              if (freesectors > dev->availSectPerBlk + 4)
                 {
                   break;
                 }
             }
 
-          if (dev->freesectors <= (dev->availSectPerBlk << 0) + 4)
+          if (freesectors <= (dev->availSectPerBlk << 0) + 4)
             {
               /* No space left!! */
 
@@ -5147,7 +5181,7 @@ static inline int smart_allocsector(FAR struct smart_struct_s *dev,
        */
 
       ferr("ERROR: No free logical sector numbers!  Free sectors = %d\n",
-              dev->freesectors);
+              freesectors);
 
       return -EIO;
     }
@@ -5189,7 +5223,7 @@ static inline int smart_allocsector2(FAR struct smart_struct_s *dev, ssize_t log
   physicalsector = smart_findfreephyssector(dev, FALSE);
   finfo("Alloc: log=%d, phys=%d, erase block=%d, free=%d, released=%d\n",
           logsector, physicalsector, physicalsector /
-          dev->sectorsPerBlk, dev->freesectors, dev->releasecount);
+          dev->sectorsPerBlk, smart_get_freesectors(dev), dev->releasecount);
 
   if (physicalsector == SMART_SMAP_INVALID)
     {
@@ -5252,7 +5286,6 @@ static inline int smart_allocsector2(FAR struct smart_struct_s *dev, ssize_t log
   ferr("freecount --: logical %d physical %d freecount = %d\n", logsector, physicalsector, dev->freecount[physicalsector / dev->sectorsPerBlk]);
 #endif
 #endif
-  dev->freesectors--;
 
   return OK;
 }
@@ -5354,7 +5387,8 @@ static inline int smart_freesector(FAR struct smart_struct_s *dev,
   smart_add_count(dev, dev->freecount, block, 1);
 #else
   dev->releasecount[block]++;
-  dev->freecount[block]++;
+  if (dev->freecount[block] < dev->sectorsPerBlk)
+    dev->freecount[block]++;
 #ifdef CONFIG_SMARTFS_DEBUG
   ferr("freecount ++: block %d logical %d physical %d count %d\n", block, logicalsector, physsector, dev->freecount[block]);
 #endif
@@ -5507,7 +5541,7 @@ static int smart_ioctl(FAR struct inode *inode, int cmd, unsigned long arg)
       procfs_data = (FAR struct mtd_smart_procfs_data_s *) arg;
       procfs_data->totalsectors = dev->totalsectors;
       procfs_data->sectorsize = dev->sectorsize;
-      procfs_data->freesectors = dev->freesectors;
+      procfs_data->freesectors = smart_get_freesectors(dev);
       procfs_data->releasesectors = dev->releasesectors;
       procfs_data->namelen = dev->namesize;
       procfs_data->formatversion = dev->formatversion;
@@ -5670,7 +5704,6 @@ int smart_initialize(int minor, FAR struct mtd_dev_s *mtd, FAR const char *partn
         }
 
       dev->totalsectors = (uint16_t) totalsectors;
-      dev->freesectors = (uint16_t) dev->availSectPerBlk * dev->geo.neraseblocks;
       dev->lastallocblock = 0;
       dev->debuglevel = 0;
 
