@@ -1238,6 +1238,8 @@ static int smart_setsectorsize(FAR struct smart_struct_s *dev, uint16_t size)
 
   dev->releasecount = (FAR uint8_t *) dev->sMap + (totalsectors * sizeof(uint16_t));
   dev->freecount = dev->releasecount + dev->neraseblocks;
+  dev->rootphyssector = SMART_SMAP_INVALID;
+  dev->mapphyssector = SMART_SMAP_INVALID;
 #else
   dev->sBitMap = (FAR uint8_t *) smart_malloc(dev, (totalsectors+7) >> 3, "Sector Bitmap");
   if (dev->sBitMap == NULL)
@@ -1951,59 +1953,7 @@ static int smart_scan(FAR struct smart_struct_s *dev, bool fullscan)
 
   finfo("Entry\n");
 
-  /* Find the sector size on the volume by reading headers from
-   * sectors of decreasing size.  On a formatted volume, the sector
-   * size is saved in the header status byte of seach sector, so
-   * by starting with the largest supported sector size and
-   * decreasing from there, we will be sure to find data that is
-   * a header and not sector data.
-   */
-
-  sectorsize = 0xffff;
-
-#if 0
-  offset = 16384;
-
-  while (sectorsize == 0xffff)
-    {
-      readaddress = 0;
-
-      while (readaddress < dev->erasesize * dev->geo.neraseblocks)
-        {
-          /* Read the next sector from the device */
-
-          ret = MTD_READ(dev->mtd, 0, sizeof(struct smart_sect_header_s),
-                         (FAR uint8_t *) &header);
-          if (ret != sizeof(struct smart_sect_header_s))
-            {
-              goto err_out;
-            }
-
-          if (header.status != CONFIG_SMARTFS_ERASEDSTATE)
-            {
-              sectorsize = (header.status & SMART_STATUS_SIZEBITS) << 7;
-              break;
-            }
-
-          readaddress += offset;
-        }
-
-      offset >>= 1;
-      if (offset < 256 && sectorsize == 0xffff)
-        {
-          /* No valid sectors found on device.  Default the
-           * sector size to the CONFIG value
-           */
-
-          sectorsize = CONFIG_MTD_SMART_SECTOR_SIZE;
-        }
-    }
-#else
-    sectorsize = CONFIG_MTD_SMART_SECTOR_SIZE;
-#endif
-
-  /* Now set the sectorsize and other sectorsize derived variables */
-
+  sectorsize = CONFIG_MTD_SMART_SECTOR_SIZE;
   ret = smart_setsectorsize(dev, sectorsize);
   if (ret != OK)
     {
@@ -2015,6 +1965,8 @@ static int smart_scan(FAR struct smart_struct_s *dev, bool fullscan)
   totalsectors = dev->totalsectors;
   dev->formatstatus = SMART_FMT_STAT_NOFMT;
   dev->releasesectors = 0;
+  dev->rootphyssector = SMART_SMAP_INVALID;
+  dev->mapphyssector = SMART_SMAP_INVALID;
 
   /* Initialize the freecount and releasecount arrays */
 
@@ -2070,7 +2022,7 @@ static int smart_scan(FAR struct smart_struct_s *dev, bool fullscan)
 
       /* Find root sector from sector 0 */
 
-      while (1)
+      while (dev->rootphyssector == SMART_SMAP_INVALID)
         {
           /* Read the sector data */
           FAR uint8_t headerbuf[SMART_SIGNATURE_SIZE];
@@ -2110,6 +2062,12 @@ static int smart_scan(FAR struct smart_struct_s *dev, bool fullscan)
 
               ferr("ERROR: Error reading signature in physical sector %d.\n", physsector);
 
+              /* The root sector is not formatted yet */
+              dev->rootphyssector = physsector;
+
+#ifdef CONFIG_SMART_MAP_METADATA
+              dev->mapphyssector = physsector+1;
+#endif
               /* Return error to let uppper layer format the partition */
               goto err_out;
             }
@@ -3058,17 +3016,9 @@ static inline int smart_llformat(FAR struct smart_struct_s *dev, unsigned long a
   int         x;
   int         ret;
   uint8_t     sectsize, prerelease;
-  uint16_t    sectorsize;
+  uint16_t    sectorsize = CONFIG_MTD_SMART_SECTOR_SIZE;
 
   finfo("Entry\n");
-
-  /* Get the sector size from the provided arg */
-
-  sectorsize = arg >> 16;
-  if (sectorsize == 0)
-    {
-      sectorsize = CONFIG_MTD_SMART_SECTOR_SIZE;
-    }
 
   /* Set the sector size for the device */
 
