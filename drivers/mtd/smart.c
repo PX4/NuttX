@@ -2005,8 +2005,8 @@ static int smart_scan(FAR struct smart_struct_s *dev, bool fullscan)
       smart_set_count(dev, dev->freecount, physsector, dev->availSectPerBlk - prerelease);
       smart_set_count(dev, dev->releasecount, physsector, prerelease);
 #else
-      dev->freecount[physsector] = dev->availSectPerBlk - prerelease;
-      dev->releasecount[physsector] = prerelease;
+      dev->freecount[physsector / dev->sectorsPerBlk] = dev->availSectPerBlk - prerelease;
+      dev->releasecount[physsector / dev->sectorsPerBlk] = prerelease;
 #endif
     }
 
@@ -3869,7 +3869,7 @@ retry:
 
           if (ret == -EIO) {
             /* Mark it as bad block */
-            dev->freecount[x] = SMART_FREECOUNT_BADBLOCK;
+            dev->freecount[x / dev->sectorsPerBlk] = SMART_FREECOUNT_BADBLOCK;
           }
 
           /* Try next sector */
@@ -4368,8 +4368,8 @@ static int smart_write_alloc_sector(FAR struct smart_struct_s *dev,
   if (ret != 1)
     {
       if (ret == -EIO) {
-        dev->freecount[physical] = SMART_FREECOUNT_BADBLOCK;
-        dev->sMap[physical] = SMART_SMAP_INVALID;
+        dev->freecount[physical / dev->sectorsPerBlk] = SMART_FREECOUNT_BADBLOCK;
+        dev->sMap[logical] = SMART_SMAP_INVALID;
       }
 
       ferr("ERROR: Write block %d failed, ret = %d\n", physical *
@@ -4859,8 +4859,8 @@ static int smart_writesector(FAR struct smart_struct_s *dev,
           sizeof(struct smart_sect_header_s) + req->offset;
       ret = smart_bytewrite(dev, offset, req->count, req->buffer);
       if (ret == -EIO) {
-        dev->freecount[physsector] = SMART_FREECOUNT_BADBLOCK;
-        dev->sMap[physsector] = SMART_SMAP_INVALID;
+        dev->freecount[physsector / dev->sectorsPerBlk] = SMART_FREECOUNT_BADBLOCK;
+        dev->sMap[req->logsector] = SMART_SMAP_INVALID;
       }
 #endif
     }
@@ -5371,8 +5371,8 @@ static inline int smart_freesector(FAR struct smart_struct_s *dev,
     {
       ferr("ERROR: Error updating physical sector %d status\n", physsector);
       if (ret == -EIO) {
-        dev->freecount[physsector] = SMART_FREECOUNT_BADBLOCK;
-        dev->sMap[physsector] = SMART_SMAP_INVALID;
+        dev->freecount[physsector / dev->sectorsPerBlk] = SMART_FREECOUNT_BADBLOCK;
+        dev->sMap[logicalsector] = SMART_SMAP_INVALID;
       }
 
       goto errout;

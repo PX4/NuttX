@@ -434,7 +434,7 @@ static uint8_t w25_read_reg(FAR struct spi_dev_s *spi, uint8_t regaddr)
   return status;
 }
 
-#if CONFIG_W25_DEBUG
+#ifdef CONFIG_W25_DEBUG
 static void w25_read_last_ecc_address(FAR struct spi_dev_s *spi, uint16_t *page)
 {
   uint8_t buf[2];
@@ -1433,7 +1433,7 @@ static int w25_erase2(FAR struct w25_dev_s *priv, off_t startblock, size_t nbloc
 
       ret = w25_blockerase(priv, startblock);
       if (ret < 0)
-        goto errout;
+        ferr("find bad block %d \n",startblock);
 
       startblock++;
     }
@@ -1443,7 +1443,6 @@ static int w25_erase2(FAR struct w25_dev_s *priv, off_t startblock, size_t nbloc
 
   ret = (int)nblocks;
 
-errout:
   w25_unlock(priv->spi);
   return ret;
 #endif
