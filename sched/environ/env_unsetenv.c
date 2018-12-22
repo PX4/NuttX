@@ -95,7 +95,7 @@ int unsetenv(FAR const char *name)
 
       newsize = group->tg_envsize;
       newenvp = (FAR char *)kumm_realloc(group->tg_envp, newsize);
-      if (!newenvp)
+      if (!newenvp && newsize != 0)
         {
           set_errno(ENOMEM);
           ret = ERROR;
