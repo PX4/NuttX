@@ -7,7 +7,7 @@ pipeline {
         script {
           def builds = [:]
 
-          def docker_nuttx = "px4io/px4-dev-nuttx:2017-12-30"
+          def docker_nuttx = "px4io/px4-dev-nuttx:2019-02-13"
 
           // stm32f4discovery
           // TODO: cxxtest, ipv6, netnsh, nxlines, rndis, testlibcxx, uavcan, usbmsc, winbuild
@@ -24,7 +24,7 @@ pipeline {
           }
 
           // stm32f769i-disco
-          for (def option in ["nsh", "nsh-ethernet"]) {
+          for (def option in ["nsh", "netnsh"]) {
             def node_name = "stm32f769i-disco/${option}"
             builds[node_name] = createBuildNode(docker_nuttx, "stm32f769i-disco", option)
           }
@@ -39,7 +39,7 @@ pipeline {
     CCACHE_DIR = '/tmp/ccache'
   }
   options {
-    buildDiscarder(logRotator(numToKeepStr: '5'))
+    buildDiscarder(logRotator(numToKeepStr: '10'))
     timeout(time: 60, unit: 'MINUTES')
   }
 }
