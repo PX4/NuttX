@@ -36,7 +36,10 @@
 -include $(TOPDIR)/Make.defs
 
 ifeq ($(CONFIG_LIBCXX),y)
-LIBXX=libcxx
+# Call it libxx anyway because otherwise cmake add_nuttx_dir gets confused
+# about the name change.
+LIBXX=libxx
+#LIBXX=libcxx
 else
 LIBXX=libxx
 endif
