@@ -176,7 +176,7 @@ static int     cdcacm_recvpacket(FAR struct cdcacm_dev_s *priv,
 static int     cdcacm_requeue_rdrequest(FAR struct cdcacm_dev_s *priv,
                  FAR struct cdcacm_rdreq_s *rdcontainer);
 static int     cdcacm_release_rxpending(FAR struct cdcacm_dev_s *priv);
-static void    cdcacm_rxtimeout(int argc, wdparm_t arg1, ...);
+static void    cdcacm_rxtimeout(int argc, ...);
 
 /* Request helpers *********************************************************/
 
@@ -763,8 +763,14 @@ static int cdcacm_release_rxpending(FAR struct cdcacm_dev_s *priv)
  *
  ****************************************************************************/
 
-static void cdcacm_rxtimeout(int argc, wdparm_t arg1, ...)
+static void cdcacm_rxtimeout(int argc, ...)
 {
+  va_list valist;
+
+  va_start(valist, argc);
+  wdparm_t arg1 = va_arg(valist, wdparm_t);
+  va_end(valist);
+
   FAR struct cdcacm_dev_s *priv = (FAR struct cdcacm_dev_s *)arg1;
 
   DEBUGASSERT(priv != NULL);
