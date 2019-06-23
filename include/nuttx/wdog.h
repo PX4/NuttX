@@ -127,7 +127,7 @@ typedef uint32_t  wdparm_t;
  * watchdog function expires.  Up to four parameters may be passed.
  */
 
-typedef CODE void (*wdentry_t)(int argc, wdparm_t arg1, ...);
+typedef CODE void (*wdentry_t)(int argc, ...);
 
 /* This is the internal representation of the watchdog timer structure.  The
  * WDOG_ID is a pointer to a watchdog structure.
