@@ -76,7 +76,9 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Some sanity checks *******************************************************/
+
 /* Total number of possible serial devices */
 
 #define STM32_NSERIAL (STM32F7_NUSART + STM32F7_NUART)
@@ -1260,12 +1262,13 @@ static void up_set_format(struct uart_dev_s *dev)
 
   /* Get the original state of UE */
 
-  cr1  = up_serialin(priv, STM32_USART_CR1_OFFSET);
+  cr1    = up_serialin(priv, STM32_USART_CR1_OFFSET);
   cr1_ue = cr1 & USART_CR1_UE;
-  cr1 &= ~USART_CR1_UE;
+  cr1   &= ~USART_CR1_UE;
 
   /* Disable UE as the format bits and baud rate registers can not be
-   * updated while UE = 1 */
+   * updated while UE = 1
+   */
 
   up_serialout(priv, STM32_USART_CR1_OFFSET, cr1);
 
@@ -1356,7 +1359,7 @@ static void up_set_format(struct uart_dev_s *dev)
 
   /* Configure STOP bits */
 
-  regval = up_serialin(priv, STM32_USART_CR2_OFFSET);
+  regval  = up_serialin(priv, STM32_USART_CR2_OFFSET);
   regval &= ~(USART_CR2_STOP_MASK);
 
   if (priv->stopbits2)
@@ -1685,6 +1688,7 @@ static int up_setup(struct uart_dev_s *dev)
 #endif
 
   /* Configure CR2 */
+
   /* Clear STOP, CLKEN, CPOL, CPHA, LBCL, and interrupt enable bits */
 
   regval  = up_serialin(priv, STM32_USART_CR2_OFFSET);
@@ -1701,6 +1705,7 @@ static int up_setup(struct uart_dev_s *dev)
   up_serialout(priv, STM32_USART_CR2_OFFSET, regval);
 
   /* Configure CR1 */
+
   /* Clear TE, REm and all interrupt enable bits */
 
   regval  = up_serialin(priv, STM32_USART_CR1_OFFSET);
@@ -1709,6 +1714,7 @@ static int up_setup(struct uart_dev_s *dev)
   up_serialout(priv, STM32_USART_CR1_OFFSET, regval);
 
   /* Configure CR3 */
+
   /* Clear CTSE, RTSE, and all interrupt enable bits */
 
   regval  = up_serialin(priv, STM32_USART_CR3_OFFSET);
@@ -2150,6 +2156,99 @@ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
      break;
 #endif
 
+#ifdef CONFIG_STM32F7_USART_INVERT
+    case TIOCSINVERT:
+      {
+        uint32_t cr1;
+        uint32_t cr1_ue;
+        irqstate_t flags;
+
+        flags = enter_critical_section();
+
+        /* Get the original state of UE */
+
+        cr1    = up_serialin(priv, STM32_USART_CR1_OFFSET);
+        cr1_ue = cr1 & USART_CR1_UE;
+        cr1   &= ~USART_CR1_UE;
+
+        /* Disable UE, {R,T}XINV can only be written when UE=0 */
+
+        up_serialout(priv, STM32_USART_CR1_OFFSET, cr1);
+
+        /* Enable/disable signal inversion. */
+
+        uint32_t cr = up_serialin(priv, STM32_USART_CR2_OFFSET);
+
+        if (arg & SER_INVERT_ENABLED_RX)
+          {
+            cr |= USART_CR2_RXINV;
+          }
+        else
+          {
+            cr &= ~USART_CR2_RXINV;
+          }
+
+        if (arg & SER_INVERT_ENABLED_TX)
+          {
+            cr |= USART_CR2_TXINV;
+          }
+        else
+          {
+            cr &= ~USART_CR2_TXINV;
+          }
+
+        up_serialout(priv, STM32_USART_CR2_OFFSET, cr);
+
+        /* Re-enable UE if appropriate */
+
+        up_serialout(priv, STM32_USART_CR1_OFFSET, cr1 | cr1_ue);
+        leave_critical_section(flags);
+      }
+     break;
+#endif
+
+#ifdef CONFIG_STM32F7_USART_SWAP
+    case TIOCSSWAP:
+      {
+        uint32_t cr1;
+        uint32_t cr1_ue;
+        irqstate_t flags;
+
+        flags = enter_critical_section();
+
+        /* Get the original state of UE */
+
+        cr1    = up_serialin(priv, STM32_USART_CR1_OFFSET);
+        cr1_ue = cr1 & USART_CR1_UE;
+        cr1   &= ~USART_CR1_UE;
+
+        /* Disable UE, SWAP can only be written when UE=0 */
+
+        up_serialout(priv, STM32_USART_CR1_OFFSET, cr1);
+
+        /* Enable/disable Swap mode. */
+
+        uint32_t cr = up_serialin(priv, STM32_USART_CR2_OFFSET);
+
+        if (arg == SER_SWAP_ENABLED)
+          {
+            cr |= USART_CR2_SWAP;
+          }
+        else
+          {
+            cr &= ~USART_CR2_SWAP;
+          }
+
+        up_serialout(priv, STM32_USART_CR2_OFFSET, cr);
+
+        /* Re-enable UE if appropriate */
+
+        up_serialout(priv, STM32_USART_CR1_OFFSET, cr1 | cr1_ue);
+        leave_critical_section(flags);
+      }
+     break;
+#endif
+
 #ifdef CONFIG_SERIAL_TERMIOS
     case TCGETS:
       {
@@ -2260,9 +2359,10 @@ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
 
         up_txint(dev, false);
 
-        /* Configure TX as a GPIO output pin and Send a break signal*/
+        /* Configure TX as a GPIO output pin and Send a break signal */
 
-        tx_break = GPIO_OUTPUT | (~(GPIO_MODE_MASK|GPIO_OUTPUT_SET) & priv->tx_gpio);
+        tx_break = GPIO_OUTPUT |
+                   (~(GPIO_MODE_MASK | GPIO_OUTPUT_SET) & priv->tx_gpio);
         stm32_configgpio(tx_break);
 
         leave_critical_section(flags);
@@ -3000,6 +3100,7 @@ static int up_pm_prepare(struct pm_callback_s *cb, int domain,
 
     default:
       /* Should not get here */
+
       break;
     }
 
