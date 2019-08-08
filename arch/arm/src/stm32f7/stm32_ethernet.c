@@ -313,6 +313,10 @@
 #define PHY_WRITE_TIMEOUT (0x0004ffff)
 #define PHY_RETRY_TIMEOUT (0x0004ffff)
 
+/* MAC reset ready delays in loop counts */
+
+#define MAC_READY_USTIMEOUT (100)
+
 /* Register values **********************************************************/
 
 /* Clear the MACCR bits that will be setup during MAC initialization (or that
@@ -3528,7 +3532,7 @@ static inline void stm32_ethgpioconfig(struct stm32_ethmac_s *priv)
 
   /* Set up the MII interface */
 
-#if defined(CONFIG_STM32F7_MII)
+#  if defined(CONFIG_STM32F7_MII)
 
   /* Select the MII interface */
 
@@ -3543,7 +3547,7 @@ static inline void stm32_ethgpioconfig(struct stm32_ethmac_s *priv)
    *  PLLI2S clock (through a configurable prescaler) on PC9 pin."
    */
 
-# if defined(CONFIG_STM32F7_MII_MCO1)
+#    if defined(CONFIG_STM32F7_MII_MCO1)
   /* Configure MC01 to drive the PHY.  Board logic must provide MC01 clocking
    * info.
    */
@@ -3551,7 +3555,7 @@ static inline void stm32_ethgpioconfig(struct stm32_ethmac_s *priv)
   stm32_configgpio(GPIO_MCO1);
   stm32_mco1config(BOARD_CFGR_MC01_SOURCE, BOARD_CFGR_MC01_DIVIDER);
 
-# elif defined(CONFIG_STM32F7_MII_MCO2)
+#    elif defined(CONFIG_STM32F7_MII_MCO2)
   /* Configure MC02 to drive the PHY.  Board logic must provide MC02 clocking
    * info.
    */
@@ -3559,12 +3563,12 @@ static inline void stm32_ethgpioconfig(struct stm32_ethmac_s *priv)
   stm32_configgpio(GPIO_MCO2);
   stm32_mco2config(BOARD_CFGR_MC02_SOURCE, BOARD_CFGR_MC02_DIVIDER);
 
-# elif defined(CONFIG_STM32F7_MII_MCO)
+#    elif defined(CONFIG_STM32F7_MII_MCO)
   /* Setup MCO pin for alternative usage */
 
   stm32_configgpio(GPIO_MCO);
   stm32_mcoconfig(BOARD_CFGR_MCO_SOURCE);
-# endif
+#    endif
 
   /* MII interface pins (17):
    *
@@ -3590,7 +3594,7 @@ static inline void stm32_ethgpioconfig(struct stm32_ethmac_s *priv)
 
   /* Set up the RMII interface. */
 
-#elif defined(CONFIG_STM32F7_RMII)
+#  elif defined(CONFIG_STM32F7_RMII)
 
   /* Select the RMII interface */
 
@@ -3605,7 +3609,7 @@ static inline void stm32_ethgpioconfig(struct stm32_ethmac_s *priv)
    *  PLLI2S clock (through a configurable prescaler) on PC9 pin."
    */
 
-# if defined(CONFIG_STM32F7_RMII_MCO1)
+#    if defined(CONFIG_STM32F7_RMII_MCO1)
   /* Configure MC01 to drive the PHY.  Board logic must provide MC01 clocking
    * info.
    */
@@ -3613,7 +3617,7 @@ static inline void stm32_ethgpioconfig(struct stm32_ethmac_s *priv)
   stm32_configgpio(GPIO_MCO1);
   stm32_mco1config(BOARD_CFGR_MC01_SOURCE, BOARD_CFGR_MC01_DIVIDER);
 
-# elif defined(CONFIG_STM32F7_RMII_MCO2)
+#    elif defined(CONFIG_STM32F7_RMII_MCO2)
   /* Configure MC02 to drive the PHY.  Board logic must provide MC02 clocking
    * info.
    */
@@ -3621,12 +3625,12 @@ static inline void stm32_ethgpioconfig(struct stm32_ethmac_s *priv)
   stm32_configgpio(GPIO_MCO2);
   stm32_mco2config(BOARD_CFGR_MC02_SOURCE, BOARD_CFGR_MC02_DIVIDER);
 
-# elif defined(CONFIG_STM32F7_RMII_MCO)
+#    elif defined(CONFIG_STM32F7_RMII_MCO)
   /* Setup MCO pin for alternative usage */
 
   stm32_configgpio(GPIO_MCO);
   stm32_mcoconfig(BOARD_CFGR_MCO_SOURCE);
-# endif
+#    endif
 
   /* RMII interface pins (7):
    *
@@ -3642,7 +3646,7 @@ static inline void stm32_ethgpioconfig(struct stm32_ethmac_s *priv)
   stm32_configgpio(GPIO_ETH_RMII_TXD1);
   stm32_configgpio(GPIO_ETH_RMII_TX_EN);
 
-#endif
+#  endif
 #endif
 
 #ifdef CONFIG_STM32F7_ETH_PTP
@@ -3671,6 +3675,7 @@ static inline void stm32_ethgpioconfig(struct stm32_ethmac_s *priv)
 static void stm32_ethreset(struct stm32_ethmac_s *priv)
 {
   uint32_t regval;
+  volatile uint32_t timeout;
 
   /* Reset the Ethernet on the AHB bus (F1 Connectivity Line) or AHB1 bus (F2
    * and F4)
@@ -3696,7 +3701,11 @@ static void stm32_ethreset(struct stm32_ethmac_s *priv)
    * after the reset operation has completed in all of the core clock domains.
    */
 
-  while ((stm32_getreg(STM32_ETH_DMABMR) & ETH_DMABMR_SR) != 0);
+  timeout = MAC_READY_USTIMEOUT;
+  while (timeout-- && (stm32_getreg(STM32_ETH_DMABMR) & ETH_DMABMR_SR) != 0)
+    {
+      up_udelay(1);
+    }
 }
 
 /****************************************************************************
