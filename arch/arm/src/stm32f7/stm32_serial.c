@@ -205,6 +205,16 @@
                CONFIG_USART_DMAPRIO  | \
                DMA_SCR_PBURST_SINGLE | \
                DMA_SCR_MBURST_SINGLE)
+
+#  define SERIAL_DMA_CONTROL_WORD_TX   \
+              (DMA_SCR_DIR_M2P       | \
+               DMA_SCR_MINC          | \
+               DMA_SCR_PSIZE_8BITS   | \
+               DMA_SCR_MSIZE_8BITS   | \
+               DMA_SCR_PBURST_SINGLE | \
+               DMA_SCR_MBURST_SINGLE | \
+               CONFIG_USART_DMAPRIO  )
+
 #endif /* SERIAL_HAVE_DMA */
 
 /* Power management definitions */
@@ -352,12 +362,14 @@ struct up_dev_s
 
 #ifdef SERIAL_HAVE_DMA
   const unsigned int rxdma_channel; /* DMA channel assigned */
+  const unsigned int txdma_channel; /* DMA channel assigned */
 #endif
 
-  /* RX DMA state */
+  /* RX/TX DMA state */
 
 #ifdef SERIAL_HAVE_DMA
   DMA_HANDLE        rxdma;      /* currently-open receive DMA stream */
+  DMA_HANDLE        txdma;      /* currently-open transmit DMA stream */
   bool              rxenable;   /* DMA-based reception en/disable */
 #ifdef CONFIG_PM
   bool              rxdmasusp;  /* Rx DMA suspended */
@@ -408,13 +420,17 @@ static bool up_txready(struct uart_dev_s *dev);
 static int  up_dma_setup(struct uart_dev_s *dev);
 static void up_dma_shutdown(struct uart_dev_s *dev);
 static int  up_dma_receive(struct uart_dev_s *dev, unsigned int *status);
+static void up_dma_send(struct uart_dev_s *dev);
 #ifdef CONFIG_PM
 static void up_dma_reenable(struct up_dev_s *priv);
 #endif
 static void up_dma_rxint(struct uart_dev_s *dev, bool enable);
+static void up_dma_txint(struct uart_dev_s *dev, bool enable);
 static bool up_dma_rxavailable(struct uart_dev_s *dev);
+static void up_dma_txavailable(struct uart_dev_s *dev);
 
 static void up_dma_rxcallback(DMA_HANDLE handle, uint8_t status, void *arg);
+static void up_dma_txcallback(DMA_HANDLE handle, uint8_t status, void *arg);
 #endif
 
 #ifdef CONFIG_PM
@@ -466,9 +482,11 @@ static const struct uart_ops_s g_uart_dma_ops =
   .rxflowcontrol  = up_rxflowcontrol,
 #endif
   .send           = up_send,
-  .txint          = up_txint,
+  .txint          = up_dma_txint,
   .txready        = up_txready,
   .txempty        = up_txready,
+  .dmatxavail     = up_dma_txavailable,
+  .dmasend        = up_dma_send,
 };
 #endif
 
@@ -614,6 +632,9 @@ static struct up_dev_s g_usart1priv =
   .rxdma_channel = DMAMAP_USART1_RX,
   .rxfifo        = g_usart1rxfifo,
 #endif
+#ifdef CONFIG_USART1_TXDMA
+  .txdma_channel = DMAMAP_USART1_TX,
+#endif
 
 #ifdef CONFIG_USART1_RS485
   .rs485_dir_gpio = GPIO_USART1_RS485_DIR,
@@ -674,6 +695,9 @@ static struct up_dev_s g_usart2priv =
 #ifdef CONFIG_USART2_RXDMA
   .rxdma_channel = DMAMAP_USART2_RX,
   .rxfifo        = g_usart2rxfifo,
+#endif
+#ifdef CONFIG_USART2_TXDMA
+  .txdma_channel = DMAMAP_USART2_TX,
 #endif
 
 #ifdef CONFIG_USART2_RS485
@@ -736,6 +760,9 @@ static struct up_dev_s g_usart3priv =
   .rxdma_channel = DMAMAP_USART3_RX,
   .rxfifo        = g_usart3rxfifo,
 #endif
+#ifdef CONFIG_USART3_TXDMA
+  .txdma_channel = DMAMAP_USART3_TX,
+#endif
 
 #ifdef CONFIG_USART3_RS485
   .rs485_dir_gpio = GPIO_USART3_RS485_DIR,
@@ -796,6 +823,9 @@ static struct up_dev_s g_uart4priv =
 #ifdef CONFIG_UART4_RXDMA
   .rxdma_channel = DMAMAP_UART4_RX,
   .rxfifo        = g_uart4rxfifo,
+#endif
+#ifdef CONFIG_UART4_TXDMA
+  .txdma_channel = DMAMAP_UART4_TX,
 #endif
 
 #ifdef CONFIG_UART4_RS485
@@ -858,6 +888,9 @@ static struct up_dev_s g_uart5priv =
   .rxdma_channel = DMAMAP_UART5_RX,
   .rxfifo        = g_uart5rxfifo,
 #endif
+#ifdef CONFIG_UART5_TXDMA
+  .txdma_channel = DMAMAP_UART5_TX,
+#endif
 
 #ifdef CONFIG_UART5_RS485
   .rs485_dir_gpio = GPIO_UART5_RS485_DIR,
@@ -918,6 +951,9 @@ static struct up_dev_s g_usart6priv =
 #ifdef CONFIG_USART6_RXDMA
   .rxdma_channel = DMAMAP_USART6_RX,
   .rxfifo        = g_usart6rxfifo,
+#endif
+#ifdef CONFIG_USART6_TXDMA
+  .txdma_channel = DMAMAP_USART6_TX,
 #endif
 
 #ifdef CONFIG_USART6_RS485
@@ -980,6 +1016,9 @@ static struct up_dev_s g_uart7priv =
   .rxdma_channel = DMAMAP_UART7_RX,
   .rxfifo        = g_uart7rxfifo,
 #endif
+#ifdef CONFIG_UART7_TXDMA
+  .txdma_channel = DMAMAP_UART7_TX,
+#endif
 
 #ifdef CONFIG_UART7_RS485
   .rs485_dir_gpio = GPIO_UART7_RS485_DIR,
@@ -1040,6 +1079,9 @@ static struct up_dev_s g_uart8priv =
 #ifdef CONFIG_UART8_RXDMA
   .rxdma_channel = DMAMAP_UART8_RX,
   .rxfifo        = g_uart8rxfifo,
+#endif
+#ifdef CONFIG_UART8_TXDMA
+  .txdma_channel = DMAMAP_UART8_TX,
 #endif
 
 #ifdef CONFIG_UART8_RS485
@@ -1252,13 +1294,12 @@ static void up_set_format(struct uart_dev_s *dev)
 
   /* Get the original state of UE */
 
-  cr1    = up_serialin(priv, STM32_USART_CR1_OFFSET);
+  cr1  = up_serialin(priv, STM32_USART_CR1_OFFSET);
   cr1_ue = cr1 & USART_CR1_UE;
-  cr1   &= ~USART_CR1_UE;
+  cr1 &= ~USART_CR1_UE;
 
   /* Disable UE as the format bits and baud rate registers can not be
-   * updated while UE = 1
-   */
+   * updated while UE = 1 */
 
   up_serialout(priv, STM32_USART_CR1_OFFSET, cr1);
 
@@ -1349,7 +1390,7 @@ static void up_set_format(struct uart_dev_s *dev)
 
   /* Configure STOP bits */
 
-  regval  = up_serialin(priv, STM32_USART_CR2_OFFSET);
+  regval = up_serialin(priv, STM32_USART_CR2_OFFSET);
   regval &= ~(USART_CR2_STOP_MASK);
 
   if (priv->stopbits2)
@@ -1678,7 +1719,6 @@ static int up_setup(struct uart_dev_s *dev)
 #endif
 
   /* Configure CR2 */
-
   /* Clear STOP, CLKEN, CPOL, CPHA, LBCL, and interrupt enable bits */
 
   regval  = up_serialin(priv, STM32_USART_CR2_OFFSET);
@@ -1695,7 +1735,6 @@ static int up_setup(struct uart_dev_s *dev)
   up_serialout(priv, STM32_USART_CR2_OFFSET, regval);
 
   /* Configure CR1 */
-
   /* Clear TE, REm and all interrupt enable bits */
 
   regval  = up_serialin(priv, STM32_USART_CR1_OFFSET);
@@ -1704,7 +1743,6 @@ static int up_setup(struct uart_dev_s *dev)
   up_serialout(priv, STM32_USART_CR1_OFFSET, regval);
 
   /* Configure CR3 */
-
   /* Clear CTSE, RTSE, and all interrupt enable bits */
 
   regval  = up_serialin(priv, STM32_USART_CR3_OFFSET);
@@ -1766,6 +1804,7 @@ static int up_dma_setup(struct uart_dev_s *dev)
   /* Acquire the DMA channel.  This should always succeed. */
 
   priv->rxdma = stm32_dmachannel(priv->rxdma_channel);
+  priv->txdma = stm32_dmachannel(priv->txdma_channel);
 
   /* Configure for circular DMA reception into the RX FIFO */
 
@@ -1774,6 +1813,10 @@ static int up_dma_setup(struct uart_dev_s *dev)
                  (uint32_t)priv->rxfifo,
                  RXDMA_BUFFER_SIZE,
                  SERIAL_DMA_CONTROL_WORD);
+
+  /* We do not need to configure transfer DMA already. This is done explicitly in
+   * dma_send function. 
+   */
 
   /* Reset our DMA shadow pointer and Rx data availability count to match
    * the address just programmed above.
@@ -1784,10 +1827,10 @@ static int up_dma_setup(struct uart_dev_s *dev)
   priv->rxdmaavail = 0;
 #endif
 
-  /* Enable receive DMA for the UART */
+  /* Enable receive/transfer DMA for the UART */
 
   regval  = up_serialin(priv, STM32_USART_CR3_OFFSET);
-  regval |= USART_CR3_DMAR;
+  regval |= (USART_CR3_DMAR | USART_CR3_DMAT);
   up_serialout(priv, STM32_USART_CR3_OFFSET, regval);
 
   /* Start the DMA channel, and arrange for callbacks at the half and
@@ -1887,11 +1930,14 @@ static void up_dma_shutdown(struct uart_dev_s *dev)
   /* Stop the DMA channel */
 
   stm32_dmastop(priv->rxdma);
+  stm32_dmastop(priv->txdma);
 
   /* Release the DMA channel */
 
   stm32_dmafree(priv->rxdma);
+  stm32_dmafree(priv->txdma);
   priv->rxdma = NULL;
+  priv->txdma = NULL;
 }
 #endif
 
@@ -2351,8 +2397,7 @@ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
 
         /* Configure TX as a GPIO output pin and Send a break signal */
 
-        tx_break = GPIO_OUTPUT |
-                   (~(GPIO_MODE_MASK | GPIO_OUTPUT_SET) & priv->tx_gpio);
+        tx_break = GPIO_OUTPUT | (~(GPIO_MODE_MASK|GPIO_OUTPUT_SET) & priv->tx_gpio);
         stm32_configgpio(tx_break);
 
         leave_critical_section(flags);
@@ -2615,6 +2660,44 @@ static bool up_rxflowcontrol(struct uart_dev_s *dev,
 #endif
 
 /****************************************************************************
+ * Name: up_dma_send
+ *
+ * Description:
+ *   Called (usually) from the interrupt level to start DMA transfer.
+ *   (Re-)Configures DMA Stream updating buffer and buffer length.
+ *
+ ****************************************************************************/
+
+#ifdef SERIAL_HAVE_DMA
+static void up_dma_send(struct uart_dev_s *dev)
+{
+  struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
+
+  /* We need to stop dma before reconfiguration */
+
+  stm32_dmastop(priv->txdma);
+
+  /* Wait until TX UART is ready for new transfer */
+
+  while (!up_txready(dev)) {}
+
+  /* Make use of setup function to update buffer and its length for next transfer */
+
+  stm32_dmasetup(priv->txdma,
+                 priv->usartbase + STM32_USART_TDR_OFFSET,
+                 (uint32_t) dev->dmatx.buffer,
+                 (size_t) dev->dmatx.length,
+                 SERIAL_DMA_CONTROL_WORD_TX);
+
+  /* Start transmission. Param "false" indicates that callback is called when transfer is finished 
+   * (and not at half completed transfer).
+   */
+
+  stm32_dmastart(priv->txdma, up_dma_txcallback, (void *)priv, false);
+}
+#endif
+
+/****************************************************************************
  * Name: up_dma_receive
  *
  * Description:
@@ -2766,6 +2849,28 @@ static void up_dma_rxint(struct uart_dev_s *dev, bool enable)
 #endif
 
 /****************************************************************************
+ * Name: up_dma_txint
+ *
+ * Description:
+ *   Call to enable or disable TX interrupts from the UART.
+ *
+ ****************************************************************************/
+
+#ifdef SERIAL_HAVE_DMA
+static void up_dma_txint(struct uart_dev_s *dev, bool enable)
+{
+  /* Nothing to do. */
+
+  /* In case of DMA transfer we do not want to make use of UART interrupts.
+   * Instead, we use DMA interrupts that are activated once during boot
+   * sequence. Furthermore we can use up_dma_txcallback() to handle staff at
+   * half DMA transfer or after transfer completion (depending configuration,
+   * see stm32_dmastart(...) ).
+   */
+}
+#endif
+
+/****************************************************************************
  * Name: up_dma_rxavailable
  *
  * Description:
@@ -2783,6 +2888,21 @@ static bool up_dma_rxavailable(struct uart_dev_s *dev)
    */
 
   return (up_dma_nextrx(priv) != priv->rxdmanext);
+}
+#endif
+
+/****************************************************************************
+ * Name: up_dma_txavailable
+ *
+ * Description:
+ *        Informs DMA that Tx data is available and is ready for transfer.
+ *
+ ****************************************************************************/
+
+#ifdef SERIAL_HAVE_DMA
+static void up_dma_txavailable(struct uart_dev_s *dev)
+{
+  uart_xmitchars_dma(dev);
 }
 #endif
 
@@ -2925,6 +3045,37 @@ static void up_dma_rxcallback(DMA_HANDLE handle, uint8_t status, void *arg)
       up_serialout(priv, STM32_USART_ICR_OFFSET,
                    (USART_ICR_NCF | USART_ICR_ORECF | USART_ICR_FECF));
     }
+}
+#endif
+
+/****************************************************************************
+ * Name: up_dma_txcallback
+ *
+ * Description:
+ *   This function clears dma buffer at complete of DMA transfer and wakes up
+ *   threads waiting for space in buffer. 
+ *
+ ****************************************************************************/
+
+#ifdef SERIAL_HAVE_DMA
+static void up_dma_txcallback(DMA_HANDLE handle, uint8_t status, void *arg)
+{
+  struct up_dev_s *priv = (struct up_dev_s *)arg;
+
+  /* Update 'nbytes' indicating number of bytes actually transferred by DMA.
+   * This is important to free TX buffer space by 'uart_xmitchars_done'.
+   */
+
+  if(status & DMA_SCR_HTIE)
+    {
+      priv->dev.dmatx.nbytes = priv->dev.dmatx.length / 2;
+    }
+  else if(status & DMA_SCR_TCIE)
+    {
+      priv->dev.dmatx.nbytes = priv->dev.dmatx.length;
+    }
+
+  uart_xmitchars_done(&priv->dev);
 }
 #endif
 
