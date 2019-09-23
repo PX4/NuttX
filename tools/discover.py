@@ -34,6 +34,7 @@
 #
 ############################################################################
 
+from __future__ import print_function
 import array
 import time
 from socket import *
@@ -85,7 +86,7 @@ def read_responses(socket):
         return res
 
 if __name__ == '__main__':
-    print 'Sending discover...'
+    print('Sending discover...')
 
     s = socket(AF_INET, SOCK_DGRAM)
     s.bind(('0.0.0.0', PORT))
@@ -95,4 +96,4 @@ if __name__ == '__main__':
     devices = read_responses(s)
     socket.close(s)
 
-    print devices
+    print(devices)
