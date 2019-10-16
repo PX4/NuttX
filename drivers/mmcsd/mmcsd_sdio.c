@@ -1788,7 +1788,7 @@ static ssize_t mmcsd_writesingle(FAR struct mmcsd_state_s *priv,
 #if defined(CONFIG_MMCSD_SDIOWAIT_WRCOMPLETE)
   /* Arm the write complete detection with timeout */
 
-  SDIO_WAITENABLE(priv->dev, SDIOWAIT_WRCOMPLETE | SDIOWAIT_TIMEOUT);
+  SDIO_WAITENABLE(priv->dev, SDIOWAIT_WRCOMPLETE | SDIOWAIT_TIMEOUT | SDIOWAIT_ERROR);
 #endif
 
   /* On success, return the number of blocks written */
