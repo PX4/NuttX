@@ -91,6 +91,14 @@
  * Set USB1 PLL (PLL3) to fOut    = (24Mhz * 20)
  *                         480Mhz = (24Mhz * 20)
  *
+ * Set LPSPI PLL3 PFD0 to fOut    = (480Mhz / 12 * 18)
+ *                        720Mhz  = (480Mhz / 12 * 18)
+ *                         90Mhz  = (720Mhz / LSPI_PODF_DIVIDER)
+ *
+ * Set LPI2C PLL3 / 8 to   fOut   = (480Mhz / 8)
+ *                         60Mhz  = (480Mhz / 8)
+ *                         12Mhz  = (60Mhz / LSPI_PODF_DIVIDER)
+ *
  * These clock frequencies can be verified via the CCM_CLKO1 pin and sending
  * the appropriate clock to it with something like;
  *
@@ -98,18 +106,24 @@
  *   imxrt_config_gpio(GPIO_CCM_CLKO1);
  */
 
-#define BOARD_XTAL_FREQUENCY      24000000
-#define IMXRT_PRE_PERIPH_CLK_SEL  CCM_CBCMR_PRE_PERIPH_CLK_SEL_PLL1
-#define IMXRT_PERIPH_CLK_SEL      CCM_CBCDR_PERIPH_CLK_SEL_PRE_PERIPH
-#define IMXRT_ARM_PLL_DIV_SELECT  100
-#define IMXRT_ARM_PODF_DIVIDER    2
-#define IMXRT_AHB_PODF_DIVIDER    1
-#define IMXRT_IPG_PODF_DIVIDER    4
-#define IMXRT_PERCLK_CLK_SEL      CCM_CSCMR1_PERCLK_CLK_SEL_IPG_CLK_ROOT
-#define IMXRT_PERCLK_PODF_DIVIDER 9
-#define IMXRT_SEMC_PODF_DIVIDER   8
+#define BOARD_XTAL_FREQUENCY       24000000
+#define IMXRT_PRE_PERIPH_CLK_SEL   CCM_CBCMR_PRE_PERIPH_CLK_SEL_PLL1
+#define IMXRT_PERIPH_CLK_SEL       CCM_CBCDR_PERIPH_CLK_SEL_PRE_PERIPH
+#define IMXRT_ARM_PLL_DIV_SELECT   100
+#define IMXRT_ARM_PODF_DIVIDER     2
+#define IMXRT_AHB_PODF_DIVIDER     1
+#define IMXRT_IPG_PODF_DIVIDER     4
+#define IMXRT_PERCLK_CLK_SEL       CCM_CSCMR1_PERCLK_CLK_SEL_IPG_CLK_ROOT
+#define IMXRT_PERCLK_PODF_DIVIDER  9
+#define IMXRT_SEMC_PODF_DIVIDER    8
 
-#define IMXRT_SYS_PLL_SELECT      CCM_ANALOG_PLL_SYS_DIV_SELECT_22
+#define IMXRT_LPSPI_CLK_SELECT     CCM_CBCMR_LPSPI_CLK_SEL_PLL3_PFD0
+#define IMXRT_LSPI_PODF_DIVIDER    8
+
+#define IMXRT_LPI2C_CLK_SELECT     CCM_CSCDR2_LPI2C_CLK_SEL_PLL3_60M
+#define IMXRT_LSI2C_PODF_DIVIDER   5
+
+#define IMXRT_SYS_PLL_SELECT       CCM_ANALOG_PLL_SYS_DIV_SELECT_22
 
 #define BOARD_CPU_FREQUENCY \
   (BOARD_XTAL_FREQUENCY * (IMXRT_ARM_PLL_DIV_SELECT / 2)) / IMXRT_ARM_PODF_DIVIDER
