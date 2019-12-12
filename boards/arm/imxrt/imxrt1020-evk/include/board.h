@@ -289,6 +289,13 @@
 #define GPIO_USBOTG_PWR     (GPIO_USB_OTG_PWR_1 |IOMUX_USBOTG_PWR_DEFAULT)     /* AD_B1_10 */
 #define GPIO_USBOTG_OC      (GPIO_USB_OTG_OC_1 | IOMUX_USBOTG_OC_DEFAULT)      /* AD_B1_12 */
 
+/* N.B. This is not using a USDHC CD_B input but a regular GPIO.  The
+ * post-fix _GPIO enables GPIO testing logic in the USDHC driver.
+ */
+
+#define PIN_USDHC1_CD_GPIO  (IOMUX_VSD_DEFAULT | \
+                             GPIO_PORT3 | GPIO_PIN19 )                        /* SD_B0_06 */
+
 /*****************************************************************************
  * Public Types
  *****************************************************************************/
