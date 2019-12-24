@@ -1,0 +1,25 @@
+name: compile
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: px4io/px4-dev-nuttx:2019-10-24
+    strategy:
+      matrix:
+        config: [
+          stm32f4discovery/canard, stm32f4discovery/elf, stm32f4discovery/kostest, stm32f4discovery/nsh, stm32f4discovery/pm, stm32f4discovery/posix_spawn, stm32f4discovery/pseudoterm, stm32f4discovery/pseudoterm,
+          stm32f103-minimum/audio_tone, stm32f103-minimum/buttons, stm32f103-minimum/mcp2515, stm32f103-minimum/nsh, stm32f103-minimum/rfid-rc522, stm32f103-minimum/usbnsh, stm32f103-minimum/userled, stm32f103-minimum/veml6070,
+          stm32f769i-disco/nsh, stm32f769i-disco/netnsh,
+          ]
+    steps:
+    - uses: actions/checkout@v1
+
+    - name: build ${{ matrix.config }}
+      run: |
+        git clone --branch master --depth 1 https://github.com/PX4/NuttX-apps.git
+        ./tools/configure.sh -l -a NuttX-apps ${{ matrix.config }}
+        make --no-print-directory --quiet
+        size nuttx
+
