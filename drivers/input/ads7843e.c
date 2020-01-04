@@ -96,6 +96,7 @@
 /****************************************************************************
  * Private Function Prototypes
  ****************************************************************************/
+
 /* Low-level SPI helpers */
 
 static void ads7843e_lock(FAR struct spi_dev_s *spi);
@@ -179,7 +180,7 @@ static void ads7843e_lock(FAR struct spi_dev_s *spi)
    * SPI bus
    */
 
-  (void)SPI_LOCK(spi, true);
+  SPI_LOCK(spi, true);
 
   /* We have the lock.  Now make sure that the SPI bus is configured for the
    * ADS7843 (it might have gotten configured for a different device while
@@ -189,8 +190,8 @@ static void ads7843e_lock(FAR struct spi_dev_s *spi)
   SPI_SELECT(spi, SPIDEV_TOUCHSCREEN(0), true);
   SPI_SETMODE(spi, CONFIG_ADS7843E_SPIMODE);
   SPI_SETBITS(spi, 8);
-  (void)SPI_HWFEATURES(spi, 0);
-  (void)SPI_SETFREQUENCY(spi, CONFIG_ADS7843E_FREQUENCY);
+  SPI_HWFEATURES(spi, 0);
+  SPI_SETFREQUENCY(spi, CONFIG_ADS7843E_FREQUENCY);
   SPI_SELECT(spi, SPIDEV_TOUCHSCREEN(0), false);
 }
 
@@ -215,7 +216,7 @@ static void ads7843e_unlock(FAR struct spi_dev_s *spi)
 {
   /* Relinquish the SPI bus. */
 
-  (void)SPI_LOCK(spi, false);
+  SPI_LOCK(spi, false);
 }
 
 /****************************************************************************
@@ -264,11 +265,11 @@ static uint16_t ads7843e_sendcmd(FAR struct ads7843e_dev_s *priv, uint8_t cmd)
 
   /* Send the command */
 
-  (void)SPI_SEND(priv->spi, cmd);
+  SPI_SEND(priv->spi, cmd);
 
   /* Wait a tiny amount to make sure that the acquisition time is complete */
 
-   up_udelay(3); /* 3 microseconds */
+  up_udelay(3); /* 3 microseconds */
 
   /* Read the 12-bit data (LS 4 bits will be padded with zero) */
 
@@ -361,11 +362,11 @@ static int ads7843e_sample(FAR struct ads7843e_dev_s *priv,
           priv->id++;
         }
       else if (sample->contact == CONTACT_DOWN)
-       {
+        {
           /* First report -- next report will be a movement */
 
-         priv->sample.contact = CONTACT_MOVE;
-       }
+          priv->sample.contact = CONTACT_MOVE;
+        }
 
       priv->penchange = false;
       ret = OK;
@@ -418,10 +419,6 @@ static int ads7843e_waitsample(FAR struct ads7843e_dev_s *priv,
 
       if (ret < 0)
         {
-          /* If we are awakened by a signal, then we need to return
-           * the failure now.
-           */
-
           ierr("ERROR: nxsem_wait: %d\n", ret);
           goto errout;
         }
@@ -504,7 +501,7 @@ static int ads7843e_schedule(FAR struct ads7843e_dev_s *priv)
 static void ads7843e_wdog(int argc, uint32_t arg1, ...)
 {
   FAR struct ads7843e_dev_s *priv = (FAR struct ads7843e_dev_s *)((uintptr_t)arg1);
-  (void)ads7843e_schedule(priv);
+  ads7843e_schedule(priv);
 }
 
 /****************************************************************************
@@ -520,7 +517,6 @@ static void ads7843e_worker(FAR void *arg)
   uint16_t                      xdiff;
   uint16_t                      ydiff;
   bool                          pendown;
-  int                           ret;
 
   DEBUGASSERT(priv != NULL);
 
@@ -543,17 +539,7 @@ static void ads7843e_worker(FAR void *arg)
 
   /* Get exclusive access to the driver data structure */
 
-  do
-    {
-      ret = nxsem_wait(&priv->devsem);
-
-      /* This should only fail if the wait was canceled by an signal
-       * (and the worker thread will receive a lot of signals).
-       */
-
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(&priv->devsem);
 
   /* Check for pen up or down by reading the PENIRQ GPIO. */
 
@@ -599,9 +585,9 @@ static void ads7843e_worker(FAR void *arg)
        * later.
        */
 
-       (void)wd_start(priv->wdog, ADS7843E_WDOG_DELAY, ads7843e_wdog, 1,
-                      (uint32_t)priv);
-       goto ignored;
+      wd_start(priv->wdog, ADS7843E_WDOG_DELAY, ads7843e_wdog, 1,
+               (uint32_t)priv);
+      goto ignored;
     }
   else
     {
@@ -682,7 +668,7 @@ ignored:
 
   /* Re-enable the PENIRQ interrupt at the ADS7843E */
 
-  (void)ads7843e_sendcmd(priv, ADS7843_CMD_ENABPENIRQ);
+  ads7843e_sendcmd(priv, ADS7843_CMD_ENABPENIRQ);
 
   /* Re-enable the PENIRQ interrupt at the MCU's interrupt controller */
 
@@ -758,9 +744,6 @@ static int ads7843e_open(FAR struct file *filep)
   ret = nxsem_wait(&priv->devsem);
   if (ret < 0)
     {
-      /* This should only happen if the wait was cancelled by an signal */
-
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -815,9 +798,6 @@ static int ads7843e_close(FAR struct file *filep)
   ret = nxsem_wait(&priv->devsem);
   if (ret < 0)
     {
-      /* This should only happen if the wait was canceled by an signal */
-
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -875,10 +855,7 @@ static ssize_t ads7843e_read(FAR struct file *filep, FAR char *buffer, size_t le
   ret = nxsem_wait(&priv->devsem);
   if (ret < 0)
     {
-      /* This should only happen if the wait was cancelled by an signal */
-
       ierr("ERROR: nxsem_wait: %d\n", ret);
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -897,7 +874,7 @@ static ssize_t ads7843e_read(FAR struct file *filep, FAR char *buffer, size_t le
         {
           ret = -EAGAIN;
           goto errout;
-       }
+        }
 
       /* Wait for sample data */
 
@@ -988,9 +965,6 @@ static int ads7843e_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
   ret = nxsem_wait(&priv->devsem);
   if (ret < 0)
     {
-      /* This should only happen if the wait was cancelled by an signal */
-
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -1047,9 +1021,6 @@ static int ads7843e_poll(FAR struct file *filep, FAR struct pollfd *fds,
   ret = nxsem_wait(&priv->devsem);
   if (ret < 0)
     {
-      /* This should only happen if the wait was cancelled by an signal */
-
-      DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
       return ret;
     }
 
@@ -1216,7 +1187,7 @@ int ads7843e_register(FAR struct spi_dev_s *spi,
 
   /* Register the device as an input device */
 
-  (void)snprintf(devname, DEV_NAMELEN, DEV_FORMAT, minor);
+  snprintf(devname, DEV_NAMELEN, DEV_FORMAT, minor);
   iinfo("Registering %s\n", devname);
 
   ret = register_driver(devname, &ads7843e_fops, 0666, priv);

@@ -446,21 +446,7 @@ static struct usbhost_state_s *g_priv;    /* Data passed to thread */
 
 static void usbhost_takesem(sem_t *sem)
 {
-  int ret;
-
-  do
-    {
-      /* Take the semaphore (perhaps waiting) */
-
-      ret = nxsem_wait(sem);
-
-      /* The only case that an error should occur here is if the wait was
-       * awakened by a signal.
-       */
-
-      DEBUGASSERT(ret == OK || ret == -EINTR);
-    }
-  while (ret == -EINTR);
+  nxsem_wait_uninterruptible(sem);
 }
 
 /****************************************************************************
@@ -584,7 +570,7 @@ static void usbhost_freedevno(FAR struct usbhost_state_s *priv)
 static inline void usbhost_mkdevname(FAR struct usbhost_state_s *priv,
                                      FAR char *devname)
 {
-  (void)snprintf(devname, DEV_NAMELEN, DEV_FORMAT, priv->devno);
+  snprintf(devname, DEV_NAMELEN, DEV_FORMAT, priv->devno);
 }
 
 /****************************************************************************
@@ -618,7 +604,7 @@ static void usbhost_destroy(FAR void *arg)
 
   uinfo("Unregister driver\n");
   usbhost_mkdevname(priv, devname);
-  (void)unregister_driver(devname);
+  unregister_driver(devname);
 
   /* Release the device name used by this connection */
 
@@ -950,9 +936,9 @@ static bool usbhost_threshold(FAR struct usbhost_state_s *priv)
       diff = pos - priv->xlast;
     }
   else
-   {
+    {
       diff = priv->xlast - pos;
-   }
+    }
 
   /* Check if the X difference exceeds the report threshold */
 
@@ -987,9 +973,9 @@ static bool usbhost_threshold(FAR struct usbhost_state_s *priv)
       diff = pos - priv->wlast;
     }
   else
-   {
+    {
       diff = priv->wlast - pos;
-   }
+    }
 
   /* Check if the X difference exceeds the report threshold */
 
@@ -1300,11 +1286,12 @@ static int usbhost_sample(FAR struct usbhost_state_s *priv,
           priv->sample.valid = false;
         }
       else if (sample->event == BUTTON_PRESSED)
-       {
+        {
           /* First report -- next report will be a movement */
 
-         priv->sample.event = BUTTON_MOVE;
-       }
+          priv->sample.event = BUTTON_MOVE;
+        }
+
 #endif
 
       /* The sample has been reported and is no longer valid */
@@ -1368,12 +1355,7 @@ static int usbhost_waitsample(FAR struct usbhost_state_s *priv,
 
       if (ret < 0)
         {
-          /* If we are awakened by a signal, then we need to return
-           * the failure now.
-           */
-
           ierr("ERROR: nxsem_wait: %d\n", ret);
-          DEBUGASSERT(ret == -EINTR || ret == -ECANCELED);
           goto errout;
         }
 
@@ -1793,7 +1775,7 @@ static void usbhost_putle32(uint8_t *dest, uint32_t val)
   /* Little endian means LS halfword first in byte stream */
 
   usbhost_putle16(dest, (uint16_t)(val & 0xffff));
-  usbhost_putle16(dest+2, (uint16_t)(val >> 16));
+  usbhost_putle16(dest + 2, (uint16_t)(val >> 16));
 }
 #endif
 
@@ -1904,7 +1886,7 @@ static FAR struct usbhost_class_s *
 
       if (usbhost_allocdevno(priv) == OK)
         {
-         /* Initialize class method function pointers */
+          /* Initialize class method function pointers */
 
           priv->usbclass.hport        = hport;
           priv->usbclass.connect      = usbhost_connect;
@@ -1946,6 +1928,7 @@ static FAR struct usbhost_class_s *
 /****************************************************************************
  * struct usbhost_class_s methods
  ****************************************************************************/
+
 /****************************************************************************
  * Name: usbhost_connect
  *
@@ -2078,7 +2061,7 @@ static int usbhost_disconnected(struct usbhost_class_s *usbclass)
        * perhaps, destroy the class instance.  Then it will exit.
        */
 
-      (void)nxsig_kill(priv->pollpid, SIGALRM);
+      nxsig_kill(priv->pollpid, SIGALRM);
     }
   else
     {
@@ -2089,7 +2072,7 @@ static int usbhost_disconnected(struct usbhost_class_s *usbclass)
        */
 
       DEBUGASSERT(priv->work.worker == NULL);
-      (void)work_queue(HPWORK, &priv->work, usbhost_destroy, priv, 0);
+      work_queue(HPWORK, &priv->work, usbhost_destroy, priv, 0);
     }
 
   return OK;
@@ -2098,6 +2081,7 @@ static int usbhost_disconnected(struct usbhost_class_s *usbclass)
 /****************************************************************************
  * Character driver methods
  ****************************************************************************/
+
 /****************************************************************************
  * Name: usbhost_open
  *
@@ -2222,7 +2206,7 @@ static int usbhost_close(FAR struct file *filep)
        *    but there is still an outstanding open reference.
        */
 
-     if (priv->crefs == 0 || (priv->crefs == 1 && priv->polling))
+      if (priv->crefs == 0 || (priv->crefs == 1 && priv->polling))
         {
           /* Yes.. In either case, then the driver is no longer open */
 
@@ -2254,7 +2238,7 @@ static int usbhost_close(FAR struct file *filep)
                * signal that we use does not matter in this case.
                */
 
-              (void)nxsig_kill(priv->pollpid, SIGALRM);
+              nxsig_kill(priv->pollpid, SIGALRM);
             }
         }
     }
