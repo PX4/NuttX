@@ -70,7 +70,7 @@
 void up_initial_state(struct tcb_s *tcb)
 {
   struct xcptcontext *xcp = &tcb->xcp;
-  uint32_t regval;
+  uint64_t regval;
 
   /* Initialize the initial exception register context structure */
 

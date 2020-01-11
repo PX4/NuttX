@@ -58,7 +58,11 @@
 #define getreg64(a)   (*(volatile uint64_t *)(a))
 #define putreg64(v,a) (*(volatile uint64_t *)(a) = (v))
 
+#ifdef CONFIG_K210_WITH_QEMU
+#define TICK_COUNT (10000000 / TICK_PER_SEC)
+#else
 #define TICK_COUNT ((k210_get_cpuclk() / 50) / TICK_PER_SEC)
+#endif
 
 /****************************************************************************
  * Private Data
