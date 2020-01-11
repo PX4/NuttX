@@ -1,7 +1,7 @@
 /****************************************************************************
  * net/tcp/tcp_setsockopt.c
  *
- *   Copyright (C) 2018 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2018, 2020 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,7 +39,6 @@
 
 #include <nuttx/config.h>
 
-#include <sys/time.h>
 #include <stdint.h>
 #include <errno.h>
 #include <assert.h>
@@ -47,7 +46,6 @@
 
 #include <netinet/tcp.h>
 
-#include <nuttx/clock.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/tcp.h>
 

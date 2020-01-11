@@ -1,7 +1,7 @@
 /****************************************************************************
  * binfmt/libelf/libelf_load.c
  *
- *   Copyright (C) 2012 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2012, 2020 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -166,7 +166,8 @@ static inline int elf_loadfile(FAR struct elf_loadinfo_s *loadinfo)
       FAR Elf32_Shdr *shdr = &loadinfo->shdr[i];
 
       /* SHF_ALLOC indicates that the section requires memory during
-       * execution */
+       * execution.
+       */
 
       if ((shdr->sh_flags & SHF_ALLOC) == 0)
         {

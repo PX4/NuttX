@@ -159,30 +159,30 @@ static uint16_t tcp_close_eventhandler(FAR struct net_driver_s *dev,
 
       goto end_wait;
     }
-  else if ((flags & TCP_NEWDATA) != 0)
-    {
+
 #ifdef CONFIG_NET_TCP_WRITE_BUFFERS
-      /* Check if all outstanding bytes have been ACKed */
+  /* Check if all outstanding bytes have been ACKed */
 
-      if (conn->tx_unacked != 0 || !sq_empty(&conn->write_q))
-        {
-          /* No... we are still waiting for ACKs.  Drop any received data, but
-           * do not yet report TCP_CLOSE in the response.
-           */
+  else if (conn->tx_unacked != 0 || !sq_empty(&conn->write_q))
+    {
+      /* No... we are still waiting for ACKs.  Drop any received data, but
+       * do not yet report TCP_CLOSE in the response.
+       */
 
-          dev->d_len = 0;
-          flags &= ~TCP_NEWDATA;
-        }
-      else
+      dev->d_len = 0;
+      flags &= ~TCP_NEWDATA;
+    }
+
 #endif /* CONFIG_NET_TCP_WRITE_BUFFERS */
-        {
-          /* Drop data received in this state and make sure that TCP_CLOSE
-           * is set in the response
-           */
 
-          dev->d_len = 0;
-          flags = (flags & ~TCP_NEWDATA) | TCP_CLOSE;
-        }
+  else
+    {
+      /* Drop data received in this state and make sure that TCP_CLOSE
+       * is set in the response
+       */
+
+      dev->d_len = 0;
+      flags = (flags & ~TCP_NEWDATA) | TCP_CLOSE;
     }
 
   UNUSED(conn);           /* May not be used */
@@ -196,6 +196,55 @@ end_wait:
 
   ninfo("Resuming\n");
   return flags;
+}
+#endif /* NET_TCP_HAVE_STACK */
+
+/****************************************************************************
+ * Name: tcp_close_txnotify
+ *
+ * Description:
+ *   Notify the appropriate device driver that we are have data ready to
+ *   be send (TCP)
+ *
+ * Input Parameters:
+ *   psock - Socket state structure
+ *   conn  - The TCP connection structure
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+#ifdef NET_TCP_HAVE_STACK
+static inline void tcp_close_txnotify(FAR struct socket *psock,
+                                      FAR struct tcp_conn_s *conn)
+{
+#ifdef CONFIG_NET_IPv4
+#ifdef CONFIG_NET_IPv6
+  /* If both IPv4 and IPv6 support are enabled, then we will need to select
+   * the device driver using the appropriate IP domain.
+   */
+
+  if (psock->s_domain == PF_INET)
+#endif
+    {
+      /* Notify the device driver that send data is available */
+
+      netdev_ipv4_txnotify(conn->u.ipv4.laddr, conn->u.ipv4.raddr);
+    }
+#endif /* CONFIG_NET_IPv4 */
+
+#ifdef CONFIG_NET_IPv6
+#ifdef CONFIG_NET_IPv4
+  else /* if (psock->s_domain == PF_INET6) */
+#endif /* CONFIG_NET_IPv4 */
+    {
+      /* Notify the device driver that send data is available */
+
+      DEBUGASSERT(psock->s_domain == PF_INET6);
+      netdev_ipv6_txnotify(conn->u.ipv6.laddr, conn->u.ipv6.raddr);
+    }
+#endif /* CONFIG_NET_IPv6 */
 }
 #endif /* NET_TCP_HAVE_STACK */
 
@@ -221,10 +270,6 @@ static inline int tcp_close_disconnect(FAR struct socket *psock)
 {
   struct tcp_close_s state;
   FAR struct tcp_conn_s *conn;
-#ifdef CONFIG_NET_SOLINGER
-  struct timespec abstime;
-  bool linger;
-#endif
   int ret = OK;
 
   /* Interrupts are disabled here to avoid race conditions */
@@ -247,31 +292,18 @@ static inline int tcp_close_disconnect(FAR struct socket *psock)
    *   state of the option and linger interval.
    */
 
-  linger = _SO_GETOPT(psock->s_options, SO_LINGER);
-  if (linger)
+  if (_SO_GETOPT(psock->s_options, SO_LINGER))
     {
-      /* Get the current time */
+      /* Wait until for the buffered TX data to be sent. */
 
-      ret = clock_gettime(CLOCK_REALTIME, &abstime);
-      if (ret >= 0)
+      ret = tcp_txdrain(psock, _SO_TIMEOUT(psock->s_linger));
+      if (ret < 0)
         {
-          /* NOTE: s_linger's unit is deciseconds so we don't need to update
-           * abstime.tv_nsec here.
+          /* tcp_txdrain may fail, but that won't stop us from closing
+           * the socket.
            */
 
-          abstime.tv_sec += psock->s_linger / DSEC_PER_SEC;
-
-          /* Wait until abstime for the buffered TX data to be sent. */
-
-          ret = tcp_txdrain(psock, &abstime);
-          if (ret < 0)
-            {
-              /* tcp_txdrain may fail, but that won't stop us from closing
-               * the socket.
-               */
-
-              nerr("ERROR: tcp_txdrain() failed: %d\n", ret);
-            }
+          nerr("ERROR: tcp_txdrain() failed: %d\n", ret);
         }
     }
 #endif
@@ -305,7 +337,7 @@ static inline int tcp_close_disconnect(FAR struct socket *psock)
     {
       /* Set up to receive TCP data event callbacks */
 
-      state.cl_cb->flags = (TCP_NEWDATA | TCP_DISCONN_EVENTS);
+      state.cl_cb->flags = (TCP_NEWDATA | TCP_POLL | TCP_DISCONN_EVENTS);
       state.cl_cb->event = tcp_close_eventhandler;
 
       /* A non-NULL value of the priv field means that lingering is
@@ -325,6 +357,10 @@ static inline int tcp_close_disconnect(FAR struct socket *psock)
 
       nxsem_init(&state.cl_sem, 0, 0);
       nxsem_setprotocol(&state.cl_sem, SEM_PRIO_NONE);
+
+      /* Notify the device driver of the availability of TX data */
+
+      tcp_close_txnotify(psock, conn);
 
       /* Wait for the disconnect event */
 
@@ -376,10 +412,6 @@ static inline int tcp_close_disconnect(FAR struct socket *psock)
 static inline int udp_close(FAR struct socket *psock)
 {
   FAR struct udp_conn_s *conn;
-#ifdef CONFIG_NET_SOLINGER
-  struct timespec abstime;
-  bool linger;
-#endif
 
   /* Interrupts are disabled here to avoid race conditions */
 
@@ -401,33 +433,20 @@ static inline int udp_close(FAR struct socket *psock)
    *   state of the option and linger interval.
    */
 
-  linger = _SO_GETOPT(psock->s_options, SO_LINGER);
-  if (linger)
+  if (_SO_GETOPT(psock->s_options, SO_LINGER))
     {
       int ret;
 
-      /* Get the current time */
+      /* Wait until for the buffered TX data to be sent. */
 
-      ret = clock_gettime(CLOCK_REALTIME, &abstime);
-      if (ret >= 0)
+      ret = udp_txdrain(psock, _SO_TIMEOUT(psock->s_linger));
+      if (ret < 0)
         {
-          /* NOTE: s_linger's unit is deciseconds so we don't need to update
-           * abstime.tv_nsec here.
+          /* udp_txdrain may fail, but that won't stop us from closing
+           * the socket.
            */
 
-          abstime.tv_sec += psock->s_linger / DSEC_PER_SEC;
-
-          /* Wait until abstime for the buffered TX data to be sent. */
-
-          ret = udp_txdrain(psock, &abstime);
-          if (ret < 0)
-            {
-              /* udp_txdrain may fail, but that won't stop us from closing
-               * the socket.
-               */
-
-              nerr("ERROR: udp_txdrain() failed: %d\n", ret);
-            }
+          nerr("ERROR: udp_txdrain() failed: %d\n", ret);
         }
     }
 #endif

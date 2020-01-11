@@ -208,7 +208,6 @@ struct tcp_conn_s
 
   FAR struct net_driver_s *dev;
 
-#ifdef CONFIG_NET_TCP_READAHEAD
   /* Read-ahead buffering.
    *
    *   readahead - A singly linked list of type struct iob_qentry_s
@@ -216,7 +215,6 @@ struct tcp_conn_s
    */
 
   struct iob_queue_s readahead;   /* Read-ahead buffering */
-#endif
 
 #ifdef CONFIG_NET_TCP_WRITE_BUFFERS
   /* Write buffering
@@ -1109,10 +1107,8 @@ uint16_t tcp_callback(FAR struct net_driver_s *dev,
  *
  ****************************************************************************/
 
-#ifdef CONFIG_NET_TCP_READAHEAD
 uint16_t tcp_datahandler(FAR struct tcp_conn_s *conn, FAR uint8_t *buffer,
                          uint16_t nbytes);
-#endif
 
 /****************************************************************************
  * Name: tcp_backlogcreate
@@ -1459,7 +1455,6 @@ void tcp_wrbuffer_initialize(void);
 
 #ifdef CONFIG_NET_TCP_WRITE_BUFFERS
 struct tcp_wrbuffer_s;
-
 FAR struct tcp_wrbuffer_s *tcp_wrbuffer_alloc(void);
 
 /****************************************************************************
@@ -1708,7 +1703,7 @@ int tcp_notifier_teardown(int key);
  *
  ****************************************************************************/
 
-#if defined(CONFIG_NET_TCP_READAHEAD) && defined(CONFIG_NET_TCP_NOTIFIER)
+#ifdef CONFIG_NET_TCP_NOTIFIER
 void tcp_readahead_signal(FAR struct tcp_conn_s *conn);
 #endif
 
@@ -1764,7 +1759,7 @@ void tcp_disconnect_signal(FAR struct tcp_conn_s *conn);
  *
  * Input Parameters:
  *   psock   - An instance of the internal socket structure.
- *   abstime - The absolute time when the timeout will occur
+ *   timeout - The relative time when the timeout will occur
  *
  * Returned Value:
  *   Zero (OK) is returned on success; a negated errno value is returned
@@ -1773,11 +1768,9 @@ void tcp_disconnect_signal(FAR struct tcp_conn_s *conn);
  ****************************************************************************/
 
 #if defined(CONFIG_NET_TCP_WRITE_BUFFERS) && defined(CONFIG_NET_TCP_NOTIFIER)
-struct timespec;
-int tcp_txdrain(FAR struct socket *psock,
-                FAR const struct timespec *abstime);
+int tcp_txdrain(FAR struct socket *psock, unsigned int timeout);
 #else
-#  define tcp_txdrain(conn, abstime) (0)
+#  define tcp_txdrain(conn, timeout) (0)
 #endif
 
 #undef EXTERN

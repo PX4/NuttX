@@ -46,12 +46,8 @@
 #include <sys/socket.h>
 #include <queue.h>
 
-#include <nuttx/clock.h>
 #include <nuttx/net/ip.h>
-
-#ifdef CONFIG_NET_UDP_READAHEAD
-#  include <nuttx/mm/iob.h>
-#endif
+#include <nuttx/mm/iob.h>
 
 #ifdef CONFIG_NET_UDP_NOTIFIER
 #  include <nuttx/wqueue.h>
@@ -143,7 +139,6 @@ struct udp_conn_s
                            * Unbound: 0, Bound: 1-MAX_IFINDEX */
 #endif
 
-#ifdef CONFIG_NET_UDP_READAHEAD
   /* Read-ahead buffering.
    *
    *   readahead - A singly linked list of type struct iob_qentry_s
@@ -151,7 +146,6 @@ struct udp_conn_s
    */
 
   struct iob_queue_s readahead;   /* Read-ahead buffering */
-#endif
 
 #ifdef CONFIG_NET_UDP_WRITE_BUFFERS
   /* Write buffering
@@ -180,9 +174,6 @@ struct udp_wrbuffer_s
 {
   sq_entry_t wb_node;              /* Supports a singly linked list */
   struct sockaddr_storage wb_dest; /* Destination address */
-#ifdef CONFIG_NET_SOCKOPTS
-  clock_t wb_start;                /* Start time for timeout calculation */
-#endif
   struct iob_s *wb_iob;            /* Head of the I/O buffer chain */
 };
 #endif
@@ -456,7 +447,6 @@ void udp_wrbuffer_initialize(void);
 
 #ifdef CONFIG_NET_UDP_WRITE_BUFFERS
 struct udp_wrbuffer_s;
-
 FAR struct udp_wrbuffer_s *udp_wrbuffer_alloc(void);
 #endif /* CONFIG_NET_UDP_WRITE_BUFFERS */
 
@@ -814,7 +804,7 @@ int udp_notifier_teardown(int key);
  *
  ****************************************************************************/
 
-#if defined(CONFIG_NET_UDP_READAHEAD) && defined(CONFIG_NET_UDP_NOTIFIER)
+#ifdef CONFIG_NET_UDP_NOTIFIER
 void udp_readahead_signal(FAR struct udp_conn_s *conn);
 #endif
 
@@ -851,7 +841,7 @@ void udp_writebuffer_signal(FAR struct udp_conn_s *conn);
  *
  * Input Parameters:
  *   psock   - An instance of the internal socket structure.
- *   abstime - The absolute time when the timeout will occur
+ *   timeout - The relative time when the timeout will occur
  *
  * Returned Value:
  *   Zero (OK) is returned on success; a negated errno value is returned
@@ -860,11 +850,9 @@ void udp_writebuffer_signal(FAR struct udp_conn_s *conn);
  ****************************************************************************/
 
 #if defined(CONFIG_NET_UDP_WRITE_BUFFERS) && defined(CONFIG_NET_UDP_NOTIFIER)
-struct timespec;
-int udp_txdrain(FAR struct socket *psock,
-                FAR const struct timespec *abstime);
+int udp_txdrain(FAR struct socket *psock, unsigned int timeout);
 #else
-#  define udp_txdrain(conn, abstime) (0)
+#  define udp_txdrain(conn, timeout) (0)
 #endif
 
 #undef EXTERN

@@ -1,7 +1,7 @@
 /****************************************************************************
  * binfmt/libelf/libelf_bind.c
  *
- *   Copyright (C) 2012, 2014, 2019 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2012, 2014, 2019-2020 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -291,9 +291,11 @@ static int elf_relocate(FAR struct elf_loadinfo_s *loadinfo, int relidx,
 
       /* Calculate the relocation address. */
 
-      if (rel->r_offset < 0 || rel->r_offset > dstsec->sh_size - sizeof(uint32_t))
+      if (rel->r_offset < 0 ||
+          rel->r_offset > dstsec->sh_size - sizeof(uint32_t))
         {
-          berr("Section %d reloc %d: Relocation address out of range, offset %d size %d\n",
+          berr("Section %d reloc %d: Relocation address out of range, "
+               "offset %d size %d\n",
                relidx, i, rel->r_offset, dstsec->sh_size);
           ret = -EINVAL;
           break;
