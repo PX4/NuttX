@@ -54,7 +54,6 @@
 
 #include <arch/irq.h>
 
-#include <nuttx/clock.h>
 #include <nuttx/net/netconfig.h>
 #include <nuttx/net/net.h>
 #include <nuttx/net/netdev.h>
@@ -775,11 +774,9 @@ void tcp_free(FAR struct tcp_conn_s *conn)
       dq_rem(&conn->node, &g_active_tcp_connections);
     }
 
-#ifdef CONFIG_NET_TCP_READAHEAD
   /* Release any read-ahead buffers attached to the connection */
 
   iob_free_queue(&conn->readahead, IOBUSER_NET_TCP_READAHEAD);
-#endif
 
 #ifdef CONFIG_NET_TCP_WRITE_BUFFERS
   /* Release any write buffers attached to the connection */
@@ -1020,11 +1017,9 @@ FAR struct tcp_conn_s *tcp_alloc_accept(FAR struct net_driver_s *dev,
 
       memcpy(conn->rcvseq, tcp->seqno, 4);
 
-#ifdef CONFIG_NET_TCP_READAHEAD
       /* Initialize the list of TCP read-ahead buffers */
 
       IOB_QINIT(&conn->readahead);
-#endif
 
 #ifdef CONFIG_NET_TCP_WRITE_BUFFERS
       /* Initialize the write buffer lists */
@@ -1257,11 +1252,9 @@ int tcp_connect(FAR struct tcp_conn_s *conn, FAR const struct sockaddr *addr)
   conn->sndseq_max = 0;
 #endif
 
-#ifdef CONFIG_NET_TCP_READAHEAD
   /* Initialize the list of TCP read-ahead buffers */
 
   IOB_QINIT(&conn->readahead);
-#endif
 
 #ifdef CONFIG_NET_TCP_WRITE_BUFFERS
   /* Initialize the TCP write buffer lists */

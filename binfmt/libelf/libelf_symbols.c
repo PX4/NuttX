@@ -1,7 +1,7 @@
 /****************************************************************************
  * binfmt/libelf/libelf_symbols.c
  *
- *   Copyright (C) 2012, 2014 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2012, 2014, 2020 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -305,9 +305,12 @@ int elf_symvalue(FAR struct elf_loadinfo_s *loadinfo, FAR Elf32_Sym *sym,
         /* Check if the base code exports a symbol of this name */
 
 #ifdef CONFIG_SYMTAB_ORDEREDBYNAME
-        symbol = symtab_findorderedbyname(exports, (FAR char *)loadinfo->iobuffer, nexports);
+        symbol = symtab_findorderedbyname(exports,
+                                          (FAR char *)loadinfo->iobuffer,
+                                          nexports);
 #else
-        symbol = symtab_findbyname(exports, (FAR char *)loadinfo->iobuffer, nexports);
+        symbol = symtab_findbyname(exports, (FAR char *)loadinfo->iobuffer,
+                                   nexports);
 #endif
         if (!symbol)
           {
