@@ -47,7 +47,11 @@
 #include "irq/irq.h"
 #include "clock/clock.h"
 #include "sched/sched.h"
-
+#if defined(CONFIG_BOARD_USE_PROBES)
+#include "arch/board/board.h"
+#else
+#define PROBE(a,b)
+#endif
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -81,7 +85,9 @@
 
 #ifndef CONFIG_SCHED_IRQMONITOR
 #  define CALL_VECTOR(ndx, vector, irq, context, arg) \
-     vector(irq, context, arg)
+    PROBE(3,0); \
+     vector(irq, context, arg); \
+     PROBE(3,1);
 #elif defined(CONFIG_SCHED_CRITMONITOR)
 #  define CALL_VECTOR(ndx, vector, irq, context, arg) \
      do \
@@ -89,9 +95,11 @@
          struct timespec delta; \
          uint32_t start; \
          uint32_t elapsed; \
+    PROBE(3,0); \
          start = up_critmon_gettime(); \
          vector(irq, context, arg); \
          elapsed = up_critmon_gettime() - start; \
+     PROBE(3,1); \
          up_critmon_convert(elapsed, &delta); \
          if (delta.tv_nsec > g_irqvector[ndx].time) \
            { \

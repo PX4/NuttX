@@ -1239,6 +1239,8 @@ static inline uint32_t imxrt_lpi2c_getstatus(FAR struct imxrt_lpi2c_priv_s *priv
 
 static int imxrt_lpi2c_isr_process(struct imxrt_lpi2c_priv_s *priv)
 {
+  PROBE(1,0);
+
   uint32_t status = imxrt_lpi2c_getstatus(priv);
 
   /* Check for new trace setup */
@@ -1439,6 +1441,7 @@ static int imxrt_lpi2c_isr_process(struct imxrt_lpi2c_priv_s *priv)
           priv->intstate = INTSTATE_DONE;
 #endif
     }
+  PROBE(1,1);
 
   return OK;
 }
@@ -1751,6 +1754,8 @@ static int imxrt_lpi2c_transfer(FAR struct i2c_master_s *dev,
 #ifdef CONFIG_I2C_RESET
 static int imxrt_lpi2c_reset(FAR struct i2c_master_s *dev)
 {
+//  PROBE(3,0);
+
   FAR struct imxrt_lpi2c_priv_s *priv = (FAR struct imxrt_lpi2c_priv_s *)dev;
   unsigned int clock_count;
   unsigned int stretch_count;
@@ -1860,6 +1865,8 @@ out:
   /* Release the port for re-use by other clients */
 
   imxrt_lpi2c_sem_post(priv);
+//  PROBE(3,1);
+
   return ret;
 }
 #endif /* CONFIG_I2C_RESET */

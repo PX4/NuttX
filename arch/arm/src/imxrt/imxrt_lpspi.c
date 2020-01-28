@@ -1293,6 +1293,7 @@ static void imxrt_lpspi_exchange_nodma(FAR struct spi_dev_s *dev,
                                        FAR void *rxbuffer, size_t nwords)
 #endif
 {
+  PROBE(2,0);
   FAR struct imxrt_lpspidev_s *priv = (FAR struct imxrt_lpspidev_s *)dev;
   DEBUGASSERT(priv && priv->spibase);
 
@@ -1366,6 +1367,7 @@ static void imxrt_lpspi_exchange_nodma(FAR struct spi_dev_s *dev,
             }
         }
     }
+  PROBE(2,1);
 }
 #endif /* !CONFIG_IMXRT_LPSPI_DMA || CONFIG_IMXRT_DMACAPABLE */
 
