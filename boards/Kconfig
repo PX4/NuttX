@@ -2125,9 +2125,9 @@ config ARCH_BOARD
 	default "pic32mz-starterkit"       if ARCH_BOARD_PIC32MZ_STARTERKIT
 	default "qemu-i486"                if ARCH_BOARD_QEMU_I486
 	default "rx65n"                    if ARCH_BOARD_RX65N
-	default "rx65n"                    if ARCH_BOARD_RX65N_RSK1MB
-	default "rx65n"                    if ARCH_BOARD_RX65N_RSK2MB
-	default "rx65n"                    if ARCH_BOARD_RX65N_GRROSE
+	default "rx65n-rsk1mb"             if ARCH_BOARD_RX65N_RSK1MB
+	default "rx65n-rsk2mb"             if ARCH_BOARD_RX65N_RSK2MB
+	default "rx65n-grrose"             if ARCH_BOARD_RX65N_GRROSE
 	default "s32k118evb"               if ARCH_BOARD_S32K118EVB
 	default "s32k146evb"               if ARCH_BOARD_S32K146EVB
 	default "s32k148evb"               if ARCH_BOARD_S32K148EVB
@@ -2720,10 +2720,10 @@ if ARCH_BOARD_CUSTOM
 source "boards/dummy/Kconfig"
 endif
 if ARCH_BOARD_DEMOS92S12NEC64
-source "boards/hc/mcs92s12ne64/demo9s12ne64/Kconfig"
+source "boards/hc/m9s12/demo9s12ne64/Kconfig"
 endif
 if ARCH_BOARD_NE64BADGE
-source "boards/hc/mcs92s12ne64/ne64badge/Kconfig"
+source "boards/hc/m9s12/ne64badge/Kconfig"
 endif
 if ARCH_BOARD_MIRTOO
 source "boards/mips/pic32mx/mirtoo/Kconfig"
@@ -2753,10 +2753,10 @@ if ARCH_BOARD_OR1K
 source "boards/or1k/mor1kx/or1k/Kconfig"
 endif
 if ARCH_BOARD_SKP16C26
-source "boards/renesas/m32262f8/skp16c26/Kconfig"
+source "boards/renesas/m16c/skp16c26/Kconfig"
 endif
 if ARCH_BOARD_US7032EVB1
-source "boards/renesas/sh7032/us7032evb1/Kconfig"
+source "boards/renesas/sh1/us7032evb1/Kconfig"
 endif
 if ARCH_BOARD_GAPUINO
 source "boards/risc-v/gap8/gapuino/Kconfig"
@@ -2792,7 +2792,7 @@ if ARCH_BOARD_ESP32CORE
 source "boards/xtensa/esp32/esp32-core/Kconfig"
 endif
 if ARCH_BOARD_Z16F2800100ZCOG
-source "boards/z16/z16f2811/z16f2800100zcog/Kconfig"
+source "boards/z16/z16f/z16f2800100zcog/Kconfig"
 endif
 if ARCH_BOARD_EZ80F910200KITG
 source "boards/z80/ez80/ez80f910200kitg/Kconfig"

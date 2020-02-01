@@ -51,7 +51,7 @@
  *   4. The handle returned by stm32_i2sdev_initialize() may then be used to
  *     bind the I2S driver to higher level logic
  *
- ****************************************************c***********************/
+ ****************************************************************************/
 
 /****************************************************************************
  * Included Files
@@ -64,13 +64,13 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <assert.h>
 #include <queue.h>
 #include <debug.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/semaphore.h>
 #include <nuttx/spi/spi.h>
 
 #include <arch/board/board.h>
@@ -286,7 +286,7 @@ struct stm32_i2s_s
 {
   struct i2s_dev_s  dev;          /* Externally visible I2S interface */
   uintptr_t         base;         /* I2S controller register base address */
-  sem_t             exclsem;      /* Assures mutually exclusive acess to I2S */
+  sem_t             exclsem;      /* Assures mutually exclusive access to I2S */
   bool              initialized;  /* Has I2S interface been initialized */
   uint8_t           datalen;      /* Data width (8 or 16) */
 #ifdef CONFIG_DEBUG_FEATURES

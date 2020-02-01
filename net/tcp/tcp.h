@@ -668,6 +668,22 @@ void tcp_lost_connection(FAR struct socket *psock,
                          FAR struct devif_callback_s *cb, uint16_t flags);
 
 /****************************************************************************
+ * Name: tcp_close
+ *
+ * Description:
+ *   Break any current TCP connection
+ *
+ * Input Parameters:
+ *   psock - An instance of the internal socket structure.
+ *
+ * Assumptions:
+ *   Called from normal user-level logic
+ *
+ ****************************************************************************/
+
+int tcp_close(FAR struct socket *psock);
+
+/****************************************************************************
  * Name: tcp_ipv4_select
  *
  * Description:
@@ -1250,6 +1266,30 @@ int tcp_backlogdelete(FAR struct tcp_conn_s *conn,
 
 int psock_tcp_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
                      FAR socklen_t *addrlen, FAR void **newconn);
+
+/****************************************************************************
+ * Name: psock_tcp_recvfrom
+ *
+ * Description:
+ *   Perform the recvfrom operation for a TCP/IP SOCK_STREAM
+ *
+ * Input Parameters:
+ *   psock  Pointer to the socket structure for the SOCK_DRAM socket
+ *   buf    Buffer to receive data
+ *   len    Length of buffer
+ *   from   INET address of source (may be NULL)
+ *
+ * Returned Value:
+ *   On success, returns the number of characters received.  On  error,
+ *   -errno is returned (see recvfrom for list of errnos).
+ *
+ * Assumptions:
+ *
+ ****************************************************************************/
+
+ssize_t psock_tcp_recvfrom(FAR struct socket *psock, FAR void *buf,
+                           size_t len, FAR struct sockaddr *from,
+                           FAR socklen_t *fromlen);
 
 /****************************************************************************
  * Name: psock_tcp_send

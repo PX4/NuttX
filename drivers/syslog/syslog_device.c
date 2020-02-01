@@ -47,13 +47,13 @@
 #include <string.h>
 #include <sched.h>
 #include <fcntl.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <assert.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/fs/fs.h>
+#include <nuttx/semaphore.h>
 #include <nuttx/syslog/syslog.h>
 
 #include "syslog.h"
@@ -699,4 +699,3 @@ int syslog_dev_flush(void)
 
   return OK;
 }
-

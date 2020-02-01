@@ -93,8 +93,8 @@
  * only a referenced is passed to get the state from the TCB.
  */
 
-#define up_savestate(regs)    up_copystate(regs, (uint32_t*)g_current_regs)
-#define up_restorestate(regs) (g_current_regs = regs)
+#define up_savestate(regs)    up_copystate(regs, (uint32_t*)CURRENT_REGS)
+#define up_restorestate(regs) (CURRENT_REGS = regs)
 
 /****************************************************************************
  * Public Types
@@ -109,11 +109,27 @@ typedef void (*up_vector_t)(void);
  ****************************************************************************/
 
 #ifndef __ASSEMBLY__
-/* This holds a references to the current interrupt level register storage
- * structure.  If is non-NULL only during interrupt processing.
+/* g_current_regs holds a references to the current interrupt level
+ * register storage structure.  It is non-NULL only during interrupt
+ * processing.  Access to g_current_regs must be through the macro
+ * CURRENT_REGS for portability.
  */
 
-extern volatile uint32_t *g_current_regs;
+#ifdef CONFIG_SMP
+/* For the case of architectures with multiple CPUs, then there must be one
+ * such value for each processor that can receive an interrupt.
+ */
+
+int up_cpu_index(void); /* See include/nuttx/arch.h */
+extern volatile uint32_t *g_current_regs[CONFIG_SMP_NCPUS];
+#  define CURRENT_REGS (g_current_regs[up_cpu_index()])
+
+#else
+
+extern volatile uint32_t *g_current_regs[1];
+#  define CURRENT_REGS (g_current_regs[0])
+
+#endif
 
 /* This is the beginning of heap as provided from up_head.S. This is the
  * first address in DRAM after the loaded program+bss+idle stack.  The end
@@ -163,11 +179,12 @@ extern uint32_t _bmxdupba_address;  /* BMX register setting */
  ****************************************************************************/
 
 /****************************************************************************
- * Public Functions
+ * Public Function Prototypes
  ****************************************************************************/
 
 #ifndef __ASSEMBLY__
 /* Common Functions *********************************************************/
+
 /* Common functions define in arch/mips/src/common.  These may be replaced
  * with chip-specific functions of the same name if needed.  See also
  * functions prototyped in include/nuttx/arch.h.
@@ -199,6 +216,7 @@ void up_dumpstate(void);
 #endif
 
 /* Common MIPS32 functions defined in arch/mips/src/MIPS32 */
+
 /* IRQs */
 
 uint32_t *up_doirq(int irq, uint32_t *regs);
@@ -212,7 +230,9 @@ int up_swint0(int irq, FAR void *context, FAR void *arg);
 void up_sigdeliver(void);
 
 /* Chip-specific functions **************************************************/
+
 /* Chip specific functions defined in arch/mips/src/<chip> */
+
 /* IRQs */
 
 void up_irqinitialize(void);
@@ -264,4 +284,4 @@ void up_usbuninitialize(void);
 #endif
 
 #endif /* __ASSEMBLY__ */
-#endif  /* __ARCH_MIPS_SRC_COMMON_UP_INTERNAL_H */
+#endif /* __ARCH_MIPS_SRC_COMMON_UP_INTERNAL_H */

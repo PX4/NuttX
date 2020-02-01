@@ -49,7 +49,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <debug.h>
 
@@ -1439,4 +1438,3 @@ FAR struct audio_lowerhalf_s *
 }
 
 #endif /* CONFIG_AUDIO && CONFIG_AUDIO_FORMAT_PCM */
-

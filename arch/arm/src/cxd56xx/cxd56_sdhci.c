@@ -44,7 +44,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <semaphore.h>
 #include <string.h>
 #include <assert.h>
 #include <debug.h>
@@ -59,6 +58,7 @@
 #include <nuttx/mmcsd.h>
 #include <nuttx/kmalloc.h>
 #include <nuttx/irq.h>
+#include <nuttx/semaphore.h>
 
 #include <arch/board/board.h>
 
@@ -506,7 +506,7 @@ struct cxd56_sdiodev_s g_sdhcdev =
       .recvR3           = cxd56_sdio_recvshort,
       .recvR4           = cxd56_sdio_recvshort,
       .recvR5           = cxd56_sdio_recvshort,
-      .recvR5           = cxd56_sdio_recvshortcrc,
+      .recvR6           = cxd56_sdio_recvshortcrc,
       .recvR7           = cxd56_sdio_recvshort,
       .waitenable       = cxd56_sdio_waitenable,
       .eventwait        = cxd56_sdio_eventwait,

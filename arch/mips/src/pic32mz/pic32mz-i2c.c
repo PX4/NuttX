@@ -44,7 +44,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <debug.h>
 
@@ -1941,4 +1940,3 @@ int pic32mz_i2cbus_uninitialize(FAR struct i2c_master_s *dev)
 }
 
 #endif /* CONFIG_PIC32MZ_I2C */
-

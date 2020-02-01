@@ -43,7 +43,6 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <assert.h>
 #include <queue.h>
@@ -56,6 +55,7 @@
 #include <nuttx/wqueue.h>
 #include <nuttx/audio/audio.h>
 #include <nuttx/audio/i2s.h>
+#include <nuttx/semaphore.h>
 
 #include "stm32l4_dma.h"
 #include "stm32l4_gpio.h"
@@ -144,7 +144,7 @@ struct stm32l4_sai_s
 {
   struct i2s_dev_s dev;        /* Externally visible I2S interface */
   uintptr_t base;              /* SAI block register base address */
-  sem_t exclsem;               /* Assures mutually exclusive acess to SAI */
+  sem_t exclsem;               /* Assures mutually exclusive access to SAI */
   uint32_t frequency;          /* SAI clock frequency */
   uint32_t syncen;             /* Synchronization setting */
 #ifdef CONFIG_STM32L4_SAI_DMA

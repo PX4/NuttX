@@ -174,7 +174,7 @@ static inline void sched_dupsockets(FAR struct task_tcb_s *tcb)
         {
           /* Yes... duplicate it for the child */
 
-          net_clone(&parent[i], &child[i]);
+          psock_dup2(&parent[i], &child[i]);
         }
     }
 }
@@ -239,4 +239,3 @@ int group_setuptaskfiles(FAR struct task_tcb_s *tcb)
   return OK;
 #endif
 }
-

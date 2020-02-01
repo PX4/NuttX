@@ -41,12 +41,12 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <semaphore.h>
 #include <debug.h>
 #include <errno.h>
 
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
+#include <nuttx/semaphore.h>
 
 #include "up_arch.h"
 #include "up_internal.h"
@@ -801,4 +801,4 @@ uint32_t stm32_dma_intget(unsigned int chndx)
 
   return dmabase_getreg(dmach, STM32_DMA_ISR_OFFSET) & DMA_ISR_CHAN_MASK(dmach->chan);
 }
-#endif  /* CONFIG_ARCH_HIPRI_INTERRUPT */
+#endif /* CONFIG_ARCH_HIPRI_INTERRUPT */

@@ -301,6 +301,22 @@ int udp_bind(FAR struct udp_conn_s *conn, FAR const struct sockaddr *addr);
 int udp_connect(FAR struct udp_conn_s *conn, FAR const struct sockaddr *addr);
 
 /****************************************************************************
+ * Name: udp_close
+ *
+ * Description:
+ *   Break any current UDP connection
+ *
+ * Input Parameters:
+ *   psock - An instance of the internal socket structure.
+ *
+ * Assumptions:
+ *   Called from normal user-level logic
+ *
+ ****************************************************************************/
+
+int udp_close(FAR struct socket *psock);
+
+/****************************************************************************
  * Name: udp_ipv4_select
  *
  * Description:
@@ -622,15 +638,28 @@ uint16_t udp_callback(FAR struct net_driver_s *dev,
                       FAR struct udp_conn_s *conn, uint16_t flags);
 
 /****************************************************************************
- * Name: psock_udp_send
+ * Name: psock_udp_recvfrom
  *
  * Description:
- *   Implements send() for connected UDP sockets
+ *   Perform the recvfrom operation for a UDP SOCK_DGRAM
+ *
+ * Input Parameters:
+ *   psock  Pointer to the socket structure for the SOCK_DRAM socket
+ *   buf    Buffer to receive data
+ *   len    Length of buffer
+ *   from   INET address of source (may be NULL)
+ *
+ * Returned Value:
+ *   On success, returns the number of characters received.  On  error,
+ *   -errno is returned (see recvfrom for list of errnos).
+ *
+ * Assumptions:
  *
  ****************************************************************************/
 
-ssize_t psock_udp_send(FAR struct socket *psock, FAR const void *buf,
-                       size_t len);
+ssize_t psock_udp_recvfrom(FAR struct socket *psock, FAR void *buf,
+                           size_t len, FAR struct sockaddr *from,
+                           FAR socklen_t *fromlen);
 
 /****************************************************************************
  * Name: psock_udp_sendto

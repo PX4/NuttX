@@ -48,9 +48,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <queue.h>
-#include <semaphore.h>
 
 #include <nuttx/fs/fs.h>
+#include <nuttx/semaphore.h>
 #include <nuttx/usb/storage.h>
 #include <nuttx/usb/usbdev.h>
 
@@ -224,7 +224,7 @@
 #  define USBMSC_SELFPOWERED (0)
 #endif
 
-#ifdef  CONFIG_USBDEV_REMOTEWAKEUP
+#ifdef CONFIG_USBDEV_REMOTEWAKEUP
 #  define USBMSC_REMOTEWAKEUP USB_CONFIG_ATTR_WAKEUP
 #else
 #  define USBMSC_REMOTEWAKEUP (0)

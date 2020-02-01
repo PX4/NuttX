@@ -43,7 +43,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <semaphore.h>
 #include <string.h>
 #include <errno.h>
 #include <debug.h>
@@ -1244,4 +1243,3 @@ int up_putc(int ch)
 }
 
 #endif /* USE_SERIALDRIVER */
-

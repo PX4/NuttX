@@ -48,7 +48,6 @@
 #include <stdbool.h>
 #include <string.h>
 #include <fcntl.h>
-#include <semaphore.h>
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
@@ -62,6 +61,7 @@
 #include <nuttx/fs/dirent.h>
 #include <nuttx/fs/ioctl.h>
 #include <nuttx/net/net.h>
+#include <nuttx/semaphore.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -1370,8 +1370,6 @@ static int userfs_bind(FAR struct inode *blkdriver, FAR const void *data,
       goto errout_with_alloc;
     }
 
-  priv->psock.s_crefs = 1;
-
   /* Bind the socket to the client address */
 
   client.sin_family      = AF_INET;
@@ -1385,8 +1383,6 @@ static int userfs_bind(FAR struct inode *blkdriver, FAR const void *data,
       ferr("ERROR: bind() failed: %d\n", ret);
       goto errout_with_psock;
     }
-
-  priv->psock.s_crefs = 1;
 
   /* Mounted! */
 

@@ -86,7 +86,7 @@
 #  define CONFIG_USBDEV_EP0_MAXSIZE 64
 #endif
 
-#ifndef  CONFIG_USBDEV_MAXPOWER
+#ifndef CONFIG_USBDEV_MAXPOWER
 #  define CONFIG_USBDEV_MAXPOWER 100  /* mA */
 #endif
 
@@ -2872,4 +2872,3 @@ int usbdev_unregister(struct usbdevclass_driver_s *driver)
   g_usbdev.driver = NULL;
   return OK;
 }
-

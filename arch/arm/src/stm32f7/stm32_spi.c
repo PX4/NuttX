@@ -55,7 +55,7 @@
  *      mmcsd_spislotinitialize(), for example, will bind the SPI driver to
  *      the SPI MMC/SD driver).
  *
- ****************************************************c*******************************/
+ ************************************************************************************/
 
 /************************************************************************************
  * Included Files
@@ -67,7 +67,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <debug.h>
 

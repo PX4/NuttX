@@ -55,7 +55,6 @@
 #include <nuttx/clock.h>
 #include <nuttx/sched.h>
 #include <nuttx/signal.h>
-#include <nuttx/semaphore.h>
 #include <nuttx/fs/fs.h>
 #include <nuttx/serial/serial.h>
 #include <nuttx/fs/ioctl.h>
@@ -1798,4 +1797,3 @@ void uart_reset_sem(FAR uart_dev_t *dev)
   nxsem_reset(&dev->recv.sem, 1);
   nxsem_reset(&dev->pollsem,  1);
 }
-

@@ -48,10 +48,10 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <semaphore.h>
 
 #include <nuttx/mtd/mtd.h>
 #include <nuttx/fs/nxffs.h>
+#include <nuttx/semaphore.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -1136,5 +1136,3 @@ int nxffs_stat(FAR struct inode *mountpt, FAR const char *relpath,
 int nxffs_unlink(FAR struct inode *mountpt, FAR const char *relpath);
 
 #endif /* __FS_NXFFS_NXFFS_H */
-
-

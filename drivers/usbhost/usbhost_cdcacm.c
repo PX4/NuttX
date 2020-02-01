@@ -44,7 +44,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <semaphore.h>
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
@@ -55,6 +54,7 @@
 #include <nuttx/wqueue.h>
 #include <nuttx/clock.h>
 #include <nuttx/fs/ioctl.h>
+#include <nuttx/semaphore.h>
 #include <nuttx/serial/serial.h>
 
 #include <nuttx/usb/usb.h>
@@ -2833,4 +2833,4 @@ int usbhost_cdcacm_initialize(void)
   return usbhost_registerclass(&g_cdcacm);
 }
 
-#endif  /* CONFIG_USBHOST_CDCACM */
+#endif /* CONFIG_USBHOST_CDCACM */

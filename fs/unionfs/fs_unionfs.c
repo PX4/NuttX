@@ -49,7 +49,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
-#include <semaphore.h>
 #include <assert.h>
 #include <errno.h>
 #include <fixedmath.h>
@@ -60,6 +59,7 @@
 #include <nuttx/fs/unionfs.h>
 #include <nuttx/fs/dirent.h>
 #include <nuttx/fs/ioctl.h>
+#include <nuttx/semaphore.h>
 
 #include "inode/inode.h"
 
@@ -2278,7 +2278,7 @@ static int unionfs_unlink(FAR struct inode *mountpt,
 
   else
     {
-      /* Check if the file exists with with name on file system 2.  The only
+      /* Check if the file exists with name on file system 2.  The only
        * reason that we check here is so that we can return the more
        * meaningful -ENOSYS if file system 2 is a read-only file system.
        */

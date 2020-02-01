@@ -44,7 +44,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <assert.h>
 #include <queue.h>
@@ -59,6 +58,7 @@
 #include <nuttx/wqueue.h>
 #include <nuttx/audio/audio.h>
 #include <nuttx/audio/i2s.h>
+#include <nuttx/semaphore.h>
 
 #include "up_internal.h"
 #include "up_arch.h"
@@ -427,7 +427,7 @@ struct sam_ssc_s
 {
   struct i2s_dev_s dev;        /* Externally visible I2S interface */
   uintptr_t base;              /* SSC controller register base address */
-  sem_t exclsem;               /* Assures mutually exclusive acess to SSC */
+  sem_t exclsem;               /* Assures mutually exclusive access to SSC */
   uint8_t datalen;             /* Data width (8, 16, or 32) */
 #ifdef CONFIG_DEBUG_FEATURES
   uint8_t align;               /* Log2 of data width (0, 1, or 3) */

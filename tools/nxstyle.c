@@ -844,15 +844,24 @@ int main(int argc, char **argv, char **envp)
                      {
                        if (g_section != PRE_PROCESSOR_DEFINITIONS)
                          {
-                           /* Only a warning because there is some usage of
-                            * define outside the Pre-processor Definitions
-                            * section which is justifiable.  Should be
-                            * manually checked.
+                           /* A complication is the header files always have
+                            * the idempotence guard definitions before the
+                            * "Pre-processor Definitions section".
                             */
 
-                           WARN("#define outside of 'Pre-processor "
-                                "Definitions' section",
-                                lineno, ii);
+                           if (g_section == NO_SECTION &&
+                               g_file_type != C_HEADER)
+                             {
+                               /* Only a warning because there is some usage
+                                * of define outside the Pre-processor
+                                * Definitions section which is justifiable.
+                                * Should be manually checked.
+                                */
+
+                               WARN("#define outside of 'Pre-processor "
+                                    "Definitions' section",
+                                    lineno, ii);
+                             }
                          }
                      }
 
@@ -2260,12 +2269,22 @@ int main(int argc, char **argv, char **envp)
             }
           else if (line[indent] == '{')
             {
+              /* Check for left brace in first column, but preceded by a
+               * blank line.  Should never happen (but could happen with
+               * internal compound statements).
+               */
+
+              if (indent == 0 && lineno == blank_lineno + 1)
+                {
+                  ERROR("Blank line before opening left brace", lineno, indent);
+                }
+
               /* REVISIT:  Possible false alarms in compound statements
                * without a preceding conditional.  That usage often violates
                * the coding standard.
                */
 
-              if (!bfunctions && (indent & 1) != 0)
+              else if (!bfunctions && (indent & 1) != 0)
                 {
                   ERROR("Bad left brace alignment", lineno, indent);
                 }

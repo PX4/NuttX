@@ -47,7 +47,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <semaphore.h>
 #include <string.h>
 #include <errno.h>
 #include <queue.h>
@@ -947,7 +946,7 @@ static int16_t usbclass_mkcfgdesc(uint8_t *buf)
   memcpy(cfgdesc, &g_cfgdesc, USB_SIZEOF_CFGDESC);
   buf += USB_SIZEOF_CFGDESC;
 
-  /*  Copy the canned interface descriptor */
+  /* Copy the canned interface descriptor */
 
   memcpy(buf, &g_ifdesc, USB_SIZEOF_IFDESC);
   buf += USB_SIZEOF_IFDESC;

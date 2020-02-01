@@ -43,7 +43,6 @@
 #include <sys/types.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <semaphore.h>
 #include <errno.h>
 #include <assert.h>
 #include <queue.h>
@@ -206,7 +205,7 @@ struct stm32f7_sai_s
 {
   struct i2s_dev_s dev;        /* Externally visible I2S interface */
   uintptr_t base;              /* SAI block register base address */
-  sem_t exclsem;               /* Assures mutually exclusive acess to SAI */
+  sem_t exclsem;               /* Assures mutually exclusive access to SAI */
   uint32_t frequency;          /* SAI clock frequency */
   uint32_t syncen;             /* Synchronization setting */
 #ifdef CONFIG_STM32F7_SAI_DMA

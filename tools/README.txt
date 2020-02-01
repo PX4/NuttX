@@ -313,7 +313,7 @@ nxstyle.c
   standard.  This program is completely ignorant of C syntax; it simply
   performs crude pattern matching to check the file.
 
-  Prints formatted messages that are classified as info, warn, error, 
+  Prints formatted messages that are classified as info, warn, error,
   fatal. In a parsable format that can be used by editors and IDEs.
 
   Usage: nxstyle [-m <excess>] [-v <level>] [-r <start,count>] <filename>
@@ -887,20 +887,19 @@ sethost.sh
 
   Or, if you are on a Windows/Cygwin 64-bit platform:
 
-    $ tools/sethost.sh -w
+    $ tools/sethost.sh -c
 
   Other options are available:
 
     $ ./sethost.sh -h
 
-    USAGE: ./sethost.sh [-w|l|m] [-c|u|g|n] [-32|64] [<config>]
+    USAGE: ./sethost.sh [-l|m|c|u|g|n] [<config>]
            ./sethost.sh -h
 
     Where:
-      -w|l|m selects Windows (w), Linux (l), or macOS (m).  Default: Linux
-      -c|u|g|n selects Windows environment option:  Cygwin (c), Ubuntu under
-         Windows 10 (u), MSYS/MSYS2 (g) or Windows native (n).  Default Cygwin
-      -32|64 selects 32- or 64-bit host.  Default 64
+      -l|m|c|u|g|n selects Linux (l), macOS (m), Cygwin (c),
+         Ubuntu under Windows 10 (u), MSYS/MSYS2 (g)
+         or Windows native (n).  Default Linux
       -h will show this help test and terminate
       <config> selects configuration file.  Default: .config
 
@@ -936,16 +935,15 @@ testbuild.sh
 
     $ ./testbuild.sh -h
 
-    USAGE: ./testbuild.sh [-w|l] [-c|u|n] [-s] [-a <appsdir>] [-n <nxdir>] <testlist-file>
+    USAGE: ./testbuild.sh [-l|m|c|u|g|n] [-d] [-x] [-j <ncpus>] [-a <appsdir>] [-t <topdir>] <testlist-file>
            ./testbuild.sh -h
 
     Where:
-      -w|l selects Windows (w) or Linux (l).  Default: Linux
-      -c|u|n selects Windows environment option:  Cygwin (c), Ubuntu under
-         Windows 10 (u), or Windows native (n).  Default Cygwin
-      -s Use C++ unsigned long size_t in new operator. Default unsigned int
+      -l|m|c|u|g|n selects Linux (l), macOS (m), Cygwin (c),
+         Ubuntu under Windows 10 (u), or Windows native (n).  Default Linux
       -a <appsdir> provides the relative path to the apps/ directory.  Default ../apps
-      -n <nxdir> provides the relative path to the NxWidgets/ directory.  Default ../NxWidgets
+      -t <topdir> provides the absolute path to top nuttx/ directory.  Default $PWD/../nuttx
+      -j <ncpus> passed on to make.  Default:  No -j make option
       -d enables script debug output
       -x exit on build failures
       -h will show this help test and terminate
@@ -956,8 +954,8 @@ testbuild.sh
 
   These script needs two pieces of information.
 
-    a. A description of the platform that you are testing on.  This
-       description is provided by the optional -w, -l, -c, and -n options.
+    a. A description of the platform that you are testing on.  This description
+       is provided by the optional -l, -m, -c, -u, -g and -n options.
     b. A list of configurations to build.  That list is provided by a test
        list file.  The final, non-optional parameter, <testlist-file>,
        provides the path to that file.
@@ -965,21 +963,20 @@ testbuild.sh
   The test list file is a sequence of build descriptons, one per line.  One
   build descriptions consists of two comma separated values.  For example:
 
-    stm32f429i-disco/nsh,CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIL
+    stm32f429i-disco:nsh,CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIL
+    /arm,CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIL
 
   The first value is the usual configuration description of the form
-  form <board-name>/<configuration-name> and must correspond to a
-  configuration in the nuttx/boards directory.
+  <board-name>:<configuration-name> or /<folder-name> and must correspond to a
+  configuration or folder in the nuttx/boards directory.
 
   The second value is valid name for a toolchain configuration to use
   when building the configuration.  The set of valid toolchain
   configuration names depends on the underlying architecture of the
   configured board.
 
-  NOTE: The environment variable APPSDIR should be set to the relative
-  path to the application directory when running this script like:
-
-    $ export APPSDIR=../apps
+  The prefix '-' can be used to skip a configruation:
+  -stm32f429i-disco/nsh,CONFIG_ARMV7M_TOOLCHAIN_GNU_EABIL
 
 uncrustify.cfg
 --------------
