@@ -924,8 +924,8 @@ bool stm32_dmacapable(uint32_t maddr, uint32_t count, uint32_t ccr)
    * ARMV7M_DCACHE_LINESIZE boundaries.
    */
 
-  if ((maddr & (ARMV7M_DCACHE_LINESIZE-1)) != 0 ||
-      ((mend + 1) & (ARMV7M_DCACHE_LINESIZE-1)) != 0)
+  if ((maddr & (ARMV7M_DCACHE_LINESIZE-1)) != 0) /* || PX4 hack for stm32f7 SPI DMA
+      ((mend + 1) & (ARMV7M_DCACHE_LINESIZE-1)) != 0) */
     {
       dmainfo("stm32_dmacapable: dcache unaligned maddr:0x%08x mend:0x%08x\n",
               maddr, mend);
