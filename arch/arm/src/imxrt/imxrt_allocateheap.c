@@ -228,6 +228,10 @@
 #  define REGION2_RAM_START    IMXRT_OCRAM_START
 #  define REGION2_RAM_SIZE     IMXRT_OCRAM_SIZE
 #  define IMXRT_OCRAM_ASSIGNED 1
+#elif defined(CONFIG_IMXRT_BOOTLOADER_HEAP)
+#  define REGION2_RAM_START    IMXRT_OCRAM2_BASE
+#  define REGION2_RAM_SIZE     (40 * 1024)
+#  define IMXRT_SDRAM_ASSIGNED 1
 #elif defined(CONFIG_IMXRT_SDRAM_HEAP) && !defined(IMXRT_SDRAM_ASSIGNED)
 #  define REGION2_RAM_START    (CONFIG_IMXRT_SDRAM_START + CONFIG_IMXRT_SDRAM_HEAPOFFSET)
 #  define REGION2_RAM_SIZE     (CONFIG_IMXRT_SDRAM_SIZE  - CONFIG_IMXRT_SDRAM_HEAPOFFSET)
@@ -380,6 +384,7 @@ void up_allocate_kheap(FAR void **heap_start, size_t *heap_size)
 #if CONFIG_MM_REGIONS > 1
 void up_addregion(void)
 {
+
   /* Add region 1 to the user heap */
 
   kumm_addregion((FAR void *)REGION1_RAM_START, REGION1_RAM_SIZE);
