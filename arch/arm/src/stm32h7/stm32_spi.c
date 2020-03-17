@@ -311,7 +311,7 @@ static void        spi_setbits(FAR struct spi_dev_s *dev, int nbits);
 static int         spi_hwfeatures(FAR struct spi_dev_s *dev,
                                   spi_hwfeatures_t features);
 #endif
-static uint32_t    spi_send(FAR struct spi_dev_s *dev, uint32_t wd);
+static uint16_t    spi_send(FAR struct spi_dev_s *dev, uint16_t wd);
 static void        spi_exchange(FAR struct spi_dev_s *dev,
                                 FAR const void *txbuffer, FAR void *rxbuffer,
                                 size_t nwords);
@@ -1596,7 +1596,7 @@ static int spi_hwfeatures(FAR struct spi_dev_s *dev,
  *
  ****************************************************************************/
 
-static uint32_t spi_send(FAR struct spi_dev_s *dev, uint32_t wd)
+static uint16_t spi_send(FAR struct spi_dev_s *dev, uint16_t wd)
 {
   FAR struct stm32_spidev_s *priv = (FAR struct stm32_spidev_s *)dev;
   uint32_t regval = 0;
@@ -1617,9 +1617,9 @@ static uint32_t spi_send(FAR struct spi_dev_s *dev, uint32_t wd)
    * frames, two bytes are received by a 16-bit read of the data register!
    */
 
-  if (spi_9to16bitmode(priv))
+  if (priv->nbits > 8)
     {
-      spi_writeword(priv, (uint16_t)(wd & 0xffff));
+      spi_writeword(priv, wd);
       ret = spi_readword(priv);
     }
   else
