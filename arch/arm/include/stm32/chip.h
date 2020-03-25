@@ -1719,8 +1719,8 @@
 #  define STM32_NATIM                    2   /* Two advanced timers TIM1 and TIM8 */
 #  define STM32_NGTIM                    4   /* 16-bit general timers TIM3 and 4 with DMA
                                               * 32-bit general timers TIM2 and 5 with DMA */
-#  define STM32_NGTIMNDMA                6   /* 16-bit general timers TIM9-14 without DMA */
-#  define STM32_NBTIM                    2   /* 2 basic timers TIM6 and TIM7 */
+#  define STM32_NGTIMNDMA                4   /* 16-bit general timers 9, 12, 13, and 14 without DMA */
+#  define STM32_NBTIM                    0   /* 2 basic timers TIM6 and TIM7 */
 #  define STM32_NDMA                     2   /* DMA1-2 with 8 streams each*/
 #  define STM32_NSPI                     5   /* SPI1-5 */
 #  define STM32_NI2S                     3   /* I2S1-3 */
