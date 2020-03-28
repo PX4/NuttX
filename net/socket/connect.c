@@ -156,6 +156,15 @@ int psock_connect(FAR struct socket *psock, FAR const struct sockaddr *addr,
       return ret;
     }
 
+  if (addr != NULL)
+    {
+      psock->s_flags |= _SF_CONNECTED;
+    }
+  else
+    {
+      psock->s_flags &= ~_SF_CONNECTED;
+    }
+
   return OK;
 }
 
@@ -235,7 +244,7 @@ int connect(int sockfd, FAR const struct sockaddr *addr, socklen_t addrlen)
 
   /* accept() is a cancellation point */
 
-  (void)enter_cancellation_point();
+  enter_cancellation_point();
 
   /* Get the underlying socket structure */
 
@@ -246,7 +255,7 @@ int connect(int sockfd, FAR const struct sockaddr *addr, socklen_t addrlen)
   ret = psock_connect(psock, addr, addrlen);
   if (ret < 0)
     {
-      set_errno(-ret);
+      _SO_SETERRNO(psock, -ret);
       ret = ERROR;
     }
 

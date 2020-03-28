@@ -1,7 +1,7 @@
 /****************************************************************************
  * net/socket/recvfrom.c
  *
- *   Copyright (C) 2007-2009, 2011-2017 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007-2009, 2011-2017, 2019 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -88,12 +88,10 @@ ssize_t psock_recvfrom(FAR struct socket *psock, FAR void *buf, size_t len,
                        int flags, FAR struct sockaddr *from,
                        FAR socklen_t *fromlen)
 {
-  ssize_t ret;
-
   /* Verify that non-NULL pointers were passed */
 
 #ifdef CONFIG_DEBUG_FEATURES
-  if (!buf)
+  if (buf == NULL)
     {
       return -EINVAL;
     }
@@ -111,10 +109,6 @@ ssize_t psock_recvfrom(FAR struct socket *psock, FAR void *buf, size_t len,
       return -EBADF;
     }
 
-  /* Set the socket state to receiving */
-
-  psock->s_flags = _SS_SETSTATE(psock->s_flags, _SF_RECV);
-
   /* Let logic specific to this address family handle the recvfrom()
    * operation.
    */
@@ -122,12 +116,7 @@ ssize_t psock_recvfrom(FAR struct socket *psock, FAR void *buf, size_t len,
   DEBUGASSERT(psock->s_sockif != NULL &&
              psock->s_sockif->si_recvfrom != NULL);
 
-  ret = psock->s_sockif->si_recvfrom(psock, buf, len, flags, from, fromlen);
-
-  /* Set the socket state to idle */
-
-  psock->s_flags = _SS_SETSTATE(psock->s_flags, _SF_IDLE);
-  return ret;
+  return psock->s_sockif->si_recvfrom(psock, buf, len, flags, from, fromlen);
 }
 
 /****************************************************************************
@@ -226,18 +215,23 @@ ssize_t nx_recvfrom(int sockfd, FAR void *buf, size_t len, int flags,
 ssize_t recvfrom(int sockfd, FAR void *buf, size_t len, int flags,
                  FAR struct sockaddr *from, FAR socklen_t *fromlen)
 {
+  FAR struct socket *psock;
   ssize_t ret;
 
   /* recvfrom() is a cancellation point */
 
-  (void)enter_cancellation_point();
+  enter_cancellation_point();
 
-  /* Let nx_recvfrom and psock_recvfrom() do all of the work */
+  /* Get the underlying socket structure */
 
-  ret = nx_recvfrom(sockfd, buf, len, flags, from, fromlen);
+  psock = sockfd_socket(sockfd);
+
+  /* Let psock_recvfrom() do all of the work */
+
+  ret = psock_recvfrom(psock, buf, len, flags, from, fromlen);
   if (ret < 0)
     {
-      set_errno(-ret);
+      _SO_SETERRNO(psock, -ret);
       ret = ERROR;
     }
 

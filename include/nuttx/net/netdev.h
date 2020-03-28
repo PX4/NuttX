@@ -51,10 +51,7 @@
 
 #include <sys/ioctl.h>
 #include <stdint.h>
-
-#ifdef CONFIG_NET_MCASTGROUP
-#  include <queue.h>
-#endif
+#include <queue.h>
 
 #include <net/if.h>
 #include <net/ethernet.h>
@@ -192,7 +189,7 @@ struct netdev_statistics_s
 
   /* Other status */
 
-  uint32_t errors;         /* Total umber of errors */
+  uint32_t errors;         /* Total number of errors */
 };
 #endif
 
@@ -308,14 +305,14 @@ struct net_driver_s
    * or written to in the packet buffer.
    */
 
-  uint8_t *d_appdata;
+  FAR uint8_t *d_appdata;
 
 #ifdef CONFIG_NET_TCPURGDATA
   /* This pointer points to any urgent TCP data that has been received. Only
    * present if compiled with support for urgent data (CONFIG_NET_TCPURGDATA).
    */
 
-  uint8_t *d_urgdata;
+  FAR uint8_t *d_urgdata;
 
   /* Length of the (received) urgent data */
 
@@ -372,7 +369,6 @@ struct net_driver_s
    *      socket-less packet transfers.  There events include:
    *
    *        ICMP data receipt:     ICMP_NEWDATA, ICMPv6_NEWDATA
-   *        ICMP ECHO replies:     ICMP_ECHOREPLY, ICMPv6_ECHOREPLY
    *        Driver Tx poll events: ARP_POLL, ICMP_POLL. ICMPv6_POLL
    *        IP Forwarding:         IPFWD_POLL
    *
@@ -401,7 +397,7 @@ struct net_driver_s
 
   /* Drivers may attached device-specific, private information */
 
-  void *d_private;
+  FAR void *d_private;
 };
 
 typedef CODE int (*devif_poll_callback_t)(FAR struct net_driver_s *dev);
@@ -545,7 +541,8 @@ int sixlowpan_input(FAR struct radio_driver_s *ieee,
  ****************************************************************************/
 
 int devif_poll(FAR struct net_driver_s *dev, devif_poll_callback_t callback);
-int devif_timer(FAR struct net_driver_s *dev, devif_poll_callback_t callback);
+int devif_timer(FAR struct net_driver_s *dev, int delay,
+                devif_poll_callback_t callback);
 
 /****************************************************************************
  * Name: neighbor_out
@@ -588,7 +585,7 @@ void neighbor_out(FAR struct net_driver_s *dev);
  *
  * Returned Value:
  *   Zero is returned if the packet don't loop back to ourself, otherwise
- *   a no zero value is returned.
+ *   a non-zero value is returned.
  *
  ****************************************************************************/
 
@@ -694,27 +691,6 @@ void net_incr32(FAR uint8_t *op32, uint16_t op16);
 
 #ifdef CONFIG_NET_IPv4
 uint16_t ipv4_chksum(FAR struct net_driver_s *dev);
-#endif
-
-/****************************************************************************
- * Name: ipv6_chksum
- *
- * Description:
- *   Calculate the IPv6 header checksum of the packet header in d_buf.
- *
- *   The IPv6 header checksum is the Internet checksum of the 40 bytes of
- *   the IPv6 header.
- *
- *   If CONFIG_NET_ARCH_CHKSUM is defined, then this function must be
- *   provided by architecture-specific logic.
- *
- * Returned Value:
- *   The IPv6 header checksum of the IPv6 header in the d_buf buffer.
- *
- ****************************************************************************/
-
-#ifdef CONFIG_NET_IPv6
-uint16_t ipv6_chksum(FAR struct net_driver_s *dev);
 #endif
 
 /****************************************************************************

@@ -48,8 +48,8 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* The socket()domain parameter specifies a communication domain; this selects
- * the protocol family which will be used for communication.
+/* The socket()domain parameter specifies a communication domain; this
+ * selects the protocol family which will be used for communication.
  */
 
 /* Supported Protocol Families */
@@ -62,6 +62,7 @@
 #define PF_NETLINK    16         /* Netlink IPC socket */
 #define PF_ROUTE      PF_NETLINK /* 4.4BSD Compatibility*/
 #define PF_PACKET     17         /* Low level packet interface */
+#define PF_CAN        29         /* Controller Area Network (SocketCAN) */
 #define PF_BLUETOOTH  31         /* Bluetooth sockets */
 #define PF_IEEE802154 36         /* Low level IEEE 802.15.4 radio frame interface */
 #define PF_PKTRADIO   64         /* Low level packet radio interface */
@@ -78,6 +79,7 @@
 #define AF_NETLINK     PF_NETLINK
 #define AF_ROUTE       PF_ROUTE
 #define AF_PACKET      PF_PACKET
+#define AF_CAN         PF_CAN
 #define AF_BLUETOOTH   PF_BLUETOOTH
 #define AF_IEEE802154  PF_IEEE802154
 #define AF_PKTRADIO    PF_PKTRADIO
@@ -86,28 +88,28 @@
  * the communication semantics.
  */
 
-#define SOCK_UNSPEC    0 /* Unspecified socket type */
-#define SOCK_STREAM    1 /* Provides sequenced, reliable, two-way,
-                          * connection-based byte streams. An out-of-band data
-                          * transmission mechanism may be supported.
-                          */
-#define SOCK_DGRAM     2 /* Supports  datagrams (connectionless, unreliable
-                          * messages of a fixed maximum length).
-                          */
-#define SOCK_RAW       3 /* Provides raw network protocol access. */
-#define SOCK_RDM       4 /* Provides a reliable datagram layer that does not
-                          * guarantee ordering.
-                          */
-#define SOCK_SEQPACKET 5 /* Provides a sequenced, reliable, two-way
-                          * connection-based data transmission path for
-                          * datagrams of fixed maximum length; a consumer is
-                          * required to read an entire packet with each read
-                          * system call.
-                          */
+#define SOCK_UNSPEC    0  /* Unspecified socket type */
+#define SOCK_STREAM    1  /* Provides sequenced, reliable, two-way,
+                           * connection-based byte streams. An out-of-band
+                           * data transmission mechanism may be supported.
+                           */
+#define SOCK_DGRAM     2  /* Supports  datagrams (connectionless, unreliable
+                           * messages of a fixed maximum length).
+                           */
+#define SOCK_RAW       3  /* Provides raw network protocol access. */
+#define SOCK_RDM       4  /* Provides a reliable datagram layer that does not
+                           * guarantee ordering.
+                           */
+#define SOCK_SEQPACKET 5  /* Provides a sequenced, reliable, two-way
+                           * connection-based data transmission path for
+                           * datagrams of fixed maximum length; a consumer is
+                           * required to read an entire packet with each read
+                           * system call.
+                           */
 #define SOCK_PACKET    10 /* Obsolete and should not be used in new programs */
 
 /* Bits in the FLAGS argument to `send', `recv', et al. These are the bits
- * recognized by Linus, not all are supported by NuttX.
+ * recognized by Linux, not all are supported by NuttX.
  */
 
 #define MSG_OOB        0x0001 /* Process out-of-band data.  */
@@ -129,7 +131,7 @@
 
 /* Protocol levels supported by get/setsockopt(): */
 
-#define SOL_SOCKET      0 /* Only socket-level options supported */
+#define SOL_SOCKET       0 /* Only socket-level options supported */
 
 /* Socket-level options */
 
@@ -155,10 +157,10 @@
 #define SO_ERROR         4 /* Reports and clears error status (get only).
                             * arg: returns an integer value
                             */
-#define SO_KEEPALIVE     5 /* Keeps connections active by enabling the periodic
-                            * transmission of messages (get/set).
-                            * arg:  pointer to integer containing a boolean int
-                            * value
+#define SO_KEEPALIVE     5 /* Keeps connections active by enabling the
+                            * periodic transmission of messages (get/set).
+                            * arg:  pointer to integer containing a boolean
+                            * int value
                             */
 #define SO_LINGER        6 /* Lingers on a close() if data is present (get/set)
                             * arg: struct linger
@@ -192,13 +194,23 @@
                             * arg: integer value
                             */
 #define SO_SNDTIMEO     14 /* Sets the timeout value specifying the amount of
-                            * time that an output function blocks because flow
-                            * control prevents data from being sent(get/set).
+                            * time that an output function blocks because
+                            * flow control prevents data from being sent
+                            * (get/set).
                             * arg: struct timeval
                             */
 #define SO_TYPE         15 /* Reports the socket type (get only).
                             * return: int
                             */
+
+/* The options are unsupported but included for compatibility
+ * and portability
+ */
+
+#define SO_TIMESTAMP    29
+#define SO_SNDBUFFORCE  32
+#define SO_RCVBUFFORCE  33
+#define SO_RXQ_OVFL     40
 
 /* Protocol-level socket operations. */
 
@@ -210,6 +222,7 @@
 #define SOL_L2CAP       6 /* See options in include/netpacket/bluetooth.h */
 #define SOL_SCO         7 /* See options in include/netpacket/bluetooth.h */
 #define SOL_RFCOMM      8 /* See options in include/netpacket/bluetooth.h */
+#define SOL_CAN_RAW     9 /* See options in include/netpacket/can.h */
 
 /* Protocol-level socket options may begin with this value */
 
@@ -238,7 +251,7 @@
 #define CMSG_ALIGN(len) \
   (((len)+sizeof(long)-1) & ~(sizeof(long)-1))
 #define CMSG_DATA(cmsg) \
-  ((void *)((char *)(cmsg) + CMSG_ALIGN(sizeof(struct cmsghdr))))
+  ((FAR void *)((FAR char *)(cmsg) + CMSG_ALIGN(sizeof(struct cmsghdr))))
 #define CMSG_SPACE(len) \
   (CMSG_ALIGN(sizeof(struct cmsghdr)) + CMSG_ALIGN(len))
 #define CMSG_LEN(len)   \
@@ -254,14 +267,14 @@
  * Type Definitions
  ****************************************************************************/
 
- /* sockaddr_storage structure. This structure must be (1) large enough to
-  * accommodate all supported protocol-specific address structures, and (2)
-  * aligned at an appropriate boundary so that pointers to it can be cast
-  * as pointers to protocol-specific address structures and used to access
-  * the fields of those structures without alignment problems.
-  *
-  * REVISIT: sizeof(struct sockaddr_storge) should be 128 bytes.
-  */
+/* sockaddr_storage structure. This structure must be (1) large enough to
+ * accommodate all supported protocol-specific address structures, and (2)
+ * aligned at an appropriate boundary so that pointers to it can be cast
+ * as pointers to protocol-specific address structures and used to access
+ * the fields of those structures without alignment problems.
+ *
+ * REVISIT: sizeof(struct sockaddr_storge) should be 128 bytes.
+ */
 
 #ifdef CONFIG_NET_IPv6
 struct sockaddr_storage
@@ -298,11 +311,11 @@ struct linger
 
 struct msghdr
 {
-  void *msg_name;               /* Socket name */
+  FAR void *msg_name;           /* Socket name */
   int msg_namelen;              /* Length of name */
-  struct iovec *msg_iov;        /* Data blocks */
+  FAR struct iovec *msg_iov;    /* Data blocks */
   unsigned long msg_iovlen;     /* Number of blocks */
-  void *msg_control;            /* Per protocol magic (eg BSD file descriptor passing) */
+  FAR void *msg_control;        /* Per protocol magic (eg BSD file descriptor passing) */
   unsigned long msg_controllen; /* Length of cmsg list */
   unsigned int msg_flags;
 };
@@ -318,23 +331,25 @@ struct cmsghdr
  * Inline Functions
  ****************************************************************************/
 
-static inline struct cmsghdr *__cmsg_nxthdr(FAR void *__ctl,
-                                            unsigned int __size,
-                                            FAR struct cmsghdr *__cmsg)
+static inline FAR struct cmsghdr *__cmsg_nxthdr(FAR void *__ctl,
+                                                unsigned int __size,
+                                                FAR struct cmsghdr *__cmsg)
 {
   FAR struct cmsghdr *__ptr;
 
-  __ptr = (struct cmsghdr *)(((unsigned char *)__cmsg) + CMSG_ALIGN(__cmsg->cmsg_len));
-  if ((unsigned long)((char *)(__ptr + 1) - (char *)__ctl) > __size)
+  __ptr = (FAR struct cmsghdr *)
+          (((FAR char *)__cmsg) + CMSG_ALIGN(__cmsg->cmsg_len));
+
+  if ((unsigned long)((FAR char *)(__ptr + 1) - (FAR char *)__ctl) > __size)
     {
-      return (struct cmsghdr *)0;
+      return (FAR struct cmsghdr *)NULL;
     }
 
   return __ptr;
 }
 
-static inline struct cmsghdr *cmsg_nxthdr(FAR struct msghdr *__msg,
-                                          FAR struct cmsghdr *__cmsg)
+static inline FAR struct cmsghdr *cmsg_nxthdr(FAR struct msghdr *__msg,
+                                              FAR struct cmsghdr *__cmsg)
 {
   return __cmsg_nxthdr(__msg->msg_control, __msg->msg_controllen, __cmsg);
 }

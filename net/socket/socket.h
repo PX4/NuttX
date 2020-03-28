@@ -1,7 +1,8 @@
 /****************************************************************************
  * net/socket/socket.h
  *
- *   Copyright (C) 2007-2009, 2011-2014, 2017 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007-2009, 2011-2014, 2017, 2019 Gregory Nutt. All rights
+ *     reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -54,41 +55,6 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* Definitions of 8-bit socket flags */
-
-                                  /* Bits 0-2: Socket state */
-#define _SF_IDLE            0x00  /* - There is no socket activity */
-#define _SF_ACCEPT          0x01  /* - Socket is waiting to accept a connection */
-#define _SF_RECV            0x02  /* - Waiting for recv action to complete */
-#define _SF_SEND            0x03  /* - Waiting for send action to complete */
-#define _SF_MASK            0x03  /* - Mask to isolate the above actions */
-
-#define _SF_NONBLOCK        0x08  /* Bit 3: Don't block if no data (TCP/READ only) */
-#define _SF_LISTENING       0x10  /* Bit 4: SOCK_STREAM is listening */
-#define _SF_BOUND           0x20  /* Bit 5: SOCK_STREAM is bound to an address */
-                                  /* Bits 6-7: Connection state */
-#define _SF_CONNECTED       0x40  /* Bit 6: SOCK_STREAM/SOCK_DGRAM is connected */
-#define _SF_CLOSED          0x80  /* Bit 7: SOCK_STREAM was gracefully disconnected */
-
-/* Connection state encoding:
- *
- *  _SF_CONNECTED==1 && _SF_CLOSED==0 - the socket is connected
- *  _SF_CONNECTED==0 && _SF_CLOSED==1 - the socket was gracefully disconnected
- *  _SF_CONNECTED==0 && _SF_CLOSED==0 - the socket was rudely disconnected
- */
-
-/* Macro to manage the socket state and flags */
-
-#define _SS_SETSTATE(s,f)   (((s) & ~_SF_MASK) | (f))
-#define _SS_GETSTATE(s)     ((s) & _SF_MASK)
-#define _SS_ISBUSY(s)       (_SS_GETSTATE(s) != _SF_IDLE)
-
-#define _SS_ISNONBLOCK(s)   (((s) & _SF_NONBLOCK)  != 0)
-#define _SS_ISLISTENING(s)  (((s) & _SF_LISTENING) != 0)
-#define _SS_ISBOUND(s)      (((s) & _SF_BOUND)     != 0)
-#define _SS_ISCONNECTED(s)  (((s) & _SF_CONNECTED) != 0)
-#define _SS_ISCLOSED(s)     (((s) & _SF_CLOSED)    != 0)
-
 /* This macro converts a socket option value into a bit setting */
 
 #define _SO_BIT(o)       (1 << (o))
@@ -114,7 +80,7 @@
 
 /* This is the largest option value.  REVISIT: belongs in sys/socket.h */
 
-#define _SO_MAXOPT       (15)
+#define _SO_MAXOPT       (29)
 
 /* Macros to set, test, clear options */
 
@@ -130,6 +96,31 @@
 #define _SO_GETONLY(o)   ((_SO_BIT(o) & _SO_GETONLYSET) != 0)
 #define _SO_GETVALID(o)  (((unsigned int)(o)) <= _SO_MAXOPT)
 #define _SO_SETVALID(o)  ((((unsigned int)(o)) <= _SO_MAXOPT) && !_SO_GETONLY(o))
+
+/* Macros to convert timeout value */
+
+#ifdef CONFIG_NET_SOCKOPTS
+#  define _SO_TIMEOUT(t) ((t) ? (t) * MSEC_PER_DSEC : UINT_MAX)
+#else
+#  define _SO_TIMEOUT(t) (UINT_MAX)
+#endif /* CONFIG_NET_SOCKOPTS */
+
+/* Macro to set socket errors */
+
+#ifdef CONFIG_NET_SOCKOPTS
+#  define _SO_SETERRNO(s,e) \
+    do \
+      { \
+        if (s != NULL) \
+          { \
+            s->s_error = (int16_t)e; \
+          } \
+        set_errno(e); \
+      } \
+    while (0)
+#else
+#  define _SO_SETERRNO(s,e) set_errno(e)
+#endif /* CONFIG_NET_SOCKOPTS */
 
 /****************************************************************************
  * Public Data
@@ -198,23 +189,6 @@ void psock_release(FAR struct socket *psock);
 void sockfd_release(int sockfd);
 
 /****************************************************************************
- * Name: sockfd_socket
- *
- * Description:
- *   Given a socket descriptor, return the underlying socket structure.
- *
- * Input Parameters:
- *   sockfd - The socket descriptor index o use.
- *
- * Returned Value:
- *   On success, a reference to the socket structure associated with the
- *   the socket descriptor is returned.  NULL is returned on any failure.
- *
- ****************************************************************************/
-
-FAR struct socket *sockfd_socket(int sockfd);
-
-/****************************************************************************
  * Name: net_sockif
  *
  * Description:
@@ -232,7 +206,7 @@ FAR struct socket *sockfd_socket(int sockfd);
  ****************************************************************************/
 
 FAR const struct sock_intf_s *
-  net_sockif(sa_family_t family, int type, int protocol);
+net_sockif(sa_family_t family, int type, int protocol);
 
 /****************************************************************************
  * Name: net_timeo
@@ -255,90 +229,6 @@ FAR const struct sock_intf_s *
 #ifdef CONFIG_NET_SOCKOPTS
 int net_timeo(clock_t start_time, socktimeo_t timeo);
 #endif
-
-/****************************************************************************
- * Name: psock_send
- *
- * Description:
- *   The send() call may be used only when the socket is in a connected state
- *   (so that the intended recipient is known). The only difference between
- *   send() and write() is the presence of flags. With zero flags parameter,
- *   send() is equivalent to write(). Also, send(sockfd,buf,len,flags) is
- *   equivalent to sendto(sockfd,buf,len,flags,NULL,0).
- *
- * Input Parameters:
- *   psock    An instance of the internal socket structure.
- *   buf      Data to send
- *   len      Length of data to send
- *   flags    Send flags
- *
- * Returned Value:
- *   On success, returns the number of characters sent.  On  error,
- *   -1 is returned, and errno is set appropriately:
- *
- *   EAGAIN or EWOULDBLOCK
- *     The socket is marked non-blocking and the requested operation
- *     would block.
- *   EBADF
- *     An invalid descriptor was specified.
- *   ECONNRESET
- *     Connection reset by peer.
- *   EDESTADDRREQ
- *     The socket is not connection-mode, and no peer address is set.
- *   EFAULT
- *      An invalid user space address was specified for a parameter.
- *   EINTR
- *      A signal occurred before any data was transmitted.
- *   EINVAL
- *      Invalid argument passed.
- *   EISCONN
- *     The connection-mode socket was connected already but a recipient
- *     was specified. (Now either this error is returned, or the recipient
- *     specification is ignored.)
- *   EMSGSIZE
- *     The socket type requires that message be sent atomically, and the
- *     size of the message to be sent made this impossible.
- *   ENOBUFS
- *     The output queue for a network interface was full. This generally
- *     indicates that the interface has stopped sending, but may be
- *     caused by transient congestion.
- *   ENOMEM
- *     No memory available.
- *   ENOTCONN
- *     The socket is not connected, and no target has been given.
- *   ENOTSOCK
- *     The argument s is not a socket.
- *   EOPNOTSUPP
- *     Some bit in the flags argument is inappropriate for the socket
- *     type.
- *   EPIPE
- *     The local end has been shut down on a connection oriented socket.
- *     In this case the process will also receive a SIGPIPE unless
- *     MSG_NOSIGNAL is set.
- *
- ****************************************************************************/
-
-ssize_t psock_send(FAR struct socket *psock, FAR const void *buf, size_t len,
-                   int flags);
-
-/****************************************************************************
- * Name: net_clone
- *
- * Description:
- *   Performs the low level, common portion of net_dupsd() and net_dupsd2()
- *
- * Input Parameters:
- *   psock1 - The existing socket that is being cloned.
- *   psock2 - A reference to an uninitialized socket structure alloated by
- *            the caller.
- *
- * Returned Value:
- *   Zero (OK) is returned on success; a negated errno value is returned on
- *   any failure.
- *
- ****************************************************************************/
-
-int net_clone(FAR struct socket *psock1, FAR struct socket *psock2);
 
 #endif /* CONFIG_NET */
 #endif /* _NET_SOCKET_SOCKET_H */

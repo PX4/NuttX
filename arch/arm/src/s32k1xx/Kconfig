@@ -27,6 +27,7 @@ config ARCH_CHIP_S32K118
 config ARCH_CHIP_S32K142
 	bool "S32K142"
 	select ARCH_CHIP_S32K14X
+	select S32K1XX_HAVE_FLEXCAN1
 	---help---
 		Cortex-M4F, 256Kb FLASH, 32Kb RAM incl. 4Kb FlexRAM
 
@@ -34,6 +35,8 @@ config ARCH_CHIP_S32K144
 	bool "S32K144"
 	select ARCH_CHIP_S32K14X
 	select S32K1XX_HAVE_LPSPI2
+	select S32K1XX_HAVE_FLEXCAN1
+	select S32K1XX_HAVE_FLEXCAN2
 	---help---
 		Cortex-M4F, 512Kb FLASH, 64Kb RAM incl. 4Kb FlexRAM
 
@@ -41,6 +44,8 @@ config ARCH_CHIP_S32K146
 	bool "S32K146"
 	select ARCH_CHIP_S32K14X
 	select S32K1XX_HAVE_LPSPI2
+	select S32K1XX_HAVE_FLEXCAN1
+	select S32K1XX_HAVE_FLEXCAN2
 	---help---
 		Cortex-M4F, 1Mb FLASH, 128Kb RAM incl. 4Kb FlexRAM
 
@@ -51,6 +56,8 @@ config ARCH_CHIP_S32K148
 	select S32K1XX_HAVE_LPI2C1
 	select S32K1XX_HAVE_LPSPI2
 	select S32K1XX_HAVE_SAI
+	select S32K1XX_HAVE_FLEXCAN1
+	select S32K1XX_HAVE_FLEXCAN2
 	---help---
 		Cortex-M4F, 2Mb FLASH, 256Kb RAM incl. 4Kb FlexRAM
 
@@ -110,6 +117,14 @@ config S32K1XX_HAVE_LPSPI1
 config S32K1XX_HAVE_LPSPI2
 	bool
 	default n
+	
+config S32K1XX_HAVE_FLEXCAN1
+	bool
+	default n
+	
+config S32K1XX_HAVE_FLEXCAN2
+	bool
+	default n
 
 config S32K1XX_HAVE_QSPI
 	bool
@@ -137,6 +152,10 @@ config S32K1XX_LPSPI
 	bool
 	default n
 
+config S32K1XX_FLEXCAN
+	bool
+	default n
+	
 # Peripheral Selection
 
 menu "S32K1XX Peripheral Selection"
@@ -149,6 +168,26 @@ config S32K1XX_ENET
 	bool "Ethernet"
 	default n
 	depends on S32K1XX_HAVE_ENET
+
+config S32K1XX_FLEXCAN0
+	bool "FLEXCAN0"
+	select S32K1XX_FLEXCAN
+	select NET_CAN_HAVE_TX_DEADLINE
+	default n
+	
+config S32K1XX_FLEXCAN1
+	bool "FLEXCAN1"
+	select S32K1XX_FLEXCAN
+	select NET_CAN_HAVE_TX_DEADLINE
+	default n
+	depends on S32K1XX_HAVE_FLEXCAN1
+	
+config S32K1XX_FLEXCAN2
+	bool "FLEXCAN2"
+	select S32K1XX_FLEXCAN
+	select NET_CAN_HAVE_TX_DEADLINE
+	default n
+	depends on S32K1XX_HAVE_FLEXCAN2
 
 menuconfig S32K1XX_LPI2C0
 	bool "LPI2C0"

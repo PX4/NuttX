@@ -112,6 +112,10 @@ int psock_bind(FAR struct socket *psock, const struct sockaddr *addr,
       return ret;
     }
 
+  /* Mark the socket bound */
+
+  psock->s_flags |= _SF_BOUND;
+
   return OK;
 }
 
@@ -159,7 +163,7 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
   ret = psock_bind(psock, addr, addrlen);
   if (ret < 0)
     {
-      set_errno(-ret);
+      _SO_SETERRNO(psock, -ret);
       return ERROR;
     }
 

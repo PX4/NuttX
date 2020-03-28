@@ -101,16 +101,12 @@ int psock_getsockname(FAR struct socket *psock, FAR struct sockaddr *addr,
       return -EBADF;
     }
 
-  /* Some sanity checking... Shouldn't need this on a buckled up embedded
-   * system (?)
-   */
+  /* Some sanity checking... */
 
-#ifdef CONFIG_DEBUG_FEATURES
-  if (addr == NULL || *addrlen <= 0)
+  if (addr == NULL || addrlen == NULL)
     {
       return -EINVAL;
     }
-#endif
 
   /* Let the address family's send() method handle the operation */
 
@@ -165,7 +161,7 @@ int getsockname(int sockfd, FAR struct sockaddr *addr, FAR socklen_t *addrlen)
   ret = psock_getsockname(psock, addr, addrlen);
   if (ret < 0)
     {
-      set_errno(-ret);
+      _SO_SETERRNO(psock, -ret);
       return ERROR;
     }
 

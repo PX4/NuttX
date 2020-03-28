@@ -45,7 +45,7 @@
 
 #include <nuttx/net/netdev.h>
 
-#ifdef CONFIG_NET_PKT
+#if defined(CONFIG_NET_PKT)
 
 /****************************************************************************
  * Pre-processor Definitions

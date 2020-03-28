@@ -54,6 +54,7 @@
 #include <nuttx/net/netdev.h>
 #include <nuttx/net/ethernet.h>
 #include <nuttx/net/bluetooth.h>
+#include <nuttx/net/can.h>
 
 #include "utils/utils.h"
 #include "igmp/igmp.h"
@@ -72,6 +73,7 @@
 #define NETDEV_PAN_FORMAT   "pan%d"
 #define NETDEV_WLAN_FORMAT  "wlan%d"
 #define NETDEV_WPAN_FORMAT  "wpan%d"
+#define NETDEV_CAN_FORMAT   "can%d"
 
 #if defined(CONFIG_DRIVERS_IEEE80211) /* Usually also has CONFIG_NET_ETHERNET */
 #  define NETDEV_DEFAULT_FORMAT NETDEV_WLAN_FORMAT
@@ -83,6 +85,8 @@
 #  define NETDEV_DEFAULT_FORMAT NETDEV_SLIP_FORMAT
 #elif defined(CONFIG_NET_TUN)
 #  define NETDEV_DEFAULT_FORMAT NETDEV_TUN_FORMAT
+#elif defined(CONFIG_NET_CAN)
+#  define NETDEV_DEFAULT_FORMAT NETDEV_CAN_FORMAT
 #else /* if defined(CONFIG_NET_LOOPBACK) */
 #  define NETDEV_DEFAULT_FORMAT NETDEV_LO_FORMAT
 #endif
@@ -238,8 +242,8 @@ static int get_ifindex(void)
  *
  * Input Parameters:
  *   dev    - The device driver structure to be registered.
- *   lltype - Link level protocol used by the driver (Ethernet, SLIP, TUN, ...
- *              ...
+ *   lltype - Link level protocol used by the driver
+ *            (Ethernet, SLIP, TUN, ...)
  *
  * Returned Value:
  *   0:Success; negated errno on failure
@@ -291,8 +295,16 @@ int netdev_register(FAR struct net_driver_s *dev, enum net_lltype_e lltype)
             break;
 #endif
 
+#ifdef CONFIG_NET_CAN
+          case NET_LL_CAN:  /* CAN bus */
+            dev->d_llhdrlen = 0;
+            dev->d_pktsize  = NET_CAN_PKTSIZE;
+            devfmt          = NETDEV_CAN_FORMAT;
+            break;
+#endif
+
 #ifdef CONFIG_NET_BLUETOOTH
-          case NET_LL_BLUETOOTH:  /* Bluetooth */
+        case NET_LL_BLUETOOTH:                      /* Bluetooth */
             dev->d_llhdrlen = BLUETOOTH_MAX_HDRLEN; /* Determined at runtime */
 #ifdef CONFIG_NET_6LOWPAN
             dev->d_pktsize  = CONFIG_NET_6LOWPAN_PKTSIZE;

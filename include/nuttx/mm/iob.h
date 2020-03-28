@@ -54,6 +54,7 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
 /* Configuration ************************************************************/
 
 /* I/O buffer allocation logic supports a throttle value for read-ahead
@@ -187,13 +188,13 @@ enum iob_user_e
 #ifdef CONFIG_NET_BLUETOOTH
   IOBUSER_NET_SOCK_BLUETOOTH,
 #endif
-#ifdef CONFIG_NET_UDP_READAHEAD
+#if defined(CONFIG_NET_UDP) && !defined(NET_UDP_NO_STACK)
   IOBUSER_NET_UDP_READAHEAD,
 #endif
 #ifdef CONFIG_NET_UDP_WRITE_BUFFERS
   IOBUSER_NET_UDP_WRITEBUFFER,
 #endif
-#ifdef CONFIG_NET_TCP_READAHEAD
+#if defined(CONFIG_NET_TCP) && !defined(NET_TCP_NO_STACK)
   IOBUSER_NET_TCP_READAHEAD,
 #endif
 #ifdef CONFIG_NET_TCP_WRITE_BUFFERS
@@ -219,6 +220,9 @@ enum iob_user_e
 #endif
 #ifdef CONFIG_WIRELESS_BLUETOOTH
   IOBUSER_WIRELESS_BLUETOOTH,
+#endif
+#ifdef CONFIG_NET_CAN
+  IOBUSER_NET_CAN_READAHEAD,
 #endif
   IOBUSER_GLOBAL,
   IOBUSER_NENTRIES /* MUST BE LAST ENTRY */
@@ -248,7 +252,8 @@ void iob_initialize(void);
  * Name: iob_alloc
  *
  * Description:
- *   Allocate an I/O buffer by taking the buffer at the head of the free list.
+ *   Allocate an I/O buffer by taking the buffer at the head of the free
+ *   list.
  *
  ****************************************************************************/
 
@@ -269,7 +274,7 @@ FAR struct iob_s *iob_tryalloc(bool throttled, enum iob_user_e consumerid);
  * Name: iob_navail
  *
  * Description:
- *   Return the number of of available IOBs.
+ *   Return the number of available IOBs.
  *
  ****************************************************************************/
 
@@ -586,7 +591,8 @@ void iob_dump(FAR const char *msg, FAR struct iob_s *iob, unsigned int len,
  * Name: iob_getuserstats
  *
  * Description:
- *   Return a reference to the IOB usage statitics for the IOB consumer/producer
+ *   Return a reference to the IOB usage statistics for the IOB
+ *   consumer/producer
  *
  * Input Parameters:
  *   userid - id representing the IOB producer/consumer
@@ -603,4 +609,3 @@ FAR struct iob_userstats_s * iob_getuserstats(enum iob_user_e userid);
 
 #endif /* CONFIG_MM_IOB */
 #endif /* _INCLUDE_NUTTX_MM_IOB_H */
-

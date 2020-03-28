@@ -1,7 +1,7 @@
 /****************************************************************************
  * net/socket/getsockopt.c
  *
- *   Copyright (C) 2007-2009, 2012, 2014, 2017-2018 Gregory Nutt. All rights
+ *   Copyright (C) 2007-2009, 2012, 2014, 2017-2019 Gregory Nutt. All rights
  *     reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
  *
@@ -92,20 +92,14 @@
  ****************************************************************************/
 
 static int psock_socketlevel_option(FAR struct socket *psock, int option,
-                                    FAR void *value, FAR socklen_t *value_len)
+                                    FAR void *value,
+                                    FAR socklen_t *value_len)
 {
   /* Verify that the socket option if valid (but might not be supported ) */
 
   if (!_SO_GETVALID(option) || !value || !value_len)
     {
       return -EINVAL;
-    }
-
-  /* Verify that the sockfd corresponds to valid, allocated socket */
-
-  if (psock == NULL || psock->s_crefs <= 0)
-    {
-      return -EBADF;
     }
 
 #ifdef CONFIG_NET_USRSOCK
@@ -128,7 +122,8 @@ static int psock_socketlevel_option(FAR struct socket *psock, int option,
 
           default:          /* Other options are passed to usrsock daemon. */
             {
-              return usrsock_getsockopt(conn, SOL_SOCKET, option, value, value_len);
+              return usrsock_getsockopt(conn, SOL_SOCKET, option, value,
+                                        value_len);
             }
         }
     }
@@ -138,6 +133,16 @@ static int psock_socketlevel_option(FAR struct socket *psock, int option,
 
   switch (option)
     {
+      case SO_ACCEPTCONN: /* Reports whether socket listening is enabled */
+        if (*value_len < sizeof(int))
+          {
+            return -EINVAL;
+          }
+
+        *(FAR int *)value = _SS_ISLISTENING(psock->s_flags);
+        *value_len        = sizeof(int);
+        break;
+
       /* The following options take a point to an integer boolean value.
        * We will blindly report the bit here although the implementation
        * is outside of the scope of getsockopt.
@@ -261,10 +266,33 @@ static int psock_socketlevel_option(FAR struct socket *psock, int option,
         }
         break;
 
+      case SO_ERROR:      /* Reports and clears error status. */
+        {
+          if (*value_len != sizeof(int))
+            {
+              return -EINVAL;
+            }
+
+          *(FAR int *)value = (int)psock->s_error;
+          psock->s_error = 0;
+        }
+        break;
+
+#ifdef CONFIG_NET_TIMESTAMP
+      case SO_TIMESTAMP:
+        {
+          if (*value_len != sizeof(int))
+            {
+              return -EINVAL;
+            }
+
+          *(FAR int *)value = (int)psock->s_timestamp;
+        }
+        break;
+#endif
+
       /* The following are not yet implemented (return values other than {0,1) */
 
-      case SO_ACCEPTCONN: /* Reports whether socket listening is enabled */
-      case SO_ERROR:      /* Reports and clears error status. */
       case SO_LINGER:     /* Lingers on a close() if data is present */
       case SO_RCVBUF:     /* Sets receive buffer size */
       case SO_RCVLOWAT:   /* Sets the minimum number of bytes to input */
@@ -331,6 +359,13 @@ int psock_getsockopt(FAR struct socket *psock, int level, int option,
 {
   int ret;
 
+  /* Verify that the sockfd corresponds to valid, allocated socket */
+
+  if (psock == NULL || psock->s_crefs <= 0)
+    {
+      return -EBADF;
+    }
+
   /* Handle retrieval of the socket option according to the level at which
    * option should be applied.
    */
@@ -346,6 +381,12 @@ int psock_getsockopt(FAR struct socket *psock, int level, int option,
        ret = tcp_getsockopt(psock, option, value, value_len);
        break;
 #endif
+
+      case SOL_CAN_RAW:/* CAN protocol socket options (see include/netpacket/can.h) */
+#ifdef CONFIG_NET_CANPROTO_OPTIONS
+       ret = can_getsockopt(psock, option, value, value_len);
+#endif
+       break;
 
       /* These levels are defined in sys/socket.h, but are not yet
        * implemented.
@@ -411,7 +452,8 @@ int psock_getsockopt(FAR struct socket *psock, int level, int option,
  *
  ****************************************************************************/
 
-int getsockopt(int sockfd, int level, int option, void *value, socklen_t *value_len)
+int getsockopt(int sockfd, int level, int option, FAR void *value,
+               FAR socklen_t *value_len)
 {
   FAR struct socket *psock;
   int ret;
@@ -425,7 +467,7 @@ int getsockopt(int sockfd, int level, int option, void *value, socklen_t *value_
   ret = psock_getsockopt(psock, level, option, value, value_len);
   if (ret < 0)
     {
-      set_errno(-ret);
+      _SO_SETERRNO(psock, -ret);
       return ERROR;
     }
 

@@ -43,10 +43,15 @@
 #include <sys/socket.h>
 #include <stdbool.h>
 #include <string.h>
+#include <poll.h>
+#include <sched.h>
 #include <assert.h>
 #include <errno.h>
 #include <debug.h>
 
+#include <nuttx/kmalloc.h>
+#include <nuttx/semaphore.h>
+#include <nuttx/wqueue.h>
 #include <nuttx/net/net.h>
 
 #include "netlink/netlink.h"
@@ -204,7 +209,9 @@ static int netlink_setup(FAR struct socket *psock, int protocol)
 
 static sockcaps_t netlink_sockcaps(FAR struct socket *psock)
 {
-  return 0;
+  /* Permit vfcntl to set socket to non-blocking */
+
+  return SOCKCAP_NONBLOCKING;
 }
 
 /****************************************************************************
@@ -280,7 +287,6 @@ static int netlink_bind(FAR struct socket *psock,
   conn->pid       = nladdr->nl_pid;
   conn->groups    = nladdr->nl_groups;
 
-  psock->s_flags |= _SF_BOUND;
   return OK;
 }
 
@@ -481,11 +487,65 @@ static int netlink_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
 }
 
 /****************************************************************************
+ * Name: netlink_response_available
+ *
+ * Description:
+ *   Handle a Netlink response available notification.
+ *
+ * Input Parameters:
+ *   Standard work handler parameters
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+static void netlink_response_available(FAR void *arg)
+{
+  FAR struct netlink_conn_s *conn = arg;
+
+  DEBUGASSERT(conn != NULL);
+
+  /* The following should always be true ... but maybe not in some race
+   * condition?
+   */
+
+  sched_lock();
+  net_lock();
+
+  if (conn->pollsem != NULL && conn->pollevent != NULL)
+    {
+      /* Wake up the poll() with POLLIN */
+
+       *conn->pollevent |= POLLIN;
+       (void)nxsem_post(conn->pollsem);
+    }
+  else
+    {
+      nwarn("WARNING: Missing references in connection.\n");
+    }
+
+  /* Allow another poll() */
+
+  conn->pollsem   = NULL;
+  conn->pollevent = NULL;
+
+  net_unlock();
+  sched_unlock();
+}
+
+/****************************************************************************
  * Name: netlink_poll
  *
  * Description:
  *   The standard poll() operation redirects operations on socket descriptors
  *   to this function.
+ *
+ *     POLLUP:  Will never be reported
+ *     POLLERR: Reported in the event of any failure.
+ *     POLLOUT: Always reported if requested.
+ *     POLLIN:  Reported if requested but only when pending response data is
+ *              available
  *
  * Input Parameters:
  *   psock - An instance of the internal socket structure.
@@ -500,8 +560,125 @@ static int netlink_accept(FAR struct socket *psock, FAR struct sockaddr *addr,
 static int netlink_poll(FAR struct socket *psock, FAR struct pollfd *fds,
                         bool setup)
 {
-#warning Missing logic for NETLINK poll
-  return -EOPNOTSUPP;
+  FAR struct netlink_conn_s *conn;
+  int ret;
+
+  DEBUGASSERT(psock != NULL && psock->s_conn != NULL);
+  conn = (FAR struct netlink_conn_s *)psock->s_conn;
+
+  /* Check if we are setting up or tearing down the poll */
+
+  if (setup)
+    {
+      /* If POLLOUT is selected, return immediately (maybe) */
+
+      pollevent_t revents = POLLOUT;
+
+      /* If POLLIN is selected and a response is available, return
+       * immediately (maybe).
+       */
+
+      net_lock();
+      if (netlink_check_response(psock))
+        {
+          revents |= POLLIN;
+        }
+
+      /* But return ONLY if POLLIN and/or POLLIN are included in the
+       * requested event set.
+       */
+
+      revents &= fds->events;
+      if (revents != 0)
+        {
+          fds->revents = revents;
+          nxsem_post(fds->sem);
+          net_unlock();
+          return OK;
+        }
+
+      /* Set up to be notified when a response is available if POLLIN is
+       * requested.
+       */
+
+      if ((fds->events & POLLIN) != 0)
+        {
+          /* Some limitations:  There can be only a single outstanding POLLIN
+           * on the Netlink connection.
+           */
+
+          if (conn->pollsem != NULL || conn->pollevent != NULL)
+            {
+              nerr("ERROR: Multiple polls() on socket not supported.\n");
+              net_unlock();
+              return -EBUSY;
+            }
+
+          /* Set up the notification */
+
+          conn->pollsem    = fds->sem;
+          conn->pollevent  = &fds->revents;
+
+          ret = netlink_notifier_setup(netlink_response_available, conn,
+                                       conn);
+          if (ret < 0)
+            {
+              nerr("ERROR: netlink_notifier_setup() failed: %d\n", ret);
+              conn->pollsem   = NULL;
+              conn->pollevent = NULL;
+            }
+          else
+            {
+              /* Call netlink_notify_response() to receive a notification
+               * when a response has been queued.
+               */
+
+              ret = netlink_notify_response(psock);
+              if (ret < 0)
+                {
+                  nerr("ERROR: netlink_notify_response() failed: %d\n", ret);
+                  netlink_notifier_teardown(conn);
+                  conn->pollsem   = NULL;
+                  conn->pollevent = NULL;
+                }
+              else if (ret == 0)
+                {
+                  /* The return value of zero means that a response is
+                   * already available and that no notification is
+                   * forthcoming.
+                   */
+
+                  netlink_notifier_teardown(conn);
+                  conn->pollsem   = NULL;
+                  conn->pollevent = NULL;
+                  fds->revents    = POLLIN;
+                  nxsem_post(fds->sem);
+                }
+              else
+                {
+                  ret = OK;
+                }
+            }
+        }
+      else
+        {
+          /* There will not be any wakeups coming?  Probably an error? */
+
+          ret = OK;
+        }
+
+      net_unlock();
+    }
+  else
+    {
+      /* Cancel any response notifications */
+
+      ret = netlink_notifier_teardown(conn);
+      conn->pollsem   = NULL;
+      conn->pollevent = NULL;
+    }
+
+  return ret;
 }
 
 /****************************************************************************
@@ -512,10 +689,10 @@ static int netlink_poll(FAR struct socket *psock, FAR struct pollfd *fds,
  *   a connected state  (so that the intended recipient is known).
  *
  * Input Parameters:
- *   psock    An instance of the internal socket structure.
- *   buf      Data to send
- *   len      Length of data to send
- *   flags    Send flags (ignored)
+ *   psock - An instance of the internal socket structure.
+ *   buf   - Data to send
+ *   len   - Length of data to send
+ *   flags - Send flags (ignored)
  *
  * Returned Value:
  *   On success, returns the number of characters sent.  On  error, a negated
@@ -614,7 +791,7 @@ static ssize_t netlink_sendto(FAR struct socket *psock, FAR const void *buf,
 #endif
 
       default:
-       ret= -EOPNOTSUPP;
+       ret = -EOPNOTSUPP;
        break;
     }
 
@@ -677,7 +854,7 @@ static ssize_t netlink_recvfrom(FAR struct socket *psock, FAR void *buf,
 #endif
 
       default:
-       ret= -EOPNOTSUPP;
+       ret = -EOPNOTSUPP;
        break;
     }
 
@@ -715,7 +892,7 @@ static int netlink_close(FAR struct socket *psock)
     {
       /* Yes... inform user-space daemon of socket close. */
 
-#warning Missing logic
+#warning Missing logic in NETLINK close()
 
       /* Free the connection structure */
 
