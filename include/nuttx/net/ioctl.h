@@ -85,6 +85,9 @@
 #define SIOCGIFCONF      _SIOC(0x0018)  /* Return an interface list (IPv4) */
 #define SIOCGLIFCONF     _SIOC(0x0019)  /* Return an interface list (IPv6) */
 
+#define SIOCGIFNAME      _SIOC(0x0030)  /* Get interface name string */
+#define SIOCGIFINDEX     _SIOC(0x0031)  /* Get index based name string */
+
 /* Interface flags */
 
 #define SIOCSIFFLAGS     _SIOC(0x001a)  /* Sets the interface flags */

@@ -107,6 +107,10 @@ const struct sock_intf_s g_ieee802154_sockif =
   NULL,                   /* si_sendfile */
 #endif
   ieee802154_recvfrom,    /* si_recvfrom */
+#ifdef CONFIG_NET_CMSG
+  NULL,                   /* si_recvmsg */
+  NULL,                   /* si_sendmsg */
+#endif
   ieee802154_close        /* si_close */
 };
 
@@ -241,10 +245,10 @@ static void ieee802154_addref(FAR struct socket *psock)
  * Name: ieee802154_connect
  *
  * Description:
- *   ieee802154_connect() connects the local socket referred to by the structure
- *   'psock' to the address specified by 'addr'. The addrlen argument
- *   specifies the size of 'addr'.  The format of the address in 'addr' is
- *   determined by the address space of the socket 'psock'.
+ *   ieee802154_connect() connects the local socket referred to by the
+ *   structure 'psock' to the address specified by 'addr'. The addrlen
+ *   argument specifies the size of 'addr'.  The format of the address in
+ *   'addr' is determined by the address space of the socket 'psock'.
  *
  *   If the socket 'psock' is of type SOCK_DGRAM then 'addr' is the address
  *   to which datagrams are sent by default, and the only address from which
