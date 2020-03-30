@@ -110,6 +110,10 @@ const struct sock_intf_s g_local_sockif =
   NULL,              /* si_sendfile */
 #endif
   local_recvfrom,    /* si_recvfrom */
+#ifdef CONFIG_NET_CMSG
+  NULL,              /* si_recvmsg */
+  NULL,              /* si_sendmsg */
+#endif
   local_close        /* si_close */
 };
 

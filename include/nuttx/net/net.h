@@ -109,6 +109,32 @@
 #define SOCKCAP_NONBLOCKING (1 << 0)  /* Bit 0: Socket supports non-blocking
                                        *        operation. */
 
+/* Definitions of 8-bit socket flags */
+
+#define _SF_CLOEXEC         0x04  /* Bit 2: Close on execute */
+#define _SF_NONBLOCK        0x08  /* Bit 3: Don't block if no data (TCP/READ only) */
+#define _SF_LISTENING       0x10  /* Bit 4: SOCK_STREAM is listening */
+#define _SF_BOUND           0x20  /* Bit 5: SOCK_STREAM is bound to an address */
+                                  /* Bits 6-7: Connection state */
+#define _SF_CONNECTED       0x40  /* Bit 6: SOCK_STREAM/SOCK_DGRAM is connected */
+#define _SF_CLOSED          0x80  /* Bit 7: SOCK_STREAM was gracefully disconnected */
+
+/* Connection state encoding:
+ *
+ *  _SF_CONNECTED==1 && _SF_CLOSED==0 - socket is connected
+ *  _SF_CONNECTED==0 && _SF_CLOSED==1 - socket was gracefully disconnected
+ *  _SF_CONNECTED==0 && _SF_CLOSED==0 - socket was rudely disconnected
+ */
+
+/* Macro to manage the socket state and flags */
+
+#define _SS_ISCLOEXEC(s)    (((s) & _SF_CLOEXEC)   != 0)
+#define _SS_ISNONBLOCK(s)   (((s) & _SF_NONBLOCK)  != 0)
+#define _SS_ISLISTENING(s)  (((s) & _SF_LISTENING) != 0)
+#define _SS_ISBOUND(s)      (((s) & _SF_BOUND)     != 0)
+#define _SS_ISCONNECTED(s)  (((s) & _SF_CONNECTED) != 0)
+#define _SS_ISCLOSED(s)     (((s) & _SF_CLOSED)    != 0)
+
 /****************************************************************************
  * Public Types
  ****************************************************************************/
@@ -126,7 +152,8 @@ enum net_lltype_e
   NET_LL_BLUETOOTH,    /* Bluetooth */
   NET_LL_IEEE80211,    /* IEEE 802.11 */
   NET_LL_IEEE802154,   /* IEEE 802.15.4 MAC */
-  NET_LL_PKTRADIO      /* Non-standard packet radio */
+  NET_LL_PKTRADIO,     /* Non-standard packet radio */
+  NET_LL_CAN           /* CAN bus */
 };
 
 /* This defines a bitmap big enough for one bit for each socket option */
@@ -185,6 +212,12 @@ struct sock_intf_s
   CODE ssize_t    (*si_recvfrom)(FAR struct socket *psock, FAR void *buf,
                     size_t len, int flags, FAR struct sockaddr *from,
                     FAR socklen_t *fromlen);
+#ifdef CONFIG_NET_CMSG
+  CODE ssize_t    (*si_recvmsg)(FAR struct socket *psock,
+    FAR struct msghdr *msg, int flags);
+  CODE ssize_t    (*si_sendmsg)(FAR struct socket *psock,
+    FAR struct msghdr *msg, int flags);
+#endif
   CODE int        (*si_close)(FAR struct socket *psock);
 #ifdef CONFIG_NET_USRSOCK
   CODE int        (*si_ioctl)(FAR struct socket *psock, int cmd,
@@ -234,11 +267,15 @@ struct socket
   /* Socket options */
 
 #ifdef CONFIG_NET_SOCKOPTS
+  int16_t       s_error;     /* Last error that occurred on this socket */
   sockopt_t     s_options;   /* Selected socket options */
   socktimeo_t   s_rcvtimeo;  /* Receive timeout value (in deciseconds) */
   socktimeo_t   s_sndtimeo;  /* Send timeout value (in deciseconds) */
 #ifdef CONFIG_NET_SOLINGER
   socktimeo_t   s_linger;    /* Linger timeout value (in deciseconds) */
+#endif
+#ifdef CONFIG_NET_TIMESTAMP
+  int32_t       s_timestamp; /* Socket timestamp enabled/disabled */
 #endif
 #endif
 

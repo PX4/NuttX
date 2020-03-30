@@ -181,6 +181,7 @@
 #define BLUETOOTH_NEWDATA  TCP_NEWDATA
 #define IEEE802154_NEWDATA TCP_NEWDATA
 #define PKT_NEWDATA        TCP_NEWDATA
+#define CAN_NEWDATA        TCP_NEWDATA
 #define WPAN_NEWDATA       TCP_NEWDATA
 #define IPFWD_NEWDATA      TCP_NEWDATA
 #define TCP_SNDACK         (1 << 2)
@@ -188,6 +189,7 @@
 #define TCP_POLL           (1 << 4)
 #define UDP_POLL           TCP_POLL
 #define PKT_POLL           TCP_POLL
+#define CAN_POLL           TCP_POLL
 #define BLUETOOTH_POLL     TCP_POLL
 #define IEEE802154_POLL    TCP_POLL
 #define WPAN_POLL          TCP_POLL
@@ -513,6 +515,27 @@ void devif_iob_send(FAR struct net_driver_s *dev, FAR struct iob_s *buf,
 
 #ifdef CONFIG_NET_PKT
 void devif_pkt_send(FAR struct net_driver_s *dev, FAR const void *buf,
+                    unsigned int len);
+#endif
+
+/****************************************************************************
+ * Name: devif_can_send
+ *
+ * Description:
+ *   Called from socket logic in order to send a raw packet in response to
+ *   an xmit or poll request from the network interface driver.
+ *
+ *   This is almost identical to calling devif_send() except that the data to
+ *   be sent is copied into dev->d_buf (vs. dev->d_appdata), since there is
+ *   no header on the data.
+ *
+ * Assumptions:
+ *   This function must be called with the network locked.
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_NET_CAN)
+void devif_can_send(FAR struct net_driver_s *dev, FAR const void *buf,
                     unsigned int len);
 #endif
 
