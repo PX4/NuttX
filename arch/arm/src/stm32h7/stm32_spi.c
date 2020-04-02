@@ -1431,16 +1431,6 @@ static void spi_setmode(FAR struct spi_dev_s *dev, enum spi_mode_e mode)
 
       spi_modifyreg(priv, STM32_SPI_CFG2_OFFSET, clrbits, setbits);
 
-#ifdef CONFIG_STM32H7_SPI_DMA
-      /* Enabling SPI causes a spurious received character indication
-       * which confuse the DMA controller so we disable DMA during that
-       * enabling; and flush the SPI RX FIFO before re-enabling DMA.
-       */
-
-      spi_modifyreg(priv, STM32_SPI_CFG1_OFFSET, SPI_CFG1_RXDMAEN |
-                          SPI_CFG1_TXDMAEN, 0);
-#endif
-
       /* Re-enable SPI */
 
       spi_enable(priv, true);
@@ -1449,18 +1439,8 @@ static void spi_setmode(FAR struct spi_dev_s *dev, enum spi_mode_e mode)
         {
           /* Flush SPI read FIFO */
 
-          spi_getreg(priv, STM32_SPI_TXDR_OFFSET);
+          spi_getreg(priv, STM32_SPI_RXDR_OFFSET);
         }
-
-#ifdef CONFIG_STM32H7_SPI_DMA
-
-      /* Re-enable DMA (with SPI disabled) */
-
-      spi_enable(priv, false);
-      spi_modifyreg(priv, STM32_SPI_CFG1_OFFSET, 0, SPI_CFG1_RXDMAEN |
-                          SPI_CFG1_TXDMAEN);
-      spi_enable(priv, true);
-#endif
 
       /* Save the mode so that subsequent re-configurations will be faster */
 
@@ -1893,12 +1873,31 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
       static uint8_t rxdummy[4] __attribute__((aligned(4)));
       static const uint16_t txdummy = 0xffff;
 
+      /* When starting communication using DMA, to prevent DMA channel
+       * management raising error events, these steps must be followed in
+       * order:
+       * 1. Enable DMA Rx buffer in the RXDMAEN bit in the SPI_CFG1 register,
+       *    if DMA Rx is used.
+       * 2. Enable DMA requests for Tx and Rx in DMA registers, if the DMA is
+       *    used.
+       * 3. Enable DMA Tx buffer in the TXDMAEN bit in the SPI_CFG1 register,
+       *    if DMA Tx is used.
+       * 4. Enable the SPI by setting the SPE bit.
+       */
+
+      spi_enable(priv, false);
+      spi_modifyreg(priv, STM32_SPI_CFG1_OFFSET, SPI_CFG1_TXDMAEN,
+                          SPI_CFG1_RXDMAEN);
+
       spiinfo("txbuffer=%p rxbuffer=%p nwords=%d\n",
               txbuffer, rxbuffer, nwords);
       DEBUGASSERT(priv->spibase != 0);
 
       spi_dmarxsetup(priv, rxbuffer, (uint16_t *)rxdummy, nwords);
       spi_dmatxsetup(priv, txbuffer, &txdummy, nwords);
+
+      spi_modifyreg(priv, STM32_SPI_CFG1_OFFSET, 0, SPI_CFG1_TXDMAEN |
+                          SPI_CFG1_RXDMAEN);
 
       /* Flush cache to physical memory */
 
@@ -1907,19 +1906,17 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
           up_flush_dcache((uintptr_t)txbuffer, (uintptr_t)txbuffer + nbytes);
         }
 
-      /* REVISIT: Master transfer start */
-
-      spi_modifyreg(priv, STM32_SPI_CR1_OFFSET, 0, SPI_CR1_CSTART);
-
 #ifdef CONFIG_SPI_TRIGGER
       /* Is deferred triggering in effect? */
 
       if (!priv->defertrig)
         {
-          /* No.. Start the DMAs */
+          /* No.. Start the DMAs then the SPI */
 
           spi_dmarxstart(priv);
           spi_dmatxstart(priv);
+          spi_enable(priv, true);
+          spi_modifyreg(priv, STM32_SPI_CR1_OFFSET, 0, SPI_CR1_CSTART);
         }
       else
         {
@@ -1928,16 +1925,32 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
           priv->trigarmed = true;
         }
 #else
-      /* Start the DMAs */
+      /* Start the DMAs then the SPI */
 
       spi_dmarxstart(priv);
       spi_dmatxstart(priv);
+      spi_enable(priv, true);
+      spi_modifyreg(priv, STM32_SPI_CR1_OFFSET, 0, SPI_CR1_CSTART);
 #endif
 
       /* Then wait for each to complete */
 
       spi_dmarxwait(priv);
       spi_dmatxwait(priv);
+
+      /* To close communication it is mandatory to follow these steps in
+       * order:
+       * 1. Disable DMA request for Tx and Rx in the DMA registers, if the
+       *    DMA issued.
+       * 2. Disable the SPI by following the SPI disable procedure.
+       * 3. Disable DMA Tx and Rx buffers by clearing the TXDMAEN and RXDMAEN
+       *    bits in the SPI_CFG1 register, if DMA Tx and/or DMA Rx are used.
+       */
+
+      spi_enable(priv, false);
+      spi_modifyreg(priv, STM32_SPI_CFG1_OFFSET, SPI_CFG1_TXDMAEN |
+                          SPI_CFG1_RXDMAEN, 0);
+      spi_enable(priv, true);
 
 #ifdef CONFIG_SPI_TRIGGER
       priv->trigarmed = false;
@@ -1988,7 +2001,8 @@ static int spi_trigger(FAR struct spi_dev_s *dev)
 
   spi_dmarxstart(priv);
   spi_dmatxstart(priv);
-
+  spi_enable(priv, true);
+  spi_modifyreg(priv, STM32_SPI_CR1_OFFSET, 0, SPI_CR1_CSTART);
   return OK;
 #else
   return -ENOSYS;
