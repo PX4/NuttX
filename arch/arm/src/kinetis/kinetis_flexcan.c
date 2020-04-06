@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/s32k1xx/s32k1xx_flexcan.c
+ * arch/arm/src/kinetis/kinetis_flexcan.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -43,12 +43,11 @@
 
 #include "up_arch.h"
 #include "chip.h"
-#include "s32k1xx_config.h"
-#include "hardware/s32k1xx_flexcan.h"
-#include "hardware/s32k1xx_pinmux.h"
-#include "s32k1xx_periphclocks.h"
-#include "s32k1xx_pin.h"
-#include "s32k1xx_flexcan.h"
+#include "kinetis_config.h"
+#include "hardware/kinetis_flexcan.h"
+#include "hardware/kinetis_pinmux.h"
+#include "hardware/kinetis_sim.h"
+#include "kinetis.h"
 
 #include <arch/board/board.h>
 
@@ -56,7 +55,7 @@
 #include <sys/time.h>
 #endif
 
-#ifdef CONFIG_S32K1XX_FLEXCAN
+#ifdef CONFIG_KINETIS_FLEXCAN
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -68,7 +67,7 @@
 
 #define CANWORK LPWORK
 
-/* CONFIG_S32K1XX_FLEXCAN_NETHIFS determines the number of physical
+/* CONFIG_KINETIS_FLEXCAN_NETHIFS determines the number of physical
  * interfaces that will be supported.
  */
 
@@ -98,7 +97,7 @@
 #endif
 
 /* CAN bit timing values  */
-#define CLK_FREQ                    80000000
+#define CLK_FREQ                    BOARD_EXTAL_FREQ
 #define PRESDIV_MAX                 256
 
 #define SEG_MAX                     8
@@ -229,8 +228,8 @@ struct flexcan_timeseg
 
 /* FlexCAN device structures */
 
-#ifdef CONFIG_S32K1XX_FLEXCAN0
-static const struct flexcan_config_s s32k1xx_flexcan0_config =
+#ifdef CONFIG_KINETIS_FLEXCAN0
+static const struct flexcan_config_s kinetis_flexcan0_config =
 {
   .tx_pin      = PIN_CAN0_TX,
   .rx_pin      = PIN_CAN0_RX,
@@ -241,15 +240,15 @@ static const struct flexcan_config_s s32k1xx_flexcan0_config =
   .enable_pin  = 0,
   .enable_high = 0,
 #endif
-  .bus_irq     = S32K1XX_IRQ_CAN0_BUS,
-  .error_irq   = S32K1XX_IRQ_CAN0_ERROR,
-  .lprx_irq    = S32K1XX_IRQ_CAN0_LPRX,
-  .mb_irq      = S32K1XX_IRQ_CAN0_0_15,
+  .bus_irq     = KINETIS_IRQ_CAN0BO,
+  .error_irq   = KINETIS_IRQ_CAN0ERR,
+  .lprx_irq    = 0,
+  .mb_irq      = KINETIS_IRQ_CAN0MB,
 };
 #endif
 
-#ifdef CONFIG_S32K1XX_FLEXCAN1
-static const struct flexcan_config_s s32k1xx_flexcan1_config =
+#ifdef CONFIG_KINETIS_FLEXCAN1
+static const struct flexcan_config_s kinetis_flexcan1_config =
 {
   .tx_pin      = PIN_CAN1_TX,
   .rx_pin      = PIN_CAN1_RX,
@@ -260,15 +259,15 @@ static const struct flexcan_config_s s32k1xx_flexcan1_config =
   .enable_pin  = 0,
   .enable_high = 0,
 #endif
-  .bus_irq     = S32K1XX_IRQ_CAN1_BUS,
-  .error_irq   = S32K1XX_IRQ_CAN1_ERROR,
+  .bus_irq     = KINETIS_IRQ_CAN1BO,
+  .error_irq   = KINETIS_IRQ_CAN1ERR,
   .lprx_irq    = 0,
-  .mb_irq      = S32K1XX_IRQ_CAN1_0_15,
+  .mb_irq      = KINETIS_IRQ_CAN1MB,
 };
 #endif
 
-#ifdef CONFIG_S32K1XX_FLEXCAN2
-static const struct flexcan_config_s s32k1xx_flexcan2_config =
+#ifdef CONFIG_KINETIS_FLEXCAN2
+static const struct flexcan_config_s kinetis_flexcan2_config =
 {
   .tx_pin    = PIN_CAN2_TX,
   .rx_pin    = PIN_CAN2_RX,
@@ -279,18 +278,18 @@ static const struct flexcan_config_s s32k1xx_flexcan2_config =
   .enable_pin = 0,
   .rx_pin     = 0,
 #endif
-  .bus_irq   = S32K1XX_IRQ_CAN2_BUS,
-  .error_irq = S32K1XX_IRQ_CAN2_ERROR,
+  .bus_irq   = KINETIS_IRQ_CAN2_BUS,
+  .error_irq = KINETIS_IRQ_CAN2_ERROR,
   .lprx_irq  = 0,
-  .mb_irq    = S32K1XX_IRQ_CAN2_0_15,
+  .mb_irq    = KINETIS_IRQ_CAN2_0_15,
 };
 #endif
 
-/* The s32k1xx_driver_s encapsulates all state information for a single
+/* The kinetis_driver_s encapsulates all state information for a single
  * hardware interface
  */
 
-struct s32k1xx_driver_s
+struct kinetis_driver_s
 {
   uint32_t base;                /* FLEXCAN base address */
   bool bifup;                   /* true:ifup false:ifdown */
@@ -330,16 +329,16 @@ struct s32k1xx_driver_s
  * Private Data
  ****************************************************************************/
 
-#ifdef CONFIG_S32K1XX_FLEXCAN0
-static struct s32k1xx_driver_s g_flexcan0;
+#ifdef CONFIG_KINETIS_FLEXCAN0
+static struct kinetis_driver_s g_flexcan0;
 #endif
 
-#ifdef CONFIG_S32K1XX_FLEXCAN1
-static struct s32k1xx_driver_s g_flexcan1;
+#ifdef CONFIG_KINETIS_FLEXCAN1
+static struct kinetis_driver_s g_flexcan1;
 #endif
 
-#ifdef CONFIG_S32K1XX_FLEXCAN2
-static struct s32k1xx_driver_s g_flexcan2;
+#ifdef CONFIG_KINETIS_FLEXCAN2
+static struct kinetis_driver_s g_flexcan2;
 #endif
 
 #ifdef CONFIG_NET_CAN_CANFD
@@ -377,7 +376,7 @@ static inline uint32_t arm_clz(unsigned int value)
 }
 
 /****************************************************************************
- * Name: s32k1xx_bitratetotimeseg
+ * Name: kinetis_bitratetotimeseg
  *
  * Description:
  *   Convert bitrate to timeseg
@@ -394,7 +393,7 @@ static inline uint32_t arm_clz(unsigned int value)
  *
  ****************************************************************************/
 
-uint32_t s32k1xx_bitratetotimeseg(struct flexcan_timeseg *timeseg,
+uint32_t kinetis_bitratetotimeseg(struct flexcan_timeseg *timeseg,
                                                 int32_t sp_tolerance,
                                                 uint32_t can_fd)
 {
@@ -493,58 +492,58 @@ uint32_t s32k1xx_bitratetotimeseg(struct flexcan_timeseg *timeseg,
 
 /* Common TX logic */
 
-static bool s32k1xx_txringfull(FAR struct s32k1xx_driver_s *priv);
-static int  s32k1xx_transmit(FAR struct s32k1xx_driver_s *priv);
-static int  s32k1xx_txpoll(struct net_driver_s *dev);
+static bool kinetis_txringfull(FAR struct kinetis_driver_s *priv);
+static int  kinetis_transmit(FAR struct kinetis_driver_s *priv);
+static int  kinetis_txpoll(struct net_driver_s *dev);
 
 /* Helper functions */
 
-static void s32k1xx_setenable(uint32_t base, uint32_t enable);
-static void s32k1xx_setfreeze(uint32_t base, uint32_t freeze);
-static uint32_t s32k1xx_waitmcr_change(uint32_t base,
+static void kinetis_setenable(uint32_t base, uint32_t enable);
+static void kinetis_setfreeze(uint32_t base, uint32_t freeze);
+static uint32_t kinetis_waitmcr_change(uint32_t base,
                                        uint32_t mask,
                                        uint32_t target_state);
 
 /* Interrupt handling */
 
-static void s32k1xx_receive(FAR struct s32k1xx_driver_s *priv,
+static void kinetis_receive(FAR struct kinetis_driver_s *priv,
                             uint32_t flags);
-static void s32k1xx_txdone(FAR struct s32k1xx_driver_s *priv,
+static void kinetis_txdone(FAR struct kinetis_driver_s *priv,
                            uint32_t flags);
 
-static int  s32k1xx_flexcan_interrupt(int irq, FAR void *context,
+static int  kinetis_flexcan_interrupt(int irq, FAR void *context,
                                       FAR void *arg);
 
 /* Watchdog timer expirations */
 #ifdef TX_TIMEOUT_WQ
-static void s32k1xx_txtimeout_work(FAR void *arg);
-static void s32k1xx_txtimeout_expiry(int argc, uint32_t arg, ...);
+static void kinetis_txtimeout_work(FAR void *arg);
+static void kinetis_txtimeout_expiry(int argc, uint32_t arg, ...);
 #endif
 
 /* NuttX callback functions */
 
-static int  s32k1xx_ifup(struct net_driver_s *dev);
-static int  s32k1xx_ifdown(struct net_driver_s *dev);
+static int  kinetis_ifup(struct net_driver_s *dev);
+static int  kinetis_ifdown(struct net_driver_s *dev);
 
-static void s32k1xx_txavail_work(FAR void *arg);
-static int  s32k1xx_txavail(struct net_driver_s *dev);
+static void kinetis_txavail_work(FAR void *arg);
+static int  kinetis_txavail(struct net_driver_s *dev);
 
 #ifdef CONFIG_NETDEV_IOCTL
-static int  s32k1xx_ioctl(struct net_driver_s *dev, int cmd,
+static int  kinetis_ioctl(struct net_driver_s *dev, int cmd,
                           unsigned long arg);
 #endif
 
 /* Initialization */
 
-static int  s32k1xx_initialize(struct s32k1xx_driver_s *priv);
-static void s32k1xx_reset(struct s32k1xx_driver_s *priv);
+static int  kinetis_initialize(struct kinetis_driver_s *priv);
+static void kinetis_reset(struct kinetis_driver_s *priv);
 
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Function: s32k1xx_txringfull
+ * Function: kinetis_txringfull
  *
  * Description:
  *   Check if all of the TX descriptors are in use.
@@ -558,7 +557,7 @@ static void s32k1xx_reset(struct s32k1xx_driver_s *priv);
  *
  ****************************************************************************/
 
-static bool s32k1xx_txringfull(FAR struct s32k1xx_driver_s *priv)
+static bool kinetis_txringfull(FAR struct kinetis_driver_s *priv)
 {
   uint32_t mbi = 0;
 
@@ -576,7 +575,7 @@ static bool s32k1xx_txringfull(FAR struct s32k1xx_driver_s *priv)
 }
 
 /****************************************************************************
- * Function: s32k1xx_transmit
+ * Function: kinetis_transmit
  *
  * Description:
  *   Start hardware transmission.  Called either from the txdone interrupt
@@ -595,16 +594,16 @@ static bool s32k1xx_txringfull(FAR struct s32k1xx_driver_s *priv)
  *
  ****************************************************************************/
 
-static int s32k1xx_transmit(FAR struct s32k1xx_driver_s *priv)
+static int kinetis_transmit(FAR struct kinetis_driver_s *priv)
 {
   /* Attempt to write frame */
 
   uint32_t mbi = 0;
-  if ((getreg32(priv->base + S32K1XX_CAN_ESR2_OFFSET) &
+  if ((getreg32(priv->base + KINETIS_CAN_ESR2_OFFSET) &
       (CAN_ESR2_IMB | CAN_ESR2_VPS)) ==
       (CAN_ESR2_IMB | CAN_ESR2_VPS))
     {
-      mbi  = ((getreg32(priv->base + S32K1XX_CAN_ESR2_OFFSET) &
+      mbi  = ((getreg32(priv->base + KINETIS_CAN_ESR2_OFFSET) &
         CAN_ESR2_LPTM_MASK) >> CAN_ESR2_LPTM_SHIFT);
       mbi -= RXMBCOUNT;
     }
@@ -615,7 +614,7 @@ static int s32k1xx_transmit(FAR struct s32k1xx_driver_s *priv)
     {
       if (priv->tx[mbi].cs.code != CAN_TXMB_DATAORREMOTE)
         {
-          putreg32(mb_bit, priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
+          putreg32(mb_bit, priv->base + KINETIS_CAN_IFLAG1_OFFSET);
           break;
         }
 
@@ -725,14 +724,12 @@ static int s32k1xx_transmit(FAR struct s32k1xx_driver_s *priv)
     }
 #endif
 
-  s32k1xx_gpiowrite(PIN_PORTD | PIN31, 0);
-
   mb->cs = cs; /* Go. */
 
   uint32_t regval;
-  regval = getreg32(priv->base + S32K1XX_CAN_IMASK1_OFFSET);
+  regval = getreg32(priv->base + KINETIS_CAN_IMASK1_OFFSET);
   regval |= mb_bit;
-  putreg32(regval, priv->base + S32K1XX_CAN_IMASK1_OFFSET);
+  putreg32(regval, priv->base + KINETIS_CAN_IMASK1_OFFSET);
 
   /* Increment statistics */
 
@@ -743,7 +740,7 @@ static int s32k1xx_transmit(FAR struct s32k1xx_driver_s *priv)
 
   if (timeout > 0)
     {
-      wd_start(priv->txtimeout[mbi], timeout + 1, s32k1xx_txtimeout_expiry,
+      wd_start(priv->txtimeout[mbi], timeout + 1, kinetis_txtimeout_expiry,
                 1, (wdparm_t)priv);
     }
 #endif
@@ -752,7 +749,7 @@ static int s32k1xx_transmit(FAR struct s32k1xx_driver_s *priv)
 }
 
 /****************************************************************************
- * Function: s32k1xx_txpoll
+ * Function: kinetis_txpoll
  *
  * Description:
  *   The transmitter is available, check if the network has any outgoing
@@ -776,10 +773,10 @@ static int s32k1xx_transmit(FAR struct s32k1xx_driver_s *priv)
  *
  ****************************************************************************/
 
-static int s32k1xx_txpoll(struct net_driver_s *dev)
+static int kinetis_txpoll(struct net_driver_s *dev)
 {
-  FAR struct s32k1xx_driver_s *priv =
-    (FAR struct s32k1xx_driver_s *)dev->d_private;
+  FAR struct kinetis_driver_s *priv =
+    (FAR struct kinetis_driver_s *)dev->d_private;
 
   /* If the polling resulted in data that should be sent out on the network,
    * the field d_len is set to a value > 0.
@@ -791,13 +788,13 @@ static int s32k1xx_txpoll(struct net_driver_s *dev)
         {
           /* Send the packet */
 
-          s32k1xx_transmit(priv);
+          kinetis_transmit(priv);
 
           /* Check if there is room in the device to hold another packet. If
            * not, return a non-zero value to terminate the poll.
            */
 
-          if (s32k1xx_txringfull(priv))
+          if (kinetis_txringfull(priv))
             {
               return -EBUSY;
             }
@@ -812,7 +809,7 @@ static int s32k1xx_txpoll(struct net_driver_s *dev)
 }
 
 /****************************************************************************
- * Function: s32k1xx_receive
+ * Function: kinetis_receive
  *
  * Description:
  *   An interrupt was received indicating the availability of a new RX packet
@@ -828,7 +825,7 @@ static int s32k1xx_txpoll(struct net_driver_s *dev)
  *
  ****************************************************************************/
 
-static void s32k1xx_receive(FAR struct s32k1xx_driver_s *priv,
+static void kinetis_receive(FAR struct kinetis_driver_s *priv,
                             uint32_t flags)
 {
   uint32_t regval;
@@ -872,9 +869,9 @@ static void s32k1xx_receive(FAR struct s32k1xx_driver_s *priv,
 
           /* Clear MB interrupt flag */
 
-          regval  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
+          regval  = getreg32(priv->base + KINETIS_CAN_IFLAG1_OFFSET);
           regval |= (0x80000000 >> mb_index);
-          putreg32(regval, priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
+          putreg32(regval, priv->base + KINETIS_CAN_IFLAG1_OFFSET);
 
           /* Copy the buffer pointer to priv->dev..  Set amount of data
            * in priv->dev.d_len
@@ -910,9 +907,9 @@ static void s32k1xx_receive(FAR struct s32k1xx_driver_s *priv,
 
           /* Clear MB interrupt flag */
 
-          regval  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
+          regval  = getreg32(priv->base + KINETIS_CAN_IFLAG1_OFFSET);
           regval |= (1 << mb_index);
-          putreg32(regval, priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
+          putreg32(regval, priv->base + KINETIS_CAN_IFLAG1_OFFSET);
 
           /* Copy the buffer pointer to priv->dev..  Set amount of data
            * in priv->dev.d_len
@@ -939,13 +936,13 @@ static void s32k1xx_receive(FAR struct s32k1xx_driver_s *priv,
 
       /* Reread interrupt flags and process them in this loop wh */
 
-      flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
+      flags  = getreg32(priv->base + KINETIS_CAN_IFLAG1_OFFSET);
       flags &= IFLAG1_RX;
     }
 }
 
 /****************************************************************************
- * Function: s32k1xx_txdone
+ * Function: kinetis_txdone
  *
  * Description:
  *   An interrupt was received indicating that the last TX packet(s) is done
@@ -962,7 +959,7 @@ static void s32k1xx_receive(FAR struct s32k1xx_driver_s *priv,
  *
  ****************************************************************************/
 
-static void s32k1xx_txdone(FAR struct s32k1xx_driver_s *priv, uint32_t flags)
+static void kinetis_txdone(FAR struct kinetis_driver_s *priv, uint32_t flags)
 {
   #warning Missing logic
 
@@ -975,7 +972,7 @@ static void s32k1xx_txdone(FAR struct s32k1xx_driver_s *priv, uint32_t flags)
     {
       if (flags & mb_bit)
         {
-          putreg32(mb_bit, priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
+          putreg32(mb_bit, priv->base + KINETIS_CAN_IFLAG1_OFFSET);
           flags &= ~mb_bit;
           NETDEV_TXDONE(&priv->dev);
 #ifdef TX_TIMEOUT_WQ
@@ -994,11 +991,11 @@ static void s32k1xx_txdone(FAR struct s32k1xx_driver_s *priv, uint32_t flags)
    * new XMIT data
    */
 
-  devif_poll(&priv->dev, s32k1xx_txpoll);
+  devif_poll(&priv->dev, kinetis_txpoll);
 }
 
 /****************************************************************************
- * Function: s32k1xx_flexcan_interrupt
+ * Function: kinetis_flexcan_interrupt
  *
  * Description:
  *   Three interrupt sources will vector this this function:
@@ -1017,32 +1014,32 @@ static void s32k1xx_txdone(FAR struct s32k1xx_driver_s *priv, uint32_t flags)
  *
  ****************************************************************************/
 
-static int s32k1xx_flexcan_interrupt(int irq, FAR void *context,
+static int kinetis_flexcan_interrupt(int irq, FAR void *context,
                                      FAR void *arg)
 {
-  FAR struct s32k1xx_driver_s *priv = (struct s32k1xx_driver_s *)arg;
+  FAR struct kinetis_driver_s *priv = (struct kinetis_driver_s *)arg;
   uint32_t flags;
-  flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
+  flags  = getreg32(priv->base + KINETIS_CAN_IFLAG1_OFFSET);
   flags &= IFLAG1_RX;
 
   if (flags)
     {
-      s32k1xx_receive(priv, flags);
+      kinetis_receive(priv, flags);
     }
 
-  flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
+  flags  = getreg32(priv->base + KINETIS_CAN_IFLAG1_OFFSET);
   flags &= IFLAG1_TX;
 
   if (flags)
     {
-      s32k1xx_txdone(priv, flags);
+      kinetis_txdone(priv, flags);
     }
 
   return OK;
 }
 
 /****************************************************************************
- * Function: s32k1xx_txtimeout_work
+ * Function: kinetis_txtimeout_work
  *
  * Description:
  *   Perform TX timeout related work from the worker thread
@@ -1058,9 +1055,9 @@ static int s32k1xx_flexcan_interrupt(int irq, FAR void *context,
  ****************************************************************************/
 #ifdef TX_TIMEOUT_WQ
 
-static void s32k1xx_txtimeout_work(FAR void *arg)
+static void kinetis_txtimeout_work(FAR void *arg)
 {
-  FAR struct s32k1xx_driver_s *priv = (FAR struct s32k1xx_driver_s *)arg;
+  FAR struct kinetis_driver_s *priv = (FAR struct kinetis_driver_s *)arg;
 
   struct timespec ts;
   struct timeval *now = (struct timeval *)&ts;
@@ -1086,7 +1083,7 @@ static void s32k1xx_txtimeout_work(FAR void *arg)
 }
 
 /****************************************************************************
- * Function: s32k1xx_txtimeout_expiry
+ * Function: kinetis_txtimeout_expiry
  *
  * Description:
  *   Our TX watchdog timed out.  Called from the timer interrupt handler.
@@ -1104,66 +1101,66 @@ static void s32k1xx_txtimeout_work(FAR void *arg)
  *
  ****************************************************************************/
 
-static void s32k1xx_txtimeout_expiry(int argc, uint32_t arg, ...)
+static void kinetis_txtimeout_expiry(int argc, uint32_t arg, ...)
 {
-  FAR struct s32k1xx_driver_s *priv = (FAR struct s32k1xx_driver_s *)arg;
+  FAR struct kinetis_driver_s *priv = (FAR struct kinetis_driver_s *)arg;
 
   /* Schedule to perform the TX timeout processing on the worker thread
    */
 
-  work_queue(CANWORK, &priv->irqwork, s32k1xx_txtimeout_work, priv, 0);
+  work_queue(CANWORK, &priv->irqwork, kinetis_txtimeout_work, priv, 0);
 }
 
 #endif
 
-static void s32k1xx_setenable(uint32_t base, uint32_t enable)
+static void kinetis_setenable(uint32_t base, uint32_t enable)
 {
   uint32_t regval;
 
   if (enable)
     {
-      regval  = getreg32(base + S32K1XX_CAN_MCR_OFFSET);
+      regval  = getreg32(base + KINETIS_CAN_MCR_OFFSET);
       regval &= ~(CAN_MCR_MDIS);
-      putreg32(regval, base + S32K1XX_CAN_MCR_OFFSET);
+      putreg32(regval, base + KINETIS_CAN_MCR_OFFSET);
     }
   else
     {
-      regval  = getreg32(base + S32K1XX_CAN_MCR_OFFSET);
+      regval  = getreg32(base + KINETIS_CAN_MCR_OFFSET);
       regval |= CAN_MCR_MDIS;
-      putreg32(regval, base + S32K1XX_CAN_MCR_OFFSET);
+      putreg32(regval, base + KINETIS_CAN_MCR_OFFSET);
     }
 
-  s32k1xx_waitmcr_change(base, CAN_MCR_LPMACK, 1);
+  kinetis_waitmcr_change(base, CAN_MCR_LPMACK, 1);
 }
 
-static void s32k1xx_setfreeze(uint32_t base, uint32_t freeze)
+static void kinetis_setfreeze(uint32_t base, uint32_t freeze)
 {
   uint32_t regval;
   if (freeze)
     {
       /* Enter freeze mode */
 
-      regval  = getreg32(base + S32K1XX_CAN_MCR_OFFSET);
+      regval  = getreg32(base + KINETIS_CAN_MCR_OFFSET);
       regval |= (CAN_MCR_HALT | CAN_MCR_FRZ);
-      putreg32(regval, base + S32K1XX_CAN_MCR_OFFSET);
+      putreg32(regval, base + KINETIS_CAN_MCR_OFFSET);
     }
   else
     {
       /* Exit freeze mode */
 
-      regval  = getreg32(base + S32K1XX_CAN_MCR_OFFSET);
+      regval  = getreg32(base + KINETIS_CAN_MCR_OFFSET);
       regval &= ~(CAN_MCR_HALT | CAN_MCR_FRZ);
-      putreg32(regval, base + S32K1XX_CAN_MCR_OFFSET);
+      putreg32(regval, base + KINETIS_CAN_MCR_OFFSET);
     }
 }
 
-static uint32_t s32k1xx_waitmcr_change(uint32_t base, uint32_t mask,
+static uint32_t kinetis_waitmcr_change(uint32_t base, uint32_t mask,
                                        uint32_t target_state)
 {
   const unsigned timeout = 1000;
   for (unsigned wait_ack = 0; wait_ack < timeout; wait_ack++)
     {
-      const bool state = (getreg32(base + S32K1XX_CAN_MCR_OFFSET) & mask)
+      const bool state = (getreg32(base + KINETIS_CAN_MCR_OFFSET) & mask)
           != 0;
       if (state == target_state)
         {
@@ -1176,14 +1173,14 @@ static uint32_t s32k1xx_waitmcr_change(uint32_t base, uint32_t mask,
   return false;
 }
 
-static uint32_t s32k1xx_waitfreezeack_change(uint32_t base,
+static uint32_t kinetis_waitfreezeack_change(uint32_t base,
                                              uint32_t target_state)
 {
-  return s32k1xx_waitmcr_change(base, CAN_MCR_FRZACK, target_state);
+  return kinetis_waitmcr_change(base, CAN_MCR_FRZACK, target_state);
 }
 
 /****************************************************************************
- * Function: s32k1xx_ifup
+ * Function: kinetis_ifup
  *
  * Description:
  *   NuttX Callback: Bring up the Ethernet interface when an IP address is
@@ -1199,12 +1196,12 @@ static uint32_t s32k1xx_waitfreezeack_change(uint32_t base,
  *
  ****************************************************************************/
 
-static int s32k1xx_ifup(struct net_driver_s *dev)
+static int kinetis_ifup(struct net_driver_s *dev)
 {
-  FAR struct s32k1xx_driver_s *priv =
-    (FAR struct s32k1xx_driver_s *)dev->d_private;
+  FAR struct kinetis_driver_s *priv =
+    (FAR struct kinetis_driver_s *)dev->d_private;
 
-  if (!s32k1xx_initialize(priv))
+  if (!kinetis_initialize(priv))
     {
       nerr("initialize failed");
       return -1;
@@ -1237,7 +1234,7 @@ static int s32k1xx_ifup(struct net_driver_s *dev)
 }
 
 /****************************************************************************
- * Function: s32k1xx_ifdown
+ * Function: kinetis_ifdown
  *
  * Description:
  *   NuttX Callback: Stop the interface.
@@ -1252,19 +1249,19 @@ static int s32k1xx_ifup(struct net_driver_s *dev)
  *
  ****************************************************************************/
 
-static int s32k1xx_ifdown(struct net_driver_s *dev)
+static int kinetis_ifdown(struct net_driver_s *dev)
 {
-  FAR struct s32k1xx_driver_s *priv =
-    (FAR struct s32k1xx_driver_s *)dev->d_private;
+  FAR struct kinetis_driver_s *priv =
+    (FAR struct kinetis_driver_s *)dev->d_private;
 
-  s32k1xx_reset(priv);
+  kinetis_reset(priv);
 
   priv->bifup = false;
   return OK;
 }
 
 /****************************************************************************
- * Function: s32k1xx_txavail_work
+ * Function: kinetis_txavail_work
  *
  * Description:
  *   Perform an out-of-cycle poll on the worker thread.
@@ -1280,9 +1277,9 @@ static int s32k1xx_ifdown(struct net_driver_s *dev)
  *
  ****************************************************************************/
 
-static void s32k1xx_txavail_work(FAR void *arg)
+static void kinetis_txavail_work(FAR void *arg)
 {
-  FAR struct s32k1xx_driver_s *priv = (FAR struct s32k1xx_driver_s *)arg;
+  FAR struct kinetis_driver_s *priv = (FAR struct kinetis_driver_s *)arg;
 
   /* Ignore the notification if the interface is not yet up */
 
@@ -1293,13 +1290,13 @@ static void s32k1xx_txavail_work(FAR void *arg)
        * packet.
        */
 
-      if (!s32k1xx_txringfull(priv))
+      if (!kinetis_txringfull(priv))
         {
           /* No, there is space for another transfer.  Poll the network for
            * new XMIT data.
            */
 
-          devif_poll(&priv->dev, s32k1xx_txpoll);
+          devif_poll(&priv->dev, kinetis_txpoll);
         }
     }
 
@@ -1307,7 +1304,7 @@ static void s32k1xx_txavail_work(FAR void *arg)
 }
 
 /****************************************************************************
- * Function: s32k1xx_txavail
+ * Function: kinetis_txavail
  *
  * Description:
  *   Driver callback invoked when new TX data is available.  This is a
@@ -1325,10 +1322,10 @@ static void s32k1xx_txavail_work(FAR void *arg)
  *
  ****************************************************************************/
 
-static int s32k1xx_txavail(struct net_driver_s *dev)
+static int kinetis_txavail(struct net_driver_s *dev)
 {
-  FAR struct s32k1xx_driver_s *priv =
-    (FAR struct s32k1xx_driver_s *)dev->d_private;
+  FAR struct kinetis_driver_s *priv =
+    (FAR struct kinetis_driver_s *)dev->d_private;
 
   /* Is our single work structure available?  It may not be if there are
    * pending interrupt actions and we will have to ignore the Tx
@@ -1339,14 +1336,14 @@ static int s32k1xx_txavail(struct net_driver_s *dev)
     {
       /* Schedule to serialize the poll on the worker thread. */
 
-      s32k1xx_txavail_work(priv);
+      kinetis_txavail_work(priv);
     }
 
   return OK;
 }
 
 /****************************************************************************
- * Function: s32k1xx_ioctl
+ * Function: kinetis_ioctl
  *
  * Description:
  *   PHY ioctl command handler
@@ -1364,11 +1361,11 @@ static int s32k1xx_txavail(struct net_driver_s *dev)
  ****************************************************************************/
 
 #ifdef CONFIG_NETDEV_CAN_BITRATE_IOCTL
-static int s32k1xx_ioctl(struct net_driver_s *dev, int cmd,
+static int kinetis_ioctl(struct net_driver_s *dev, int cmd,
                          unsigned long arg)
 {
-  FAR struct s32k1xx_driver_s *priv =
-      (FAR struct s32k1xx_driver_s *)dev->d_private;
+  FAR struct kinetis_driver_s *priv =
+      (FAR struct kinetis_driver_s *)dev->d_private;
 
   int ret;
 
@@ -1400,7 +1397,7 @@ static int s32k1xx_ioctl(struct net_driver_s *dev, int cmd,
           arbi_timing.bitrate = req->arbi_bitrate * 1000;
           arbi_timing.samplep = req->arbi_samplep;
 
-          if (s32k1xx_bitratetotimeseg(&arbi_timing, 10, 0))
+          if (kinetis_bitratetotimeseg(&arbi_timing, 10, 0))
             {
               ret = OK;
             }
@@ -1414,7 +1411,7 @@ static int s32k1xx_ioctl(struct net_driver_s *dev, int cmd,
           data_timing.bitrate = req->data_bitrate * 1000;
           data_timing.samplep = req->data_samplep;
 
-          if (ret == OK && s32k1xx_bitratetotimeseg(&data_timing, 10, 1))
+          if (ret == OK && kinetis_bitratetotimeseg(&data_timing, 10, 1))
             {
               ret = OK;
             }
@@ -1432,7 +1429,7 @@ static int s32k1xx_ioctl(struct net_driver_s *dev, int cmd,
 #ifdef CONFIG_NET_CAN_CANFD
               priv->data_timing = data_timing;
 #endif
-              s32k1xx_ifup(dev);
+              kinetis_ifup(dev);
             }
         }
         break;
@@ -1447,7 +1444,7 @@ static int s32k1xx_ioctl(struct net_driver_s *dev, int cmd,
 #endif /* CONFIG_NETDEV_IOCTL */
 
 /****************************************************************************
- * Function: s32k1xx_initalize
+ * Function: kinetis_initalize
  *
  * Description:
  *   Initialize FLEXCAN device
@@ -1462,45 +1459,45 @@ static int s32k1xx_ioctl(struct net_driver_s *dev, int cmd,
  *
  ****************************************************************************/
 
-static int s32k1xx_initialize(struct s32k1xx_driver_s *priv)
+static int kinetis_initialize(struct kinetis_driver_s *priv)
 {
   uint32_t regval;
   uint32_t i;
 
   /* initialize CAN device */
 
-  s32k1xx_setenable(priv->base, 0);
+  kinetis_setenable(priv->base, 0);
 
   /* Set SYS_CLOCK src */
 
-  regval  = getreg32(priv->base + S32K1XX_CAN_CTRL1_OFFSET);
-  regval |= CAN_CTRL1_CLKSRC;
-  putreg32(regval, priv->base + S32K1XX_CAN_CTRL1_OFFSET);
+  regval  = getreg32(priv->base + KINETIS_CAN_CTRL1_OFFSET);
+  regval &= ~CAN_CTRL1_CLKSRC;
+  putreg32(regval, priv->base + KINETIS_CAN_CTRL1_OFFSET);
 
-  s32k1xx_setenable(priv->base, 1);
+  kinetis_setenable(priv->base, 1);
 
-  s32k1xx_reset(priv);
+  kinetis_reset(priv);
 
   /* Enter freeze mode */
 
-  s32k1xx_setfreeze(priv->base, 1);
-  if (!s32k1xx_waitfreezeack_change(priv->base, 1))
+  kinetis_setfreeze(priv->base, 1);
+  if (!kinetis_waitfreezeack_change(priv->base, 1))
     {
       ninfo("FLEXCAN: freeze fail\r\n");
       return -1;
     }
 
 #ifndef CONFIG_NET_CAN_CANFD
-  regval  = getreg32(priv->base + S32K1XX_CAN_CTRL1_OFFSET);
+  regval  = getreg32(priv->base + KINETIS_CAN_CTRL1_OFFSET);
   regval |= CAN_CTRL1_PRESDIV(priv->arbi_timing.presdiv) | /* Prescaler divisor factor */
             CAN_CTRL1_PROPSEG(priv->arbi_timing.propseg) | /* Propagation segment */
             CAN_CTRL1_PSEG1(priv->arbi_timing.pseg1) |   /* Phase buffer segment 1 */
             CAN_CTRL1_PSEG2(priv->arbi_timing.pseg2) |   /* Phase buffer segment 2 */
             CAN_CTRL1_RJW(1);      /* Resynchronization jump width */
-  putreg32(regval, priv->base + S32K1XX_CAN_CTRL1_OFFSET);
+  putreg32(regval, priv->base + KINETIS_CAN_CTRL1_OFFSET);
 
 #else
-  regval  = getreg32(priv->base + S32K1XX_CAN_CBT_OFFSET);
+  regval  = getreg32(priv->base + KINETIS_CAN_CBT_OFFSET);
   regval |= CAN_CBT_BTF |         /* Enable extended bit timing
                                    * configurations for CAN-FD for setting up
                                    * separately nominal and data phase */
@@ -1509,36 +1506,36 @@ static int s32k1xx_initialize(struct s32k1xx_driver_s *priv)
             CAN_CBT_EPSEG1(priv->arbi_timing.pseg1) |   /* Phase buffer segment 1 */
             CAN_CBT_EPSEG2(priv->arbi_timing.pseg2) |   /* Phase buffer segment 2 */
             CAN_CBT_ERJW(1);      /* Resynchronization jump width */
-  putreg32(regval, priv->base + S32K1XX_CAN_CBT_OFFSET);
+  putreg32(regval, priv->base + KINETIS_CAN_CBT_OFFSET);
 
   /* Enable CAN FD feature */
 
-  regval  = getreg32(priv->base + S32K1XX_CAN_MCR_OFFSET);
+  regval  = getreg32(priv->base + KINETIS_CAN_MCR_OFFSET);
   regval |= CAN_MCR_FDEN;
-  putreg32(regval, priv->base + S32K1XX_CAN_MCR_OFFSET);
+  putreg32(regval, priv->base + KINETIS_CAN_MCR_OFFSET);
 
-  regval  = getreg32(priv->base + S32K1XX_CAN_FDCBT_OFFSET);
+  regval  = getreg32(priv->base + KINETIS_CAN_FDCBT_OFFSET);
   regval |= CAN_FDCBT_FPRESDIV(priv->data_timing.presdiv) |  /* Prescaler divisor factor of 1 */
             CAN_FDCBT_FPROPSEG(priv->data_timing.propseg) | /* Propagation
                                                              * segment (only register that doesn't add 1) */
             CAN_FDCBT_FPSEG1(priv->data_timing.pseg1) |    /* Phase buffer segment 1 */
             CAN_FDCBT_FPSEG2(priv->data_timing.pseg2) |    /* Phase buffer segment 2 */
             CAN_FDCBT_FRJW(priv->data_timing.pseg2);       /* Resynchorinzation jump width same as PSEG2 */
-  putreg32(regval, priv->base + S32K1XX_CAN_FDCBT_OFFSET);
+  putreg32(regval, priv->base + KINETIS_CAN_FDCBT_OFFSET);
 
   /* Additional CAN-FD configurations */
 
-  regval  = getreg32(priv->base + S32K1XX_CAN_FDCTRL_OFFSET);
+  regval  = getreg32(priv->base + KINETIS_CAN_FDCTRL_OFFSET);
 
   regval |= CAN_FDCTRL_FDRATE |     /* Enable bit rate switch in data phase of frame */
             CAN_FDCTRL_TDCEN |      /* Enable transceiver delay compensation */
             CAN_FDCTRL_TDCOFF(5) |  /* Setup 5 cycles for data phase sampling delay */
             CAN_FDCTRL_MBDSR0(3);   /* Setup 64 bytes per message buffer (7 MB's) */
-  putreg32(regval, priv->base + S32K1XX_CAN_FDCTRL_OFFSET);
+  putreg32(regval, priv->base + KINETIS_CAN_FDCTRL_OFFSET);
 
-  regval  = getreg32(priv->base + S32K1XX_CAN_CTRL2_OFFSET);
+  regval  = getreg32(priv->base + KINETIS_CAN_CTRL2_OFFSET);
   regval |= CAN_CTRL2_ISOCANFDEN;
-  putreg32(regval, priv->base + S32K1XX_CAN_CTRL2_OFFSET);
+  putreg32(regval, priv->base + KINETIS_CAN_CTRL2_OFFSET);
 #endif
 
   for (i = TXMBCOUNT; i < TOTALMBCOUNT; i++)
@@ -1548,11 +1545,11 @@ static int s32k1xx_initialize(struct s32k1xx_driver_s *priv)
       /* FIXME sometimes we get a hard fault here */
     }
 
-  putreg32(0x0, priv->base + S32K1XX_CAN_RXFGMASK_OFFSET);
+  putreg32(0x0, priv->base + KINETIS_CAN_RXFGMASK_OFFSET);
 
   for (i = 0; i < TOTALMBCOUNT; i++)
     {
-      putreg32(0, priv->base + S32K1XX_CAN_RXIMR_OFFSET(i));
+      putreg32(0, priv->base + KINETIS_CAN_RXIMR_OFFSET(i));
     }
 
   for (i = 0; i < RXMBCOUNT; i++)
@@ -1567,13 +1564,13 @@ static int s32k1xx_initialize(struct s32k1xx_driver_s *priv)
       priv->rx[i].cs.rtr = 0x0;
     }
 
-  putreg32(IFLAG1_RX, priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
-  putreg32(IFLAG1_RX, priv->base + S32K1XX_CAN_IMASK1_OFFSET);
+  putreg32(IFLAG1_RX, priv->base + KINETIS_CAN_IFLAG1_OFFSET);
+  putreg32(IFLAG1_RX, priv->base + KINETIS_CAN_IMASK1_OFFSET);
 
   /* Exit freeze mode */
 
-  s32k1xx_setfreeze(priv->base, 0);
-  if (!s32k1xx_waitfreezeack_change(priv->base, 0))
+  kinetis_setfreeze(priv->base, 0);
+  if (!kinetis_waitfreezeack_change(priv->base, 0))
     {
       ninfo("FLEXCAN: unfreeze fail\r\n");
       return -1;
@@ -1583,7 +1580,7 @@ static int s32k1xx_initialize(struct s32k1xx_driver_s *priv)
 }
 
 /****************************************************************************
- * Function: s32k1xx_reset
+ * Function: kinetis_reset
  *
  * Description:
  *   Put the EMAC in the non-operational, reset state
@@ -1598,24 +1595,24 @@ static int s32k1xx_initialize(struct s32k1xx_driver_s *priv)
  *
  ****************************************************************************/
 
-static void s32k1xx_reset(struct s32k1xx_driver_s *priv)
+static void kinetis_reset(struct kinetis_driver_s *priv)
 {
   uint32_t regval;
   uint32_t i;
 
-  regval  = getreg32(priv->base + S32K1XX_CAN_MCR_OFFSET);
+  regval  = getreg32(priv->base + KINETIS_CAN_MCR_OFFSET);
   regval |= CAN_MCR_SOFTRST;
-  putreg32(regval, priv->base + S32K1XX_CAN_MCR_OFFSET);
+  putreg32(regval, priv->base + KINETIS_CAN_MCR_OFFSET);
 
-  if (!s32k1xx_waitmcr_change(priv->base, CAN_MCR_SOFTRST, 0))
+  if (!kinetis_waitmcr_change(priv->base, CAN_MCR_SOFTRST, 0))
     {
       nerr("Reset failed");
       return;
     }
 
-  regval  = getreg32(priv->base + S32K1XX_CAN_MCR_OFFSET);
+  regval  = getreg32(priv->base + KINETIS_CAN_MCR_OFFSET);
   regval &= ~(CAN_MCR_SUPV);
-  putreg32(regval, priv->base + S32K1XX_CAN_MCR_OFFSET);
+  putreg32(regval, priv->base + KINETIS_CAN_MCR_OFFSET);
 
   /* Initialize all MB rx and tx */
 
@@ -1629,27 +1626,27 @@ static void s32k1xx_reset(struct s32k1xx_driver_s *priv)
       priv->rx[i].data[1].w00 = 0x0;
     }
 
-  regval  = getreg32(priv->base + S32K1XX_CAN_MCR_OFFSET);
+  regval  = getreg32(priv->base + KINETIS_CAN_MCR_OFFSET);
   regval |= CAN_MCR_SLFWAK | CAN_MCR_WRNEN | CAN_MCR_SRXDIS |
             CAN_MCR_IRMQ | CAN_MCR_AEN |
             (((TOTALMBCOUNT - 1) << CAN_MCR_MAXMB_SHIFT) &
             CAN_MCR_MAXMB_MASK);
-  putreg32(regval, priv->base + S32K1XX_CAN_MCR_OFFSET);
+  putreg32(regval, priv->base + KINETIS_CAN_MCR_OFFSET);
 
   regval  = CAN_CTRL2_RRS | CAN_CTRL2_EACEN;
-  putreg32(regval, priv->base + S32K1XX_CAN_CTRL2_OFFSET);
+  putreg32(regval, priv->base + KINETIS_CAN_CTRL2_OFFSET);
 
   for (i = 0; i < TOTALMBCOUNT; i++)
     {
-      putreg32(0, priv->base + S32K1XX_CAN_RXIMR_OFFSET(i));
+      putreg32(0, priv->base + KINETIS_CAN_RXIMR_OFFSET(i));
     }
 
   /* Filtering catchall */
 
-  putreg32(0x3fffffff, priv->base + S32K1XX_CAN_RX14MASK_OFFSET);
-  putreg32(0x3fffffff, priv->base + S32K1XX_CAN_RX15MASK_OFFSET);
-  putreg32(0x3fffffff, priv->base + S32K1XX_CAN_RXMGMASK_OFFSET);
-  putreg32(0x0, priv->base + S32K1XX_CAN_RXFGMASK_OFFSET);
+  putreg32(0x3fffffff, priv->base + KINETIS_CAN_RX14MASK_OFFSET);
+  putreg32(0x3fffffff, priv->base + KINETIS_CAN_RX15MASK_OFFSET);
+  putreg32(0x3fffffff, priv->base + KINETIS_CAN_RXMGMASK_OFFSET);
+  putreg32(0x0, priv->base + KINETIS_CAN_RXFGMASK_OFFSET);
 }
 
 /****************************************************************************
@@ -1657,14 +1654,14 @@ static void s32k1xx_reset(struct s32k1xx_driver_s *priv)
  ****************************************************************************/
 
 /****************************************************************************
- * Function: s32k1xx_netinitialize
+ * Function: kinetis_caninitialize
  *
  * Description:
- *   Initialize the Ethernet controller and driver
+ *   Initialize the CAN controller and driver
  *
  * Input Parameters:
- *   intf - In the case where there are multiple EMACs, this value
- *          identifies which EMAC is to be initialized.
+ *   intf - In the case where there are multiple CAN, this value
+ *          identifies which CAN is to be initialized.
  *
  * Returned Value:
  *   OK on success; Negated errno on failure.
@@ -1673,19 +1670,20 @@ static void s32k1xx_reset(struct s32k1xx_driver_s *priv)
  *
  ****************************************************************************/
 
-int s32k1xx_netinitialize(int intf)
+int kinetis_caninitialize(int intf)
 {
-  struct s32k1xx_driver_s *priv;
+  struct kinetis_driver_s *priv;
   int ret;
+  uint32_t regval;
 
   switch (intf)
     {
-#ifdef CONFIG_S32K1XX_FLEXCAN0
+#ifdef CONFIG_KINETIS_FLEXCAN0
     case 0:
       priv               = &g_flexcan0;
-      memset(priv, 0, sizeof(struct s32k1xx_driver_s));
-      priv->base         = S32K1XX_FLEXCAN0_BASE;
-      priv->config       = &s32k1xx_flexcan0_config;
+      memset(priv, 0, sizeof(struct kinetis_driver_s));
+      priv->base         = KINETIS_CAN0_BASE;
+      priv->config       = &kinetis_flexcan0_config;
 
       /* Default bitrate configuration */
 
@@ -1698,15 +1696,18 @@ int s32k1xx_netinitialize(int intf)
       priv->arbi_timing.bitrate = CONFIG_FLEXCAN0_BITRATE;
       priv->arbi_timing.samplep = CONFIG_FLEXCAN0_SAMPLEP;
 #  endif
+      regval = getreg32(KINETIS_SIM_SCGC6);
+      regval |= SIM_SCGC6_FLEXCAN0;
+      putreg32(regval, KINETIS_SIM_SCGC6);
       break;
 #endif
 
-#ifdef CONFIG_S32K1XX_FLEXCAN1
+#ifdef CONFIG_KINETIS_FLEXCAN1
     case 1:
       priv         = &g_flexcan1;
-      memset(priv, 0, sizeof(struct s32k1xx_driver_s));
-      priv->base   = S32K1XX_FLEXCAN1_BASE;
-      priv->config = &s32k1xx_flexcan1_config;
+      memset(priv, 0, sizeof(struct kinetis_driver_s));
+      priv->base   = KINETIS_CAN1_BASE;
+      priv->config = &kinetis_flexcan1_config;
 
       /* Default bitrate configuration */
 
@@ -1719,15 +1720,18 @@ int s32k1xx_netinitialize(int intf)
       priv->arbi_timing.bitrate = CONFIG_FLEXCAN1_BITRATE;
       priv->arbi_timing.samplep = CONFIG_FLEXCAN1_SAMPLEP;
 #  endif
+      regval = getreg32(KINETIS_SIM_SCGC3);
+      regval |= SIM_SCGC3_FLEXCAN1;
+      putreg32(regval, KINETIS_SIM_SCGC3);
       break;
 #endif
 
-#ifdef CONFIG_S32K1XX_FLEXCAN2
+#ifdef CONFIG_KINETIS_FLEXCAN2
     case 2:
       priv         = &g_flexcan2;
-      memset(priv, 0, sizeof(struct s32k1xx_driver_s));
-      priv->base   = S32K1XX_FLEXCAN2_BASE;
-      priv->config = &s32k1xx_flexcan2_config;
+      memset(priv, 0, sizeof(struct kinetis_driver_s));
+      priv->base   = KINETIS_CAN2_BASE;
+      priv->config = &kinetis_flexcan2_config;
 
       /* Default bitrate configuration */
 
@@ -1747,7 +1751,7 @@ int s32k1xx_netinitialize(int intf)
       return -ENODEV;
     }
 
-  if (!s32k1xx_bitratetotimeseg(&priv->arbi_timing, 1, 0))
+  if (!kinetis_bitratetotimeseg(&priv->arbi_timing, 1, 0))
     {
       nerr("ERROR: Invalid CAN timings please try another sample point "
            "or refer to the reference manual\n");
@@ -1755,7 +1759,7 @@ int s32k1xx_netinitialize(int intf)
     }
 
 #ifdef CONFIG_NET_CAN_CANFD
-  if (!s32k1xx_bitratetotimeseg(&priv->data_timing, 1, 1))
+  if (!kinetis_bitratetotimeseg(&priv->data_timing, 1, 1))
     {
       nerr("ERROR: Invalid CAN data phase timings please try another "
            "sample point or refer to the reference manual\n");
@@ -1763,17 +1767,17 @@ int s32k1xx_netinitialize(int intf)
     }
 #endif
 
-  s32k1xx_pinconfig(priv->config->tx_pin);
-  s32k1xx_pinconfig(priv->config->rx_pin);
+  kinetis_pinconfig(priv->config->tx_pin);
+  kinetis_pinconfig(priv->config->rx_pin);
   if (priv->config->enable_pin > 0)
     {
-      s32k1xx_pinconfig(priv->config->enable_pin);
-      s32k1xx_gpiowrite(priv->config->enable_pin, priv->config->enable_high);
+      kinetis_pinconfig(priv->config->enable_pin);
+      kinetis_gpiowrite(priv->config->enable_pin, priv->config->enable_high);
     }
 
   /* Attach the flexcan interrupt handler */
 
-  if (irq_attach(priv->config->bus_irq, s32k1xx_flexcan_interrupt, priv))
+  if (irq_attach(priv->config->bus_irq, kinetis_flexcan_interrupt, priv))
     {
       /* We could not attach the ISR to the interrupt */
 
@@ -1781,7 +1785,7 @@ int s32k1xx_netinitialize(int intf)
       return -EAGAIN;
     }
 
-  if (irq_attach(priv->config->error_irq, s32k1xx_flexcan_interrupt, priv))
+  if (irq_attach(priv->config->error_irq, kinetis_flexcan_interrupt, priv))
     {
       /* We could not attach the ISR to the interrupt */
 
@@ -1792,7 +1796,7 @@ int s32k1xx_netinitialize(int intf)
   if (priv->config->lprx_irq > 0)
     {
       if (irq_attach(priv->config->lprx_irq,
-                     s32k1xx_flexcan_interrupt, priv))
+                     kinetis_flexcan_interrupt, priv))
         {
           /* We could not attach the ISR to the interrupt */
 
@@ -1801,7 +1805,7 @@ int s32k1xx_netinitialize(int intf)
         }
     }
 
-  if (irq_attach(priv->config->mb_irq, s32k1xx_flexcan_interrupt, priv))
+  if (irq_attach(priv->config->mb_irq, kinetis_flexcan_interrupt, priv))
     {
       /* We could not attach the ISR to the interrupt */
 
@@ -1811,11 +1815,11 @@ int s32k1xx_netinitialize(int intf)
 
   /* Initialize the driver structure */
 
-  priv->dev.d_ifup    = s32k1xx_ifup;      /* I/F up (new IP address) callback */
-  priv->dev.d_ifdown  = s32k1xx_ifdown;    /* I/F down callback */
-  priv->dev.d_txavail = s32k1xx_txavail;   /* New TX data callback */
+  priv->dev.d_ifup    = kinetis_ifup;      /* I/F up (new IP address) callback */
+  priv->dev.d_ifdown  = kinetis_ifdown;    /* I/F down callback */
+  priv->dev.d_txavail = kinetis_txavail;   /* New TX data callback */
 #ifdef CONFIG_NETDEV_IOCTL
-  priv->dev.d_ioctl   = s32k1xx_ioctl;     /* Support CAN ioctl() calls */
+  priv->dev.d_ioctl   = kinetis_ioctl;     /* Support CAN ioctl() calls */
 #endif
   priv->dev.d_private = (void *)priv;      /* Used to recover private state from dev */
 
@@ -1826,17 +1830,17 @@ int s32k1xx_netinitialize(int intf)
     }
 
 #endif
-  priv->rx            = (struct mb_s *)(priv->base + S32K1XX_CAN_MB_OFFSET);
-  priv->tx            = (struct mb_s *)(priv->base + S32K1XX_CAN_MB_OFFSET +
+  priv->rx            = (struct mb_s *)(priv->base + KINETIS_CAN_MB_OFFSET);
+  priv->tx            = (struct mb_s *)(priv->base + KINETIS_CAN_MB_OFFSET +
                           (sizeof(struct mb_s) * RXMBCOUNT));
 
   /* Put the interface in the down state.  This usually amounts to resetting
-   * the device and/or calling s32k1xx_ifdown().
+   * the device and/or calling kinetis_ifdown().
    */
 
   ninfo("callbacks done\r\n");
 
-  s32k1xx_ifdown(&priv->dev);
+  kinetis_ifdown(&priv->dev);
 
   /* Register the device with the OS so that socket IOCTLs can be performed */
 
@@ -1860,18 +1864,18 @@ int s32k1xx_netinitialize(int intf)
 #if !defined(CONFIG_NETDEV_LATEINIT)
 void up_netinitialize(void)
 {
-#ifdef CONFIG_S32K1XX_FLEXCAN0
-  s32k1xx_netinitialize(0);
+#ifdef CONFIG_KINETIS_FLEXCAN0
+  kinetis_caninitialize(0);
 #endif
 
-#ifdef CONFIG_S32K1XX_FLEXCAN1
-  s32k1xx_netinitialize(1);
+#ifdef CONFIG_KINETIS_FLEXCAN1
+  kinetis_caninitialize(1);
 #endif
 
-#ifdef CONFIG_S32K1XX_FLEXCAN2
-  s32k1xx_netinitialize(2);
+#ifdef CONFIG_KINETIS_FLEXCAN2
+  kinetis_caninitialize(2);
 #endif
 }
 #endif
 
-#endif /* CONFIG_S32K1XX_FLEXCAN */
+#endif /* CONFIG_KINETIS_FLEXCAN */

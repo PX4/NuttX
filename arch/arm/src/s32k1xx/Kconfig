@@ -154,6 +154,7 @@ config S32K1XX_LPSPI
 
 config S32K1XX_FLEXCAN
 	bool
+	select NET_CAN_HAVE_CANFD
 	default n
 	
 # Peripheral Selection
@@ -491,5 +492,110 @@ config S32K1XX_ENET_PHYINIT
 		function one time before it first uses the PHY.
 
 endmenu # S32K1XX_ENET
+
+menu "FLEXCAN0 Configuration"
+	depends on S32K1XX_FLEXCAN0
+
+config FLEXCAN0_BITRATE
+	int "CAN bitrate"
+	depends on !NET_CAN_CANFD
+	default 1000000
+	
+config FLEXCAN0_SAMPLEP
+	int "CAN sample point"
+	depends on !NET_CAN_CANFD
+	default 80
+	
+config FLEXCAN0_ARBI_BITRATE
+	int "CAN FD Arbitration phase bitrate"
+	depends on NET_CAN_CANFD
+	default 1000000
+	
+config FLEXCAN0_ARBI_SAMPLEP
+	int "CAN FD Arbitration phase sample point"
+	depends on NET_CAN_CANFD
+	default 80
+	
+config FLEXCAN0_DATA_BITRATE
+	int "CAN FD Arbitration phase bitrate"
+	depends on NET_CAN_CANFD
+	default 4000000
+	
+config FLEXCAN0_DATA_SAMPLEP
+	int "CAN FD Arbitration phase sample point"
+	depends on NET_CAN_CANFD
+	default 90
+	
+endmenu # S32K1XX_FLEXCAN0
+
+menu "FLEXCAN1 Configuration"
+	depends on S32K1XX_FLEXCAN1
+
+config FLEXCAN1_BITRATE
+	int "CAN bitrate"
+	depends on !NET_CAN_CANFD
+	default 1000000
+	
+config FLEXCAN1_SAMPLEP
+	int "CAN sample point"
+	depends on !NET_CAN_CANFD
+	default 80
+	
+config FLEXCAN1_ARBI_BITRATE
+	int "CAN FD Arbitration phase bitrate"
+	depends on NET_CAN_CANFD
+	default 1000000
+	
+config FLEXCAN1_ARBI_SAMPLEP
+	int "CAN FD Arbitration phase sample point"
+	depends on NET_CAN_CANFD
+	default 80
+	
+config FLEXCAN1_DATA_BITRATE
+	int "CAN FD Arbitration phase bitrate"
+	depends on NET_CAN_CANFD
+	default 4000000
+	
+config FLEXCAN1_DATA_SAMPLEP
+	int "CAN FD Arbitration phase sample point"
+	depends on NET_CAN_CANFD
+	default 90
+	
+endmenu # S32K1XX_FLEXCAN1
+
+menu "FLEXCAN2 Configuration"
+	depends on S32K1XX_FLEXCAN2
+
+config FLEXCAN2_BITRATE
+	int "CAN bitrate"
+	depends on !NET_CAN_CANFD
+	default 1000000
+	
+config FLEXCAN2_SAMPLEP
+	int "CAN sample point"
+	depends on !NET_CAN_CANFD
+	default 80
+	
+config FLEXCAN2_ARBI_BITRATE
+	int "CAN FD Arbitration phase bitrate"
+	depends on NET_CAN_CANFD
+	default 1000000
+	
+config FLEXCAN2_ARBI_SAMPLEP
+	int "CAN FD Arbitration phase sample point"
+	depends on NET_CAN_CANFD
+	default 80
+	
+config FLEXCAN2_DATA_BITRATE
+	int "CAN FD Arbitration phase bitrate"
+	depends on NET_CAN_CANFD
+	default 4000000
+	
+config FLEXCAN2_DATA_SAMPLEP
+	int "CAN FD Arbitration phase sample point"
+	depends on NET_CAN_CANFD
+	default 90
+	
+endmenu # S32K1XX_FLEXCAN0
 
 endif # ARCH_CHIP_S32K1XX

@@ -1,6 +1,6 @@
 /****************************************************************************
- * include/nuttx/net/ethernt.h
- * Macros and definitions for the Ethernet link layer.
+ * include/nuttx/net/can.h
+ * Macros and definitions for the CAN link layer.
  *
  *   Copyright (C) 2007, 2009-2012, 2015 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <gnutt@nuttx.org>
@@ -52,11 +52,11 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-
-#define CAN_HDRLEN 4                               /* FIXME standard id vs extended */
-#define NET_CAN_PKTSIZE sizeof(struct canfd_frame) /* max size we can send through socket*/
-
-/* FIXME think about can & canfd support */
+#ifdef CONFIG_NET_CAN_CANFD
+#define NET_CAN_PKTSIZE sizeof(struct canfd_frame)
+#else
+#define NET_CAN_PKTSIZE sizeof(struct can_frame)
+#endif
 
 /****************************************************************************
  * Public Types
@@ -65,6 +65,15 @@
 /****************************************************************************
  * Public Data
  ****************************************************************************/
+
+#ifdef CONFIG_NET_CAN_CANFD
+
+/* Lookup tables convert can_dlc <-> payload len */
+
+extern const uint8_t can_dlc_to_len[16];
+extern const uint8_t len_to_can_dlc[65];
+
+#endif
 
 #ifdef __cplusplus
 #define EXTERN extern "C"
@@ -77,6 +86,33 @@ extern "C"
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: can_input
+ *
+ * Description:
+ *   Handle incoming CAN frame input
+ *
+ *   This function provides the interface between CAN device drivers and
+ *   SocketCAN logic.  All frames that are received should be provided to
+ *   can_input() prior to other routing.
+ *
+ * Input Parameters:
+ *   dev - The device driver structure containing the received packet
+ *
+ * Returned Value:
+ *   OK    The packet has been processed  and can be deleted
+ *   ERROR There is a matching connection, but could not dispatch the packet
+ *         yet.  Useful when a packet arrives before a recv call is in
+ *         place.
+ *
+ * Assumptions:
+ *   Called from the CAN device diver with the network locked.
+ *
+ ****************************************************************************/
+
+struct net_driver_s; /* Forward reference */
+int can_input(FAR struct net_driver_s *dev);
 
 #undef EXTERN
 #ifdef __cplusplus
