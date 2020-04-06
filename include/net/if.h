@@ -136,6 +136,18 @@ struct mii_ioctl_data_s
   uint16_t val_out;     /* PHY output data */
 };
 
+/* Structure passed to get or set the CAN bitrate
+ * SIOCxCANBITRATE ioctl commands.
+ */
+
+struct can_ioctl_data_s
+{
+  uint16_t arbi_bitrate; /* Classic CAN / Arbitration phase bitrate kbit/s */
+  uint16_t arbi_samplep; /* Classic CAN / Arbitration phase input % */
+  uint16_t data_bitrate; /* Data phase bitrate kbit/s */
+  uint16_t data_samplep; /* Data phase sample point % */
+};
+
 /* There are two forms of the I/F request structure.  One for IPv6 and one for IPv4.
  * Notice that they are (and must be) cast compatible and really different only
  * in the size of the structure allocation.
@@ -158,6 +170,7 @@ struct lifreq
     uint8_t                   lifru_flags;              /* Interface flags */
     struct mii_ioctl_notify_s llfru_mii_notify;         /* PHY event notification */
     struct mii_ioctl_data_s   lifru_mii_data;           /* MII request data */
+    struct can_ioctl_data_s   lifru_can_data;           /* CAN bitrate request data */
   } lifr_ifru;
 };
 
@@ -176,7 +189,7 @@ struct lifreq
 #define lifr_mii_val_in       lifr_ifru.lifru_mii_data.val_in  /* PHY input data */
 #define lifr_mii_val_out      lifr_ifru.lifru_mii_data.val_out /* PHY output data */
 
-/* Used only with the SIOCGLIFCONF IOCTL commnd*/
+/* Used only with the SIOCGLIFCONF IOCTL command */
 
 struct lifconf
 {
@@ -211,6 +224,7 @@ struct ifreq
     uint8_t                   ifru_flags;               /* Interface flags */
     struct mii_ioctl_notify_s ifru_mii_notify;          /* PHY event notification */
     struct mii_ioctl_data_s   ifru_mii_data;            /* MII request data */
+    struct can_ioctl_data_s   ifru_can_data;            /* CAN bitrate request data */
   } ifr_ifru;
 };
 
@@ -230,7 +244,7 @@ struct ifreq
 #define ifr_mii_val_in        ifr_ifru.ifru_mii_data.val_in  /* PHY input data */
 #define ifr_mii_val_out       ifr_ifru.ifru_mii_data.val_out /* PHY output data */
 
-/* Used only with the SIOCGIFCONF IOCTL commnd*/
+/* Used only with the SIOCGIFCONF IOCTL command */
 
 struct ifconf
 {

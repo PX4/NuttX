@@ -22,12 +22,23 @@ if NET_CAN
 config NET_CAN_HAVE_TX_DEADLINE
 	bool
 	default n
+	
+config NET_CAN_HAVE_CANFD
+	bool
+	default n
 
 config CAN_CONNS
 	int "Number of CAN connections"
 	default 4
 	---help---
 		Maximum number of CAN connections (all tasks).
+		
+config NET_CAN_CANFD
+	bool "Enable CAN FD support"
+	default y
+	depends on NET_CAN_HAVE_CANFD
+	---help---
+		Enable CAN FD support in SocketCAN stack
 		
 config NET_CAN_SOCK_OPTS
 	bool "sockopt support"
