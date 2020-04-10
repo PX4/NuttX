@@ -377,6 +377,25 @@ void net_initialize(void);
 int net_lock(void);
 
 /****************************************************************************
+ * Name: net_trylock
+ *
+ * Description:
+ *   Try to take the network lock only when it is currently not locked.
+ *   Otherwise, it locks the semaphore.  In either
+ *   case, the call returns without blocking.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   Zero (OK) is returned on success; a negated errno value is returned on
+ *   failured (probably -EAGAIN).
+ *
+ ****************************************************************************/
+
+int net_trylock(void);
+
+/****************************************************************************
  * Name: net_unlock
  *
  * Description:

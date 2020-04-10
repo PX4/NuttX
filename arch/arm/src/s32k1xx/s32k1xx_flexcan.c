@@ -355,24 +355,25 @@ static uint8_t g_rx_pool[sizeof(struct can_frame)*POOL_SIZE];
  ****************************************************************************/
 
 /****************************************************************************
- * Name: arm_clz
+ * Name: arm_lsb
  *
  * Description:
- *   Access to CLZ instructions
+ *   Calculate position of lsb that's equal to 1
  *
  * Input Parameters:
- *   value - The value to perform the Count Leading Zeros operation on
+ *   value - The value to perform the operation on
  *
  * Returned Value:
- *   None
+ *   location of lsb which is equal to 1, returns 32 when value is 0
  *
  ****************************************************************************/
 
-static inline uint32_t arm_clz(unsigned int value)
+static inline uint32_t arm_lsb(unsigned int value)
 {
   uint32_t ret;
-
-  __asm__ __volatile__ ("clz %0, %1" : "=r"(ret) : "r"(value));
+  volatile uint32_t rvalue = value;
+  __asm__ __volatile__ ("rbit %1,%0" : "=r" (rvalue) : "r" (rvalue));
+  __asm__ __volatile__ ("clz %0, %1" : "=r"(ret) : "r"(rvalue));
   return ret;
 }
 
@@ -725,8 +726,6 @@ static int s32k1xx_transmit(FAR struct s32k1xx_driver_s *priv)
     }
 #endif
 
-  s32k1xx_gpiowrite(PIN_PORTD | PIN31, 0);
-
   mb->cs = cs; /* Go. */
 
   uint32_t regval;
@@ -831,13 +830,12 @@ static int s32k1xx_txpoll(struct net_driver_s *dev)
 static void s32k1xx_receive(FAR struct s32k1xx_driver_s *priv,
                             uint32_t flags)
 {
-  uint32_t regval;
   uint32_t mb_index;
   struct mb_s *rf;
 
-  while ((mb_index = arm_clz(flags)) != 32)
+  while ((mb_index = arm_lsb(flags)) != 32)
     {
-      rf = &priv->rx[31 - mb_index];
+      rf = &priv->rx[mb_index];
 
       /* Read the frame contents */
 
@@ -872,9 +870,8 @@ static void s32k1xx_receive(FAR struct s32k1xx_driver_s *priv,
 
           /* Clear MB interrupt flag */
 
-          regval  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
-          regval |= (0x80000000 >> mb_index);
-          putreg32(regval, priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
+          putreg32(1 << mb_index,
+                   priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
 
           /* Copy the buffer pointer to priv->dev..  Set amount of data
            * in priv->dev.d_len
@@ -910,9 +907,8 @@ static void s32k1xx_receive(FAR struct s32k1xx_driver_s *priv,
 
           /* Clear MB interrupt flag */
 
-          regval  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
-          regval |= (1 << mb_index);
-          putreg32(regval, priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
+          putreg32(1 << mb_index,
+                   priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
 
           /* Copy the buffer pointer to priv->dev..  Set amount of data
            * in priv->dev.d_len
@@ -937,10 +933,15 @@ static void s32k1xx_receive(FAR struct s32k1xx_driver_s *priv,
 
       priv->dev.d_buf = (uint8_t *)priv->txdesc;
 
-      /* Reread interrupt flags and process them in this loop wh */
+      flags &= ~(1 << mb_index);
 
-      flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
-      flags &= IFLAG1_RX;
+      /* Reread interrupt flags and process them in this loop */
+
+      if(flags == 0)
+        {
+          flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
+          flags &= IFLAG1_RX;
+        }
     }
 }
 
@@ -1021,24 +1022,28 @@ static int s32k1xx_flexcan_interrupt(int irq, FAR void *context,
                                      FAR void *arg)
 {
   FAR struct s32k1xx_driver_s *priv = (struct s32k1xx_driver_s *)arg;
-  uint32_t flags;
-  flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
-  flags &= IFLAG1_RX;
 
-  if (flags)
-    {
-      s32k1xx_receive(priv, flags);
-    }
+  if(irq == priv->config->mb_irq) {
+    uint32_t flags;
+    flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
+    flags &= IFLAG1_RX;
 
-  flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
-  flags &= IFLAG1_TX;
+    if (flags)
+      {
+        s32k1xx_receive(priv, flags);
+      }
 
-  if (flags)
-    {
-      s32k1xx_txdone(priv, flags);
-    }
+    flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
+    flags &= IFLAG1_TX;
 
+    if (flags)
+      {
+        s32k1xx_txdone(priv, flags);
+      }
+
+  }
   return OK;
+
 }
 
 /****************************************************************************

@@ -109,7 +109,7 @@ can_data_event(FAR struct net_driver_s *dev, FAR struct can_conn_s *conn,
  *   OK if packet has been processed, otherwise ERROR.
  *
  * Assumptions:
- *   This function is called with the network locked.
+ *   This function can be called from an interrupt.
  *
  ****************************************************************************/
 
@@ -135,9 +135,17 @@ uint16_t can_callback(FAR struct net_driver_s *dev,
         }
 #endif
 
-      /* Perform the callback */
+      /* Try to lock the network when successfull send data to the listener */
 
-      flags = devif_conn_event(dev, conn, flags, conn->list);
+      if(net_trylock() == OK)
+        {
+          flags = devif_conn_event(dev, conn, flags, conn->list);
+          net_unlock();
+        }
+
+      /* Either we did not get the lock or there is no application listening
+       * If we did not get a lock we store the frame in the read-ahead buffer
+       */
 
       if ((flags & CAN_NEWDATA) != 0)
         {
