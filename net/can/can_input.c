@@ -147,7 +147,7 @@ const uint8_t len_to_can_dlc[65] =
  *          place.
  *
  * Assumptions:
- *   The network is locked.
+ *   This function can be called from an interrupt.
  *
  ****************************************************************************/
 
