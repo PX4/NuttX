@@ -57,6 +57,8 @@
 #  include "hardware/stm32f33xxx_rcc.h"
 #elif defined(CONFIG_STM32_STM32F37XX)
 #  include "hardware/stm32f37xxx_rcc.h"
+#elif defined(CONFIG_STM32_STM32F4XXX) && defined(CONFIG_STM32_STM32F412)
+#  include "hardware/stm32f412xx_rcc.h"
 #elif defined(CONFIG_STM32_STM32F4XXX)
 #  include "hardware/stm32f40xxx_rcc.h"
 #endif
