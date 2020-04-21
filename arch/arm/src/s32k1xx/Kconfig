@@ -245,6 +245,15 @@ config S32K1XX_LPUART2
 config S32K1XX_RTC
 	bool "RTC"
 	default n
+	
+config S32K1XX_PROGMEM
+    bool PROGMEM
+    default n
+    select ARCH_HAVE_PROGMEM
+    depends on (ARCH_CHIP_S32K11X || (ARCH_CHIP_S32K14X && !ARCH_CHIP_S32K148) )
+    ---help---
+        Use the FlexNVM 32/64 KB of d-flash memory as a
+		Memory-Technology-Device (MTD).
 
 
 endmenu # S32K1XX Peripheral Selection
@@ -597,5 +606,19 @@ config FLEXCAN2_DATA_SAMPLEP
 	default 90
 	
 endmenu # S32K1XX_FLEXCAN0
+
+menu "PROGMEM Configuration"
+	depends on S32K1XX_PROGMEM
+	
+config PROGMEM_SIZE
+	int "Progmem size (KB)"
+	default 64 if ARCH_CHIP_S32K14X
+	default 32 if ARCH_CHIP_S32K11X
+	
+config PROGMEM_SMARTFS_AUTOMOUNT
+	bool "Automount SmartFS partition"
+	depends on (MTD_SMART && FS_SMARTFS)
+	default y
+endmenu
 
 endif # ARCH_CHIP_S32K1XX
