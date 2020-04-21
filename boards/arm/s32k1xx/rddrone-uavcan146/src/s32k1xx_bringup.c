@@ -140,5 +140,29 @@ int s32k1xx_bringup(void)
 #endif
 #endif
 
+#ifdef CONFIG_S32K1XX_PROGMEM
+  FAR struct mtd_dev_s *mtd;
+  int minor = 0;
+
+  mtd = progmem_initialize();
+  if (!mtd)
+    {
+      syslog(LOG_ERR, "ERROR: progmem_initialize failed\n");
+    }
+
+#if defined(CONFIG_FS_SMARTFS)
+  ret = smart_initialize(0, mtd, NULL);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: Failed to init the SMART FS layer: %d\n", ret);
+      return ret;
+    }
+
+# if defined(CONFIG_PROGMEM_SMARTFS_AUTOMOUNT)
+  mount("/dev/smart0", "/mnt", "smartfs", 0, NULL);
+# endif
+#endif
+#endif
+
   return ret;
 }
