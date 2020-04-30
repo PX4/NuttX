@@ -54,6 +54,18 @@
 #define S32K1XX_FTM_C0V_OFFSET      0x0010 /* Channel 0 Value offset */
 #define S32K1XX_FTM_C1SC_OFFSET     0x0014 /* Channel 1 Status and Control offset */
 #define S32K1XX_FTM_C1V_OFFSET      0x0018 /* Channel 1 Value offset */
+#define S32K1XX_FTM_C2SC_OFFSET     0x001C /* Channel 2 Status and Control offset */
+#define S32K1XX_FTM_C2V_OFFSET      0x0020 /* Channel 2 Value offset */
+#define S32K1XX_FTM_C3SC_OFFSET     0x0024 /* Channel 3 Status and Control offset */
+#define S32K1XX_FTM_C3V_OFFSET      0x0028 /* Channel 3 Value offset */
+#define S32K1XX_FTM_C4SC_OFFSET     0x002C /* Channel 4 Status and Control offset */
+#define S32K1XX_FTM_C4V_OFFSET      0x0030 /* Channel 4 Value offset */
+#define S32K1XX_FTM_C5SC_OFFSET     0x0034 /* Channel 5 Status and Control offset */
+#define S32K1XX_FTM_C5V_OFFSET      0x0038 /* Channel 5 Value offset */
+#define S32K1XX_FTM_C6SC_OFFSET     0x003C /* Channel 6 Status and Control offset */
+#define S32K1XX_FTM_C6V_OFFSET      0x0040 /* Channel 6 Value offset */
+#define S32K1XX_FTM_C7SC_OFFSET     0x0044 /* Channel 7 Status and Control offset */
+#define S32K1XX_FTM_C7V_OFFSET      0x0048 /* Channel 7 Value offset */
 #define S32K1XX_FTM_STATUS_OFFSET   0x0050 /* Capture and Compare Status offset */
 #define S32K1XX_FTM_COMBINE_OFFSET  0x0064 /* Combine Channel Register offset */
 #define S32K1XX_FTM_POL_OFFSET      0x0070 /* Channel Polarity offset */
@@ -114,6 +126,9 @@
 #define FTM_SC_RF                   (1 << 7) /* Bit 7: Reload flag */
 #define FTM_SC_TOIE                 (1 << 8) /* Bit 8: Timer Overflow Interrupt Enable */
 #define FTM_SC_TOF                  (1 << 9) /* Bit 9: Timer Overflow Flag*/
+#define FTM_SC_PWMEN_SHIFT          16       /* Bits 16-23: Channel n PWM enable bit */
+#define FTM_SC_PWMEN_MASK           (255 << FTM_SC_PWMEN_SHIFT)
+#define FTM_SC_PWMEN(n)             (1 << FTM_SC_PWMEN_SHIFT + (n))
 #define FTM_SC_FLTPS_SHIFT          24       /* Bits 24-27: Filter Prescaler */
 #define FTM_SC_FLTPS_MASK           (7 << FTM_SC_FLTPS_SHIFT)
 # define FTM_SC_FLTPS_DIV1          (0 << FTM_SC_FLTPS_SHIFT)  /* Divide Clock by 1 */
