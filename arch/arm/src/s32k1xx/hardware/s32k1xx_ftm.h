@@ -665,7 +665,7 @@
 /* Counter Initial Value register */
 
 #define FTM_CNTIN_INIT_SHIFT             (0)       /* Bits 0-15: Initial Value of the FTM Counter */
-#define FTM_CNV_VAL_MASK                 (0xff << FTM_CNTIN_INIT_SHIFT)
+#define FTM_CNTIN_VAL_MASK               (0xff << FTM_CNTIN_INIT_SHIFT)
 
                                                    /* Bits 16-31: Reserved */
 
