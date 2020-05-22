@@ -1106,7 +1106,7 @@ static int stm32_transmit(struct stm32_ethmac_s *priv)
   ninfo("d_len: %d d_buf: %p txhead: %p tdes3: %08x\n",
         priv->dev.d_len, priv->dev.d_buf, txdesc, txdesc->des3);
 
-  DEBUGASSERT(txdesc && (txdesc->des3 & ETH_TDES3_RD_OWN) == 0);
+  DEBUGASSERT(txdesc);
 
   /* Flush the contents of the TX buffer into physical memory */
 
@@ -1137,8 +1137,6 @@ static int stm32_transmit(struct stm32_ethmac_s *priv)
 
     for (i = 0; i < bufcount; i++)
       {
-          /* This could be a normal event but the design does not handle it */
-
           DEBUGASSERT((txdesc->des3 & ETH_TDES3_RD_OWN) == 0);
 
           /* Set the Buffer1 address pointer */
@@ -1159,7 +1157,7 @@ static int stm32_transmit(struct stm32_ethmac_s *priv)
 
               txdesc->des3 |= ETH_TDES3_RD_LD;
 
-              /* This segement is, most likely, of fractional buffersize */
+              /* This segment is, most likely, of fractional buffersize */
 
               /* ask for an interrupt when this segment transfer completes. */
 
@@ -1174,7 +1172,7 @@ static int stm32_transmit(struct stm32_ethmac_s *priv)
 
               /* The size of the transfer is the whole buffer */
 
-              txdesc->des2  = ALIGNED_BUFSIZE | ETH_TDES2_RD_IOC;
+              txdesc->des2  = ALIGNED_BUFSIZE;
               buffer        += ALIGNED_BUFSIZE;
             }
 
@@ -1197,6 +1195,8 @@ static int stm32_transmit(struct stm32_ethmac_s *priv)
   else
 #endif
     {
+      DEBUGASSERT((txdesc->des3 & ETH_TDES3_RD_OWN) == 0);
+
       /* Set the Buffer1 address pointer */
 
       txdesc->des0 = (uint32_t)priv->dev.d_buf;
@@ -1269,8 +1269,6 @@ static int stm32_transmit(struct stm32_ethmac_s *priv)
     {
       stm32_disableint(priv, ETH_DMACIER_RIE);
     }
-
-  /* Check if the TX Buffer unavailable flag is set */
 
   MEMORY_SYNC();
 
@@ -1371,6 +1369,8 @@ static int stm32_txpoll(struct net_driver_s *dev)
            * available for another transfer.
            */
 
+          nerr("No tx descriptors available");
+
           return -EBUSY;
         }
 
@@ -1385,6 +1385,8 @@ static int stm32_txpoll(struct net_driver_s *dev)
       if (dev->d_buf == NULL)
         {
           /* Terminate the poll. */
+
+          nerr("No tx buffer available");
 
           return -ENOMEM;
         }
@@ -1461,6 +1463,14 @@ static void stm32_dopoll(struct stm32_ethmac_s *priv)
               dev->d_buf = NULL;
             }
         }
+      else
+        {
+          nerr("No tx buffers");
+        }
+    }
+  else
+    {
+      nerr("No tx descriptors\n");
     }
 }
 
@@ -1604,15 +1614,13 @@ static void stm32_freesegment(struct stm32_ethmac_s *priv,
       up_clean_dcache((uintptr_t)rxdesc,
                       (uintptr_t)rxdesc + sizeof(struct eth_desc_s));
 
+      /* Get the next RX descriptor in the chain */
+
+      rxdesc = stm32_get_next_rxdesc(priv, rxdesc);
+
       /* Update the tail pointer */
 
       stm32_putreg((uintptr_t)rxdesc, STM32_ETH_DMACRXDTPR);
-
-      /* Get the next RX descriptor in the chain (cache coherency should not
-       * be an issue because the link address is constant.
-       */
-
-      rxdesc = stm32_get_next_rxdesc(priv, rxdesc);
     }
 
   /* Reset the segment management logic */
@@ -1624,7 +1632,9 @@ static void stm32_freesegment(struct stm32_ethmac_s *priv,
 
   if ((stm32_getreg(STM32_ETH_DMACSR) & ETH_DMACSR_RBU) != 0)
     {
-      /* TODO: This is probably not needed at all? */
+      /* Clear the RBU flag */
+
+      stm32_putreg(ETH_DMACSR_RBU, STM32_ETH_DMACSR);
 
       nerr("ETH_DMACSR_RBU\n");
 
@@ -1663,7 +1673,7 @@ static void stm32_freesegment(struct stm32_ethmac_s *priv,
 static int stm32_recvframe(struct stm32_ethmac_s *priv)
 {
   struct eth_desc_s *rxdesc;
-  struct eth_desc_s *rxcurr;
+  struct eth_desc_s *rxcurr = NULL;
   uint8_t *buffer;
   int i;
 
@@ -1821,6 +1831,7 @@ static int stm32_recvframe(struct stm32_ethmac_s *priv)
         {
           /* Drop the context descriptors, we are not interested */
 
+          DEBUGASSERT(rxcurr != NULL);
           stm32_freesegment(priv, rxcurr, 1);
         }
 
@@ -2071,14 +2082,9 @@ static void stm32_freeframe(struct stm32_ethmac_s *priv)
 
           DEBUGASSERT(txdesc->des0 != 0);
 
-          /* Check if this is the first segment of a TX frame. */
-
-          if ((txdesc->des3 & ETH_TDES3_RD_FD) != 0)
-            {
               /* Yes.. Free the buffer */
 
               stm32_freebuffer(priv, (uint8_t *)txdesc->des0);
-            }
 
           /* In any event, make sure that des0-3 are nullified. */
 
@@ -3476,17 +3482,6 @@ static int stm32_phyinit(struct stm32_ethmac_s *priv)
   stm32_phyregdump();
 #endif
 
-  /* Perform any necessary, board-specific PHY initialization */
-
-#ifdef CONFIG_STM32H7_PHYINIT
-  ret = stm32_phy_boardinitialize(0);
-  if (ret < 0)
-    {
-      nerr("ERROR: Failed to initialize the PHY: %d\n", ret);
-      return ret;
-    }
-#endif
-
   /* Special workaround for the Davicom DM9161 PHY is required. */
 
 #ifdef CONFIG_ETH0_PHY_DM9161
@@ -4263,6 +4258,17 @@ static int stm32_ethconfig(struct stm32_ethmac_s *priv)
    * sequence in stm32_rcc.c.
    */
 
+#ifdef CONFIG_STM32H7_PHYINIT
+  /* Perform any necessary, board-specific PHY initialization */
+
+  ret = stm32_phy_boardinitialize(0);
+  if (ret < 0)
+    {
+      nerr("ERROR: Failed to initialize the PHY: %d\n", ret);
+      return ret;
+    }
+#endif
+
   /* Initialize the free buffer list */
 
   stm32_initbuffer(priv, &g_txbuffer[priv->intf * TXBUFFER_SIZE]);
@@ -4395,6 +4401,17 @@ int stm32_ethinitialize(int intf)
 
     return -EAGAIN;
   }
+
+#ifdef CONFIG_STM32H7_PHYINIT
+  /* Perform any necessary, board-specific PHY initialization */
+
+  ret = stm32_phy_boardinitialize(0);
+  if (ret < 0)
+    {
+      nerr("ERROR: Failed to initialize the PHY: %d\n", ret);
+      return ret;
+    }
+#endif
 
   /* Put the interface in the down state. */
 
