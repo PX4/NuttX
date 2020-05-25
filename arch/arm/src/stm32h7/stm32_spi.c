@@ -290,11 +290,13 @@ static void        spi_dmatxcallback(DMA_HANDLE handle, uint8_t isr,
 static void        spi_dmarxsetup(FAR struct stm32_spidev_s *priv,
                                   FAR void *rxbuffer,
                                   FAR void *rxdummy,
-                                  size_t nwords);
+                                  size_t nwords,
+                                  stm32_dmacfg_t *dmacfg);
 static void        spi_dmatxsetup(FAR struct stm32_spidev_s *priv,
                                   FAR const void *txbuffer,
                                   FAR const void *txdummy,
-                                  size_t nwords);
+                                  size_t nwords,
+                                  stm32_dmacfg_t *dmacfg);
 static inline void spi_dmarxstart(FAR struct stm32_spidev_s *priv);
 static inline void spi_dmatxstart(FAR struct stm32_spidev_s *priv);
 #endif
@@ -1054,9 +1056,8 @@ static void spi_dmatxcallback(DMA_HANDLE handle, uint8_t isr, void *arg)
 #ifdef CONFIG_STM32H7_SPI_DMA
 static void spi_dmarxsetup(FAR struct stm32_spidev_s *priv,
                            FAR void *rxbuffer, FAR void *rxdummy,
-                           size_t nwords)
+                           size_t nwords, stm32_dmacfg_t *dmacfg)
 {
-  stm32_dmacfg_t dmacfg;
 
   /* 8- or 16-bit mode? */
 
@@ -1091,13 +1092,11 @@ static void spi_dmarxsetup(FAR struct stm32_spidev_s *priv,
 
   /* Configure the RX DMA */
 
-  dmacfg.paddr = priv->spibase + STM32_SPI_RXDR_OFFSET;
-  dmacfg.maddr = (uint32_t)rxbuffer;
-  dmacfg.ndata = nwords;
-  dmacfg.cfg1  = priv->rxccr;
-  dmacfg.cfg2  = 0;
-
-  stm32_dmasetup(priv->rxdma, &dmacfg);
+  dmacfg->paddr = priv->spibase + STM32_SPI_RXDR_OFFSET;
+  dmacfg->maddr = (uint32_t)rxbuffer;
+  dmacfg->ndata = nwords;
+  dmacfg->cfg1  = priv->rxccr;
+  dmacfg->cfg2  = 0;
 }
 #endif
 
@@ -1112,9 +1111,8 @@ static void spi_dmarxsetup(FAR struct stm32_spidev_s *priv,
 #ifdef CONFIG_STM32H7_SPI_DMA
 static void spi_dmatxsetup(FAR struct stm32_spidev_s *priv,
                            FAR const void *txbuffer, FAR const void *txdummy,
-                           size_t nwords)
+                           size_t nwords, stm32_dmacfg_t *dmacfg)
 {
-  stm32_dmacfg_t dmacfg;
 
   /* 8- or 16-bit mode? */
 
@@ -1147,15 +1145,11 @@ static void spi_dmatxsetup(FAR struct stm32_spidev_s *priv,
         }
     }
 
-  dmacfg.paddr = priv->spibase + STM32_SPI_TXDR_OFFSET;
-  dmacfg.maddr = (uint32_t)txbuffer;
-  dmacfg.ndata = nwords;
-  dmacfg.cfg1  = priv->txccr;
-  dmacfg.cfg2  = 0;
-
-  /* Setup the TX DMA */
-
-  stm32_dmasetup(priv->txdma, &dmacfg);
+  dmacfg->paddr = priv->spibase + STM32_SPI_TXDR_OFFSET;
+  dmacfg->maddr = (uint32_t)txbuffer;
+  dmacfg->ndata = nwords;
+  dmacfg->cfg1  = priv->txccr;
+  dmacfg->cfg2  = 0;
 }
 #endif
 
@@ -1791,7 +1785,12 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
                          FAR void *rxbuffer, size_t nwords)
 {
   FAR struct stm32_spidev_s *priv = (FAR struct stm32_spidev_s *)dev;
-  FAR void * xbuffer = rxbuffer;
+  stm32_dmacfg_t rxdmacfg;
+  stm32_dmacfg_t txdmacfg;
+  static uint8_t rxdummy[ARMV7M_DCACHE_LINESIZE]
+    __attribute__((aligned(ARMV7M_DCACHE_LINESIZE)));
+  static const uint16_t txdummy = 0xffff;
+
   DEBUGASSERT(priv != NULL);
 
   /* Convert the number of word to a number of bytes */
@@ -1819,9 +1818,12 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
       return;
     }
 
+  /* Setup the DMA configs */
+
+  spi_dmatxsetup(priv, txbuffer, &txdummy, nwords, &txdmacfg);
+  spi_dmarxsetup(priv, rxbuffer, (uint16_t *)rxdummy, nwords, &rxdmacfg);
+
 #ifdef CONFIG_STM32H7_DMACAPABLE
-  stm32_dmacfg_t dmatxcfg;
-  stm32_dmacfg_t dmarxcfg;
 
   /* Setup DMAs */
 
@@ -1846,22 +1848,8 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
       rxbuffer  = rxbuffer ? priv->rxbuf : rxbuffer;
     }
 
-  /* TX transfer configuration */
-
-  dmatxcfg.maddr = (uint32_t)txbuffer;
-  dmatxcfg.ndata = nwords;
-  dmatxcfg.cfg1  = priv->txccr;
-
-  /* RX transfer configuration */
-
-  dmarxcfg.maddr = (uint32_t)rxbuffer;
-  dmarxcfg.ndata = nwords;
-  dmarxcfg.cfg1  = priv->rxccr;
-
-  if ((txbuffer && priv->txbuf == 0 &&
-      !stm32_dmacapable(priv->txdma, &dmatxcfg)) ||
-      (rxbuffer && priv->rxbuf == 0 &&
-       !stm32_dmacapable(priv->rxdma, &dmarxcfg)))
+  if (!stm32_dmacapable(priv->txdma, &txdmacfg) ||
+       !stm32_dmacapable(priv->rxdma, &rxdmacfg))
     {
       /* Unsupported memory region fall back to non-DMA method. */
 
@@ -1870,9 +1858,6 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
   else
 #endif
     {
-      static uint8_t rxdummy[4] __attribute__((aligned(4)));
-      static const uint16_t txdummy = 0xffff;
-
       /* When starting communication using DMA, to prevent DMA channel
        * management raising error events, these steps must be followed in
        * order:
@@ -1893,8 +1878,9 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
               txbuffer, rxbuffer, nwords);
       DEBUGASSERT(priv->spibase != 0);
 
-      spi_dmarxsetup(priv, rxbuffer, (uint16_t *)rxdummy, nbytes);
-      spi_dmatxsetup(priv, txbuffer, &txdummy, nbytes);
+      /* Setup the DMA */
+      stm32_dmasetup(priv->txdma, &txdmacfg);
+      stm32_dmasetup(priv->rxdma, &rxdmacfg);
 
       spi_modifyreg(priv, STM32_SPI_CFG1_OFFSET, 0, SPI_CFG1_TXDMAEN |
                           SPI_CFG1_RXDMAEN);
@@ -1903,7 +1889,13 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
 
       if (txbuffer)
         {
-          up_flush_dcache((uintptr_t)txbuffer, (uintptr_t)txbuffer + nbytes);
+          up_clean_dcache((uintptr_t)txbuffer, (uintptr_t)txbuffer + nbytes);
+        }
+
+      if (rxbuffer)
+        {
+          up_invalidate_dcache((uintptr_t)rxbuffer,
+                               (uintptr_t)rxbuffer + nbytes);
         }
 
 #ifdef CONFIG_SPI_TRIGGER
@@ -1955,19 +1947,6 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
 #ifdef CONFIG_SPI_TRIGGER
       priv->trigarmed = false;
 #endif
-
-      /* Force RAM re-read */
-
-      if (rxbuffer)
-        {
-          up_invalidate_dcache((uintptr_t)rxbuffer,
-                               (uintptr_t)rxbuffer + nbytes);
-
-          if (priv->rxbuf)
-            {
-              memcpy(xbuffer, priv->rxbuf, nbytes);
-            }
-        }
     }
 }
 #endif /* CONFIG_STM32H7_SPI_DMA */
@@ -2184,6 +2163,7 @@ static void spi_bus_initialize(struct stm32_spidev_s *priv)
 
   clrbits = SPI_CR1_SPE;
   setbits = SPI_CR1_SSI;
+
   spi_modifyreg(priv, STM32_SPI_CR1_OFFSET, clrbits, setbits);
 
   /* CFG1 */
@@ -2197,6 +2177,10 @@ static void spi_bus_initialize(struct stm32_spidev_s *priv)
   clrbits = SPI_CFG2_CPHA | SPI_CFG2_CPOL | SPI_CFG2_LSBFRST |
             SPI_CFG2_COMM_MASK;
   setbits = SPI_CFG2_MASTER | SPI_CFG2_SSM;
+
+  // case FULL_DUPLEX:
+  setbits |= SPI_CFG2_COMM_FULL;
+
   spi_modifyreg(priv, STM32_SPI_CFG2_OFFSET, clrbits, setbits);
 
   priv->frequency = 0;
@@ -2235,12 +2219,16 @@ static void spi_bus_initialize(struct stm32_spidev_s *priv)
    * forever in this function!  Don't let your design do that!
    */
 
-  priv->rxdma = stm32_dmachannel(priv->rxch);
-  priv->txdma = stm32_dmachannel(priv->txch);
-  DEBUGASSERT(priv->rxdma && priv->txdma);
+  priv->rxdma = NULL;
+  priv->txdma = NULL;
 
-  spi_modifyreg(priv, STM32_SPI_CFG1_OFFSET, 0,
-                SPI_CFG1_RXDMAEN | SPI_CFG1_TXDMAEN);
+  priv->rxdma = stm32_dmachannel(priv->rxch);
+  DEBUGASSERT(priv->rxdma);
+  spi_modifyreg(priv, STM32_SPI_CFG1_OFFSET, 0, SPI_CFG1_RXDMAEN);
+
+  priv->txdma = stm32_dmachannel(priv->txch);
+  DEBUGASSERT(priv->txdma);
+  spi_modifyreg(priv, STM32_SPI_CFG1_OFFSET, 0, SPI_CFG1_TXDMAEN);
 #endif
 
   /* Enable SPI */
