@@ -71,7 +71,7 @@
 #define S32K1XX_FTM_STATUS_OFFSET        0x0050 /* Capture And Compare Status register offset */
 #define S32K1XX_FTM_MODE_OFFSET          0x0054 /* Features Mode Selection register offset */
 #define S32K1XX_FTM_SYNC_OFFSET          0x0058 /* Synchronization register offset */
-#define S32K1XX_FTM_OUTINT_OFFSET        0x005c /* Initial State For Channels Output register offset */
+#define S32K1XX_FTM_OUTINIT_OFFSET       0x005c /* Initial State For Channels Output register offset */
 #define S32K1XX_FTM_OUTMASK_OFFSET       0x0060 /* Output Mask register offset */
 #define S32K1XX_FTM_COMBINE_OFFSET       0x0064 /* Function For Linked Channels register offset */
 #define S32K1XX_FTM_DEADTIME_OFFSET      0x0068 /* Deadtime Configuration register offset */
@@ -134,7 +134,7 @@
 #define S32K1XX_FTM0_STATUS              (S32K1XX_FTM0_BASE + S32K1XX_FTM_STATUS_OFFSET)   /* FTM0 Capture And Compare Status register */
 #define S32K1XX_FTM0_MODE                (S32K1XX_FTM0_BASE + S32K1XX_FTM_MODE_OFFSET)     /* FTM0 Features Mode Selection register */
 #define S32K1XX_FTM0_SYNC                (S32K1XX_FTM0_BASE + S32K1XX_FTM_SYNC_OFFSET)     /* FTM0 Synchronization register */
-#define S32K1XX_FTM0_OUTINT              (S32K1XX_FTM0_BASE + S32K1XX_FTM_OUTINT_OFFSET)   /* FTM0 Initial State For Channels Output register */
+#define S32K1XX_FTM0_OUTINIT             (S32K1XX_FTM0_BASE + S32K1XX_FTM_OUTINIT_OFFSET)  /* FTM0 Initial State For Channels Output register */
 #define S32K1XX_FTM0_OUTMASK             (S32K1XX_FTM0_BASE + S32K1XX_FTM_OUTMASK_OFFSET)  /* FTM0 Output Mask register */
 #define S32K1XX_FTM0_COMBINE             (S32K1XX_FTM0_BASE + S32K1XX_FTM_COMBINE_OFFSET)  /* FTM0 Function For Linked Channels register */
 #define S32K1XX_FTM0_DEADTIME            (S32K1XX_FTM0_BASE + S32K1XX_FTM_DEADTIME_OFFSET) /* FTM0 Deadtime Configuration register */
@@ -192,7 +192,7 @@
 #define S32K1XX_FTM1_STATUS              (S32K1XX_FTM1_BASE + S32K1XX_FTM_STATUS_OFFSET)   /* FTM1 Capture And Compare Status register */
 #define S32K1XX_FTM1_MODE                (S32K1XX_FTM1_BASE + S32K1XX_FTM_MODE_OFFSET)     /* FTM1 Features Mode Selection register */
 #define S32K1XX_FTM1_SYNC                (S32K1XX_FTM1_BASE + S32K1XX_FTM_SYNC_OFFSET)     /* FTM1 Synchronization register */
-#define S32K1XX_FTM1_OUTINT              (S32K1XX_FTM1_BASE + S32K1XX_FTM_OUTINT_OFFSET)   /* FTM1 Initial State For Channels Output register */
+#define S32K1XX_FTM1_OUTINIT             (S32K1XX_FTM1_BASE + S32K1XX_FTM_OUTINIT_OFFSET)  /* FTM1 Initial State For Channels Output register */
 #define S32K1XX_FTM1_OUTMASK             (S32K1XX_FTM1_BASE + S32K1XX_FTM_OUTMASK_OFFSET)  /* FTM1 Output Mask register */
 #define S32K1XX_FTM1_COMBINE             (S32K1XX_FTM1_BASE + S32K1XX_FTM_COMBINE_OFFSET)  /* FTM1 Function For Linked Channels register */
 #define S32K1XX_FTM1_DEADTIME            (S32K1XX_FTM1_BASE + S32K1XX_FTM_DEADTIME_OFFSET) /* FTM1 Deadtime Configuration register */
@@ -250,7 +250,7 @@
 #define S32K1XX_FTM2_STATUS              (S32K1XX_FTM2_BASE + S32K1XX_FTM_STATUS_OFFSET)   /* FTM2 Capture And Compare Status register */
 #define S32K1XX_FTM2_MODE                (S32K1XX_FTM2_BASE + S32K1XX_FTM_MODE_OFFSET)     /* FTM2 Features Mode Selection register */
 #define S32K1XX_FTM2_SYNC                (S32K1XX_FTM2_BASE + S32K1XX_FTM_SYNC_OFFSET)     /* FTM2 Synchronization register */
-#define S32K1XX_FTM2_OUTINT              (S32K1XX_FTM2_BASE + S32K1XX_FTM_OUTINT_OFFSET)   /* FTM2 Initial State For Channels Output register */
+#define S32K1XX_FTM2_OUTINIT             (S32K1XX_FTM2_BASE + S32K1XX_FTM_OUTINIT_OFFSET)  /* FTM2 Initial State For Channels Output register */
 #define S32K1XX_FTM2_OUTMASK             (S32K1XX_FTM2_BASE + S32K1XX_FTM_OUTMASK_OFFSET)  /* FTM2 Output Mask register */
 #define S32K1XX_FTM2_COMBINE             (S32K1XX_FTM2_BASE + S32K1XX_FTM_COMBINE_OFFSET)  /* FTM2 Function For Linked Channels register */
 #define S32K1XX_FTM2_DEADTIME            (S32K1XX_FTM2_BASE + S32K1XX_FTM_DEADTIME_OFFSET) /* FTM2 Deadtime Configuration register */
@@ -308,7 +308,7 @@
 #define S32K1XX_FTM3_STATUS              (S32K1XX_FTM3_BASE + S32K1XX_FTM_STATUS_OFFSET)   /* FTM3 Capture And Compare Status register */
 #define S32K1XX_FTM3_MODE                (S32K1XX_FTM3_BASE + S32K1XX_FTM_MODE_OFFSET)     /* FTM3 Features Mode Selection register */
 #define S32K1XX_FTM3_SYNC                (S32K1XX_FTM3_BASE + S32K1XX_FTM_SYNC_OFFSET)     /* FTM3 Synchronization register */
-#define S32K1XX_FTM3_OUTINT              (S32K1XX_FTM3_BASE + S32K1XX_FTM_OUTINT_OFFSET)   /* FTM3 Initial State For Channels Output register */
+#define S32K1XX_FTM3_OUTINIT             (S32K1XX_FTM3_BASE + S32K1XX_FTM_OUTINIT_OFFSET)  /* FTM3 Initial State For Channels Output register */
 #define S32K1XX_FTM3_OUTMASK             (S32K1XX_FTM3_BASE + S32K1XX_FTM_OUTMASK_OFFSET)  /* FTM3 Output Mask register */
 #define S32K1XX_FTM3_COMBINE             (S32K1XX_FTM3_BASE + S32K1XX_FTM_COMBINE_OFFSET)  /* FTM3 Function For Linked Channels register */
 #define S32K1XX_FTM3_DEADTIME            (S32K1XX_FTM3_BASE + S32K1XX_FTM_DEADTIME_OFFSET) /* FTM3 Deadtime Configuration register */
@@ -366,7 +366,7 @@
 #define S32K1XX_FTM4_STATUS              (S32K1XX_FTM4_BASE + S32K1XX_FTM_STATUS_OFFSET)   /* FTM4 Capture And Compare Status register */
 #define S32K1XX_FTM4_MODE                (S32K1XX_FTM4_BASE + S32K1XX_FTM_MODE_OFFSET)     /* FTM4 Features Mode Selection register */
 #define S32K1XX_FTM4_SYNC                (S32K1XX_FTM4_BASE + S32K1XX_FTM_SYNC_OFFSET)     /* FTM4 Synchronization register */
-#define S32K1XX_FTM4_OUTINT              (S32K1XX_FTM4_BASE + S32K1XX_FTM_OUTINT_OFFSET)   /* FTM4 Initial State For Channels Output register */
+#define S32K1XX_FTM4_OUTINIT             (S32K1XX_FTM4_BASE + S32K1XX_FTM_OUTINIT_OFFSET)  /* FTM4 Initial State For Channels Output register */
 #define S32K1XX_FTM4_OUTMASK             (S32K1XX_FTM4_BASE + S32K1XX_FTM_OUTMASK_OFFSET)  /* FTM4 Output Mask register */
 #define S32K1XX_FTM4_COMBINE             (S32K1XX_FTM4_BASE + S32K1XX_FTM_COMBINE_OFFSET)  /* FTM4 Function For Linked Channels register */
 #define S32K1XX_FTM4_DEADTIME            (S32K1XX_FTM4_BASE + S32K1XX_FTM_DEADTIME_OFFSET) /* FTM4 Deadtime Configuration register */
@@ -424,7 +424,7 @@
 #define S32K1XX_FTM5_STATUS              (S32K1XX_FTM5_BASE + S32K1XX_FTM_STATUS_OFFSET)   /* FTM5 Capture And Compare Status register */
 #define S32K1XX_FTM5_MODE                (S32K1XX_FTM5_BASE + S32K1XX_FTM_MODE_OFFSET)     /* FTM5 Features Mode Selection register */
 #define S32K1XX_FTM5_SYNC                (S32K1XX_FTM5_BASE + S32K1XX_FTM_SYNC_OFFSET)     /* FTM5 Synchronization register */
-#define S32K1XX_FTM5_OUTINT              (S32K1XX_FTM5_BASE + S32K1XX_FTM_OUTINT_OFFSET)   /* FTM5 Initial State For Channels Output register */
+#define S32K1XX_FTM5_OUTINIT             (S32K1XX_FTM5_BASE + S32K1XX_FTM_OUTINIT_OFFSET)  /* FTM5 Initial State For Channels Output register */
 #define S32K1XX_FTM5_OUTMASK             (S32K1XX_FTM5_BASE + S32K1XX_FTM_OUTMASK_OFFSET)  /* FTM5 Output Mask register */
 #define S32K1XX_FTM5_COMBINE             (S32K1XX_FTM5_BASE + S32K1XX_FTM_COMBINE_OFFSET)  /* FTM5 Function For Linked Channels register */
 #define S32K1XX_FTM5_DEADTIME            (S32K1XX_FTM5_BASE + S32K1XX_FTM_DEADTIME_OFFSET) /* FTM5 Deadtime Configuration register */
@@ -482,7 +482,7 @@
 #define S32K1XX_FTM6_STATUS              (S32K1XX_FTM6_BASE + S32K1XX_FTM_STATUS_OFFSET)   /* FTM6 Capture And Compare Status register */
 #define S32K1XX_FTM6_MODE                (S32K1XX_FTM6_BASE + S32K1XX_FTM_MODE_OFFSET)     /* FTM6 Features Mode Selection register */
 #define S32K1XX_FTM6_SYNC                (S32K1XX_FTM6_BASE + S32K1XX_FTM_SYNC_OFFSET)     /* FTM6 Synchronization register */
-#define S32K1XX_FTM6_OUTINT              (S32K1XX_FTM6_BASE + S32K1XX_FTM_OUTINT_OFFSET)   /* FTM6 Initial State For Channels Output register */
+#define S32K1XX_FTM6_OUTINIT             (S32K1XX_FTM6_BASE + S32K1XX_FTM_OUTINIT_OFFSET)  /* FTM6 Initial State For Channels Output register */
 #define S32K1XX_FTM6_OUTMASK             (S32K1XX_FTM6_BASE + S32K1XX_FTM_OUTMASK_OFFSET)  /* FTM6 Output Mask register */
 #define S32K1XX_FTM6_COMBINE             (S32K1XX_FTM6_BASE + S32K1XX_FTM_COMBINE_OFFSET)  /* FTM6 Function For Linked Channels register */
 #define S32K1XX_FTM6_DEADTIME            (S32K1XX_FTM6_BASE + S32K1XX_FTM_DEADTIME_OFFSET) /* FTM6 Deadtime Configuration register */
@@ -540,7 +540,7 @@
 #define S32K1XX_FTM7_STATUS              (S32K1XX_FTM7_BASE + S32K1XX_FTM_STATUS_OFFSET)   /* FTM7 Capture And Compare Status register */
 #define S32K1XX_FTM7_MODE                (S32K1XX_FTM7_BASE + S32K1XX_FTM_MODE_OFFSET)     /* FTM7 Features Mode Selection register */
 #define S32K1XX_FTM7_SYNC                (S32K1XX_FTM7_BASE + S32K1XX_FTM_SYNC_OFFSET)     /* FTM7 Synchronization register */
-#define S32K1XX_FTM7_OUTINT              (S32K1XX_FTM7_BASE + S32K1XX_FTM_OUTINT_OFFSET)   /* FTM7 Initial State For Channels Output register */
+#define S32K1XX_FTM7_OUTINIT             (S32K1XX_FTM7_BASE + S32K1XX_FTM_OUTINIT_OFFSET)  /* FTM7 Initial State For Channels Output register */
 #define S32K1XX_FTM7_OUTMASK             (S32K1XX_FTM7_BASE + S32K1XX_FTM_OUTMASK_OFFSET)  /* FTM7 Output Mask register */
 #define S32K1XX_FTM7_COMBINE             (S32K1XX_FTM7_BASE + S32K1XX_FTM_COMBINE_OFFSET)  /* FTM7 Function For Linked Channels register */
 #define S32K1XX_FTM7_DEADTIME            (S32K1XX_FTM7_BASE + S32K1XX_FTM_DEADTIME_OFFSET) /* FTM7 Deadtime Configuration register */
@@ -714,14 +714,14 @@
 
 /* Initial State For Channels Output register */
 
-#define FTM_OUTINT_CH0OI                 (1 << 0)  /* Bit 0: Channel 0 Output Initialization Value */
-#define FTM_OUTINT_CH1OI                 (1 << 1)  /* Bit 1: Channel 1 Output Initialization Value */
-#define FTM_OUTINT_CH2OI                 (1 << 2)  /* Bit 2: Channel 2 Output Initialization Value */
-#define FTM_OUTINT_CH3OI                 (1 << 3)  /* Bit 3: Channel 3 Output Initialization Value */
-#define FTM_OUTINT_CH4OI                 (1 << 4)  /* Bit 4: Channel 4 Output Initialization Value */
-#define FTM_OUTINT_CH5OI                 (1 << 5)  /* Bit 5: Channel 5 Output Initialization Value */
-#define FTM_OUTINT_CH6OI                 (1 << 6)  /* Bit 6: Channel 6 Output Initialization Value */
-#define FTM_OUTINT_CH7OI                 (1 << 7)  /* Bit 7: Channel 7 Output Initialization Value */
+#define FTM_OUTINIT_CH0OI                (1 << 0)  /* Bit 0: Channel 0 Output Initialization Value */
+#define FTM_OUTINIT_CH1OI                (1 << 1)  /* Bit 1: Channel 1 Output Initialization Value */
+#define FTM_OUTINIT_CH2OI                (1 << 2)  /* Bit 2: Channel 2 Output Initialization Value */
+#define FTM_OUTINIT_CH3OI                (1 << 3)  /* Bit 3: Channel 3 Output Initialization Value */
+#define FTM_OUTINIT_CH4OI                (1 << 4)  /* Bit 4: Channel 4 Output Initialization Value */
+#define FTM_OUTINIT_CH5OI                (1 << 5)  /* Bit 5: Channel 5 Output Initialization Value */
+#define FTM_OUTINIT_CH6OI                (1 << 6)  /* Bit 6: Channel 6 Output Initialization Value */
+#define FTM_OUTINIT_CH7OI                (1 << 7)  /* Bit 7: Channel 7 Output Initialization Value */
 
                                                    /* Bit 8-31: Reserved */
 
