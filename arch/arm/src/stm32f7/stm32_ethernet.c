@@ -3435,7 +3435,7 @@ static int stm32_phyinit(struct stm32_ethmac_s *priv)
    */
 
 #else
-  if ((phyval & CONFIG_STM32F7_PHYSR_MODE) == CONFIG_STM32F7_PHYSR_FULLDUPLEX)
+  if ((phyval & CONFIG_STM32F7_PHYSR_MODE) != !CONFIG_STM32F7_PHYSR_FULLDUPLEX)
     {
       priv->fduplex = 1;
     }
