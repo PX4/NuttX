@@ -411,7 +411,7 @@ uint32_t s32k1xx_bitratetotimeseg(struct flexcan_timeseg *timeseg,
   const int32_t TSEG1MAX = (can_fd ? TSEG1_FD_MAX : TSEG1_MAX);
   const int32_t TSEG2MAX = (can_fd ? TSEG2_FD_MAX : TSEG2_MAX);
   const int32_t SEGMAX = (can_fd ? SEG_FD_MAX : SEG_MAX);
-  const int32_t NUMTQMAX = (can_fd ? NUMTQ_FD_MAX : NUMTQMAX);
+  const int32_t NUMTQMAX = (can_fd ? NUMTQ_FD_MAX : NUMTQ_MAX);
 
   for (tmppresdiv = 0; tmppresdiv < PRESDIV_MAX; tmppresdiv++)
     {
@@ -422,7 +422,9 @@ uint32_t s32k1xx_bitratetotimeseg(struct flexcan_timeseg *timeseg,
           continue;
         }
 
-      /* The number of time quanta in 1 bit time must be lower than the one supported */
+      /* The number of time quanta in 1 bit time must be
+       * lower than the one supported
+       */
 
       if ((CLK_FREQ / ((tmppresdiv + 1) * numtq) == timeseg->bitrate)
           && (numtq >= 8) && (numtq < NUMTQMAX))
@@ -510,8 +512,7 @@ static uint32_t s32k1xx_waitmcr_change(uint32_t base,
 
 static void s32k1xx_receive(FAR struct s32k1xx_driver_s *priv,
                             uint32_t flags);
-static void s32k1xx_txdone(FAR struct s32k1xx_driver_s *priv,
-                           uint32_t flags);
+static void s32k1xx_txdone(FAR void *arg);
 
 static int  s32k1xx_flexcan_interrupt(int irq, FAR void *context,
                                       FAR void *arg);
@@ -601,6 +602,16 @@ static int s32k1xx_transmit(FAR struct s32k1xx_driver_s *priv)
   /* Attempt to write frame */
 
   uint32_t mbi = 0;
+  uint32_t mb_bit;
+  uint32_t regval;
+#ifdef CONFIG_NET_CAN_CANFD
+  uint32_t *frame_data_word;
+  uint32_t i;
+#endif
+#ifdef CONFIG_NET_CAN_RAW_TX_DEADLINE
+  int32_t timeout;
+#endif
+
   if ((getreg32(priv->base + S32K1XX_CAN_ESR2_OFFSET) &
       (CAN_ESR2_IMB | CAN_ESR2_VPS)) ==
       (CAN_ESR2_IMB | CAN_ESR2_VPS))
@@ -610,7 +621,7 @@ static int s32k1xx_transmit(FAR struct s32k1xx_driver_s *priv)
       mbi -= RXMBCOUNT;
     }
 
-  uint32_t mb_bit = 1 << (RXMBCOUNT + mbi);
+  mb_bit = 1 << (RXMBCOUNT + mbi);
 
   while (mbi < TXMBCOUNT)
     {
@@ -631,7 +642,6 @@ static int s32k1xx_transmit(FAR struct s32k1xx_driver_s *priv)
     }
 
 #ifdef CONFIG_NET_CAN_RAW_TX_DEADLINE
-  int32_t timeout = 0;
   struct timespec ts;
   clock_systimespec(&ts);
 
@@ -664,6 +674,7 @@ static int s32k1xx_transmit(FAR struct s32k1xx_driver_s *priv)
         {
           priv->txmb[mbi].deadline.tv_sec = 0;
           priv->txmb[mbi].deadline.tv_usec = 0;
+          timeout = -1;
         }
     }
 #endif
@@ -676,7 +687,7 @@ static int s32k1xx_transmit(FAR struct s32k1xx_driver_s *priv)
   struct mb_s *mb = &priv->tx[mbi];
   mb->cs.code = CAN_TXMB_INACTIVE;
 
-  if (priv->dev.d_len == sizeof(struct can_frame))
+  if (priv->dev.d_len <= sizeof(struct can_frame))
     {
       struct can_frame *frame = (struct can_frame *)priv->dev.d_buf;
 
@@ -717,9 +728,9 @@ static int s32k1xx_transmit(FAR struct s32k1xx_driver_s *priv)
 
       cs.dlc = len_to_can_dlc[frame->len];
 
-      uint32_t *frame_data_word = (uint32_t *)&frame->data[0];
+      frame_data_word = (uint32_t *)&frame->data[0];
 
-      for (int i = 0; i < (frame->len + 4 - 1) / 4; i++)
+      for (i = 0; i < (frame->len + 4 - 1) / 4; i++)
         {
           mb->data[i].w00 = __builtin_bswap32(frame_data_word[i]);
         }
@@ -728,7 +739,6 @@ static int s32k1xx_transmit(FAR struct s32k1xx_driver_s *priv)
 
   mb->cs = cs; /* Go. */
 
-  uint32_t regval;
   regval = getreg32(priv->base + S32K1XX_CAN_IMASK1_OFFSET);
   regval |= mb_bit;
   putreg32(regval, priv->base + S32K1XX_CAN_IMASK1_OFFSET);
@@ -740,7 +750,7 @@ static int s32k1xx_transmit(FAR struct s32k1xx_driver_s *priv)
 #ifdef TX_TIMEOUT_WQ
   /* Setup the TX timeout watchdog (perhaps restarting the timer) */
 
-  if (timeout > 0)
+  if (timeout >= 0)
     {
       wd_start(priv->txtimeout[mbi], timeout + 1, s32k1xx_txtimeout_expiry,
                 1, (wdparm_t)priv);
@@ -832,6 +842,10 @@ static void s32k1xx_receive(FAR struct s32k1xx_driver_s *priv,
 {
   uint32_t mb_index;
   struct mb_s *rf;
+#ifdef CONFIG_NET_CAN_CANFD
+  uint32_t *frame_data_word;
+  uint32_t i;
+#endif
 
   while ((mb_index = arm_lsb(flags)) != 32)
     {
@@ -861,9 +875,9 @@ static void s32k1xx_receive(FAR struct s32k1xx_driver_s *priv,
 
           frame->len = can_dlc_to_len[rf->cs.dlc];
 
-          uint32_t *frame_data_word = (uint32_t *)&frame->data[0];
+          frame_data_word = (uint32_t *)&frame->data[0];
 
-          for (int i = 0; i < (frame->len + 4 - 1) / 4; i++)
+          for (i = 0; i < (frame->len + 4 - 1) / 4; i++)
             {
               frame_data_word[i] = __builtin_bswap32(rf->data[i].w00);
             }
@@ -937,7 +951,7 @@ static void s32k1xx_receive(FAR struct s32k1xx_driver_s *priv,
 
       /* Reread interrupt flags and process them in this loop */
 
-      if(flags == 0)
+      if (flags == 0)
         {
           flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
           flags &= IFLAG1_RX;
@@ -959,20 +973,26 @@ static void s32k1xx_receive(FAR struct s32k1xx_driver_s *priv,
  *
  * Assumptions:
  *   Global interrupts are disabled by the watchdog logic.
- *   The network is locked.
+ *   We are not in an interrupt context so that we can lock the network.
  *
  ****************************************************************************/
 
-static void s32k1xx_txdone(FAR struct s32k1xx_driver_s *priv, uint32_t flags)
+static void s32k1xx_txdone(FAR void *arg)
 {
-  #warning Missing logic
+  FAR struct s32k1xx_driver_s *priv = (FAR struct s32k1xx_driver_s *)arg;
+  uint32_t flags;
+  uint32_t mbi;
+  uint32_t mb_bit;
 
-  /* FIXME First Process Error aborts */
+  flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
+  flags &= IFLAG1_TX;
+
+  /* TODO First Process Error aborts */
 
   /* Process TX completions */
 
-  uint32_t mb_bit = 1 << RXMBCOUNT;
-  for (uint32_t mbi = 0; flags && mbi < TXMBCOUNT; mbi++)
+  mb_bit = 1 << RXMBCOUNT;
+  for (mbi = 0; flags && mbi < TXMBCOUNT; mbi++)
     {
       if (flags & mb_bit)
         {
@@ -995,7 +1015,9 @@ static void s32k1xx_txdone(FAR struct s32k1xx_driver_s *priv, uint32_t flags)
    * new XMIT data
    */
 
+  net_lock();
   devif_poll(&priv->dev, s32k1xx_txpoll);
+  net_unlock();
 }
 
 /****************************************************************************
@@ -1023,27 +1045,38 @@ static int s32k1xx_flexcan_interrupt(int irq, FAR void *context,
 {
   FAR struct s32k1xx_driver_s *priv = (struct s32k1xx_driver_s *)arg;
 
-  if(irq == priv->config->mb_irq) {
-    uint32_t flags;
-    flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
-    flags &= IFLAG1_RX;
+  if (irq == priv->config->mb_irq)
+    {
+      uint32_t flags;
+      flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
+      flags &= IFLAG1_RX;
 
-    if (flags)
-      {
-        s32k1xx_receive(priv, flags);
-      }
+      if (flags)
+        {
+          /* Process immediately since scheduling a workqueue is too slow
+           * which causes us to drop CAN frames
+           */
 
-    flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
-    flags &= IFLAG1_TX;
+          s32k1xx_receive(priv, flags);
+        }
 
-    if (flags)
-      {
-        s32k1xx_txdone(priv, flags);
-      }
+      flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
+      flags &= IFLAG1_TX;
 
-  }
+      if (flags)
+        {
+          /* Disable further TX MB CAN interrupts. here can be no race
+           * condition here.
+           */
+
+          flags  = getreg32(priv->base + S32K1XX_CAN_IMASK1_OFFSET);
+          flags &= ~(IFLAG1_TX);
+          putreg32(flags, priv->base + S32K1XX_CAN_IMASK1_OFFSET);
+          work_queue(CANWORK, &priv->irqwork, s32k1xx_txdone, priv, 0);
+        }
+    }
+
   return OK;
-
 }
 
 /****************************************************************************
@@ -1066,6 +1099,7 @@ static int s32k1xx_flexcan_interrupt(int irq, FAR void *context,
 static void s32k1xx_txtimeout_work(FAR void *arg)
 {
   FAR struct s32k1xx_driver_s *priv = (FAR struct s32k1xx_driver_s *)arg;
+  uint32_t mbi;
 
   struct timespec ts;
   struct timeval *now = (struct timeval *)&ts;
@@ -1076,7 +1110,7 @@ static void s32k1xx_txtimeout_work(FAR void *arg)
    * transmit function transmitted a new frame
    */
 
-  for (int mbi = 0; mbi < TXMBCOUNT; mbi++)
+  for (mbi = 0; mbi < TXMBCOUNT; mbi++)
     {
       if (priv->txmb[mbi].deadline.tv_sec != 0
           && (now->tv_sec > priv->txmb[mbi].deadline.tv_sec
@@ -1165,8 +1199,10 @@ static void s32k1xx_setfreeze(uint32_t base, uint32_t freeze)
 static uint32_t s32k1xx_waitmcr_change(uint32_t base, uint32_t mask,
                                        uint32_t target_state)
 {
-  const unsigned timeout = 1000;
-  for (unsigned wait_ack = 0; wait_ack < timeout; wait_ack++)
+  const uint32_t timeout = 1000;
+  uint32_t wait_ack;
+
+  for (wait_ack = 0; wait_ack < timeout; wait_ack++)
     {
       const bool state = (getreg32(base + S32K1XX_CAN_MCR_OFFSET) & mask)
           != 0;
@@ -1499,21 +1535,21 @@ static int s32k1xx_initialize(struct s32k1xx_driver_s *priv)
   regval  = getreg32(priv->base + S32K1XX_CAN_CTRL1_OFFSET);
   regval |= CAN_CTRL1_PRESDIV(priv->arbi_timing.presdiv) | /* Prescaler divisor factor */
             CAN_CTRL1_PROPSEG(priv->arbi_timing.propseg) | /* Propagation segment */
-            CAN_CTRL1_PSEG1(priv->arbi_timing.pseg1) |   /* Phase buffer segment 1 */
-            CAN_CTRL1_PSEG2(priv->arbi_timing.pseg2) |   /* Phase buffer segment 2 */
-            CAN_CTRL1_RJW(1);      /* Resynchronization jump width */
+            CAN_CTRL1_PSEG1(priv->arbi_timing.pseg1) |     /* Phase buffer segment 1 */
+            CAN_CTRL1_PSEG2(priv->arbi_timing.pseg2) |     /* Phase buffer segment 2 */
+            CAN_CTRL1_RJW(1);                              /* Resynchronization jump width */
   putreg32(regval, priv->base + S32K1XX_CAN_CTRL1_OFFSET);
 
 #else
   regval  = getreg32(priv->base + S32K1XX_CAN_CBT_OFFSET);
-  regval |= CAN_CBT_BTF |         /* Enable extended bit timing
-                                   * configurations for CAN-FD for setting up
-                                   * separately nominal and data phase */
+            regval |= CAN_CBT_BTF |                       /* Enable extended bit timing
+                                                           * configurations for CAN-FD for setting up
+                                                           * separately nominal and data phase */
             CAN_CBT_EPRESDIV(priv->arbi_timing.presdiv) | /* Prescaler divisor factor */
             CAN_CBT_EPROPSEG(priv->arbi_timing.propseg) | /* Propagation segment */
-            CAN_CBT_EPSEG1(priv->arbi_timing.pseg1) |   /* Phase buffer segment 1 */
-            CAN_CBT_EPSEG2(priv->arbi_timing.pseg2) |   /* Phase buffer segment 2 */
-            CAN_CBT_ERJW(1);      /* Resynchronization jump width */
+            CAN_CBT_EPSEG1(priv->arbi_timing.pseg1) |     /* Phase buffer segment 1 */
+            CAN_CBT_EPSEG2(priv->arbi_timing.pseg2) |     /* Phase buffer segment 2 */
+            CAN_CBT_ERJW(1);                              /* Resynchronization jump width */
   putreg32(regval, priv->base + S32K1XX_CAN_CBT_OFFSET);
 
   /* Enable CAN FD feature */
@@ -1524,11 +1560,11 @@ static int s32k1xx_initialize(struct s32k1xx_driver_s *priv)
 
   regval  = getreg32(priv->base + S32K1XX_CAN_FDCBT_OFFSET);
   regval |= CAN_FDCBT_FPRESDIV(priv->data_timing.presdiv) |  /* Prescaler divisor factor of 1 */
-            CAN_FDCBT_FPROPSEG(priv->data_timing.propseg) | /* Propagation
-                                                             * segment (only register that doesn't add 1) */
-            CAN_FDCBT_FPSEG1(priv->data_timing.pseg1) |    /* Phase buffer segment 1 */
-            CAN_FDCBT_FPSEG2(priv->data_timing.pseg2) |    /* Phase buffer segment 2 */
-            CAN_FDCBT_FRJW(priv->data_timing.pseg2);       /* Resynchorinzation jump width same as PSEG2 */
+            CAN_FDCBT_FPROPSEG(priv->data_timing.propseg) |  /* Propagation
+                                                              * segment (only register that doesn't add 1) */
+            CAN_FDCBT_FPSEG1(priv->data_timing.pseg1) |      /* Phase buffer segment 1 */
+            CAN_FDCBT_FPSEG2(priv->data_timing.pseg2) |      /* Phase buffer segment 2 */
+            CAN_FDCBT_FRJW(priv->data_timing.pseg2);         /* Resynchorinzation jump width same as PSEG2 */
   putreg32(regval, priv->base + S32K1XX_CAN_FDCBT_OFFSET);
 
   /* Additional CAN-FD configurations */
@@ -1682,6 +1718,9 @@ int s32k1xx_netinitialize(int intf)
 {
   struct s32k1xx_driver_s *priv;
   int ret;
+#ifdef TX_TIMEOUT_WQ
+  uint32_t i;
+#endif
 
   switch (intf)
     {
@@ -1825,7 +1864,7 @@ int s32k1xx_netinitialize(int intf)
   priv->dev.d_private = (void *)priv;      /* Used to recover private state from dev */
 
 #ifdef TX_TIMEOUT_WQ
-  for (int i = 0; i < TXMBCOUNT; i++)
+  for (i = 0; i < TXMBCOUNT; i++)
     {
       priv->txtimeout[i] = wd_create();    /* Create TX timeout timer */
     }

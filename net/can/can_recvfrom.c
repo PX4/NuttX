@@ -288,11 +288,11 @@ static inline int can_readahead(struct can_recvfrom_s *pstate)
         }
 
       /* do not pass frames with DLC > 8 to a legacy socket */
-
+#if defined(CONFIG_NET_CANPROTO_OPTIONS) && defined(CONFIG_NET_CAN_CANFD)
       if (!conn->fd_frames)
+#endif
         {
-          struct canfd_frame *cfd = (struct canfd_frame *)pstate->pr_buffer;
-          if (cfd->len > CAN_MAX_DLEN)
+          if (recvlen > sizeof(struct can_frame))
             {
               return 0;
             }
@@ -381,7 +381,8 @@ static inline int can_readahead_timestamp(struct can_conn_s *conn,
 #ifdef CONFIG_NET_CANPROTO_OPTIONS
 static int can_recv_filter(struct can_conn_s *conn, canid_t id)
 {
-  for (int i = 0; i < conn->filter_count; i++)
+  uint32_t i;
+  for (i = 0; i < conn->filter_count; i++)
     {
       if (conn->filters[i].can_id & CAN_INV_FILTER)
         {
@@ -431,11 +432,11 @@ static uint16_t can_recvfrom_eventhandler(FAR struct net_driver_s *dev,
 #endif
 
           /* do not pass frames with DLC > 8 to a legacy socket */
-
+#if defined(CONFIG_NET_CANPROTO_OPTIONS) && defined(CONFIG_NET_CAN_CANFD)
           if (!conn->fd_frames)
+#endif
             {
-              struct canfd_frame *cfd = (struct canfd_frame *)dev->d_appdata;
-              if (cfd->len > CAN_MAX_DLEN)
+              if (dev->d_len > sizeof(struct can_frame))
                 {
                   /* DO WE NEED TO CLEAR FLAGS?? */
 
@@ -457,7 +458,9 @@ static uint16_t can_recvfrom_eventhandler(FAR struct net_driver_s *dev,
                 }
               else
                 {
-                  /* We still have to consume the data otherwise IOB gets full */
+                  /* We still have to consume the data
+                   * otherwise IOB gets full
+                   */
 
                   uint8_t dummy_buf[sizeof(struct timeval)];
                   can_readahead_timestamp(conn, (uint8_t *)&dummy_buf);
