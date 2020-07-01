@@ -31,7 +31,7 @@ endif
 
 # In case we cannot get version information from GIT
 
-ifeq ($(GIT_PRESENT),)
+ifneq ($(GIT_PRESENT),true)
 -include $(TOPDIR)/.version
 
 # In case the version file does not exist
