@@ -198,7 +198,7 @@ static void rtc_dumpregs(FAR const char *msg)
     ((getreg32(STM32_EXTI_FTSR) & EXTI_RTC_ALARM) ? 0x0100 : 0) |
     ((getreg32(STM32_EXTI_IMR)  & EXTI_RTC_ALARM) ? 0x0010 : 0) |
     ((getreg32(STM32_EXTI_EMR)  & EXTI_RTC_ALARM) ? 0x0001 : 0);
-  rtcinfo("EXTI (RTSR FTSR ISR EVT): %01x\n",rtc_state);
+  rtcinfo("EXTI (RTSR FTSR ISR EVT): %01x\n", rtc_state);
 }
 #else
 #  define rtc_dumpregs(msg)
@@ -828,7 +828,7 @@ static inline void rtc_enable_alarm(void)
        * 3. Configure the RTC to generate RTC alarms (Alarm A or Alarm B).
        */
 
-      (void)stm32_exti_alarm(true, false, true, stm32_rtc_alarm_handler, NULL);
+      stm32_exti_alarm(true, false, true, stm32_rtc_alarm_handler, NULL);
       g_alarm_enabled = true;
     }
 }
@@ -852,7 +852,8 @@ static inline void rtc_enable_alarm(void)
 #ifdef CONFIG_RTC_ALARM
 static int stm32_rtc_getalarmdatetime(rtc_alarmreg_t reg, FAR struct tm *tp)
 {
-  uint32_t data, tmp;
+  uint32_t data;
+  uint32_t tmp;
 
   DEBUGASSERT(tp != NULL);
 
@@ -915,6 +916,7 @@ int up_rtc_initialize(void)
    */
 
   /* Select the clock source */
+
   /* Save the token before losing it when resetting */
 
   regval = getreg32(RTC_MAGIC_REG);
