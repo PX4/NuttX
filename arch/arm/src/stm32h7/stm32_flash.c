@@ -620,7 +620,7 @@ ssize_t up_progmem_write(size_t addr, const void *buf, size_t count)
 
       /* Verify */
 
-      if (stm32h7_flash_getreg32(priv, STM32_FLASH_SR1_OFFSET) & FLASH_CR_SER)
+      if (stm32h7_flash_getreg32(priv, STM32_FLASH_CR1_OFFSET) & FLASH_CR_SER)
         {
           written = -EROFS;
           break;
@@ -678,7 +678,7 @@ ssize_t up_progmem_write(size_t addr, const void *buf, size_t count)
 
       /* Verify */
 
-      if (stm32h7_flash_getreg32(priv, STM32_FLASH_SR1_OFFSET) & FLASH_CR_SER)
+      if (stm32h7_flash_getreg32(priv, STM32_FLASH_CR1_OFFSET) & FLASH_CR_SER)
         {
           written = -EROFS;
         }
