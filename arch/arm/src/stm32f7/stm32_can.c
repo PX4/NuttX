@@ -1,4 +1,4 @@
-/****************************************************************************
+/*******************************************************************************
  * arch/arm/src/stm32/stm32_can.c
  *
  *   Copyright (C) 2011, 2016-2017, 2019 Gregory Nutt. All rights reserved.
@@ -34,11 +34,11 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ****************************************************************************/
+ *******************************************************************************/
 
-/****************************************************************************
+/*******************************************************************************
  * Included Files
- ****************************************************************************/
+ *******************************************************************************/
 
 #include <nuttx/config.h>
 
@@ -66,17 +66,17 @@
    (defined(CONFIG_STM32F7_CAN1) || defined(CONFIG_STM32F7_CAN2) || \
     defined(CONFIG_STM32F7_CAN3))
 
-/****************************************************************************
+/*******************************************************************************
  * Pre-processor Definitions
- ****************************************************************************/
+ *******************************************************************************/
 
-/* Delays *******************************************************************/
+/* Delays **********************************************************************/
 
 /* Time out for INAK bit */
 
 #define INAK_TIMEOUT 65535
 
-/* Bit timing ***************************************************************/
+/* Bit timing ******************************************************************/
 
 #define CAN_BIT_QUANTA (CONFIG_STM32F7_CAN_TSEG1 + CONFIG_STM32F7_CAN_TSEG2 + 1)
 
@@ -84,9 +84,9 @@
 #  undef CONFIG_STM32_CAN_REGDEBUG
 #endif
 
-/****************************************************************************
+/*******************************************************************************
  * Private Types
- ****************************************************************************/
+ *******************************************************************************/
 
 struct stm32_can_s
 {
@@ -99,9 +99,9 @@ struct stm32_can_s
   uint32_t baud;     /* Configured baud */
 };
 
-/****************************************************************************
+/*******************************************************************************
  * Private Function Prototypes
- ****************************************************************************/
+ *******************************************************************************/
 
 /* CAN Register access */
 
@@ -176,9 +176,9 @@ static bool stm32can_txmb0empty(uint32_t tsr_regval);
 static bool stm32can_txmb1empty(uint32_t tsr_regval);
 static bool stm32can_txmb2empty(uint32_t tsr_regval);
 
-/****************************************************************************
+/*******************************************************************************
  * Private Data
- ****************************************************************************/
+ *******************************************************************************/
 
 static const struct can_ops_s g_canops =
 {
@@ -263,11 +263,11 @@ static struct can_dev_s g_can3dev =
 };
 #endif
 
-/****************************************************************************
+/*******************************************************************************
  * Private Functions
- ****************************************************************************/
+ *******************************************************************************/
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_getreg
  * Name: stm32can_getfreg
  *
@@ -280,7 +280,7 @@ static struct can_dev_s g_can3dev =
  *
  * Returned Value:
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 #ifdef CONFIG_STM32_CAN_REGDEBUG
 static uint32_t stm32can_vgetreg(uint32_t addr)
@@ -359,7 +359,7 @@ static uint32_t stm32can_getfreg(FAR struct stm32_can_s *priv, int offset)
 
 #endif
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_putreg
  * Name: stm32can_putfreg
  *
@@ -374,7 +374,7 @@ static uint32_t stm32can_getfreg(FAR struct stm32_can_s *priv, int offset)
  * Returned Value:
  *   None
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 #ifdef CONFIG_STM32_CAN_REGDEBUG
 static void stm32can_vputreg(uint32_t addr, uint32_t value)
@@ -414,7 +414,7 @@ static void stm32can_putfreg(FAR struct stm32_can_s *priv, int offset,
 }
 #endif
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_dumpctrlregs
  *
  * Description:
@@ -426,7 +426,7 @@ static void stm32can_putfreg(FAR struct stm32_can_s *priv, int offset,
  * Returned Value:
  *   None
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 #ifdef CONFIG_STM32_CAN_REGDEBUG
 static void stm32can_dumpctrlregs(FAR struct stm32_can_s *priv,
@@ -459,7 +459,7 @@ static void stm32can_dumpctrlregs(FAR struct stm32_can_s *priv,
 }
 #endif
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_dumpmbregs
  *
  * Description:
@@ -471,7 +471,7 @@ static void stm32can_dumpctrlregs(FAR struct stm32_can_s *priv,
  * Returned Value:
  *   None
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 #ifdef CONFIG_STM32_CAN_REGDEBUG
 static void stm32can_dumpmbregs(FAR struct stm32_can_s *priv,
@@ -520,7 +520,7 @@ static void stm32can_dumpmbregs(FAR struct stm32_can_s *priv,
 }
 #endif
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_dumpfiltregs
  *
  * Description:
@@ -532,7 +532,7 @@ static void stm32can_dumpmbregs(FAR struct stm32_can_s *priv,
  * Returned Value:
  *   None
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 #ifdef CONFIG_STM32_CAN_REGDEBUG
 static void stm32can_dumpfiltregs(FAR struct stm32_can_s *priv,
@@ -565,7 +565,7 @@ static void stm32can_dumpfiltregs(FAR struct stm32_can_s *priv,
 }
 #endif
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_reset
  *
  * Description:
@@ -578,7 +578,7 @@ static void stm32can_dumpfiltregs(FAR struct stm32_can_s *priv,
  * Returned Value:
  *  None
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static void stm32can_reset(FAR struct can_dev_s *dev)
 {
@@ -634,7 +634,7 @@ static void stm32can_reset(FAR struct can_dev_s *dev)
   leave_critical_section(flags);
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_setup
  *
  * Description:
@@ -649,7 +649,7 @@ static void stm32can_reset(FAR struct can_dev_s *dev)
  * Returned Value:
  *   Zero on success; a negated errno on failure
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static int stm32can_setup(FAR struct can_dev_s *dev)
 {
@@ -723,7 +723,7 @@ static int stm32can_setup(FAR struct can_dev_s *dev)
   return OK;
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_shutdown
  *
  * Description:
@@ -736,7 +736,7 @@ static int stm32can_setup(FAR struct can_dev_s *dev)
  * Returned Value:
  *   None
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static void stm32can_shutdown(FAR struct can_dev_s *dev)
 {
@@ -761,7 +761,7 @@ static void stm32can_shutdown(FAR struct can_dev_s *dev)
   stm32can_reset(dev);
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_rxint
  *
  * Description:
@@ -773,7 +773,7 @@ static void stm32can_shutdown(FAR struct can_dev_s *dev)
  * Returned Value:
  *   None
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static void stm32can_rxint(FAR struct can_dev_s *dev, bool enable)
 {
@@ -797,7 +797,7 @@ static void stm32can_rxint(FAR struct can_dev_s *dev, bool enable)
   stm32can_putreg(priv, STM32_CAN_IER_OFFSET, regval);
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_txint
  *
  * Description:
@@ -809,7 +809,7 @@ static void stm32can_rxint(FAR struct can_dev_s *dev, bool enable)
  * Returned Value:
  *   None
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static void stm32can_txint(FAR struct can_dev_s *dev, bool enable)
 {
@@ -828,7 +828,7 @@ static void stm32can_txint(FAR struct can_dev_s *dev, bool enable)
     }
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_ioctl
  *
  * Description:
@@ -840,7 +840,7 @@ static void stm32can_txint(FAR struct can_dev_s *dev, bool enable)
  * Returned Value:
  *   Zero on success; a negated errno on failure
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static int stm32can_ioctl(FAR struct can_dev_s *dev, int cmd,
                           unsigned long arg)
@@ -1143,6 +1143,7 @@ static int stm32can_ioctl(FAR struct can_dev_s *dev, int cmd,
             {
               return ret;
             }
+
           regval = stm32can_getreg(priv, STM32_CAN_MCR_OFFSET);
           if (arg == 1)
             {
@@ -1152,6 +1153,7 @@ static int stm32can_ioctl(FAR struct can_dev_s *dev, int cmd,
             {
               regval &= ~CAN_MCR_NART;
             }
+
           stm32can_putreg(priv, STM32_CAN_MCR_OFFSET, regval);
           return stm32can_exitinitmode(priv);
         }
@@ -1165,6 +1167,7 @@ static int stm32can_ioctl(FAR struct can_dev_s *dev, int cmd,
             {
               return ret;
             }
+
           regval = stm32can_getreg(priv, STM32_CAN_MCR_OFFSET);
           if (arg == 1)
             {
@@ -1174,6 +1177,7 @@ static int stm32can_ioctl(FAR struct can_dev_s *dev, int cmd,
             {
               regval &= ~CAN_MCR_ABOM;
             }
+
           stm32can_putreg(priv, STM32_CAN_MCR_OFFSET, regval);
           return stm32can_exitinitmode(priv);
         }
@@ -1189,7 +1193,7 @@ static int stm32can_ioctl(FAR struct can_dev_s *dev, int cmd,
   return ret;
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_remoterequest
  *
  * Description:
@@ -1201,7 +1205,7 @@ static int stm32can_ioctl(FAR struct can_dev_s *dev, int cmd,
  * Returned Value:
  *   Zero on success; a negated errno on failure
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static int stm32can_remoterequest(FAR struct can_dev_s *dev, uint16_t id)
 {
@@ -1209,7 +1213,7 @@ static int stm32can_remoterequest(FAR struct can_dev_s *dev, uint16_t id)
   return -ENOSYS;
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_send
  *
  * Description:
@@ -1230,7 +1234,7 @@ static int stm32can_remoterequest(FAR struct can_dev_s *dev, uint16_t id)
  * Returned Value:
  *   Zero on success; a negated errno on failure
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static int stm32can_send(FAR struct can_dev_s *dev,
                          FAR struct can_msg_s *msg)
@@ -1289,11 +1293,13 @@ static int stm32can_send(FAR struct can_dev_s *dev,
     }
 
 #else
-  regval |= ( ( (uint32_t) msg->cm_hdr.ch_id << CAN_TIR_STID_SHIFT) & CAN_TIR_STID_MASK );
+  regval |= (((uint32_t) msg->cm_hdr.ch_id << CAN_TIR_STID_SHIFT) &
+               CAN_TIR_STID_MASK);
+
+#endif
 
 #ifdef CONFIG_CAN_USE_RTR
   regval |= (msg->cm_hdr.ch_rtr ? CAN_TIR_RTR : 0);
-#endif
 #endif
 
   stm32can_putreg(priv, STM32_CAN_TIR_OFFSET(txmb), regval);
@@ -1380,7 +1386,7 @@ static int stm32can_send(FAR struct can_dev_s *dev,
   return OK;
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_txready
  *
  * Description:
@@ -1392,7 +1398,7 @@ static int stm32can_send(FAR struct can_dev_s *dev,
  * Returned Value:
  *   True if the CAN hardware is ready to accept another TX message.
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static bool stm32can_txready(FAR struct can_dev_s *dev)
 {
@@ -1408,7 +1414,7 @@ static bool stm32can_txready(FAR struct can_dev_s *dev)
          stm32can_txmb2empty(regval);
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_txempty
  *
  * Description:
@@ -1424,7 +1430,7 @@ static bool stm32can_txready(FAR struct can_dev_s *dev)
  * Returned Value:
  *   True if there are no pending TX transfers in the CAN hardware.
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static bool stm32can_txempty(FAR struct can_dev_s *dev)
 {
@@ -1440,7 +1446,7 @@ static bool stm32can_txempty(FAR struct can_dev_s *dev)
          stm32can_txmb2empty(regval);
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_rxinterrupt
  *
  * Description:
@@ -1454,7 +1460,7 @@ static bool stm32can_txempty(FAR struct can_dev_s *dev)
  * Returned Value:
  *   Zero on success; a negated errno on failure
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static int stm32can_rxinterrupt(FAR struct can_dev_s *dev, int rxmb)
 {
@@ -1558,7 +1564,7 @@ errout:
   return ret;
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_rx0interrupt
  *
  * Description:
@@ -1571,7 +1577,7 @@ errout:
  * Returned Value:
  *   Zero on success; a negated errno on failure
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static int stm32can_rx0interrupt(int irq, FAR void *context, FAR void *arg)
 {
@@ -1579,7 +1585,7 @@ static int stm32can_rx0interrupt(int irq, FAR void *context, FAR void *arg)
   return stm32can_rxinterrupt(dev, 0);
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_rx1interrupt
  *
  * Description:
@@ -1592,7 +1598,7 @@ static int stm32can_rx0interrupt(int irq, FAR void *context, FAR void *arg)
  * Returned Value:
  *   Zero on success; a negated errno on failure
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static int stm32can_rx1interrupt(int irq, FAR void *context, FAR void *arg)
 {
@@ -1600,7 +1606,7 @@ static int stm32can_rx1interrupt(int irq, FAR void *context, FAR void *arg)
   return stm32can_rxinterrupt(dev, 1);
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_txinterrupt
  *
  * Description:
@@ -1613,7 +1619,7 @@ static int stm32can_rx1interrupt(int irq, FAR void *context, FAR void *arg)
  * Returned Value:
  *   Zero on success; a negated errno on failure
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static int stm32can_txinterrupt(int irq, FAR void *context, FAR void *arg)
 {
@@ -1676,7 +1682,7 @@ static int stm32can_txinterrupt(int irq, FAR void *context, FAR void *arg)
   return OK;
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_bittiming
  *
  * Description:
@@ -1731,7 +1737,7 @@ static int stm32can_txinterrupt(int irq, FAR void *context, FAR void *arg)
  * Returned Value:
  *   Zero on success; a negated errno on failure
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static int stm32can_bittiming(FAR struct stm32_can_s *priv)
 {
@@ -1815,7 +1821,7 @@ static int stm32can_bittiming(FAR struct stm32_can_s *priv)
   return OK;
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_enterinitmode
  *
  * Description:
@@ -1829,7 +1835,7 @@ static int stm32can_bittiming(FAR struct stm32_can_s *priv)
  * Returned Value:
  *   Zero on success; a negated errno value on failure.
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static int stm32can_enterinitmode(FAR struct stm32_can_s *priv)
 {
@@ -1868,7 +1874,7 @@ static int stm32can_enterinitmode(FAR struct stm32_can_s *priv)
   return OK;
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_exitinitmode
  *
  * Description:
@@ -1880,7 +1886,7 @@ static int stm32can_enterinitmode(FAR struct stm32_can_s *priv)
  * Returned Value:
  *   Zero on success; a negated errno value on failure.
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static int stm32can_exitinitmode(FAR struct stm32_can_s *priv)
 {
@@ -1918,7 +1924,7 @@ static int stm32can_exitinitmode(FAR struct stm32_can_s *priv)
   return OK;
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_cellinit
  *
  * Description:
@@ -1930,7 +1936,7 @@ static int stm32can_exitinitmode(FAR struct stm32_can_s *priv)
  * Returned Value:
  *   Zero on success; a negated errno value on failure.
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static int stm32can_cellinit(FAR struct stm32_can_s *priv)
 {
@@ -1982,7 +1988,7 @@ static int stm32can_cellinit(FAR struct stm32_can_s *priv)
   return stm32can_exitinitmode(priv);
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_filterinit
  *
  * Description:
@@ -2013,7 +2019,7 @@ static int stm32can_cellinit(FAR struct stm32_can_s *priv)
  * Returned Value:
  *   Zero on success; a negated errno value on failure.
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static int stm32can_filterinit(FAR struct stm32_can_s *priv)
 {
@@ -2084,7 +2090,7 @@ static int stm32can_filterinit(FAR struct stm32_can_s *priv)
   return OK;
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_addextfilter
  *
  * Description:
@@ -2099,7 +2105,7 @@ static int stm32can_filterinit(FAR struct stm32_can_s *priv)
  *   Otherwise -1 (ERROR) is returned with the errno
  *   set to indicate the nature of the error.
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 #ifdef CONFIG_CAN_EXTID
 static int stm32can_addextfilter(FAR struct stm32_can_s *priv,
@@ -2109,7 +2115,7 @@ static int stm32can_addextfilter(FAR struct stm32_can_s *priv,
 }
 #endif
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_delextfilter
  *
  * Description:
@@ -2125,7 +2131,7 @@ static int stm32can_addextfilter(FAR struct stm32_can_s *priv,
  *   returned with the errno variable set to indicate the
  *   of the error.
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 #ifdef CONFIG_CAN_EXTID
 static int stm32can_delextfilter(FAR struct stm32_can_s *priv, int arg)
@@ -2134,7 +2140,7 @@ static int stm32can_delextfilter(FAR struct stm32_can_s *priv, int arg)
 }
 #endif
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_addstdfilter
  *
  * Description:
@@ -2149,7 +2155,7 @@ static int stm32can_delextfilter(FAR struct stm32_can_s *priv, int arg)
  *   Otherwise -1 (ERROR) is returned with the errno
  *   set to indicate the nature of the error.
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static int stm32can_addstdfilter(FAR struct stm32_can_s *priv,
                                  FAR struct canioc_stdfilter_s *arg)
@@ -2157,7 +2163,7 @@ static int stm32can_addstdfilter(FAR struct stm32_can_s *priv,
   return -ENOTTY;
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_delstdfilter
  *
  * Description:
@@ -2173,14 +2179,14 @@ static int stm32can_addstdfilter(FAR struct stm32_can_s *priv,
  *   returned with the errno variable set to indicate the
  *   of the error.
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static int stm32can_delstdfilter(FAR struct stm32_can_s *priv, int arg)
 {
   return -ENOTTY;
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_txmb0empty
  *
  * Input Parameters:
@@ -2189,7 +2195,7 @@ static int stm32can_delstdfilter(FAR struct stm32_can_s *priv, int arg)
  * Returned Value:
  *   Returns true if mailbox 0 is empty and can be used for sending.
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static bool stm32can_txmb0empty(uint32_t tsr_regval)
 {
@@ -2197,7 +2203,7 @@ static bool stm32can_txmb0empty(uint32_t tsr_regval)
          (tsr_regval & CAN_TSR_RQCP0) == 0;
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_txmb1empty
  *
  * Input Parameters:
@@ -2206,7 +2212,7 @@ static bool stm32can_txmb0empty(uint32_t tsr_regval)
  * Returned Value:
  *   Returns true if mailbox 1 is empty and can be used for sending.
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static bool stm32can_txmb1empty(uint32_t tsr_regval)
 {
@@ -2214,7 +2220,7 @@ static bool stm32can_txmb1empty(uint32_t tsr_regval)
          (tsr_regval & CAN_TSR_RQCP1) == 0;
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32can_txmb2empty
  *
  * Input Parameters:
@@ -2223,7 +2229,7 @@ static bool stm32can_txmb1empty(uint32_t tsr_regval)
  * Returned Value:
  *   Returns true if mailbox 2 is empty and can be used for sending.
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 static bool stm32can_txmb2empty(uint32_t tsr_regval)
 {
@@ -2231,11 +2237,11 @@ static bool stm32can_txmb2empty(uint32_t tsr_regval)
          (tsr_regval & CAN_TSR_RQCP2) == 0;
 }
 
-/****************************************************************************
+/*******************************************************************************
  * Public Functions
- ****************************************************************************/
+ *******************************************************************************/
 
-/****************************************************************************
+/*******************************************************************************
  * Name: stm32_caninitialize
  *
  * Description:
@@ -2247,7 +2253,7 @@ static bool stm32can_txmb2empty(uint32_t tsr_regval)
  * Returned Value:
  *   Valid CAN device structure reference on success; a NULL on failure
  *
- ****************************************************************************/
+ *******************************************************************************/
 
 FAR struct can_dev_s *stm32_caninitialize(int port)
 {
