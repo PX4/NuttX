@@ -119,6 +119,14 @@
  *
  ****************************************************************************/
 
+#ifdef __cplusplus
+#define EXTERN extern "C"
+extern "C"
+{
+#else
+#define EXTERN extern
+#endif
+
 /****************************************************************************
  * Name: board_early_initialize
  *
@@ -709,6 +717,11 @@ void board_crashdump(uintptr_t currentsp, FAR void *tcb,
 
 #ifdef CONFIG_BOARD_INITRNGSEED
 void board_init_rngseed(void);
+#endif
+
+#undef EXTERN
+#ifdef __cplusplus
+}
 #endif
 
 #endif /* __INCLUDE_NUTTX_BOARD_H */
