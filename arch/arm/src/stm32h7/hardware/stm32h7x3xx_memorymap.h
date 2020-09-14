@@ -128,8 +128,8 @@
 #define STM32_CRS_BASE         0x40008400     /* 0x40007c00-0x40007fff: CRS */
 #define STM32_SWPMI_BASE       0x40008800     /* 0x40008800 - 0x40008bff SWPMI Section */
 #define STM32_OPAMP_BASE       0x40009000     /* 0x40009000 - 0x400093ff OPAMP Section */
-#define STM32_MDIOS_BASE       0x4000a000     /* 0x40009400 - 0x400097ff MDIOS Section */
-#define STM32_FDCAN1_BASE      0x40008400     /* 0x4000a000 - 0x4000a3ff FDCAN1 Section */
+#define STM32_MDIOS_BASE       0x40009400     /* 0x40009400 - 0x400097ff MDIOS Section */
+#define STM32_FDCAN1_BASE      0x4000a000     /* 0x4000a000 - 0x4000a3ff FDCAN1 Section */
 #define STM32_FDCAN2_BASE      0x4000a400     /* 0x4000a400 - 0x4000A7ff FDCAN2 Section */
 #define STM32_CANCCU_BASE      0x4000a800     /* 0x4000a800 - 0x4000abff CAN CCU Section */
 #define STM32_CANRAM_BASE      0x4000ac00     /* 0x4000ac00 - 0x4000d3ff CAN Message RAM */
@@ -234,8 +234,8 @@
 #define STM32_SYSMEM_UID       0x1ff1e800
 
 /* The DBGMCU registers are accessible to the debugger via the APB-D bus
- * at base address 0xe00e1000. They are also accessible by the processor 
- * core at base address 0x5c001000. 
+ * at base address 0xe00e1000. They are also accessible by the processor
+ * core at base address 0x5c001000.
  */
 
 #define STM32_DEBUGMCU_BASE    0x5c001000
