@@ -81,6 +81,13 @@
  * CONFIGURATION: CONFIG_LIB_BOARDCTL
  * DEPENDENCIES:  Board logic must provide board_app_initialize()
  *
+ * CMD:           BOARDIOC_NETCONF
+ * DESCRIPTION:   Provide network configuration settings
+ * ARG:           A pointer to a writable netconf structure which to receive
+ *                the netconf.
+ * CONFIGURATION: CONFIG_BOARDIOC_NETCONF
+ * DEPENDENCIES:  Board logic must provide the board_get_netconf() interface.
+ *
  * CMD:           BOARDIOC_POWEROFF
  * DESCRIPTION:   Power off the board
  * ARG:           Integer value providing power off status information
@@ -201,20 +208,21 @@
 #define BOARDIOC_INIT              _BOARDIOC(0x0001)
 #define BOARDIOC_FINALINIT         _BOARDIOC(0x0002)
 #define BOARDIOC_POWEROFF          _BOARDIOC(0x0003)
-#define BOARDIOC_RESET             _BOARDIOC(0x0004)
-#define BOARDIOC_PM_CONTROL        _BOARDIOC(0x0005)
-#define BOARDIOC_UNIQUEID          _BOARDIOC(0x0006)
-#define BOARDIOC_MKRD              _BOARDIOC(0x0007)
-#define BOARDIOC_ROMDISK           _BOARDIOC(0x0008)
-#define BOARDIOC_APP_SYMTAB        _BOARDIOC(0x0009)
-#define BOARDIOC_OS_SYMTAB         _BOARDIOC(0x000a)
-#define BOARDIOC_BUILTINS          _BOARDIOC(0x000b)
-#define BOARDIOC_USBDEV_CONTROL    _BOARDIOC(0x000c)
-#define BOARDIOC_NX_START          _BOARDIOC(0x000d)
-#define BOARDIOC_VNC_START         _BOARDIOC(0x000e)
-#define BOARDIOC_NXTERM            _BOARDIOC(0x000f)
-#define BOARDIOC_NXTERM_IOCTL      _BOARDIOC(0x0010)
-#define BOARDIOC_TESTSET           _BOARDIOC(0x0011)
+#define BOARDIOC_NETCONF           _BOARDIOC(0x0004)
+#define BOARDIOC_RESET             _BOARDIOC(0x0005)
+#define BOARDIOC_PM_CONTROL        _BOARDIOC(0x0006)
+#define BOARDIOC_UNIQUEID          _BOARDIOC(0x0007)
+#define BOARDIOC_MKRD              _BOARDIOC(0x0008)
+#define BOARDIOC_ROMDISK           _BOARDIOC(0x0009)
+#define BOARDIOC_APP_SYMTAB        _BOARDIOC(0x000a)
+#define BOARDIOC_OS_SYMTAB         _BOARDIOC(0x000b)
+#define BOARDIOC_BUILTINS          _BOARDIOC(0x000c)
+#define BOARDIOC_USBDEV_CONTROL    _BOARDIOC(0x000d)
+#define BOARDIOC_NX_START          _BOARDIOC(0x000e)
+#define BOARDIOC_VNC_START         _BOARDIOC(0x000f)
+#define BOARDIOC_NXTERM            _BOARDIOC(0x0010)
+#define BOARDIOC_NXTERM_IOCTL      _BOARDIOC(0x0011)
+#define BOARDIOC_TESTSET           _BOARDIOC(0x0012)
 
 /* If CONFIG_BOARDCTL_IOCTL=y, then board-specific commands will be support.
  * In this case, all commands not recognized by boardctl() will be forwarded
@@ -250,6 +258,26 @@ struct boardioc_pm_ctrl_s
   uint32_t state;
   uint32_t count;
   uint32_t priority;
+};
+#endif
+
+#ifdef CONFIG_BOARDCTL_NETCONF
+/* Describes the network configuration */
+
+enum boardioc_netconf_e
+{
+  BOARDIOC_NETCONF_DHCP     = 0x1, /* Use DHCP */
+  BOARDIOC_NETCONF_STATIC   = 0x2, /* Use static IP */
+  BOARDIOC_NETCONF_FALLBACK = 0x3, /* Use DHCP with fall back static IP */
+};
+
+struct boardioc_netconf_s
+{
+  enum boardioc_netconf_e flags; /* Configure for static and/or DHCP */
+  uint32_t ipaddr;
+  uint32_t netmask;
+  uint32_t dnsaddr;
+  uint32_t default_router;
 };
 #endif
 
