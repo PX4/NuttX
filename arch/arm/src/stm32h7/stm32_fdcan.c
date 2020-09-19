@@ -113,6 +113,9 @@
 #define TSEG2_FD_MAX                9
 #define NUMTQ_FD_MAX                49
 
+#define WORD_LENGTH                 4U
+#define FIFO_ELEMENT_SIZE           4U // size (in Words) of a FIFO element in message RAM
+
 #ifdef CONFIG_NET_CAN_RAW_TX_DEADLINE
 
 #  if !defined(CONFIG_SCHED_WORKQUEUE)
@@ -223,6 +226,7 @@ struct fdcan_timeseg
   uint8_t pseg1;
   uint8_t pseg2;
   uint8_t presdiv;
+  /// JACOB TODO: Replace with values needed by FDCAN controller
 };
 
 /* FlexCAN device structures */
@@ -242,7 +246,7 @@ static const struct fdcan_config_s stm32_fdcan0_config =
   .bus_irq     = STM32_IRQ_CAN0_BUS,
   .error_irq   = STM32_IRQ_CAN0_ERROR,
   .lprx_irq    = STM32_IRQ_CAN0_LPRX,
-  .mb_irq      = STM32_IRQ_CAN0_0_15,
+  .mb_irq      = STM32_IRQ_FDCAN1_0, //STM32_IRQ_FDCAN1_1
 };
 #endif
 
@@ -261,7 +265,7 @@ static const struct fdcan_config_s stm32_fdcan1_config =
   .bus_irq     = STM32_IRQ_CAN1_BUS,
   .error_irq   = STM32_IRQ_CAN1_ERROR,
   .lprx_irq    = 0,
-  .mb_irq      = STM32_IRQ_CAN1_0_15,
+  .mb_irq      = STM32_IRQ_FDCAN2_0, // STM32_IRQ_FDCAN2_1
 };
 #endif
 
@@ -271,7 +275,8 @@ static const struct fdcan_config_s stm32_fdcan1_config =
 
 struct stm32_driver_s
 {
-  uint32_t base;                /* FLEXCAN base address */
+  uint32_t base;                /* FDCAN base address */
+  uint8_t iface_idx;            /* FDCAN interface index (0 or 1) */
   bool bifup;                   /* true:ifup false:ifdown */
 #ifdef TX_TIMEOUT_WQ
   WDOG_ID txtimeout[TXMBCOUNT]; /* TX timeout timer */
@@ -369,7 +374,7 @@ static inline uint32_t arm_lsb(unsigned int value)
  *   return 1 on succes, return 0 on failure
  *
  ****************************************************************************/
-
+/// JACOB TODO: Replace with STM32 FDCAN-compatible bit timing calculator
 uint32_t stm32_bitratetotimeseg(struct fdcan_timeseg *timeseg,
                                                 int32_t sp_tolerance,
                                                 uint32_t can_fd)
@@ -475,9 +480,10 @@ static int  stm32_txpoll(struct net_driver_s *dev);
 
 /* Helper functions */
 
+static void stm32_setinit(uint32_t base, uint32_t init);
 static void stm32_setenable(uint32_t base, uint32_t enable);
 static void stm32_setfreeze(uint32_t base, uint32_t freeze);
-static uint32_t stm32_waitmcr_change(uint32_t base,
+static uint32_t stm32_waitccr_change(uint32_t base,
                                        uint32_t mask,
                                        uint32_t target_state);
 
@@ -536,19 +542,20 @@ static void stm32_reset(struct stm32_driver_s *priv);
 
 static bool stm32_txringfull(FAR struct stm32_driver_s *priv)
 {
-  uint32_t mbi = 0;
+  // Check that we even _have_ a Tx FIFO allocated
+  /// JACOB TODO: Decide if this needs to be checked every time, or just during init
+	if ((getreg32(priv->base + STM32_FDCAN_TXBC_OFFSET) & FDCAN_TXBC_TFQS) == 0) {
+		// Your queue size is 0, you did something wrong
+		return true;
+	}
 
-  while (mbi < TXMBCOUNT)
-    {
-      if (priv->tx[mbi].cs.code != CAN_TXMB_DATAORREMOTE)
-        {
-          return 0;
-        }
+	// Check if the Tx queue is full
+	if ((getreg32(priv->base + STM32_FDCAN_TXFQS_OFFSET) & FDCAN_TXFQS_TFQF) == FDCAN_TXFQS_TFQF) {
+		// Sorry, out of room, try back later
+		return true;
+	}
 
-      mbi++;
-    }
-
-  return 1;
+	return false;
 }
 
 /****************************************************************************
@@ -574,30 +581,13 @@ static bool stm32_txringfull(FAR struct stm32_driver_s *priv)
 static int stm32_transmit(FAR struct stm32_driver_s *priv)
 {
 /* From UAVCAN uc_stm32h7_can.cpp:
-bool CanIface::canAcceptNewTxFrame(const uavcan::CanFrame &frame) const
-{
-	// Check that we even _have_ a Tx FIFO allocated
-	if ((can_->TXBC & FDCAN_TXBC_TFQS) == 0) {
-		// Your queue size is 0, you did something wrong
-		return false;
-	}
-
-	// Check if the Tx queue is full
-	if ((can_->TXFQS & FDCAN_TXFQS_TFQF) == FDCAN_TXFQS_TFQF) {
-		// Sorry, out of room, try back later
-		return false;
-	}
-
-	return true;
-}
-
 uavcan::int16_t CanIface::send(const uavcan::CanFrame &frame, uavcan::MonotonicTime tx_deadline,
 			       uavcan::CanIOFlags flags)
 {
 	if (frame.isErrorFrame() || frame.dlc > 8) {
 		return -ErrUnsupportedFrame;
 	}
-
+*/
 	/*
 	 * Normally we should perform the same check as in @ref canAcceptNewTxFrame(), because
 	 * it is possible that the highest-priority frame between select() and send() could have been
@@ -612,17 +602,19 @@ uavcan::int16_t CanIface::send(const uavcan::CanFrame &frame, uavcan::MonotonicT
 	 *    issues to take care of before this one becomes relevant.
 	 *
 	 *  - It takes CPU time. Not just CPU time, but critical section time, which is expensive.
-	 *
-	CriticalSectionLocker lock;
+	 */
+	// CriticalSectionLocker lock;
 
 	// First, check if there are any slots available in the queue
-	if ((can_->TXFQS & FDCAN_TXFQS_TFQF) > 0) {
+	if ((getreg32(priv->base + STM32_FDCAN_TXFQS_OFFSET) & FDCAN_TXFQS_TFQF) > 0) {
 		// Tx FIFO / Queue is full
-		return 0;
+		return 0; /// TODO error code
+    /// JACOB TODO: make sure this check is used in the context of enqueing a new frame, not
+    /// sending an existing frame from the queue
 	}
 
 	// Next, get the next available queue index from the controller
-	const uint8_t index = (can_->TXFQS & FDCAN_TXFQS_TFQPI) >> FDCAN_TXFQS_TFQPI_Pos;
+	const uint8_t index = (getreg32(priv->base + STM32_FDCAN_TXFQS_OFFSET) & FDCAN_TXFQS_TFQPI) >> FDCAN_TXFQS_TFQPI_SHIFT;
 
 	// Now, we can copy the CAN frame to the queue (in message RAM)
 	uint32_t *txbuf  = (uint32_t *)(message_ram_.TxQueueSA + (index * FIFO_ELEMENT_SIZE * WORD_LENGTH));
@@ -633,7 +625,7 @@ uavcan::int16_t CanIface::send(const uavcan::CanFrame &frame, uavcan::MonotonicT
 
 	} else {
 		// Standard ID frames must be entered into bits [28:18]
-		txbuf[0] = (frame.id << fdcan::T0_STID_Pos) & fdcan::STID_MASK;
+		txbuf[0] = (frame.id << fdcan::T0_STID_SHIFT) & fdcan::STID_MASK;
 	}
 
 	if (frame.isRemoteTransmissionRequest()) {
@@ -644,12 +636,12 @@ uavcan::int16_t CanIface::send(const uavcan::CanFrame &frame, uavcan::MonotonicT
 		txbuf[0] |= fdcan::ESI;
 	}
 
-	txbuf[1] = (frame.dlc << fdcan::T1_DLC_Pos);
+	txbuf[1] = (frame.dlc << fdcan::T1_DLC_SHIFT);
 
-	txbuf[1] &= ~(1 << fdcan::T1_FDF_Pos);   // Classic CAN frame, not CAN-FD
-	txbuf[1] &= ~(1 << fdcan::T1_BRS_Pos);   // No bitrate switching
-	txbuf[1] &= ~(1 << fdcan::T1_EFC_Pos);   // Don't store Tx events
-	txbuf[1] |= (index << fdcan::T1_MM_Pos); // Marker for our use; just give it the FIFO index
+	txbuf[1] &= ~(1 << fdcan::T1_FDF_SHIFT);   // Classic CAN frame, not CAN-FD
+	txbuf[1] &= ~(1 << fdcan::T1_BRS_SHIFT);   // No bitrate switching
+	txbuf[1] &= ~(1 << fdcan::T1_EFC_SHIFT);   // Don't store Tx events
+	txbuf[1] |= (index << fdcan::T1_MM_SHIFT); // Marker for our use; just give it the FIFO index
 
 	// Store the data bytes
 	txbuf[2] = (uavcan::uint32_t(frame.data[3]) << 24) |
@@ -662,7 +654,7 @@ uavcan::int16_t CanIface::send(const uavcan::CanFrame &frame, uavcan::MonotonicT
 		   (uavcan::uint32_t(frame.data[4]) << 0);
 
 	// Submit the transmission request for this element
-	can_->TXBAR = 1 << index;
+  putreg32(1 << index, priv->base + STM32_FDCAN_TXBAR_OFFSET);
 
 	// Registering the pending transmission so we can track its deadline and loopback it as needed
 	TxItem &txi = pending_tx_[index];
@@ -805,10 +797,13 @@ uavcan::int16_t CanIface::send(const uavcan::CanFrame &frame, uavcan::MonotonicT
 
   mb->cs = cs; /* Go. */
 
+  // [NXP]
   uint32_t regval;
   regval = getreg32(priv->base + STM32_CAN_IMASK1_OFFSET);
   regval |= mb_bit;
   putreg32(regval, priv->base + STM32_CAN_IMASK1_OFFSET);
+  // [STM32] Submit the transmission request for this element
+  putreg32(1 << index, priv->base + STM32_FDCAN_TXBAR_OFFSET);
 
   /* Increment statistics */
 
@@ -1198,54 +1193,76 @@ static void stm32_txtimeout_expiry(int argc, uint32_t arg, ...)
 
 #endif
 
+
+static void stm32_setinit(uint32_t base, uint32_t init)
+{
+  uint32_t regval;
+
+  if (init)
+    {
+      regval  = getreg32(base + STM32_FDCAN_CCCR_OFFSET);
+      regval |= FDCAN_CCCR_INIT;
+      putreg32(regval, base + STM32_FDCAN_CCCR_OFFSET);
+      stm32_waitccr_change(base, FDCAN_CCCR_INIT, FDCAN_CCCR_INIT);
+    }
+  else
+    {
+      regval  = getreg32(base + STM32_FDCAN_CCCR_OFFSET);
+      regval &= ~(FDCAN_CCCR_INIT);
+      putreg32(regval, base + STM32_FDCAN_CCCR_OFFSET);
+      stm32_waitccr_change(base, FDCAN_CCCR_INIT, 0);
+    }
+}
+
 static void stm32_setenable(uint32_t base, uint32_t enable)
 {
   uint32_t regval;
 
   if (enable)
     {
-      regval  = getreg32(base + STM32_CAN_MCR_OFFSET);
-      regval &= ~(CAN_MCR_MDIS);
-      putreg32(regval, base + STM32_CAN_MCR_OFFSET);
+      regval  = getreg32(base + STM32_FDCAN_CCCR_OFFSET);
+      regval &= ~(FDCAN_CCCR_CSR);
+      putreg32(regval, base + STM32_FDCAN_CCCR_OFFSET);
+      stm32_waitccr_change(base, FDCAN_CCCR_CSA, 0);
     }
   else
     {
-      regval  = getreg32(base + STM32_CAN_MCR_OFFSET);
-      regval |= CAN_MCR_MDIS;
-      putreg32(regval, base + STM32_CAN_MCR_OFFSET);
+      regval  = getreg32(base + STM32_FDCAN_CCCR_OFFSET);
+      regval |= FDCAN_CCCR_CSR;
+      /// JACOB TODO: different target value to wait on here?
+      putreg32(regval, base + STM32_FDCAN_CCCR_OFFSET);
+      //stm32_waitccr_change(base, FDCAN_CCCR_CSA, 0);
     }
-
-  stm32_waitmcr_change(base, CAN_MCR_LPMACK, 1);
 }
 
-static void stm32_setfreeze(uint32_t base, uint32_t freeze)
+static void stm32_setconfig(uint32_t base, uint32_t config_enable)
 {
   uint32_t regval;
-  if (freeze)
+  if (config_enable)
     {
-      /* Enter freeze mode */
+      /* Configuration Changes Enabled (CCE) mode */
 
-      regval  = getreg32(base + STM32_CAN_MCR_OFFSET);
-      regval |= (CAN_MCR_HALT | CAN_MCR_FRZ);
-      putreg32(regval, base + STM32_CAN_MCR_OFFSET);
+      regval  = getreg32(base + STM32_FDCAN_CCCR_OFFSET);
+      regval |= FDCAN_CCCR_CCE;
+      putreg32(regval, base + STM32_FDCAN_CCCR_OFFSET);
     }
   else
     {
-      /* Exit freeze mode */
+      /* Exit CCE mode */
 
-      regval  = getreg32(base + STM32_CAN_MCR_OFFSET);
-      regval &= ~(CAN_MCR_HALT | CAN_MCR_FRZ);
-      putreg32(regval, base + STM32_CAN_MCR_OFFSET);
+      regval  = getreg32(base + STM32_FDCAN_CCCR_OFFSET);
+      regval &= ~(FDCAN_CCCR_CCE);
+      putreg32(regval, base + STM32_FDCAN_CCCR_OFFSET);
     }
 }
 
-static uint32_t stm32_waitmcr_change(uint32_t base, uint32_t mask,
+static uint32_t stm32_waitccr_change(uint32_t base, uint32_t mask,
                                        uint32_t target_state)
 {
   const unsigned timeout = 1000;
   for (unsigned wait_ack = 0; wait_ack < timeout; wait_ack++)
     {
-      const bool state = (getreg32(base + STM32_CAN_MCR_OFFSET) & mask)
+      const bool state = (getreg32(base + STM32_FDCAN_CCCR_OFFSET) & mask)
           != 0;
       if (state == target_state)
         {
@@ -1532,10 +1549,10 @@ static int stm32_ioctl(struct net_driver_s *dev, int cmd,
  * Function: stm32_initalize
  *
  * Description:
- *   Initialize FLEXCAN device
+ *   Initialize FDCAN device
  *
  * Input Parameters:
- *   priv - Reference to the private FLEXCAN driver state structure
+ *   priv - Reference to the private FDCAN driver state structure
  *
  * Returned Value:
  *   None
@@ -1543,6 +1560,201 @@ static int stm32_ioctl(struct net_driver_s *dev, int cmd,
  * Assumptions:
  *
  ****************************************************************************/
+
+int stm32_initalize(struct stm32_driver_s *priv)
+{
+  uint32_t regval;
+    /// modifyreg32(addr, clearbits, setbits)
+	/*
+	 * Wake up the device and enable configuration changes
+	 */
+  // Exit Power-down / Sleep mode, then wait for acknowledgement
+  stm32_setenable(priv->base, 1);
+
+  // Request Init mode, then wait for completion
+  stm32_setinit(priv->base, 1);
+
+  // Configuration Changes Enable.  Can only be set during Init mode;
+  // cleared when INIT bit is cleared.
+  stm32_setconfig(priv->base, 1);
+
+  // Disable interrupts while we configure the hardware
+  putreg32(0, priv->base + STM32_FDCAN_IE_OFFSET);
+
+	/*
+	 * Object state - interrupts are disabled, so it's safe to modify it now
+	 */
+	rx_queue_.reset();
+	error_cnt_ = 0;
+	served_aborts_cnt_ = 0;
+	uavcan::fill_n(pending_tx_, NumTxMailboxes, TxItem());
+	peak_tx_mailbox_index_ = 0;
+	had_activity_ = false;
+
+	/*
+	 * CAN timings for this bitrate
+	 */
+	Timings timings;
+	const int timings_res = computeTimings(bitrate, timings);
+
+/// TODO: Relocate  
+  struct fdcan_timeseg arbi_timing;
+#ifdef CONFIG_NET_CAN_CANFD /// TODO: shoud this be here, or elsewhere?
+  priv->arbi_timing.bitrate = CONFIG_FDCAN1_ARBI_BITRATE;
+  priv->arbi_timing.samplep = CONFIG_FDCAN1_ARBI_SAMPLEP;
+  priv->data_timing.bitrate = CONFIG_FDCAN1_DATA_BITRATE;
+  priv->data_timing.samplep = CONFIG_FDCAN1_DATA_SAMPLEP;
+# else
+  arbi_timing.bitrate = CONFIG_FDCAN1_BITRATE;
+  arbi_timing.samplep = CONFIG_FDCAN1_SAMPLEP;
+# endif
+  stm32_bitratetotimeseg(&arbi_timing, 1, 0); // default 1-tseg tolerance; non-FD
+
+	if (timings_res < 0) {
+		stm32_setinit(priv->base, 0);
+		return timings_res;
+	}
+
+	// ninfo("Timings: presc=%u sjw=%u bs1=%u bs2=%u\r\n",
+	// 		   unsigned(timings.prescaler), unsigned(timings.sjw), unsigned(timings.bs1), unsigned(timings.bs2));
+
+	/*
+	 * Set bit timings and prescalers (Nominal and Data bitrates)
+	 */
+
+	//  We're not using CAN-FD (yet), so set same timings for both
+  regval = ((atbi_timing.sjw << FDCAN_NBTP_NSJW_SHIFT)  |
+		        (arbi_timing.pseg1 << FDCAN_NBTP_NTSEG1_SHIFT) |
+		        (arbi_timing.pseg2 << FDCAN_NBTP_TSEG2_SHIFT)  |
+		        (arbi_timing.prescaler << FDCAN_NBTP_NBRP_SHIFT),
+  putreg32(regval, priv->base + STM32_FDCAN_NBTP_OFFSET);
+	putreg32(regval, priv->base + STM32_FDCAN_DBTP_OFFSET);
+
+	/*
+	 * Operation Configuration
+	 */
+
+	// Disable CAN-FD communications ("classic" CAN only)
+  regval = getreg32(priv->base + STM32_FDCAN_CCCR_OFFSET);
+  regval &= ~FDCAN_CCCR_FDOE
+  putreg32(regval, priv->base + STM32_FDCAN_CCCR_OFFSET);
+
+	// Disable Time Triggered (TT) operation -- TODO (must use TTCAN_TypeDef)
+	//ttcan_->TTOCF &= ~FDCAN_TTOCF_OM
+
+	/*
+	 * Configure Interrupts
+	 */
+
+	// Clear all interrupt flags
+	// Note: A flag is cleared by writing a 1 to the corresponding bit position
+  putreg32(0xFFFFFFFF, priv->base + STM32_FDCAN_IR_OFFSET);
+
+	// Enable relevant interrupts
+  regval = FDCAN_IE_TCE     // Transmit Complete
+		     | FDCAN_IE_RF0NE   // Rx FIFO 0 new message
+		     | FDCAN_IE_RF0FE   // Rx FIFO 0 FIFO full
+		     | FDCAN_IE_RF1NE   // Rx FIFO 1 new message
+		     | FDCAN_IE_RF1FE;  // Rx FIFO 1 FIFO full
+  putreg32(regval, priv->base + STM32_FDCAN_IE_OFFSET);
+
+	// Keep Rx interrupts on Line 0; move Tx to Line 1
+  // TC interrupt on line 1
+  putreg32(FDCAN_ILS_TCL, priv->base + STM32_FDCAN_ILS_OFFSET);
+
+	// Enable Tx buffer transmission interrupt
+  putreg32(FDCAN_TXBTIE_TIE, priv->base + STM32_FDCAN_TXBTIE_OFFSET);
+
+	// Enable both interrupt lines
+  putreg32(FDCAN_ILE_EINT0 | FDCAN_ILE_EINT1, priv->base + STM32_FDCAN_ILE_OFFSET);
+
+	/*
+	 * Configure Message RAM
+	 *
+	 * The available 2560 words (10 kiB) of RAM are shared between both FDCAN
+	 * interfaces. It is up to us to ensure each interface has its own non-
+	 * overlapping region of RAM assigned to it by properly assignin the start and
+	 * end addresses for all regions of RAM.
+	 *
+	 * We will give each interface half of the available RAM.
+	 *
+	 * Rx buffers are only used in conjunction with acceptance filters; we don't
+	 * have any specific need for this, so we will only use Rx FIFOs.
+	 *
+	 * Each FIFO can hold up to 64 elements, where each element (for a classic CAN
+	 * 2.0B frame) is up to 4 words long (8 bytes data + header bits)
+	 *
+	 * Let's make use of the full 64 FIFO elements for FIFO0.  We have no need to
+	 * separate messages between FIFO0 and FIFO1, so ignore FIFO1 for simplicity.
+	 *
+	 * Note that the start addresses given to FDCAN are in terms of _words_, not
+	 * bytes, so when we go to read/write to/from the message RAM, there will be a
+	 * factor of 4 necessary in the address relative to the SA register values.
+	 */
+
+	// Location of this interface's message RAM - address in CPU memory address
+	// and relative address (in words) used for configuration
+	const uint32_t iface_ram_base = (2560 / 2) * priv->iface_idx;
+	const uint32_t gl_ram_base = STM32_CANRAM_BASE;
+	uint32_t ram_offset = iface_ram_base;
+
+	// Standard ID Filters: Allow space for 128 filters (128 words)
+	const uint8_t n_stdid = 128;
+	message_ram_.StdIdFilterSA = gl_ram_base + ram_offset * WORD_LENGTH;
+
+  regval  = n_stdid << FDCAN_SIDFC_LSS_SHIFT;
+	regval |= ram_offset << FDCAN_SIDFC_FLSSA_SHIFT;
+  putreg32(regval, priv->base + STM32_FDCAN_SIDFC_OFFSET);
+	ram_offset += n_stdid;
+
+	// Extended ID Filters: Allow space for 128 filters (128 words)
+	const uint8_t n_extid = 128;
+	message_ram_.ExtIdFilterSA = gl_ram_base + ram_offset * WORD_LENGTH;
+  regval = n_extid << FDCAN_XIDFC_LSE_SHIFT;
+	regval |= ram_offset << FDCAN_XIDFC_FLESA_SHIFT;
+  putreg32(regval, priv->base + STM32_FDCAN_XIDFC_OFFSET);
+	ram_offset += n_extid;
+
+	// Set size of each element in the Rx/Tx buffers and FIFOs
+  putreg32(0, priv->base + STM32_FDCAN_RXESC_OFFSET);  // 8 byte space for every element (Rx buffer, FIFO1, FIFO0)
+  putreg32(0, priv->base + STM32_FDCAN_TXESC_OFFSET);  // 8 byte space for every element (Tx buffer)
+
+	// Rx FIFO0 (64 elements max)
+	const uint8_t n_fifo0 = 64;
+	message_ram_.RxFIFO0SA = gl_ram_base + ram_offset * WORD_LENGTH;
+  putreg32(ram_offset << FDCAN_RXF0C_F0SA_SHIFT, priv->base + STM32_FDCAN_RF0C_OFFSET);
+
+  regval = ram_offset << FDCAN_RXF0C_F0SA_SHIFT;
+  regval |= n_fifo0 << FDCAN_RXF0C_F0S_SHIFT;
+  putreg32(regval, priv->base + STM32_FDCAN_RF0C_OFFSET);
+	ram_offset += n_fifo0 * FIFO_ELEMENT_SIZE;
+
+	// Set Tx queue size (32 elements max)
+	message_ram_.TxQueueSA = gl_ram_base + ram_offset * WORD_LENGTH;
+  regval = 32U << FDCAN_TXBC_TFQS_SHIFT
+  regval |= FDCAN_TXBC_TFQM;  // Queue mode (vs. FIFO)
+  regval |= ram_offset << FDCAN_TXBC_TBSA_SHIFT;
+  putreg32(regval, priv->base + STM32_FDCAN_TXBC_OFFSET);
+
+	/*
+	 * Default filter configuration
+	 *
+	 * Accept all messages into Rx FIFO0 by default
+	 */
+  regval = getreg32(priv->base + STM32_FDCAN_GFC_OFFSET);
+  regval &= ~FDCAN_GFC_ANFS;  // Accept non-matching stdid frames into FIFO0
+  regval &= ~FDCAN_GFC_ANFE;  // Accept non-matching extid frames into FIFO0
+  putreg32(regval, priv->base + STM32_FDCAN_GFC_OFFSET);
+
+	/*
+	 * Exit Initialization mode
+	 */
+  regval = getreg32(priv->base + STM32_FDCAN_CCCR_OFFSET);
+  regval &= ~FDCAN_CCCR_INIT;
+  putreg32(regval, priv->base + STM32_FDCAN_CCCR_OFFSET);
+
+	return 0;
+}
 
 static int stm32_initialize(struct stm32_driver_s *priv)
 {
@@ -1671,7 +1883,7 @@ static int stm32_initialize(struct stm32_driver_s *priv)
  *   Put the EMAC in the non-operational, reset state
  *
  * Input Parameters:
- *   priv - Reference to the private FLEXCAN driver state structure
+ *   priv - Reference to the private FDCAN driver state structure
  *
  * Returned Value:
  *   None
@@ -1742,11 +1954,11 @@ static void stm32_reset(struct stm32_driver_s *priv)
  * Function: stm32_netinitialize
  *
  * Description:
- *   Initialize the Ethernet controller and driver
+ *   Initialize the network controller and driver
  *
  * Input Parameters:
- *   intf - In the case where there are multiple EMACs, this value
- *          identifies which EMAC is to be initialized.
+ *   intf - In the case where there are multiple transceivers, this value
+ *          identifies which transceiver is to be initialized.
  *
  * Returned Value:
  *   OK on success; Negated errno on failure.
@@ -1764,10 +1976,11 @@ int stm32_netinitialize(int intf)
     {
 #ifdef CONFIG_STM32_FDCAN1
     case 0:
-      priv               = &g_fdcan0;
+      priv             = &g_fdcan0;
       memset(priv, 0, sizeof(struct stm32_driver_s));
-      priv->base         = STM32_FDCAN1_BASE;
-      priv->config       = &stm32_fdcan0_config;
+      priv->base       = STM32_FDCAN1_BASE;
+      priv->iface_idx  = 0;
+      priv->config     = &stm32_fdcan0_config;
 
       /* Default bitrate configuration */
 
@@ -1785,10 +1998,11 @@ int stm32_netinitialize(int intf)
 
 #ifdef CONFIG_STM32_FDCAN2
     case 1:
-      priv         = &g_fdcan1;
+      priv             = &g_fdcan1;
       memset(priv, 0, sizeof(struct stm32_driver_s));
-      priv->base   = STM32_FDCAN2_BASE;
-      priv->config = &stm32_fdcan1_config;
+      priv->base       = STM32_FDCAN2_BASE;
+      priv->iface_idx  = 1;
+      priv->config     = &stm32_fdcan1_config;
 
       /* Default bitrate configuration */
 
