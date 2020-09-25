@@ -1067,12 +1067,12 @@ static struct up_dev_s g_uart5priv =
 #endif
       .recv     =
       {
-        .size   = CONFIG_UART5_RXBUFSIZE,
+        .size   = sizeof(g_uart5rxbuffer),
         .buffer = g_uart5rxbuffer,
       },
       .xmit     =
       {
-        .size   = CONFIG_UART5_TXBUFSIZE,
+        .size   = sizeof(g_uart5txbuffer),
         .buffer = g_uart5txbuffer,
       },
 #if defined(CONFIG_UART5_RXDMA) && defined(CONFIG_UART5_TXDMA)
