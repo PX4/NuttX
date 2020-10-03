@@ -937,7 +937,7 @@ static void s32k1xx_receive(FAR struct s32k1xx_driver_s *priv,
 
       /* Reread interrupt flags and process them in this loop */
 
-      if(flags == 0)
+      if (flags == 0)
         {
           flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
           flags &= IFLAG1_RX;
@@ -1023,25 +1023,26 @@ static int s32k1xx_flexcan_interrupt(int irq, FAR void *context,
 {
   FAR struct s32k1xx_driver_s *priv = (struct s32k1xx_driver_s *)arg;
 
-  if(irq == priv->config->mb_irq) {
-    uint32_t flags;
-    flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
-    flags &= IFLAG1_RX;
+  if (irq == priv->config->mb_irq)
+    {
+      uint32_t flags;
+      flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
+      flags &= IFLAG1_RX;
 
-    if (flags)
-      {
-        s32k1xx_receive(priv, flags);
-      }
+      if (flags)
+        {
+          s32k1xx_receive(priv, flags);
+        }
 
-    flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
-    flags &= IFLAG1_TX;
+      flags  = getreg32(priv->base + S32K1XX_CAN_IFLAG1_OFFSET);
+      flags &= IFLAG1_TX;
 
-    if (flags)
-      {
-        s32k1xx_txdone(priv, flags);
-      }
+      if (flags)
+        {
+          s32k1xx_txdone(priv, flags);
+        }
 
-  }
+    }
   return OK;
 
 }
@@ -1209,7 +1210,7 @@ static int s32k1xx_ifup(struct net_driver_s *dev)
   FAR struct s32k1xx_driver_s *priv =
     (FAR struct s32k1xx_driver_s *)dev->d_private;
 
-  if (!s32k1xx_initialize(priv))
+  if (!s32k1xx_initialize(priv))  /// Shouldn't this be " < 0"?
     {
       nerr("initialize failed");
       return -1;
