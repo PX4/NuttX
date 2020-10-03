@@ -204,7 +204,7 @@ struct txmbstats
 };
 #endif
 
-/* FlexCAN Device hardware configuration */
+/* FDCAN Device hardware configuration */
 
 struct fdcan_config_s
 {
@@ -212,10 +212,7 @@ struct fdcan_config_s
   uint32_t rx_pin;           /* GPIO configuration for RX */
   uint32_t enable_pin;       /* Optional enable pin */
   uint32_t enable_high;      /* Optional enable high/low */
-  uint32_t bus_irq;          /* BUS IRQ */
-  uint32_t error_irq;        /* ERROR IRQ */
-  uint32_t lprx_irq;         /* LPRX IRQ */
-  uint32_t mb_irq;           /* MB 0-15 IRQ */
+  uint32_t mb_irq[2];        /* FDCAN Interrupt 0, 1 (Rx, Tx) */
 };
 
 struct fdcan_timeseg
@@ -229,7 +226,7 @@ struct fdcan_timeseg
   /// JACOB TODO: Replace with values needed by FDCAN controller
 };
 
-/* FlexCAN device structures */
+/* FDCAN device structures */
 
 #ifdef CONFIG_STM32_FDCAN1
 static const struct fdcan_config_s stm32_fdcan0_config =
@@ -243,10 +240,11 @@ static const struct fdcan_config_s stm32_fdcan0_config =
   .enable_pin  = 0,
   .enable_high = 0,
 #endif
-  .bus_irq     = STM32_IRQ_CAN0_BUS,
-  .error_irq   = STM32_IRQ_CAN0_ERROR,
-  .lprx_irq    = STM32_IRQ_CAN0_LPRX,
-  .mb_irq      = STM32_IRQ_FDCAN1_0, //STM32_IRQ_FDCAN1_1
+  .mb_irq      =
+  {
+    STM32_IRQ_FDCAN1_0,
+    STM32_IRQ_FDCAN1_1,
+  },
 };
 #endif
 
@@ -262,10 +260,11 @@ static const struct fdcan_config_s stm32_fdcan1_config =
   .enable_pin  = 0,
   .enable_high = 0,
 #endif
-  .bus_irq     = STM32_IRQ_CAN1_BUS,
-  .error_irq   = STM32_IRQ_CAN1_ERROR,
-  .lprx_irq    = 0,
-  .mb_irq      = STM32_IRQ_FDCAN2_0, // STM32_IRQ_FDCAN2_1
+  .mb_irq      =
+  {
+    STM32_IRQ_FDCAN2_0,
+    STM32_IRQ_FDCAN2_1 ,
+  },
 };
 #endif
 
@@ -489,10 +488,8 @@ static uint32_t stm32_waitccr_change(uint32_t base,
 
 /* Interrupt handling */
 
-static void stm32_receive(FAR struct stm32_driver_s *priv,
-                            uint32_t flags);
-static void stm32_txdone(FAR struct stm32_driver_s *priv,
-                           uint32_t flags);
+static void stm32_receive(FAR struct stm32_driver_s *priv);
+static void stm32_txdone(FAR struct stm32_driver_s *priv);
 
 static int  stm32_fdcan_interrupt(int irq, FAR void *context,
                                       FAR void *arg);
@@ -819,15 +816,86 @@ static int stm32_txpoll(struct net_driver_s *dev)
  *
  ****************************************************************************/
 
-static void stm32_receive(FAR struct stm32_driver_s *priv,
-                            uint32_t flags)
+static void stm32_receive(FAR struct stm32_driver_s *priv)
 {
+  uint32_t ir_flags;
   uint32_t mb_index;
+  uint8_t fifo_id;
   struct mb_s *rf;
 
-  while ((mb_index = arm_lsb(flags)) != 32)
+  uint32_t regval = getreg32(priv->base + STM32_FDCAN_IR_OFFSET);
+
+  const uint32_t ir_fifo0 = FDCAN_IR_RF0N | FDCAN_IR_RF0F;
+  const uint32_t ir_fifo1 = FDCAN_IR_RF1N | FDCAN_IR_RF1F;
+
+  if (regval & ir_fifo0)
     {
-      rf = &priv->rx[mb_index];
+      regval = ir_fifo0;
+      fifo_id = 0;
+    }
+  else if (regval & ir_fifo1)
+    {
+      regval = ir_fifo1;
+      fifo_id = 1;
+    }
+  else
+    {
+      nerr("ERROR: Bad RX IR flags");
+      return;
+    }
+
+  /* Write the corresponding interrupt bits to reset them */
+      
+  putreg32(regval, priv->base + STM32_FDCAN_IR_OFFSET);
+
+	// Bitwise register definitions are the same for FIFO 0/1
+	const uint32_t FDCAN_RXFnC_FnS      = FDCAN_RXF0C_F0S;  // Rx FIFO Size
+	const uint32_t FDCAN_RXFnS_RFnL     = FDCAN_RXF0S_RF0L; // Rx Message Lost
+	const uint32_t FDCAN_RXFnS_FnFL     = FDCAN_RXF0S_F0FL; // Rx FIFO Fill Level
+	const uint32_t FDCAN_RXFnS_FnGI     = FDCAN_RXF0S_F0GI; // Rx FIFO Get Index
+	const uint32_t FDCAN_RXFnS_FnGI_Pos = FDCAN_RXF0S_F0GI_Pos;
+	//const uint32_t FDCAN_RXFnS_FnPI     = FDCAN_RXF0S_F0PI; // Rx FIFO Put Index
+	//const uint32_t FDCAN_RXFnS_FnPI_Pos = FDCAN_RXF0S_F0PI_Pos;
+	//const uint32_t FDCAN_RXFnS_FnF      = FDCAN_RXF0S_F0F; // Rx FIFO Full
+
+  uint32_t offset_rxfnc = (fifo_id == 0) ? STM32_FDCAN_RXF0C_OFFSET : STM32_FDCAN_RXF1C_OFFSET;
+  uint32_t offset_rxfns = (fifo_id == 0) ? STM32_FDCAN_RXF0S_OFFSET : STM32_FDCAN_RXF1S_OFFSET;
+  uint32_t offset_rxfna = (fifo_id == 0) ? STM32_FDCAN_RXF0A_OFFSET : STM32_FDCAN_RXF1A_OFFSET;
+
+	volatile uint32_t *const RXFnC = priv->base + offset_rxfnc;
+	volatile uint32_t *const RXFnS = priv->base + offset_rxfns;
+	volatile uint32_t *const RXFnA = priv->base + offset_rxfna;
+
+	bool had_error = false;
+
+	// Check number of elements in message RAM allocated to this FIFO
+	if ((*RXFnC & FDCAN_RXFnC_FnS) == 0) {
+		nerr("ERROR: No RX FIFO elements allocated");
+		return;
+	}
+
+	// Check for message lost; count an error
+	if ((*RXFnS & FDCAN_RXFnS_RFnL) != 0) {
+    /// JACOB: TODO: does NuttX store this kind of frame-drop count somewhere?
+		// error_cnt_++;  
+	}
+
+	// Check number of elements available (fill level)
+	const uint8_t n_elem = (*RXFnS & FDCAN_RXFnS_FnFL);
+
+	if (n_elem == 0) {
+		// No elements available?
+		nerr("RX interrupt but 0 frames available");
+		return;
+	}
+
+	while ((*RXFnS & FDCAN_RXFnS_FnFL) > 0)
+    {
+      // Copy the frame from message RAM
+
+      const uint8_t index = (*RXFnS & FDCAN_RXFnS_FnGI) >> FDCAN_RXFnS_FnGI_Pos;
+
+      rf = &priv->rx[index];
 
       /* Read the frame contents */
 
@@ -860,14 +928,13 @@ static void stm32_receive(FAR struct stm32_driver_s *priv,
               frame_data_word[i] = __builtin_bswap32(rf->data[i].w00);
             }
 
-          /* Clear MB interrupt flag */
+          /* Acknowledge receipt of this FIFO element */
 
-          putreg32(1 << mb_index,
-                   priv->base + STM32_CAN_IFLAG1_OFFSET);
+          *RXFnA = index;
 
           /* Copy the buffer pointer to priv->dev..  Set amount of data
-           * in priv->dev.d_len
-           */
+          * in priv->dev.d_len
+          */
 
           priv->dev.d_len = sizeof(struct canfd_frame);
           priv->dev.d_buf = (uint8_t *)frame;
@@ -897,14 +964,14 @@ static void stm32_receive(FAR struct stm32_driver_s *priv,
           *(uint32_t *)&frame->data[0] = __builtin_bswap32(rf->data[0].w00);
           *(uint32_t *)&frame->data[4] = __builtin_bswap32(rf->data[1].w00);
 
-          /* Clear MB interrupt flag */
 
-          putreg32(1 << mb_index,
-                   priv->base + STM32_CAN_IFLAG1_OFFSET);
+          /* Acknowledge receipt of this FIFO element */
+
+          *RXFnA = index;
 
           /* Copy the buffer pointer to priv->dev..  Set amount of data
-           * in priv->dev.d_len
-           */
+          * in priv->dev.d_len
+          */
 
           priv->dev.d_len = sizeof(struct can_frame);
           priv->dev.d_buf = (uint8_t *)frame;
@@ -917,24 +984,22 @@ static void stm32_receive(FAR struct stm32_driver_s *priv,
       can_input(&priv->dev);
 
       /* Point the packet buffer back to the next Tx buffer that will be
-       * used during the next write.  If the write queue is full, then
-       * this will point at an active buffer, which must not be written
-       * to.  This is OK because devif_poll won't be called unless the
-       * queue is not full.
-       */
+      * used during the next write.  If the write queue is full, then
+      * this will point at an active buffer, which must not be written
+      * to.  This is OK because devif_poll won't be called unless the
+      * queue is not full.
+      */
 
       priv->dev.d_buf = (uint8_t *)priv->txdesc;
-
-      flags &= ~(1 << mb_index);
-
-      /* Reread interrupt flags and process them in this loop */
-
-      if(flags == 0)
-        {
-          flags  = getreg32(priv->base + STM32_CAN_IFLAG1_OFFSET);
-          flags &= IFLAG1_RX;
-        }
     }
+
+	// if (had_error) {
+	// 	error_cnt_++;
+	// }
+
+	// update_event_.signalFromInterrupt();
+
+	// pollErrorFlagsFromISR();
 }
 
 /****************************************************************************
@@ -955,7 +1020,7 @@ static void stm32_receive(FAR struct stm32_driver_s *priv,
  *
  ****************************************************************************/
 
-static void stm32_txdone(FAR struct stm32_driver_s *priv, uint32_t flags)
+static void stm32_txdone(FAR struct stm32_driver_s *priv)
 {
   #warning Missing logic
 
@@ -1015,25 +1080,20 @@ static int stm32_fdcan_interrupt(int irq, FAR void *context,
 {
   FAR struct stm32_driver_s *priv = (struct stm32_driver_s *)arg;
 
-  if(irq == priv->config->mb_irq) {
-    uint32_t flags;
-    flags  = getreg32(priv->base + STM32_CAN_IFLAG1_OFFSET);
-    flags &= IFLAG1_RX;
+  if (irq == priv->config->mb_irq[0])
+    {
+      /* Rx Interrupt */
 
-    if (flags)
-      {
-        stm32_receive(priv, flags);
-      }
+      stm32_receive(priv);
 
-    flags  = getreg32(priv->base + STM32_CAN_IFLAG1_OFFSET);
-    flags &= IFLAG1_TX;
+    }
+  else if (irq == priv->config->mb_irq[1])
+    {
+      /* Tx Complete Interrupt */
 
-    if (flags)
-      {
-        stm32_txdone(priv, flags);
-      }
+      stm32_txdone(priv);
+    }
 
-  }
   return OK;
 
 }
@@ -1233,14 +1293,7 @@ static int stm32_ifup(struct net_driver_s *dev)
 
   /* Set interrupts */
 
-  up_enable_irq(priv->config->bus_irq);
-  up_enable_irq(priv->config->error_irq);
-  if (priv->config->lprx_irq > 0)
-    {
-      up_enable_irq(priv->config->lprx_irq);
-    }
-
-  up_enable_irq(priv->config->mb_irq);
+  up_enable_irq(priv->config->mb_irq[0]);
 
   return OK;
 }
@@ -1537,10 +1590,8 @@ int stm32_initialize(struct stm32_driver_s *priv)
 	 */
 
 	// Disable CAN-FD communications ("classic" CAN only)
-  /// JACOB: TODO: Is there a reason why other drivers avoid using modifyreg32()?  It would be simpler
-  regval = getreg32(priv->base + STM32_FDCAN_CCCR_OFFSET);
-  regval &= ~FDCAN_CCCR_FDOE
-  putreg32(regval, priv->base + STM32_FDCAN_CCCR_OFFSET);
+  /// JACOB: TODO: Enable CAN FD based on CONFIG
+  modifyreg32(priv->base + STM32_FDCAN_CCCR_OFFSET, FDCAN_CCCR_FDOE, 0);
 
 	// Disable Time Triggered (TT) operation -- TODO (must use TTCAN_TypeDef)
 	//ttcan_->TTOCF &= ~FDCAN_TTOCF_OM
@@ -1622,29 +1673,26 @@ int stm32_initialize(struct stm32_driver_s *priv)
   putreg32(0, priv->base + STM32_FDCAN_RXESC_OFFSET);  // 8 byte space for every element (Rx buffer, FIFO1, FIFO0)
   putreg32(0, priv->base + STM32_FDCAN_TXESC_OFFSET);  // 8 byte space for every element (Tx buffer)
 
-	// Rx FIFO0 (64 elements max)
-	const uint8_t n_fifo0 = 64;
-  /// JACOB TODO: Correct place for this assignment?
+  /// JACOB: TODO: Correct place for setting the tx, rx pointers?
+  /// JACOB: TODO: Figure out how to setup all this for CAN FD frames
+	const uint8_t n_rxfifo0 = 64;  // 64 elements max for RX FIFO0
+  const uint8_t n_txqueue = 32;  // 32 elements max for TX queue
+
+	// Set Rx FIFO0 size
   priv->rx = (struct mb_s *)(gl_ram_base + ram_offset * WORD_LENGTH);
-	// message_ram_.RxFIFO0SA = gl_ram_base + ram_offset * WORD_LENGTH;
   putreg32(ram_offset << FDCAN_RXF0C_F0SA_SHIFT, priv->base + STM32_FDCAN_RF0C_OFFSET);
 
   regval = ram_offset << FDCAN_RXF0C_F0SA_SHIFT;
-  regval |= n_fifo0 << FDCAN_RXF0C_F0S_SHIFT;
+  regval |= n_rxfifo0 << FDCAN_RXF0C_F0S_SHIFT;
   putreg32(regval, priv->base + STM32_FDCAN_RF0C_OFFSET);
-	ram_offset += n_fifo0 * FIFO_ELEMENT_SIZE;
+	ram_offset += n_rxfifo0 * FIFO_ELEMENT_SIZE;
 
-	// Set Tx queue size (32 elements max)
-  /// JACOB TODO: Correct place for this assignment?
+	// Set Tx queue size
   priv->tx = (struct mb_s *)(gl_ram_base + ram_offset * WORD_LENGTH);
-	//message_ram_.TxQueueSA = gl_ram_base + ram_offset * WORD_LENGTH;
-  regval = 32U << FDCAN_TXBC_TFQS_SHIFT
+  regval = n_txqueue << FDCAN_TXBC_TFQS_SHIFT
   regval |= FDCAN_TXBC_TFQM;  // Queue mode (vs. FIFO)
   regval |= ram_offset << FDCAN_TXBC_TBSA_SHIFT;
   putreg32(regval, priv->base + STM32_FDCAN_TXBC_OFFSET);
-
-  /// JACOB: TODO: Any mailbox initialization needed? 
-  /// i.e. init "pending" flags and such
 
 	/*
 	 * Default filter configuration
@@ -1659,9 +1707,7 @@ int stm32_initialize(struct stm32_driver_s *priv)
 	/*
 	 * Exit Initialization mode
 	 */
-  regval = getreg32(priv->base + STM32_FDCAN_CCCR_OFFSET);
-  regval &= ~FDCAN_CCCR_INIT;
-  putreg32(regval, priv->base + STM32_FDCAN_CCCR_OFFSET);
+   stm32_setinit(priv->base, 0);
 
 	return 0;
 }
@@ -1791,7 +1837,7 @@ int stm32_netinitialize(int intf)
 
   if (!stm32_bitratetotimeseg(&priv->arbi_timing, 1, 0))
     {
-      nerr("ERROR: Invalid CAN timings please try another sample point "
+      nerr("ERROR: Invalid CAN timings: please try another sample point "
            "or refer to the reference manual\n");
       return -1;
     }
@@ -1799,7 +1845,7 @@ int stm32_netinitialize(int intf)
 #ifdef CONFIG_NET_CAN_CANFD
   if (!stm32_bitratetotimeseg(&priv->data_timing, 1, 1))
     {
-      nerr("ERROR: Invalid CAN data phase timings please try another "
+      nerr("ERROR: Invalid CAN data phase timings: please try another "
            "sample point or refer to the reference manual\n");
       return -1;
     }
@@ -1815,39 +1861,20 @@ int stm32_netinitialize(int intf)
 
   /* Attach the fdcan interrupt handler */
 
-  if (irq_attach(priv->config->bus_irq, stm32_fdcan_interrupt, priv))
+  if (irq_attach(priv->config->mb_irq[0], stm32_fdcan_interrupt, priv))
     {
       /* We could not attach the ISR to the interrupt */
 
-      nerr("ERROR: Failed to attach CAN bus IRQ\n");
+      nerr("ERROR: Failed to attach CAN RX IRQ\n");
       return -EAGAIN;
     }
 
-  if (irq_attach(priv->config->error_irq, stm32_fdcan_interrupt, priv))
+
+  if (irq_attach(priv->config->mb_irq[1], stm32_fdcan_interrupt, priv))
     {
       /* We could not attach the ISR to the interrupt */
 
-      nerr("ERROR: Failed to attach CAN error IRQ\n");
-      return -EAGAIN;
-    }
-
-  if (priv->config->lprx_irq > 0)
-    {
-      if (irq_attach(priv->config->lprx_irq,
-                     stm32_fdcan_interrupt, priv))
-        {
-          /* We could not attach the ISR to the interrupt */
-
-          nerr("ERROR: Failed to attach CAN LPRX IRQ\n");
-          return -EAGAIN;
-        }
-    }
-
-  if (irq_attach(priv->config->mb_irq, stm32_fdcan_interrupt, priv))
-    {
-      /* We could not attach the ISR to the interrupt */
-
-      nerr("ERROR: Failed to attach CAN OR'ed Message buffer (0-15) IRQ\n");
+      nerr("ERROR: Failed to attach CAN TX IRQ\n");
       return -EAGAIN;
     }
 
@@ -1872,9 +1899,6 @@ int stm32_netinitialize(int intf)
   ///             Is that okay?
   priv->rx = NULL;
   priv->tx = NULL;
-  // priv->rx            = (struct mb_s *)(priv->base + STM32_CAN_MB_OFFSET);
-  // priv->tx            = (struct mb_s *)(priv->base + STM32_CAN_MB_OFFSET +
-  //                         (sizeof(struct mb_s) * RXMBCOUNT));
 
   /* Put the interface in the down state.  This usually amounts to resetting
    * the device and/or calling stm32_ifdown().
