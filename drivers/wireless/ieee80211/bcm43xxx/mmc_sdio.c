@@ -227,7 +227,8 @@ int sdio_io_rw_extended(FAR struct sdio_dev_s *dev, bool write,
 
   SDIO_BLOCKSETUP(dev, blocklen, nblocks);
   SDIO_WAITENABLE(dev,
-                  SDIOWAIT_TRANSFERDONE | SDIOWAIT_TIMEOUT | SDIOWAIT_ERROR);
+                  SDIOWAIT_TRANSFERDONE | SDIOWAIT_TIMEOUT | SDIOWAIT_ERROR,
+                  SDIO_CMD53_TIMEOUT_MS);
 
   if (write)
     {
@@ -240,7 +241,7 @@ int sdio_io_rw_extended(FAR struct sdio_dev_s *dev, bool write,
           SDIO_DMASENDSETUP(dev, buf, blocklen * nblocks);
           SDIO_SENDCMD(dev, SD_ACMD53, arg.value);
 
-          wkupevent = SDIO_EVENTWAIT(dev, SDIO_CMD53_TIMEOUT_MS);
+          wkupevent = SDIO_EVENTWAIT(dev);
           ret = SDIO_RECVR5(dev, SD_ACMD53, &data);
         }
       else
@@ -249,7 +250,7 @@ int sdio_io_rw_extended(FAR struct sdio_dev_s *dev, bool write,
           ret = SDIO_RECVR5(dev, SD_ACMD53, &data);
 
           SDIO_DMASENDSETUP(dev, buf, blocklen * nblocks);
-          wkupevent = SDIO_EVENTWAIT(dev, SDIO_CMD53_TIMEOUT_MS);
+          wkupevent = SDIO_EVENTWAIT(dev);
         }
     }
   else
@@ -258,7 +259,7 @@ int sdio_io_rw_extended(FAR struct sdio_dev_s *dev, bool write,
       SDIO_DMARECVSETUP(dev, buf, blocklen * nblocks);
       SDIO_SENDCMD(dev, SD_ACMD53, arg.value);
 
-      wkupevent = SDIO_EVENTWAIT(dev, SDIO_CMD53_TIMEOUT_MS);
+      wkupevent = SDIO_EVENTWAIT(dev);
       ret = SDIO_RECVR5(dev, SD_ACMD53, &data);
     }
 
