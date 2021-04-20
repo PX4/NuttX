@@ -224,7 +224,48 @@ extern "C"
  * Public Function Prototypes
  ****************************************************************************/
 
+/****************************************************************************
+ * Name: up_irq_enable
+ *
+ * Description:
+ *   Return the current interrupt state and enable interrupts
+ *
+ ****************************************************************************/
+
 EXTERN irqstate_t up_irq_enable(void);
+
+/****************************************************************************
+ * Name: up_irq_save
+ *
+ * Description:
+ *   Save the current interrupt state and disable interrupts.
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   Interrupt state prior to disabling interrupts.
+ *
+ ****************************************************************************/
+
+EXTERN irqstate_t up_irq_save(void);
+
+/****************************************************************************
+ * Name: up_irq_restore
+ *
+ * Description:
+ *   Restore the previous irq state (i.e., the one previously
+ *   returned by up_irq_save())
+ *
+ * Input Parameters:
+ *   irqstate - The interrupt state to be restored.
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+EXTERN void up_irq_restore(irqstate_t irqstate);
 
 #undef EXTERN
 #if defined(__cplusplus)
