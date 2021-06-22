@@ -243,7 +243,7 @@
 
 /* DTIMER setting */
 
-#define SDMMC_DTIMER_DATATIMEOUT_MS 250
+#define SDMMC_DTIMER_DATATIMEOUT_MS 1000
 
 /* DMA channel/stream configuration register settings.  The following
  * must be selected.  The DMA driver will select the remaining fields.
