@@ -377,6 +377,7 @@ struct stm32_dev_s
   uint32_t          sdio_clk;
 #ifdef CONFIG_MMCSD_SDIOWAIT_WRCOMPLETE
   uint32_t          d0_gpio;
+  bool              d0_wait;
 #endif
 #ifdef CONFIG_STM32F7_SDMMC_DMA
   uint32_t          dmapri;
@@ -635,6 +636,7 @@ struct stm32_dev_s g_sdmmcdev1 =
   .sdio_clk          = STM32_SDMMC1_CLK,
 #ifdef CONFIG_MMCSD_SDIOWAIT_WRCOMPLETE
   .d0_gpio           = SDMMC1_SDIO_PULL(GPIO_SDMMC1_D0),
+  .d0_wait           = false,
 #endif
 #ifdef CONFIG_STM32F7_SDMMC1_DMAPRIO
   .dmapri            = CONFIG_STM32F7_SDMMC1_DMAPRIO,
@@ -695,6 +697,7 @@ struct stm32_dev_s g_sdmmcdev2 =
   .sdio_clk          = STM32_SDMMC2_CLK,
 #ifdef CONFIG_MMCSD_SDIOWAIT_WRCOMPLETE
   .d0_gpio           = SDMMC2_SDIO_PULL(GPIO_SDMMC2_D0),
+  .d0_wait           = false,
 #endif
 #ifdef CONFIG_STM32F7_SDMMC2_DMAPRIO
   .dmapri            = CONFIG_STM32F7_SDMMC2_DMAPRIO,
@@ -870,6 +873,8 @@ static void stm32_configwaitints(struct stm32_dev_s *priv, uint32_t waitmask,
 
       stm32_gpiosetevent(pinset, true, false, false,
                          stm32_sdmmc_rdyinterrupt, priv);
+
+      priv->d0_wait = true;
     }
 
   /* Disarm SDMMC_D ready */
@@ -879,6 +884,8 @@ static void stm32_configwaitints(struct stm32_dev_s *priv, uint32_t waitmask,
       stm32_gpiosetevent(priv->d0_gpio, false, false, false,
                          NULL, NULL);
       stm32_configgpio(priv->d0_gpio);
+
+      priv->d0_wait = false;
     }
 #endif
 
@@ -1467,7 +1474,12 @@ static void stm32_eventtimeout(wdparm_t arg)
     {
       /* Yes.. wake up any waiting threads */
 
+#ifdef CONFIG_MMCSD_SDIOWAIT_WRCOMPLETE
+      stm32_endwait(priv, SDIOWAIT_TIMEOUT |
+                    (priv->d0_wait ? SDIOWAIT_WRCOMPLETE : 0));
+#else
       stm32_endwait(priv, SDIOWAIT_TIMEOUT);
+#endif
       mcerr("Timeout: remaining: %d\n", priv->remaining);
     }
 }
