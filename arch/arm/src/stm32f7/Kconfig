@@ -1129,7 +1129,7 @@ config STM32F7_HAVE_ETHRNET
 
 config STM32F7_HAVE_RNG
 	bool
-	default n
+	default y
 
 config STM32F7_HAVE_SPI4
 	bool
@@ -1447,7 +1447,7 @@ config STM32F7_PWR
 
 config STM32F7_RNG
 	bool "RNG"
-	default n
+	default y
 	depends on STM32F7_HAVE_RNG
 	select ARCH_HAVE_RNG
 
