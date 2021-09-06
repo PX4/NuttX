@@ -1506,7 +1506,7 @@ static ssize_t mmcsd_readmultiple(FAR struct mmcsd_state_s *priv,
                                   FAR uint8_t *buffer, off_t startblock,
                                   size_t nblocks)
 {
-  size_t nbytes;
+  size_t nbytes = nblocks << priv->blockshift;
   off_t  offset;
   int ret;
 
@@ -1528,7 +1528,7 @@ static ssize_t mmcsd_readmultiple(FAR struct mmcsd_state_s *priv,
 
   if ((priv->caps & SDIO_CAPS_DMASUPPORTED) != 0)
     {
-      ret = SDIO_DMAPREFLIGHT(priv->dev, buffer, priv->blocksize);
+      ret = SDIO_DMAPREFLIGHT(priv->dev, buffer, nbytes);
 
       if (ret != OK)
         {
@@ -1556,7 +1556,6 @@ static ssize_t mmcsd_readmultiple(FAR struct mmcsd_state_s *priv,
    * offset
    */
 
-  nbytes = nblocks << priv->blockshift;
   if (IS_BLOCK(priv->type))
     {
       offset = startblock;
@@ -1882,8 +1881,8 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_state_s *priv,
                                    FAR const uint8_t *buffer,
                                    off_t startblock, size_t nblocks)
 {
+  size_t nbytes = nblocks << priv->blockshift;
   off_t  offset;
-  size_t nbytes;
   int ret;
   int evret = OK;
 
@@ -1907,7 +1906,7 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_state_s *priv,
 
   if ((priv->caps & SDIO_CAPS_DMASUPPORTED) != 0)
     {
-      ret = SDIO_DMAPREFLIGHT(priv->dev, buffer, priv->blocksize);
+      ret = SDIO_DMAPREFLIGHT(priv->dev, buffer, nbytes);
 
       if (ret != OK)
         {
@@ -1935,7 +1934,6 @@ static ssize_t mmcsd_writemultiple(FAR struct mmcsd_state_s *priv,
    * offset
    */
 
-  nbytes = nblocks << priv->blockshift;
   if (IS_BLOCK(priv->type))
     {
       offset = startblock;
