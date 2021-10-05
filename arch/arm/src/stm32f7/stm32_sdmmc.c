@@ -2892,6 +2892,11 @@ static sdio_eventset_t stm32_eventwait(FAR struct sdio_dev_s *dev)
 
 errout_with_waitints:
 
+// HACK DNM
+  if (wkupevent & SDIOWAIT_ERROR) {
+      syslog(LOG_ERR, "ERROR: wkupevent has ERROR: %d\n", wkupevent);
+  }
+
   stm32_configwaitints(priv, 0, 0, 0);
 #ifdef CONFIG_STM32F7_SDMMC_DMA
   priv->xfrflags   = 0;
