@@ -1244,7 +1244,8 @@ static int mmcsd_transferready(FAR struct mmcsd_state_s *priv)
       ret = mmcsd_get_r1(priv, &r1);
       if (ret != OK)
         {
-          ferr("ERROR: mmcsd_get_r1 failed: %d\n", ret);
+          // HACK DNM
+          syslog(LOG_ERR, "ERROR: mmcsd_get_r1 failed: %d\n", ret);
           goto errorout;
         }
 
@@ -1274,7 +1275,8 @@ static int mmcsd_transferready(FAR struct mmcsd_state_s *priv)
            * if this error occurs.
            */
 
-          ferr("ERROR: Unexpected R1 state: %08" PRIx32 "\n", r1);
+          // HACK DNM
+          syslog(LOG_ERR,"ERROR: Unexpected R1 state: %08" PRIx32 "\n", r1);
           ret = -EINVAL;
           goto errorout;
         }
@@ -1290,6 +1292,8 @@ static int mmcsd_transferready(FAR struct mmcsd_state_s *priv)
   return -ETIMEDOUT;
 
 errorout:
+  // HACK DNM
+  syslog(LOG_ERR, "MMCSD ERROR mmcsd_removed!!!\n");
   mmcsd_removed(priv);
   return ret;
 }
