@@ -907,17 +907,23 @@ static int spi_dmarxwait(FAR struct stm32_spidev_s *priv)
    * DMA must not really have completed???
    */
 
-  do
-    {
-      ret = nxsem_wait_uninterruptible(&priv->rxsem);
+  struct timespec abstime;
+  clock_gettime(CLOCK_REALTIME, &abstime);
+  int timeout_ms = 10;
 
-      /* The only expected error is ECANCELED which would occur if the
-       * calling thread were canceled.
-       */
+  abstime.tv_sec  += timeout_ms / MSEC_PER_SEC;
+  abstime.tv_nsec += timeout_ms % MSEC_PER_SEC * NSEC_PER_MSEC;
+  if (abstime.tv_nsec >= NSEC_PER_SEC)
+  {
+    abstime.tv_sec++;
+    abstime.tv_nsec -= NSEC_PER_SEC;
+  }
 
-      DEBUGASSERT(ret == OK || ret == -ECANCELED);
-    }
-  while (priv->rxresult == 0 && ret == OK);
+  ret = nxsem_timedwait_uninterruptible(&priv->rxsem, &abstime);
+
+  if (priv->rxresult == 0) {
+    return -1;
+  }
 
   return ret;
 }
@@ -940,17 +946,23 @@ static int spi_dmatxwait(FAR struct stm32_spidev_s *priv)
    * DMA must not really have completed???
    */
 
-  do
-    {
-      ret = nxsem_wait_uninterruptible(&priv->txsem);
+  struct timespec abstime;
+  clock_gettime(CLOCK_REALTIME, &abstime);
+  int timeout_ms = 10;
 
-      /* The only expected error is ECANCELED which would occur if the
-       * calling thread were canceled.
-       */
+  abstime.tv_sec  += timeout_ms / MSEC_PER_SEC;
+  abstime.tv_nsec += timeout_ms % MSEC_PER_SEC * NSEC_PER_MSEC;
+  if (abstime.tv_nsec >= NSEC_PER_SEC)
+  {
+    abstime.tv_sec++;
+    abstime.tv_nsec -= NSEC_PER_SEC;
+  }
 
-      DEBUGASSERT(ret == OK || ret == -ECANCELED);
-    }
-  while (priv->txresult == 0 && ret == OK);
+  ret = nxsem_timedwait_uninterruptible(&priv->txsem, &abstime);
+
+  if (priv->txresult == 0) {
+    return -1;
+  }
 
   return ret;
 }
@@ -1910,7 +1922,15 @@ static void spi_exchange(FAR struct spi_dev_s *dev, FAR const void *txbuffer,
       if (ret >= 0)
         {
           ret = spi_dmatxwait(priv);
-        }
+
+          if (ret < 0) {
+            stm32_dmastop(priv->txdma);
+          }
+      } else {
+        /* ensure DMA is stopped */
+        stm32_dmastop(priv->rxdma);
+        stm32_dmastop(priv->txdma);
+      }
 
 #ifdef CONFIG_SPI_TRIGGER
       priv->trigarmed = false;
