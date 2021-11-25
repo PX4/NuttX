@@ -27,6 +27,7 @@
 
 #include <nuttx/config.h>
 #include <stdint.h>
+#include <stddef.h>
 
 #include <nuttx/fs/ioctl.h>
 
@@ -179,8 +180,22 @@
  * ARG:           A pointer to a write-able spinlock object.  On success
  *                the  preceding spinlock state is returned:  0=unlocked,
  *                1=locked.
+ *
  * CONFIGURATION: CONFIG_BOARDCTL_TESTSET
  * DEPENDENCIES:  Architecture-specific logic provides up_testset()
+ *
+ * CMD:           BOARDIOC_FATDMAMEM
+ * DESCRIPTION:   Allocate or free a DMA capable buffer.
+ * ARG:           A pointer to a boardioc_dmafatmemory_ioctl_s object.
+ *                If the pmemory is NULL an allocation of size is
+ *                returned in pmemory.
+ *                If the pmemory is non-NULL the block is freed.
+ *
+ * CONFIGURATION: CONFIG_BOARDCTL_FATDMAMEMORY and CONFIG_FAT_DMAMEMORY
+ * DEPENDENCIES:  Board specific logic, as a requirement of
+ *                CONFIG_FAT_DMAMEMORY provides:
+ *                   void *fat_dma_alloc(size_t size);
+ *                   void fat_dma_free(FAR void *memory, size_t size);
  */
 
 #define BOARDIOC_INIT              _BOARDIOC(0x0001)
@@ -201,6 +216,7 @@
 #define BOARDIOC_NXTERM_IOCTL      _BOARDIOC(0x0010)
 #define BOARDIOC_TESTSET           _BOARDIOC(0x0011)
 #define BOARDIOC_UNIQUEKEY         _BOARDIOC(0x0012)
+#define BOARDIOC_FATDMAMEM         _BOARDIOC(0x0013)
 
 /* If CONFIG_BOARDCTL_IOCTL=y, then board-specific commands will be support.
  * In this case, all commands not recognized by boardctl() will be forwarded
@@ -391,6 +407,18 @@ struct boardioc_nxterm_ioctl_s
 };
 #endif /* CONFIG_NXTERM */
 
+#ifdef CONFIG_BOARDCTL_FATDMAMEMORY
+/* Arguments passed with the BOARDIOC_FATDMAMEM command */
+
+struct boardioc_dmafatmemory_ioctl_s
+{
+  size_t  size;                   /* Allocation size */
+  uint8_t *pmemory;               /* pointer to allocated mem on NULL
+                                   * non-null to be freed
+                                   */
+};
+
+#endif
 /****************************************************************************
  * Public Data
  ****************************************************************************/
