@@ -1408,15 +1408,15 @@ static int fat_sync(FAR struct file *filep)
        * entry: the file size, and the start cluster
        */
 
-      direntry[DIR_ATTRIBUTES] |= FATATTR_ARCHIVE;
+      dircopy[DIR_ATTRIBUTES] |= FATATTR_ARCHIVE;
 
-      DIR_PUTFILESIZE(direntry, ff->ff_size);
-      DIR_PUTFSTCLUSTLO(direntry, ff->ff_startcluster);
-      DIR_PUTFSTCLUSTHI(direntry, ff->ff_startcluster >> 16);
+      DIR_PUTFILESIZE(dircopy, ff->ff_size);
+      DIR_PUTFSTCLUSTLO(dircopy, ff->ff_startcluster);
+      DIR_PUTFSTCLUSTHI(dircopy, ff->ff_startcluster >> 16);
 
       wrttime = fat_systime2fattime();
-      DIR_PUTWRTTIME(direntry, wrttime & 0xffff);
-      DIR_PUTWRTDATE(direntry, wrttime >> 16);
+      DIR_PUTWRTTIME(dircopy, wrttime & 0xffff);
+      DIR_PUTWRTDATE(dircopy, wrttime >> 16);
 
       /* Clear the modified bit in the flags */
 
@@ -1426,6 +1426,7 @@ static int fat_sync(FAR struct file *filep)
 
       if (memcmp(direntry, dircopy, DIR_SIZE) != 0)
         {
+          memcpy(direntry, dircopy, DIR_SIZE);
           fs->fs_dirty = true;
         }
 
