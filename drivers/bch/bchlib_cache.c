@@ -105,6 +105,7 @@ static int bch_cypher(FAR struct bchlib_s *bch, int encrypt)
 
 int bchlib_flushsector(FAR struct bchlib_s *bch)
 {
+  printf("bchlib_flushsector\n");
   FAR struct inode *inode;
   ssize_t ret = OK;
 

@@ -453,7 +453,7 @@ static inline int ramtron_readid(struct ramtron_dev_s *priv)
   uint16_t part;
   int i;
 
-  finfo("priv: %p\n", priv);
+  printf("ramtron_readid: priv: %p\n", priv);
 
   /* Lock the SPI bus, configure the bus, and select this FLASH part. */
 
@@ -503,7 +503,7 @@ static inline int ramtron_readid(struct ramtron_dev_s *priv)
       UNUSED(manufacturer); /* Eliminate warnings when debug is off */
       UNUSED(memory);       /* Eliminate warnings when debug is off */
 
-      finfo("RAMTRON %s of size %" PRIu32 " bytes (mf:%02" PRIx16 " mem:%02"
+      printf("RAMTRON %s of size %" PRIu32 " bytes (mf:%02" PRIx16 " mem:%02"
             PRIx16 " cap:%02" PRIx16 " part:%02" PRIx16 ")\n",
             priv->part->name, priv->part->size, manufacturer, memory,
             capacity, part);
@@ -518,7 +518,7 @@ static inline int ramtron_readid(struct ramtron_dev_s *priv)
       return OK;
     }
 
-  finfo("RAMTRON device not found\n");
+  printf("RAMTRON device not found\n");
   return -ENODEV;
 }
 
@@ -539,7 +539,7 @@ static void ramtron_writeenable(struct ramtron_dev_s *priv)
   /* Deselect the FLASH */
 
   SPI_SELECT(priv->dev, SPIDEV_FLASH(0), false);
-  finfo("Enabled\n");
+  printf("ramtron_writeenable Enabled\n");
 }
 
 /****************************************************************************
@@ -570,7 +570,7 @@ static inline int ramtron_pagewrite(struct ramtron_dev_s *priv,
 {
   off_t offset = page * pagesize;
 
-  finfo("page: %08lx offset: %08lx\n", (long)page, (long)offset);
+  printf("ramtron_pagewrite page: %08lx offset: %08lx\n", (long)page, (long)offset);
 
   /* Enable the write access to the FLASH */
 
@@ -595,7 +595,7 @@ static inline int ramtron_pagewrite(struct ramtron_dev_s *priv,
   /* Deselect the FLASH: Chip Select high */
 
   SPI_SELECT(priv->dev, SPIDEV_FLASH(0), false);
-  finfo("Written\n");
+  printf("ramtron_pagewrite Written\n");
 
   return OK;
 }
@@ -608,10 +608,10 @@ static int ramtron_erase(FAR struct mtd_dev_s *dev,
                          off_t startblock,
                          size_t nblocks)
 {
-  finfo("startblock: %08lx nblocks: %d\n",
+  printf("ramtron_erase startblock: %08lx nblocks: %d\n",
         (unsigned long)startblock,
         (int)nblocks);
-  finfo("On RAMTRON devices erasing makes no sense, returning as OK\n");
+  printf("ramtron_erase On RAMTRON devices erasing makes no sense, returning as OK\n");
   return (int)nblocks;
 }
 
@@ -625,7 +625,7 @@ static ssize_t ramtron_bread(FAR struct mtd_dev_s *dev, off_t startblock,
   FAR struct ramtron_dev_s *priv = (FAR struct ramtron_dev_s *)dev;
   ssize_t nbytes;
 
-  finfo("startblock: %08lx nblocks: %d\n", (long)startblock, (int)nblocks);
+  printf("ramtron_bread startblock: %08lx nblocks: %d\n", (long)startblock, (int)nblocks);
 
   /* On this device, we can handle the block read just like the byte-oriented
    * read
@@ -660,7 +660,7 @@ static ssize_t ramtron_bwrite(FAR struct mtd_dev_s *dev,
   FAR struct ramtron_dev_s *priv = (FAR struct ramtron_dev_s *)dev;
   size_t blocksleft = nblocks;
 
-  finfo("startblock: %08lx nblocks: %d\n", (long)startblock, (int)nblocks);
+  printf("ramtron_bwrite startblock: %08lx nblocks: %d\n", (long)startblock, (int)nblocks);
   DEBUGASSERT(priv != NULL && buffer != NULL);
 
   /* Lock the SPI bus and write each page to FLASH */
@@ -698,7 +698,7 @@ static ssize_t ramtron_bwrite_chunked(FAR struct mtd_dev_s *dev,
   uint32_t writesplits;
   off_t newstartblock;
 
-  finfo("startblock: %08lx nblocks: %d\n", (long)startblock, (int)nblocks);
+  printf("ramtron_bwrite_chunked startblock: %08lx nblocks: %d\n", (long)startblock, (int)nblocks);
 
   DEBUGASSERT(priv != NULL && priv->part != NULL && buffer != NULL);
   part = priv->part;
@@ -772,7 +772,7 @@ static ssize_t ramtron_read(FAR struct mtd_dev_s *dev,
 {
   FAR struct ramtron_dev_s *priv = (FAR struct ramtron_dev_s *)dev;
 
-  finfo("offset: %08lx nbytes: %d\n", (long)offset, (int)nbytes);
+  printf("ramtron_read offset: %08lx nbytes: %d\n", (long)offset, (int)nbytes);
 
   /* Lock the SPI bus NOW because the ramtron_waitwritecomplete call must be
    * executed with the bus locked.
@@ -801,7 +801,7 @@ static ssize_t ramtron_read(FAR struct mtd_dev_s *dev,
   SPI_SELECT(priv->dev, SPIDEV_FLASH(0), false);
   ramtron_unlock(priv->dev);
 
-  finfo("return nbytes: %d\n", (int)nbytes);
+  printf("ramtron_read return nbytes: %d\n", (int)nbytes);
   return nbytes;
 }
 
@@ -816,7 +816,7 @@ static int ramtron_ioctl(FAR struct mtd_dev_s *dev,
   FAR struct ramtron_dev_s *priv = (FAR struct ramtron_dev_s *)dev;
   int ret = -EINVAL; /* Assume good command with bad parameters */
 
-  finfo("cmd: %d \n", cmd);
+  printf("ramtron_ioctl cmd: %d \n", cmd);
 
   switch (cmd)
     {
@@ -841,15 +841,15 @@ static int ramtron_ioctl(FAR struct mtd_dev_s *dev,
               geo->neraseblocks = priv->nsectors;
               ret               = OK;
 
-              finfo("blocksize: %ld erasesize: %ld neraseblocks: %ld\n",
+              printf("ramtron_ioctl MTDIOC_GEOMETRY blocksize: %ld erasesize: %ld neraseblocks: %ld\n",
                     geo->blocksize, geo->erasesize, geo->neraseblocks);
             }
         }
         break;
 
       case MTDIOC_BULKERASE:
-        finfo("BULDERASE: Makes no sense in ramtron.\n");
-        finfo("BULDERASE: Let's confirm operation as OK\n");
+        printf("BULDERASE: Makes no sense in ramtron.\n");
+        printf("BULDERASE: Let's confirm operation as OK\n");
         ret = OK;
         break;
 
@@ -859,7 +859,7 @@ static int ramtron_ioctl(FAR struct mtd_dev_s *dev,
           if (arg > 0 && arg <= RAMTRON_INIT_CLK_MAX)
             {
               priv->speed = arg;
-              finfo("set bus speed to %lu\n", priv->speed);
+              printf("ramtron_ioctl CONFIG_RAMTRON_SETSPEED set bus speed to %lu\n", priv->speed);
               ret = OK;
             }
         }
@@ -872,7 +872,7 @@ static int ramtron_ioctl(FAR struct mtd_dev_s *dev,
         break;
     }
 
-  finfo("return %d\n", ret);
+  printf("ramtron_ioctl return %d\n", ret);
   return ret;
 }
 
@@ -895,7 +895,7 @@ FAR struct mtd_dev_s *ramtron_initialize(FAR struct spi_dev_s *dev)
 {
   FAR struct ramtron_dev_s *priv;
 
-  finfo("dev: %p\n", dev);
+  printf("dev: %p\n", dev);
 
   /* Allocate a state structure (we allocate the structure instead of using
    * a fixed, static allocation so that we can handle multiple FLASH devices.
@@ -939,6 +939,6 @@ FAR struct mtd_dev_s *ramtron_initialize(FAR struct spi_dev_s *dev)
 
   /* Return the implementation-specific state structure as the MTD device */
 
-  finfo("Return %p\n", priv);
+  printf("Return %p\n", priv);
   return (FAR struct mtd_dev_s *)priv;
 }

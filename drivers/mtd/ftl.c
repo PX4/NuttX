@@ -182,6 +182,7 @@ static int ftl_close(FAR struct inode *inode)
 static ssize_t ftl_reload(FAR void *priv, FAR uint8_t *buffer,
                           off_t startblock, size_t nblocks)
 {
+  printf("ftl_reload\n");
   struct ftl_struct_s *dev = (struct ftl_struct_s *)priv;
   ssize_t nread;
 
@@ -230,6 +231,7 @@ static ssize_t ftl_read(FAR struct inode *inode, unsigned char *buffer,
 
 static int ftl_alloc_eblock(FAR struct ftl_struct_s *dev)
 {
+  printf("ftl_alloc_eblock\n");
   if (dev->eblock == NULL)
     {
       /* Allocate one, in-memory erase block buffer */
@@ -243,6 +245,8 @@ static int ftl_alloc_eblock(FAR struct ftl_struct_s *dev)
 static ssize_t ftl_flush(FAR void *priv, FAR const uint8_t *buffer,
                          off_t startblock, size_t nblocks)
 {
+  printf("ftl_flush\n");
+
   struct ftl_struct_s *dev = (struct ftl_struct_s *)priv;
   off_t  alignedblock;
   off_t  mask;
@@ -532,6 +536,7 @@ static int ftl_ioctl(FAR struct inode *inode, int cmd, unsigned long arg)
     }
   else if (cmd == BIOC_FLUSH)
     {
+      printf("ftl ioctl BIOC_FLUSH\n");
 #ifdef CONFIG_FTL_WRITEBUFFER
       rwb_flush(&dev->rwb);
 #endif
