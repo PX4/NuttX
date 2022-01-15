@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/arm/stm32/b-g431b-esc1/src/stm32_bringup.c
+ * boards/arm/stm32/b-g431b-esc1/src/stm32_can.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -24,29 +24,35 @@
 
 #include <nuttx/config.h>
 
-#include <sys/types.h>
-#include <syslog.h>
+#include <errno.h>
+#include <debug.h>
 
-#include <nuttx/board.h>
+#include <nuttx/can/can.h>
+#include <arch/board/board.h>
 
-#ifdef CONFIG_USERLED
-#  include <nuttx/leds/userled.h>
-#endif
+#include "chip.h"
+#include "arm_arch.h"
 
-#ifdef CONFIG_INPUT_BUTTONS
-#  include <nuttx/input/buttons.h>
-#endif
-
+#include "stm32.h"
+#include "stm32_fdcan.h"
 #include "b-g431b-esc1.h"
+
+#ifdef CONFIG_CAN
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-#undef HAVE_LEDS
+/* Configuration ************************************************************/
 
-#if !defined(CONFIG_ARCH_LEDS) && defined(CONFIG_USERLED_LOWER)
-#  define HAVE_LEDS 1
+#if !defined(CONFIG_STM32_FDCAN1)
+#  error "No CAN is enable. Please eneable at least one CAN device"
+#endif
+
+#ifdef CONFIG_BOARD_STM32_BG431BESC1_CANTERM
+#  define BG431BESC1_CANTERM (true)
+#else
+#  define BG431BESC1_CANTERM (false)
 #endif
 
 /****************************************************************************
@@ -54,74 +60,45 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: stm32_bringup
+ * Name: stm32_can_setup
  *
  * Description:
- *   Perform architecture-specific initialization
- *
- *   CONFIG_BOARD_LATE_INITIALIZE=y :
- *     Called from board_late_initialize().
- *
- *   CONFIG_BOARD_LATE_INITIALIZE=n && CONFIG_LIB_BOARDCTL=y :
- *     Called from the NSH library
+ *  Initialize CAN and register the CAN device
  *
  ****************************************************************************/
 
-int stm32_bringup(void)
+int stm32_can_setup(void)
 {
+  struct can_dev_s *can;
   int ret;
 
-#ifdef CONFIG_INPUT_BUTTONS
-  /* Register the BUTTON driver */
+  /* Call stm32_fdcaninitialize() to get an instance of the CAN interface */
 
-  ret = btn_lower_initialize("/dev/buttons");
-  if (ret < 0)
+  can = stm32_fdcaninitialize(1);
+  if (can == NULL)
     {
-      syslog(LOG_ERR, "ERROR: btn_lower_initialize() failed: %d\n", ret);
+      canerr("ERROR:  Failed to get CAN interface\n");
+      return -ENODEV;
     }
-#endif
 
-#if defined(HAVE_LEDS)
-  /* Register the LED driver */
+  /* Register the CAN driver at "/dev/can0" */
 
-  ret = userled_lower_initialize(LED_DRIVER_PATH);
+  ret = can_register("/dev/can0", can);
   if (ret < 0)
     {
-      syslog(LOG_ERR, "ERROR: userled_lower_initialize() failed: %d\n", ret);
+      canerr("ERROR: can_register failed: %d\n", ret);
       return ret;
     }
-#endif
 
-#ifdef CONFIG_STM32_FOC
-  /* Initialize and register the FOC device - must be before ADC setup */
+  /* Configure CAN_TERM pin for output */
 
-  ret = stm32_foc_setup();
-  if (ret < 0)
-    {
-      syslog(LOG_ERR, "ERROR: stm32_foc_setup failed: %d\n", ret);
-    }
-#endif
+  stm32_configgpio(GPIO_CANTERM);
 
-#ifdef CONFIG_ADC
-  /* Initialize ADC and register the ADC driver. */
+  /* Set CAN_TERM pin high or low */
 
-  ret = stm32_adc_setup();
-  if (ret < 0)
-    {
-      syslog(LOG_ERR, "ERROR: stm32_adc_setup failed: %d\n", ret);
-    }
-#endif
+  stm32_gpiowrite(GPIO_CANTERM, BG431BESC1_CANTERM);
 
-#ifdef CONFIG_STM32_FDCAN_CHARDRIVER
-  /* Initialize CAN and register the CAN driver. */
-
-  ret = stm32_can_setup();
-  if (ret < 0)
-    {
-      syslog(LOG_ERR, "ERROR: stm32_fdcan_setup failed: %d\n", ret);
-    }
-#endif
-
-  UNUSED(ret);
   return OK;
 }
+
+#endif /* CONFIG_CAN */
