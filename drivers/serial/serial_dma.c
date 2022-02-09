@@ -56,8 +56,9 @@
  *
  ****************************************************************************/
 
-#if defined(CONFIG_TTY_SIGINT) || defined(CONFIG_TTY_SIGTSTP) || \
-    defined(CONFIG_TTY_FORCE_PANIC)
+#if defined(CONFIG_SERIAL_RXDMA) && \
+    (defined(CONFIG_TTY_SIGINT) || defined(CONFIG_TTY_SIGTSTP) || \
+     defined(CONFIG_TTY_FORCE_PANIC))
 static int uart_check_signo(int pid, const char *buf, size_t size)
 {
   size_t i;
