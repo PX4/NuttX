@@ -106,25 +106,6 @@
 #define NENET_NBUFFERS \
   (CONFIG_IMXRT_ENET_NTXBUFFERS + CONFIG_IMXRT_ENET_NRXBUFFERS)
 
-/* Normally you would clean the cache after writing new values to the DMA
- * memory so assure that the dirty cache lines are flushed to memory
- * before the DMA occurs.  And you would invalid the cache after a data is
- * received via DMA so that you fetch the actual content of the data from
- * the cache.
- *
- * These conditions are not fully supported here.  If the write-throuch
- * D-Cache is enabled, however, then many of these issues go away:  The
- * cache clean operation does nothing (because there are not dirty cache
- * lines) and the cache invalid operation is innocuous (because there are
- * never dirty cache lines to be lost; valid data will always be reloaded).
- *
- * At present, we simply insist that write through cache be enabled.
- */
-
-#if defined(CONFIG_ARMV7M_DCACHE) && !defined(CONFIG_ARMV7M_DCACHE_WRITETHROUGH)
-#  error Write back D-Cache not yet supported
-#endif
-
 /* TX poll delay = 1 seconds. CLK_TCK is the number of clock ticks per
  * second.
  */
@@ -194,6 +175,15 @@
 #  define BOARD_PHYID2          MII_PHYID2_LAN8720
 #  define BOARD_PHY_STATUS      MII_LAN8720_SCSR
 #  define BOARD_PHY_ADDR        (1)
+#  define BOARD_PHY_10BASET(s)  (((s)&MII_LAN8720_SPSCR_10MBPS) != 0)
+#  define BOARD_PHY_100BASET(s) (((s)&MII_LAN8720_SPSCR_100MBPS) != 0)
+#  define BOARD_PHY_ISDUPLEX(s) (((s)&MII_LAN8720_SPSCR_DUPLEX) != 0)
+#elif defined(CONFIG_ETH0_PHY_LAN8742A)
+#  define BOARD_PHY_NAME        "LAN8742A"
+#  define BOARD_PHYID1          MII_PHYID1_LAN8742A
+#  define BOARD_PHYID2          MII_PHYID2_LAN8742A
+#  define BOARD_PHY_STATUS      MII_LAN8740_SCSR
+#  define BOARD_PHY_ADDR        (0)
 #  define BOARD_PHY_10BASET(s)  (((s)&MII_LAN8720_SPSCR_10MBPS) != 0)
 #  define BOARD_PHY_100BASET(s) (((s)&MII_LAN8720_SPSCR_100MBPS) != 0)
 #  define BOARD_PHY_ISDUPLEX(s) (((s)&MII_LAN8720_SPSCR_DUPLEX) != 0)
@@ -2157,7 +2147,7 @@ static inline int imxrt_initphy(struct imxrt_driver_s *priv, bool renogphy)
                      MII_ADVERTISE_10BASETXHALF |
                      MII_ADVERTISE_CSMA);
 
-#elif defined (CONFIG_ETH0_PHY_LAN8720)
+#elif defined (CONFIG_ETH0_PHY_LAN8720) || defined (CONFIG_ETH0_PHY_LAN8742A)
       /* Make sure that PHY comes up in correct mode when it's reset */
 
       imxrt_writemii(priv, phyaddr, MII_LAN8720_MODES,
