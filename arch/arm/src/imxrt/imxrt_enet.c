@@ -197,6 +197,15 @@
 #  define BOARD_PHY_10BASET(s)  (((s)&MII_LAN8720_SPSCR_10MBPS) != 0)
 #  define BOARD_PHY_100BASET(s) (((s)&MII_LAN8720_SPSCR_100MBPS) != 0)
 #  define BOARD_PHY_ISDUPLEX(s) (((s)&MII_LAN8720_SPSCR_DUPLEX) != 0)
+#elif defined(CONFIG_ETH0_PHY_LAN8742A)
+#  define BOARD_PHY_NAME        "LAN8742A"
+#  define BOARD_PHYID1          MII_PHYID1_LAN8742A
+#  define BOARD_PHYID2          MII_PHYID2_LAN8742A
+#  define BOARD_PHY_STATUS      MII_LAN8740_SCSR
+#  define BOARD_PHY_ADDR        (0)
+#  define BOARD_PHY_10BASET(s)  (((s)&MII_LAN8720_SPSCR_10MBPS) != 0)
+#  define BOARD_PHY_100BASET(s) (((s)&MII_LAN8720_SPSCR_100MBPS) != 0)
+#  define BOARD_PHY_ISDUPLEX(s) (((s)&MII_LAN8720_SPSCR_DUPLEX) != 0)
 #elif defined(CONFIG_ETH0_PHY_DP83825I)
 #  define BOARD_PHY_NAME        "DP83825I"
 #  define BOARD_PHYID1          MII_PHYID1_DP83825I
@@ -2157,7 +2166,7 @@ static inline int imxrt_initphy(struct imxrt_driver_s *priv, bool renogphy)
                      MII_ADVERTISE_10BASETXHALF |
                      MII_ADVERTISE_CSMA);
 
-#elif defined (CONFIG_ETH0_PHY_LAN8720)
+#elif defined (CONFIG_ETH0_PHY_LAN8720) || defined (CONFIG_ETH0_PHY_LAN8742A)
       /* Make sure that PHY comes up in correct mode when it's reset */
 
       imxrt_writemii(priv, phyaddr, MII_LAN8720_MODES,
