@@ -1989,6 +1989,7 @@ static void up_shutdown(struct uart_dev_s *dev)
 static void up_dma_shutdown(struct uart_dev_s *dev)
 {
   struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
+  uint32_t regval;
 
   /* Perform the normal UART shutdown */
 
@@ -2005,6 +2006,12 @@ static void up_dma_shutdown(struct uart_dev_s *dev)
 
       stm32_dmafree(priv->rxdma);
       priv->rxdma = NULL;
+
+      /* Disable Rx DMA */
+
+      regval  = up_serialin(priv, STM32_USART_CR3_OFFSET);
+      regval &= ~USART_CR3_DMAR;
+      up_serialout(priv, STM32_USART_CR3_OFFSET, regval);
     }
 #endif
 
@@ -2019,6 +2026,12 @@ static void up_dma_shutdown(struct uart_dev_s *dev)
 
       stm32_dmafree(priv->txdma);
       priv->txdma = NULL;
+
+      /* Disable Tx DMA */
+
+      regval  = up_serialin(priv, STM32_USART_CR3_OFFSET);
+      regval &= ~USART_CR3_DMAT;
+      up_serialout(priv, STM32_USART_CR3_OFFSET, regval);
     }
 #endif
 }
@@ -2172,7 +2185,8 @@ static int up_interrupt(int irq, void *context, void *arg)
        * error conditions.
        */
 
-      else if ((priv->sr & (USART_SR_ORE | USART_SR_NE | USART_SR_FE)) != 0)
+      else if ((priv->sr & (USART_SR_ORE | USART_SR_NE | USART_SR_FE |
+                USART_SR_PE)) != 0)
         {
 #if defined(CONFIG_STM32_STM32F30XX) || defined(CONFIG_STM32_STM32F33XX) || \
     defined(CONFIG_STM32_STM32F37XX) || defined(CONFIG_STM32_STM32G4XXX)
@@ -2181,7 +2195,8 @@ static int up_interrupt(int irq, void *context, void *arg)
            */
 
           up_serialout(priv, STM32_USART_ICR_OFFSET,
-                      (USART_ICR_NCF | USART_ICR_ORECF | USART_ICR_FECF));
+                      (USART_ICR_NCF | USART_ICR_ORECF | USART_ICR_FECF |
+                       USART_ICR_PECF));
 #else
           /* If an error occurs, read from DR to clear the error (data has
            * been lost).  If ORE is set along with RXNE then it tells you
@@ -2192,6 +2207,15 @@ static int up_interrupt(int irq, void *context, void *arg)
            */
 
           up_serialin(priv, STM32_USART_RDR_OFFSET);
+
+#  if defined(SERIAL_HAVE_RXDMA)
+          /* Discard the data with parity errors */
+
+          if (priv->sr & USART_SR_PE)
+            {
+              priv->rxdmanext = up_dma_nextrx(priv);
+            }
+#  endif
 #endif
         }
 
@@ -2719,6 +2743,8 @@ static int up_dma_receive(struct uart_dev_s *dev, unsigned int *status)
 static void up_dma_rxint(struct uart_dev_s *dev, bool enable)
 {
   struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
+  irqstate_t flags;
+  uint16_t ie;
 
   /* En/disable DMA reception.
    *
@@ -2728,7 +2754,29 @@ static void up_dma_rxint(struct uart_dev_s *dev, bool enable)
    * DMA event.
    */
 
+  flags = enter_critical_section();
   priv->rxenable = enable;
+  ie = priv->ie;
+
+  if (enable)
+    {
+      /* Receive an interrupt when their is anything in the Rx data register
+       * (or an Rx timeout occurs).
+       */
+
+#ifndef CONFIG_SUPPRESS_SERIAL_INTS
+      ie |= (USART_CR1_PEIE | USART_CR3_EIE);
+#endif
+    }
+  else
+    {
+      ie &= ~(USART_CR1_RXNEIE | USART_CR1_PEIE | USART_CR3_EIE);
+    }
+
+  /* Then set the new interrupt state */
+
+  up_restoreusartint(priv, ie);
+  leave_critical_section(flags);
 }
 #endif
 
