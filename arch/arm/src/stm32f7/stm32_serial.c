@@ -1394,6 +1394,14 @@ static inline void up_setusartint(struct up_dev_s *priv, uint16_t ie)
   cr = up_serialin(priv, STM32_USART_CR1_OFFSET);
   cr &= ~(USART_CR1_USED_INTS);
   cr |= (ie & (USART_CR1_USED_INTS));
+
+#ifdef SERIAL_HAVE_RXDMA
+  if (priv->rxdma != 0)
+    {
+      cr |= USART_CR1_IDLEIE;
+    }
+#endif
+
   up_serialout(priv, STM32_USART_CR1_OFFSET, cr);
 
   cr = up_serialin(priv, STM32_USART_CR3_OFFSET);
@@ -1963,7 +1971,8 @@ static int up_setup(struct uart_dev_s *dev)
   /* Clear TE, REm and all interrupt enable bits */
 
   regval  = up_serialin(priv, STM32_USART_CR1_OFFSET);
-  regval &= ~(USART_CR1_TE | USART_CR1_RE | USART_CR1_ALLINTS);
+  regval &= ~(USART_CR1_TE | USART_CR1_RE | USART_CR1_IDLEIE |
+              USART_CR1_ALLINTS);
 
   up_serialout(priv, STM32_USART_CR1_OFFSET, regval);
 
@@ -1985,6 +1994,13 @@ static int up_setup(struct uart_dev_s *dev)
 
   regval      = up_serialin(priv, STM32_USART_CR1_OFFSET);
   regval     |= (USART_CR1_UE | USART_CR1_TE | USART_CR1_RE);
+#ifdef SERIAL_HAVE_RXDMA
+  if (priv->rxdma != 0)
+    {
+      regval |= USART_CR1_IDLEIE;
+    }
+#endif
+
   up_serialout(priv, STM32_USART_CR1_OFFSET, regval);
 
 #endif /* CONFIG_SUPPRESS_UART_CONFIG */
@@ -2327,6 +2343,16 @@ static int up_interrupt(int irq, void *context, FAR void *arg)
           stm32_gpiowrite(priv->rs485_dir_gpio, !priv->rs485_dir_polarity);
           up_restoreusartint(priv, priv->ie & ~USART_CR1_TCIE);
         }
+#endif
+
+#ifdef SERIAL_HAVE_RXDMA
+  /* The line going to idle, deliver any fractions of RX data */
+
+  if ((priv->sr & USART_ISR_IDLE) != 0)
+    {
+      up_serialout(priv, STM32_USART_ICR_OFFSET, USART_ICR_IDLECF);
+      up_dma_rxcallback(priv->rxdma, 0, priv);
+    }
 #endif
 
       /* Handle incoming, receive bytes. */
