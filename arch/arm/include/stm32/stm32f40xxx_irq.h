@@ -315,7 +315,8 @@
 #elif defined(CONFIG_STM32_STM32F429)
 #  define STM32_IRQ_NEXTINT      (91)
 #  define NR_IRQS                (STM32_IRQ_FIRST+91)
-#elif defined(CONFIG_STM32_STM32F446) || defined(CONFIG_STM32_STM32F412)
+#elif defined(CONFIG_STM32_STM32F446) || defined(CONFIG_STM32_STM32F412) || \
+      defined(CONFIG_STM32_STM32F413)
 #  define STM32_IRQ_NEXTINT      (97)
 #  define NR_IRQS                (STM32_IRQ_FIRST+97)
 #elif defined(CONFIG_STM32_STM32F469)

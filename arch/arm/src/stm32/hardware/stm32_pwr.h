@@ -79,7 +79,7 @@
 #  define PWR_CR_FPDS          (1 << 9)  /* Bit 9: Flash power down in Stop mode */
 #  if  defined(CONFIG_STM32_STM32F427) || defined(CONFIG_STM32_STM32F429) || \
        defined(CONFIG_STM32_STM32F446) || defined(CONFIG_STM32_STM32F469) || \
-       defined(CONFIG_STM32_STM32F412)
+       defined(CONFIG_STM32_STM32F412) || defined(CONFIG_STM32_STM32F413)
 #    define PWR_CR_ADCDC1      (1 << 13) /* Bit 13: see AN4073 for details */
 #    define PWR_CR_VOS_MASK    (3 << 14) /* Bits 14-15: Regulator voltage scaling output selection */
 #    define PWR_CR_VOS_SCALE_1 (3 << 14) /* Fmax = 168MHz */
@@ -113,7 +113,8 @@
 #  define PWR_CR_ODSWEN        (1 << 17) /* Over Drive switch enabled */
 #endif
 
-#if  defined(CONFIG_STM32_STM32F446) || defined(CONFIG_STM32_STM32F412)
+#if  defined(CONFIG_STM32_STM32F446) || defined(CONFIG_STM32_STM32F412) || \
+     defined(CONFIG_STM32_STM32F413)
 #  define PWR_CR_FMSSR         (1 << 20) /* Flash Memory Stop while System Run */
 #  define PWR_CR_FISSR         (1 << 21) /* Flash Interface Stop while System Run*/
 #endif
@@ -141,7 +142,7 @@
 #  define PWR_CSR_EWUP1        (1 << 8)  /* Bit 8:  Enable WKUP1 pin */
 #  define PWR_CSR_EWUP2        (1 << 9)  /* Bit 9:  Enable WKUP2 pin */
 #  define PWR_CSR_EWUP3        (1 << 10) /* Bit 10:  Enable WKUP3 pin */
-#elif defined(CONFIG_STM32_STM32F412)
+#elif defined(CONFIG_STM32_STM32F412) || defined(CONFIG_STM32_STM32F413)
 #  define PWR_CSR_EWUP3        (1 << 6)  /* Bit 6:  Enable WKUP3 pin */
 #  define PWR_CSR_EWUP2        (1 << 7)  /* Bit 7:  Enable WKUP2 pin */
 #  define PWR_CSR_EWUP1        (1 << 8)  /* Bit 8:  Enable WKUP1 pin */

@@ -801,7 +801,7 @@ static void stm32_stdclockconfig(void)
       regval  = getreg32(STM32_PWR_CR);
 #if defined(CONFIG_STM32_STM32F427) || defined(CONFIG_STM32_STM32F429) || \
     defined(CONFIG_STM32_STM32F446) || defined(CONFIG_STM32_STM32F469) || \
-    defined(CONFIG_STM32_STM32F412)
+    defined(CONFIG_STM32_STM32F412) || defined(CONFIG_STM32_STM32F413)
       regval &= ~PWR_CR_VOS_MASK;
       regval |= PWR_CR_VOS_SCALE_1;
 #else
@@ -1031,7 +1031,7 @@ static void stm32_stdclockconfig(void)
                 | STM32_RCC_PLLI2SCFGR_PLLI2SQ
                 | STM32_RCC_PLLI2SCFGR_PLLI2SR);
 
-#  elif defined(CONFIG_STM32_STM32F412)
+#  elif defined(CONFIG_STM32_STM32F412) || defined(CONFIG_STM32_STM32F413)
 
       regval &= ~(RCC_PLLI2SCFGR_PLLI2SM_MASK
                  | RCC_PLLI2SCFGR_PLLI2SN_MASK
@@ -1063,7 +1063,7 @@ static void stm32_stdclockconfig(void)
                 | STM32_RCC_DCKCFGR2_SDIOSEL
                 | STM32_RCC_DCKCFGR2_SPDIFRXSEL);
 
-#    elif defined(CONFIG_STM32_STM32F412)
+#    elif defined(CONFIG_STM32_STM32F412) || defined(CONFIG_STM32_STM32F413)
 
       regval &= ~(RCC_DCKCFGR2_FMPI2C1SEL_MASK
                  | RCC_DCKCFGR2_CK48MSEL_MASK
