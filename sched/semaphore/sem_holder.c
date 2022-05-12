@@ -109,7 +109,7 @@ static inline FAR struct semholder_s *nxsem_allocholder(sem_t *sem)
       pholder          = NULL;
     }
 
-  DEBUGASSERT(pholder != NULL);
+  //serr("nxsem_allocholder pholder != NULL\n");
   return pholder;
 }
 
@@ -434,7 +434,7 @@ static int nxsem_verifyholder(FAR struct semholder_s *pholder,
    * there is a bug???
    */
 
-#if 0
+#if 1
   FAR struct tcb_s *htcb = (FAR struct tcb_s *)pholder->htcb;
 
   /* Called after a semaphore has been released (incremented), the semaphore
@@ -443,9 +443,16 @@ static int nxsem_verifyholder(FAR struct semholder_s *pholder,
    */
 
 #if CONFIG_SEM_NNESTPRIO > 0
-  DEBUGASSERT(htcb->npend_reprio == 0);
+  //DEBUGASSERT(htcb->npend_reprio == 0);
+  if (htcb->npend_reprio != 0) {
+    serr("nxsem_verifyholder: htcb->npend_reprio:%d\n", htcb->npend_reprio);
+  }
 #endif
-  DEBUGASSERT(htcb->sched_priority == htcb->base_priority);
+  //DEBUGASSERT(htcb->sched_priority == htcb->base_priority);
+
+  if (htcb->sched_priority != htcb->base_priority) {
+    serr("nxsem_verifyholder: htcb->sched_priority:%d, htcb->base_priority:%d\n", htcb->sched_priority, htcb->base_priority);
+  }
 #endif
   return 0;
 }
@@ -523,8 +530,9 @@ static int nxsem_restoreholderprio(FAR struct tcb_s *htcb,
            * that we do not have a proper record of the reprioritizations).
            */
 
-          DEBUGASSERT(/* htcb->sched_priority == stcb->sched_priority && */
-            htcb->npend_reprio == 0);
+          if (!(htcb->sched_priority == stcb->sched_priority && htcb->npend_reprio == 0)) {
+            serr("htcb->sched_priority:%d, stcb->sched_priority:%d, htcb->npend_reprio:%d\n", htcb->sched_priority, stcb->sched_priority, htcb->npend_reprio);
+          }
 
           /* Reset the holder's priority back to the base priority. */
 
@@ -914,6 +922,14 @@ void nxsem_destroyholder(FAR sem_t *sem)
 
   DEBUGASSERT(sem->holder[0].htcb == NULL || sem->holder[1].htcb == NULL);
 
+  if (!(sem->holder[0].htcb == NULL)) {
+     serr("nxsem_destroyholder sem->holder[0].htcb != NULL\n");
+  }
+
+  if (!(sem->holder[1].htcb == NULL)) {
+     serr("nxsem_destroyholder sem->holder[1].htcb == NULL\n");
+  }
+
   sem->holder[0].htcb = NULL;
   sem->holder[1].htcb = NULL;
 #endif
@@ -1084,11 +1100,17 @@ void nxsem_release_holder(FAR sem_t *sem)
 
 void nxsem_restore_baseprio(FAR struct tcb_s *stcb, FAR sem_t *sem)
 {
-#if 0  /* DSA: sometimes crashes when Telnet calls external cmd (i.e. 'i2c') */
+#if 1  /* DSA: sometimes crashes when Telnet calls external cmd (i.e. 'i2c') */
   /* Check our assumptions */
 
   DEBUGASSERT((sem->semcount > 0  && stcb == NULL) ||
               (sem->semcount <= 0 && stcb != NULL));
+
+  if (!((sem->semcount > 0 && stcb == NULL) || (sem->semcount <= 0 && stcb != NULL))) {
+
+    serr("nxsem_restore_baseprio: sem->semcount:%d, stcb == NULL %d\n", sem->semcount, stcb == NULL);
+  }
+
 #endif
 
   /* Handler semaphore counts posed from an interrupt handler differently
@@ -1133,6 +1155,10 @@ void nxsem_canceled(FAR struct tcb_s *stcb, FAR sem_t *sem)
   /* Check our assumptions */
 
   DEBUGASSERT(sem->semcount <= 0);
+
+  if (!(sem->semcount <= 0)) {
+    serr("nxsem_canceled: sem->semcount:%d", sem->semcount);
+  }
 
   /* Adjust the priority of every holder as necessary */
 
