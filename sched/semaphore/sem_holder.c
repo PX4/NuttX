@@ -490,11 +490,12 @@ static int nxsem_restoreholderprio(FAR struct tcb_s *htcb,
    * Perhaps its plan is to kill a thread, then destroy the semaphore.
    */
 
+  pholder = nxsem_findholder(sem, htcb);
+
   if (!nxsched_verify_tcb(htcb))
     {
       swarn("WARNING: TCB %p is a stale handle, counts lost\n", htcb);
 
-      pholder = nxsem_findholder(sem, htcb);
       if (pholder != NULL)
         {
           nxsem_freeholder(sem, pholder);
@@ -508,11 +509,28 @@ static int nxsem_restoreholderprio(FAR struct tcb_s *htcb,
   else if (htcb->sched_priority != htcb->base_priority)
     {
 #if CONFIG_SEM_NNESTPRIO > 0
+      if (pholder == NULL || pholder->counts == 0)
+        {
+          /* If the running thread is no longer a holder it can return to
+           * it's base priority.
+           *
+           * In the case of CONFIG_SEM_PREALLOCHOLDERS = 0 It is no longer a
+           * holder if it is not in the holders array.
+           *
+           * In the case of CONFIG_SEM_PREALLOCHOLDERS > 0 it is no longer
+           * a holder if it's count is 0.
+           */
+
+          htcb->npend_reprio = 0;
+        }
+
       /* Are there other, pending priority levels to revert to? */
 
       if (htcb->npend_reprio < 1)
         {
           /* No... the holder thread has only been boosted once.
+           * OR it is no longer holding a count.
+           *
            * npend_reprio should be 0 and the boosted priority should be the
            * priority of the task that just got the semaphore
            * (stcb->sched_priority)
