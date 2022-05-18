@@ -509,10 +509,11 @@ static int nxsem_restoreholderprio(FAR struct tcb_s *htcb,
   else if (htcb->sched_priority != htcb->base_priority)
     {
 #if CONFIG_SEM_NNESTPRIO > 0
-      if (pholder == NULL || pholder->counts == 0)
+      if (htcb->nsem_held == 0 && (pholder == NULL || pholder->counts == 0))
         {
-          /* If the running thread is no longer a holder it can return to
-           * it's base priority.
+          /* if the holder does hold any other semaphores and the running
+           * thread is no longer a holder on this semaphre it can return to
+           * it's base priority .
            *
            * In the case of CONFIG_SEM_PREALLOCHOLDERS = 0 It is no longer a
            * holder if it is not in the holders array.
@@ -977,6 +978,16 @@ void nxsem_add_holder_tcb(FAR struct tcb_s *htcb, FAR sem_t *sem)
            */
 
           pholder->htcb = htcb;
+#if CONFIG_SEM_NNESTPRIO > 0
+          if (pholder->counts == 0)
+            {
+              /* This thread/task now holds a count on this semaphore
+               * so add it to the total held.
+               */
+
+              htcb->nsem_held++;
+            }
+#endif
           pholder->counts++;
         }
     }
@@ -1064,6 +1075,17 @@ void nxsem_release_holder(FAR sem_t *sem)
        */
 
       pholder->counts--;
+#if CONFIG_SEM_NNESTPRIO > 0
+      if ((sem->flags & PRIOINHERIT_FLAGS_DISABLE) == 0 &&
+           pholder->counts == 0)
+        {
+          /* This thread/task holds no counts on this semaphore
+           * So remove it from the total held
+           */
+
+          rtcb->nsem_held--;
+        }
+#endif
     }
 }
 
