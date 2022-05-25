@@ -117,6 +117,10 @@ struct can_conn_s
   int32_t tx_deadline;
 # endif
 #endif
+
+#ifdef CONFIG_NET_TIMESTAMP
+  FAR struct socket *psock; /* Needed to get SO_TIMESTAMP value */
+#endif
 };
 
 /****************************************************************************
