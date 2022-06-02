@@ -102,7 +102,7 @@ struct cromfs_volume_s
  *                Return 0
  */
 
-struct cromfs_node_s
+begin_packed_struct struct cromfs_node_s
 {
   uint16_t cn_mode;      /* File type, attributes, and access mode bits */
   uint16_t cn_pad;       /* Not used */
@@ -116,6 +116,6 @@ struct cromfs_node_s
     uint32_t cn_link;    /* Offset to an arbitrary node (for hard link) */
     uint32_t cn_blocks;  /* Offset to first block of compressed data (for read) */
   } u;
-};
+} end_packed_struct; /* Use packed access since cromfs nodes may be unaligned */
 
 #endif /* __FS_CROMFS_CROMFS_H */
