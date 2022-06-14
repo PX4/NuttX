@@ -695,6 +695,14 @@ static const struct uart_ops_s g_lpuart_txdma_ops =
 };
 #endif
 
+/* Avoid unused warning */
+#if !defined(SERIAL_HAVE_ONLY_DMA) && defined(SERIAL_HAVE_RXDMA)
+const struct uart_ops_s *g_o0 = &g_lpuart_rxdma_ops;
+#endif
+#if !defined(SERIAL_HAVE_ONLY_DMA) && defined(SERIAL_HAVE_TXDMA)
+const struct uart_ops_s *g_o1 = &g_lpuart_txdma_ops;
+#endif
+
 /* I/O buffers */
 
 #ifdef CONFIG_LPUART1_RXDMA
@@ -1453,15 +1461,18 @@ static int imxrt_dma_setup(struct uart_dev_s *dev)
 
   if (priv->dma_txreqsrc != 0)
     {
-      priv->txdma = imxrt_dmach_alloc(priv->dma_txreqsrc | DMAMUX_CHCFG_ENBL,
-                                      0);
       if (priv->txdma == NULL)
         {
-          return -EBUSY;
-        }
+          priv->txdma = imxrt_dmach_alloc(priv->dma_txreqsrc |
+                                          DMAMUX_CHCFG_ENBL, 0);
+          if (priv->txdma == NULL)
+            {
+              return -EBUSY;
+            }
 
-      nxsem_init(&priv->txdmasem, 0, 1);
-      nxsem_set_protocol(&priv->txdmasem, SEM_PRIO_NONE);
+          nxsem_init(&priv->txdmasem, 0, 1);
+          nxsem_set_protocol(&priv->txdmasem, SEM_PRIO_NONE);
+        }
 
       /* Enable Tx DMA for the UART */
 
@@ -1475,42 +1486,46 @@ static int imxrt_dma_setup(struct uart_dev_s *dev)
 
   if (priv->dma_rxreqsrc != 0)
     {
-      priv->rxdma = imxrt_dmach_alloc(priv->dma_rxreqsrc | DMAMUX_CHCFG_ENBL,
-                                      0);
-
       if (priv->rxdma == NULL)
         {
-          return -EBUSY;
-        }
+          priv->rxdma = imxrt_dmach_alloc(priv->dma_rxreqsrc |
+                                          DMAMUX_CHCFG_ENBL, 0);
 
-      /* Configure for circular DMA reception into the RX FIFO */
+          if (priv->rxdma == NULL)
+            {
+              return -EBUSY;
+            }
 
-      config.saddr  = priv->uartbase + IMXRT_LPUART_DATA_OFFSET;
-      config.daddr  = (uint32_t) priv->rxfifo;
-      config.soff   = 0;
-      config.doff   = 1;
-      config.iter   = RXDMA_BUFFER_SIZE;
-      config.flags  = EDMA_CONFIG_LINKTYPE_LINKNONE | EDMA_CONFIG_LOOPDEST;
-      config.ssize  = EDMA_8BIT;
-      config.dsize  = EDMA_8BIT;
-      config.nbytes = 1;
-    #ifdef CONFIG_KINETIS_EDMA_ELINK
-      config.linkch = 0;
+          /* Configure for circular DMA reception into the RX FIFO */
+
+          config.saddr  = priv->uartbase + IMXRT_LPUART_DATA_OFFSET;
+          config.daddr  = (uint32_t) priv->rxfifo;
+          config.soff   = 0;
+          config.doff   = 1;
+          config.iter   = RXDMA_BUFFER_SIZE;
+          config.flags  = EDMA_CONFIG_LINKTYPE_LINKNONE |
+                          EDMA_CONFIG_LOOPDEST | EDMA_CONFIG_INTHALF;
+          config.ssize  = EDMA_8BIT;
+          config.dsize  = EDMA_8BIT;
+          config.nbytes = 1;
+        #ifdef CONFIG_KINETIS_EDMA_ELINK
+          config.linkch = 0;
+        #endif
+
+          imxrt_dmach_xfrsetup(priv->rxdma , &config);
+
+          /* Reset our DMA shadow pointer and Rx data availability count to
+           * match the address just programmed above.
+           */
+
+          priv->rxdmanext = 0;
+    #ifdef CONFIG_ARMV7M_DCACHE
+          priv->rxdmaavail = 0;
     #endif
 
-      imxrt_dmach_xfrsetup(priv->rxdma , &config);
-
-      /* Reset our DMA shadow pointer and Rx data availability count to
-       * match the address just programmed above.
-       */
-
-      priv->rxdmanext = 0;
-#ifdef CONFIG_ARMV7M_DCACHE
-      priv->rxdmaavail = 0;
-#endif
-
-      up_invalidate_dcache((uintptr_t) priv->rxfifo,
-                           (uintptr_t) priv->rxfifo + RXDMA_BUFFER_SIZE);
+          up_invalidate_dcache((uintptr_t) priv->rxfifo,
+                               (uintptr_t) priv->rxfifo + RXDMA_BUFFER_SIZE);
+        }
 
       /* Enable receive Rx DMA for the UART */
 
@@ -1521,7 +1536,6 @@ static int imxrt_dma_setup(struct uart_dev_s *dev)
 
       modifyreg32(priv->uartbase + IMXRT_LPUART_CTRL_OFFSET, 0,
                   LPUART_CTRL_IDLECFG_1  |
-                  LPUART_CTRL_ILT        |
                   LPUART_CTRL_ILIE);
 
       /* Start the DMA channel, and arrange for callbacks at the half and
@@ -1995,7 +2009,7 @@ static int imxrt_ioctl(struct file *filep, int cmd, unsigned long arg)
 
             flags  = spin_lock_irqsave(NULL);
             imxrt_disableuartint(priv, &ie);
-            ret = imxrt_setup(dev);
+            ret = dev->ops->setup(dev);
 
             /* Restore the interrupt state */
 
@@ -2386,7 +2400,8 @@ static void imxrt_dma_reenable(struct imxrt_uart_s *priv)
   config.soff   = 0;
   config.doff   = 1;
   config.iter   = RXDMA_BUFFER_SIZE;
-  config.flags  = EDMA_CONFIG_LINKTYPE_LINKNONE | EDMA_CONFIG_LOOPDEST;
+  config.flags  = EDMA_CONFIG_LINKTYPE_LINKNONE | EDMA_CONFIG_LOOPDEST |
+                  EDMA_CONFIG_INTHALF;
   config.ssize  = EDMA_8BIT;
   config.dsize  = EDMA_8BIT;
   config.nbytes = 1;
