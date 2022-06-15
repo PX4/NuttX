@@ -61,7 +61,7 @@
 #include "imxrt_serial.h"
 
 #ifdef USE_SERIALDRIVER
-
+#define CONFIG_IMXRT_SERIAL_RXDMA_BUFFER_SIZE 256
 /* The DMA buffer size when using RX DMA to emulate a FIFO.
  *
  * When streaming data, the generic serial layer will be called every time
