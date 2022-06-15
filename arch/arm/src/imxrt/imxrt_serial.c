@@ -524,11 +524,7 @@ struct imxrt_uart_s
   DMACH_HANDLE       rxdma;         /* currently-open receive DMA stream */
   bool               rxenable;      /* DMA-based reception en/disable */
   uint32_t           rxdmanext;     /* Next byte in the DMA buffer to be read */
-#  ifdef CONFIG_ARMV7M_DCACHE
-  uint32_t           rxdmaavail;    /* Number of bytes available without need to
-                                     * to invalidate the data cache */
-#  endif
-  char *const       rxfifo;         /* Receive DMA buffer */
+  char *const        rxfifo;        /* Receive DMA buffer */
 #endif
 };
 
@@ -1372,11 +1368,9 @@ static inline void imxrt_serialout(struct imxrt_uart_s *priv,
 #ifdef SERIAL_HAVE_RXDMA
 static int imxrt_dma_nextrx(struct imxrt_uart_s *priv)
 {
-  size_t dmaresidual;
+  int dmaresidual = imxrt_dmach_getcount(priv->rxdma);
 
-  dmaresidual = imxrt_dmach_getcount(priv->rxdma);
-
-  return (RXDMA_BUFFER_SIZE - (int)dmaresidual);
+  return RXDMA_BUFFER_SIZE - dmaresidual;
 }
 #endif
 
@@ -1495,47 +1489,49 @@ static int imxrt_dma_setup(struct uart_dev_s *dev)
             {
               return -EBUSY;
             }
+        }
+      else
+        {
+          imxrt_dmach_stop(priv->rxdma);
+        }
 
-          /* Configure for circular DMA reception into the RX FIFO */
+      /* Configure for circular DMA reception into the RX FIFO */
 
-          config.saddr  = priv->uartbase + IMXRT_LPUART_DATA_OFFSET;
-          config.daddr  = (uint32_t) priv->rxfifo;
-          config.soff   = 0;
-          config.doff   = 1;
-          config.iter   = RXDMA_BUFFER_SIZE;
-          config.flags  = EDMA_CONFIG_LINKTYPE_LINKNONE |
-                          EDMA_CONFIG_LOOPDEST | EDMA_CONFIG_INTHALF;
-          config.ssize  = EDMA_8BIT;
-          config.dsize  = EDMA_8BIT;
-          config.nbytes = 1;
-        #ifdef CONFIG_KINETIS_EDMA_ELINK
-          config.linkch = 0;
-        #endif
-
-          imxrt_dmach_xfrsetup(priv->rxdma , &config);
-
-          /* Reset our DMA shadow pointer and Rx data availability count to
-           * match the address just programmed above.
-           */
-
-          priv->rxdmanext = 0;
-    #ifdef CONFIG_ARMV7M_DCACHE
-          priv->rxdmaavail = 0;
+      config.saddr  = priv->uartbase + IMXRT_LPUART_DATA_OFFSET;
+      config.daddr  = (uint32_t) priv->rxfifo;
+      config.soff   = 0;
+      config.doff   = 1;
+      config.iter   = RXDMA_BUFFER_SIZE;
+      config.flags  = EDMA_CONFIG_LINKTYPE_LINKNONE |
+                      EDMA_CONFIG_LOOPDEST |
+                      EDMA_CONFIG_INTHALF  |
+                      EDMA_CONFIG_INTMAJOR;
+      config.ssize  = EDMA_8BIT;
+      config.dsize  = EDMA_8BIT;
+      config.nbytes = 1;
+    #ifdef CONFIG_KINETIS_EDMA_ELINK
+      config.linkch = 0;
     #endif
 
-          up_invalidate_dcache((uintptr_t) priv->rxfifo,
-                               (uintptr_t) priv->rxfifo + RXDMA_BUFFER_SIZE);
-        }
+      imxrt_dmach_xfrsetup(priv->rxdma , &config);
+
+      /* Reset our DMA shadow pointer and Rx data availability count to
+       * match the address just programmed above.
+       */
+
+      priv->rxdmanext = 0;
 
       /* Enable receive Rx DMA for the UART */
 
       modifyreg32(priv->uartbase + IMXRT_LPUART_BAUD_OFFSET,
                   0, LPUART_BAUD_RDMAE);
 
-      /* Enable itnerrupt on Idel */
+      /* Enable itnerrupt on Idel and erros */
 
       modifyreg32(priv->uartbase + IMXRT_LPUART_CTRL_OFFSET, 0,
-                  LPUART_CTRL_IDLECFG_1  |
+                  LPUART_CTRL_PEIE       |
+                  LPUART_CTRL_FEIE       |
+                  LPUART_CTRL_NEIE       |
                   LPUART_CTRL_ILIE);
 
       /* Start the DMA channel, and arrange for callbacks at the half and
@@ -1770,18 +1766,36 @@ static int imxrt_interrupt(int irq, void *context, FAR void *arg)
 
       usr  = imxrt_serialin(priv, IMXRT_LPUART_STAT_OFFSET);
       usr &= (LPUART_STAT_RDRF | LPUART_STAT_TDRE | LPUART_STAT_OR |
-              LPUART_STAT_FE | LPUART_STAT_IDLE);
+              LPUART_STAT_FE | LPUART_STAT_NF | LPUART_STAT_PF |
+              LPUART_STAT_IDLE);
 
-      /* Clear serial overrun and framing errors */
+      /* Clear serial overrun, parity and framing errors */
 
       if ((usr & LPUART_STAT_OR) != 0)
         {
           imxrt_serialout(priv, IMXRT_LPUART_STAT_OFFSET, LPUART_STAT_OR);
         }
 
+      if ((usr & LPUART_STAT_PF) != 0)
+        {
+          imxrt_serialout(priv, IMXRT_LPUART_STAT_OFFSET, LPUART_STAT_NF);
+        }
+
+      if ((usr & LPUART_STAT_PF) != 0)
+        {
+          imxrt_serialout(priv, IMXRT_LPUART_STAT_OFFSET, LPUART_STAT_PF);
+        }
+
       if ((usr & LPUART_STAT_FE) != 0)
         {
           imxrt_serialout(priv, IMXRT_LPUART_STAT_OFFSET, LPUART_STAT_FE);
+        }
+
+      if ((usr & (LPUART_STAT_FE | LPUART_STAT_PF | LPUART_STAT_NF)) != 0)
+        {
+          /* Discard data */
+
+          imxrt_serialin(priv, IMXRT_LPUART_DATA_OFFSET);
         }
 
 #ifdef SERIAL_HAVE_RXDMA
@@ -1790,7 +1804,7 @@ static int imxrt_interrupt(int irq, void *context, FAR void *arg)
       if ((usr & LPUART_STAT_IDLE) != 0)
         {
           imxrt_serialout(priv, IMXRT_LPUART_STAT_OFFSET, LPUART_STAT_IDLE);
-          imxrt_dma_rxcallback(priv->rxdma, priv, true, 0);
+          imxrt_dma_rxcallback(priv->rxdma, priv, false, LPUART_STAT_IDLE);
         }
 #endif
 
@@ -2316,54 +2330,12 @@ static int imxrt_dma_receive(struct uart_dev_s *dev, unsigned int *status)
 
   if (nextrx != priv->rxdmanext)
     {
-#ifdef CONFIG_ARMV7M_DCACHE
-      /* If the data cache is enabled, then we will also need to manage
-       * cache coherency.  Are any bytes available in the currently coherent
-       * region of the data cache?
-       */
-
-      if (priv->rxdmaavail == 0)
-        {
-          uint32_t rxdmaavail;
-          uintptr_t addr;
-
-          /* No.. then we will have to invalidate additional space in the Rx
-           * DMA buffer.
-           */
-
-          if (nextrx > priv->rxdmanext)
-            {
-              /* Number of available bytes */
-
-              rxdmaavail = nextrx - priv->rxdmanext;
-            }
-          else
-            {
-              /* Number of available bytes up to the end of RXDMA buffer */
-
-              rxdmaavail = RXDMA_BUFFER_SIZE - priv->rxdmanext;
-            }
-
-          /* Invalidate the DMA buffer range */
-
-          addr = (uintptr_t)&priv->rxfifo[priv->rxdmanext];
-          up_invalidate_dcache(addr, addr + rxdmaavail);
-
-          /* We don't need to invalidate the data cache for the next
-           * rxdmaavail number of next bytes.
-           */
-
-          priv->rxdmaavail = rxdmaavail;
-        }
-
-      priv->rxdmaavail--;
-#endif
-
       /* Now read from the DMA buffer */
 
       c = priv->rxfifo[priv->rxdmanext];
 
       priv->rxdmanext++;
+
       if (priv->rxdmanext == RXDMA_BUFFER_SIZE)
         {
           priv->rxdmanext = 0;
@@ -2393,6 +2365,10 @@ static void imxrt_dma_reenable(struct imxrt_uart_s *priv)
 {
   struct imxrt_edma_xfrconfig_s config;
 
+  /* Stop an reset the RX DMA */
+
+  imxrt_dmach_stop(priv->rxdma);
+
   /* Configure for circular DMA reception into the RX FIFO */
 
   config.saddr  = priv->uartbase + IMXRT_LPUART_DATA_OFFSET;
@@ -2400,8 +2376,10 @@ static void imxrt_dma_reenable(struct imxrt_uart_s *priv)
   config.soff   = 0;
   config.doff   = 1;
   config.iter   = RXDMA_BUFFER_SIZE;
-  config.flags  = EDMA_CONFIG_LINKTYPE_LINKNONE | EDMA_CONFIG_LOOPDEST |
-                  EDMA_CONFIG_INTHALF;
+  config.flags  = EDMA_CONFIG_LINKTYPE_LINKNONE |
+                  EDMA_CONFIG_LOOPDEST |
+                  EDMA_CONFIG_INTHALF |
+                  EDMA_CONFIG_INTMAJOR;
   config.ssize  = EDMA_8BIT;
   config.dsize  = EDMA_8BIT;
   config.nbytes = 1;
@@ -2415,13 +2393,7 @@ static void imxrt_dma_reenable(struct imxrt_uart_s *priv)
    * the address just programmed above.
    */
 
-  priv->rxdmanext  = 0;
-#ifdef CONFIG_ARMV7M_DCACHE
-  priv->rxdmaavail = 0;
-#endif
-
-  up_invalidate_dcache((uintptr_t) priv->rxfifo,
-                       (uintptr_t) priv->rxfifo + RXDMA_BUFFER_SIZE);
+  priv->rxdmanext = 0;
 
   /* Start the DMA channel, and arrange for callbacks at the half and
    * full points in the FIFO.  This ensures that we have half a FIFO
@@ -2725,6 +2697,9 @@ static void imxrt_dma_rxcallback(DMACH_HANDLE handle, void *arg, bool done,
 {
   struct imxrt_uart_s *priv = (struct imxrt_uart_s *)arg;
   uint32_t sr;
+
+  up_invalidate_dcache((uintptr_t) priv->rxfifo,
+                       (uintptr_t) priv->rxfifo + RXDMA_BUFFER_SIZE);
 
   if (priv->rxenable && imxrt_dma_rxavailable(&priv->dev))
     {
