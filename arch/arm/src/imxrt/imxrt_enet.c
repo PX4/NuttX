@@ -154,9 +154,6 @@
 #  error "Need at least one RX buffer"
 #endif
 
-#define NENET_NBUFFERS \
-  (CONFIG_IMXRT_ENET_NTXBUFFERS + CONFIG_IMXRT_ENET_NRXBUFFERS)
-
 /* TX poll delay = 1 seconds. CLK_TCK is the number of clock ticks per
  * second.
  */
@@ -176,6 +173,14 @@
 #define ENET_ALIGN        ARMV7M_DCACHE_LINESIZE
 #define ENET_ALIGN_MASK   (ENET_ALIGN - 1)
 #define ENET_ALIGN_UP(n)  (((n) + ENET_ALIGN_MASK) & ~ENET_ALIGN_MASK)
+
+#define DESC_SIZE           sizeof(struct enet_desc_s)
+#define DESC_PADSIZE        ENET_ALIGN_UP(DESC_SIZE)
+
+#define ALIGNED_BUFSIZE     ENET_ALIGN_UP(CONFIG_NET_ETH_PKTSIZE + \
+                                      CONFIG_NET_GUARDSIZE)
+#define NENET_NBUFFERS \
+  (CONFIG_IMXRT_ENET_NTXBUFFERS + CONFIG_IMXRT_ENET_NRXBUFFERS)
 
 /* TX timeout = 1 minute */
 
@@ -287,9 +292,6 @@
 
 #define BUF ((struct eth_hdr_s *)priv->dev.d_buf)
 
-#define IMXRT_BUF_SIZE  ENET_ALIGN_UP(CONFIG_NET_ETH_PKTSIZE + \
-                                      CONFIG_NET_GUARDSIZE)
-
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -319,27 +321,31 @@ struct imxrt_driver_s
   struct net_driver_s dev;     /* Interface understood by the network */
 };
 
+/* This union type forces the allocated size of TX&RX descriptors to be
+ * padded to a exact multiple of the Cortex-M7 D-Cache line size.
+ */
+
+union enet_desc_u
+{
+  uint8_t             pad[DESC_PADSIZE];
+  struct enet_desc_s  desc;
+};
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
 
 static struct imxrt_driver_s g_enet[CONFIG_IMXRT_ENET_NETHIFS];
 
-/* The DMA descriptors.  A unaligned uint8_t is used to allocate the
- * memory; 16 is added to assure that we can meet the descriptor alignment
- * requirements.
- */
+/* The DMA descriptors */
 
-static uint8_t g_desc_pool[NENET_NBUFFERS * sizeof(struct enet_desc_s)]
-               __attribute__((aligned(ENET_ALIGN)));
+static union enet_desc_u g_desc_pool[NENET_NBUFFERS]
+                                     aligned_data(ENET_ALIGN);
 
-/* The DMA buffers.  Again, A unaligned uint8_t is used to allocate the
- * memory; 16 is added to assure that we can meet the descriptor alignment
- * requirements.
- */
+/* The DMA buffers */
 
-static uint8_t g_buffer_pool[NENET_NBUFFERS * IMXRT_BUF_SIZE]
-               __attribute__((aligned(ENET_ALIGN)));
+static uint8_t g_buffer_pool[NENET_NBUFFERS][ALIGNED_BUFSIZE]
+                             aligned_data(ENET_ALIGN);
 
 /****************************************************************************
  * Private Function Prototypes
@@ -657,18 +663,31 @@ static int imxrt_transmit(FAR struct imxrt_driver_s *priv)
 
   buf = (uint8_t *)imxrt_swap32((uint32_t)priv->dev.d_buf);
 
+  struct enet_desc_s *rxdesc = &priv->rxdesc[priv->rxtail];
+
+  up_invalidate_dcache((uintptr_t)rxdesc,
+                       (uintptr_t)rxdesc + sizeof(struct enet_desc_s));
+
+  if (rxdesc->data == buf)
+    {
       /* Data was written into the RX buffer, so swap the TX and RX buffers */
 
       DEBUGASSERT((rxdesc->status1 & RXDESC_E) == 0);
       rxdesc->data = txdesc->data;
       txdesc->data = buf;
+      up_clean_dcache((uintptr_t) rxdesc,
+                      (uintptr_t) rxdesc + sizeof(struct enet_desc_s));
     }
   else
     {
       DEBUGASSERT(txdesc->data == buf);
     }
 
-  /* Make the following operations atomic */
+  up_clean_dcache((uintptr_t) txdesc,
+                  (uintptr_t) txdesc + sizeof(struct enet_desc_s));
+
+  up_clean_dcache((uintptr_t) priv->dev.d_buf,
+                  (uintptr_t) priv->dev.d_buf + priv->dev.d_len);
 
   /* Start the TX transfer (if it was not already waiting for buffers) */
 
@@ -979,6 +998,9 @@ static void imxrt_receive(FAR struct imxrt_driver_s *priv)
           priv->dev.d_buf = (uint8_t *)
             imxrt_swap32((uint32_t)priv->txdesc[priv->txhead].data);
           rxdesc->status1 |= RXDESC_E;
+
+          up_clean_dcache((uintptr_t) rxdesc,
+                          (uintptr_t) rxdesc + sizeof(struct enet_desc_s));
 
           /* Update the index to the next descriptor */
 
@@ -1454,7 +1476,7 @@ static int imxrt_ifup_action(struct net_driver_s *dev, bool resetphy)
 
   /* Set the RX buffer size */
 
-  imxrt_enet_putreg32(priv, IMXRT_BUF_SIZE, IMXRT_ENET_MRBR_OFFSET);
+  imxrt_enet_putreg32(priv, ALIGNED_BUFSIZE, IMXRT_ENET_MRBR_OFFSET);
 
   /* Point to the start of the circular RX buffer descriptor queue */
 
@@ -2484,13 +2506,11 @@ static void imxrt_initbuffers(struct imxrt_driver_s *priv)
 
   /* Get an aligned TX descriptor (array) address */
 
-  addr         = (uintptr_t)g_desc_pool;
-  priv->txdesc = (struct enet_desc_s *)addr;
+  priv->txdesc = &g_desc_pool[0].desc;
 
   /* Get an aligned RX descriptor (array) address */
 
-  addr        +=  CONFIG_IMXRT_ENET_NTXBUFFERS * sizeof(struct enet_desc_s);
-  priv->rxdesc = (struct enet_desc_s *)addr;
+  priv->rxdesc = &g_desc_pool[CONFIG_IMXRT_ENET_NTXBUFFERS].desc;
 
   /* Get the beginning of the first aligned buffer */
 
@@ -2506,7 +2526,7 @@ static void imxrt_initbuffers(struct imxrt_driver_s *priv)
 #ifdef CONFIG_IMXRT_ENETENHANCEDBD
       priv->txdesc[i].status2 = TXDESC_IINS | TXDESC_PINS;
 #endif
-      addr                   += IMXRT_BUF_SIZE;
+      addr                   += ALIGNED_BUFSIZE;
     }
 
   /* Then fill in the RX descriptors */
@@ -2520,13 +2540,16 @@ static void imxrt_initbuffers(struct imxrt_driver_s *priv)
       priv->rxdesc[i].bdu     = 0;
       priv->rxdesc[i].status2 = RXDESC_INT;
 #endif
-      addr                   += IMXRT_BUF_SIZE;
+      addr                   += ALIGNED_BUFSIZE;
     }
 
   /* Set the wrap bit in the last descriptors to form a ring */
 
   priv->txdesc[CONFIG_IMXRT_ENET_NTXBUFFERS - 1].status1 |= TXDESC_W;
   priv->rxdesc[CONFIG_IMXRT_ENET_NRXBUFFERS - 1].status1 |= RXDESC_W;
+
+  up_clean_dcache((uintptr_t) g_desc_pool,
+                  (uintptr_t) g_desc_pool + sizeof(g_desc_pool));
 
   /* We start with RX descriptor 0 and with no TX descriptors in use */
 
