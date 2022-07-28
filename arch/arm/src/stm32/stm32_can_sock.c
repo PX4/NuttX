@@ -1152,7 +1152,8 @@ static int stm32can_txavail(struct net_driver_s *dev)
 static int stm32can_netdev_ioctl(struct net_driver_s *dev, int cmd,
                                  unsigned long arg)
 {
-  FAR struct stm32_can_s *priv = (FAR struct stm32_can_s *)dev->d_private;
+  /* FAR struct stm32_can_s *priv = (FAR struct stm32_can_s *)dev->d_private; */
+
   int                     ret  = OK;
 
   switch (cmd)
