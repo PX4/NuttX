@@ -37,6 +37,7 @@
 #include "chip.h"
 #include "stm32_adc.h"
 #include "stm32_can.h"
+#include "stm32_can_sock.h"
 #include "stm32_comp.h"
 #include "stm32_dbgmcu.h"
 #include "stm32_dma.h"
