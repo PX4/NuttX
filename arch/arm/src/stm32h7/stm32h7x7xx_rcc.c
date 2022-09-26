@@ -827,7 +827,15 @@ void stm32_stdclockconfig(void)
        */
 
       regval = getreg32(STM32_PWR_CR3);
-      regval |= STM32_PWR_CR3_LDOEN | STM32_PWR_CR3_LDOESCUEN;
+#if defined(CONFIG_STM32H7_PWR_REGULATOR_LDO)
+      regval |= STM32_PWR_CR3_LDOEN;
+      regval &= ~STM32_PWR_CR3_SMPSEN;
+#elif defined(CONFIG_STM32H7_PWR_REGULATOR_SMPS)
+      regval &= ~STM32_PWR_CR3_LDOEN;
+      regval |= STM32_PWR_CR3_SMPSEN;
+#else
+#     error "No power supply selected"
+#endif
       putreg32(regval, STM32_PWR_CR3);
 
       /* Set the voltage output scale */

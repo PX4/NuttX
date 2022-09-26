@@ -785,6 +785,20 @@ config STM32H7_SYSCFG_IOCOMPENSATION
 		The I/O compensation cell can be used only when the supply voltage ranges
 		from 2.4 to 3.6 V
 
+menu "STM32H7 PWR Selection"
+	depends on STM32H7_STM32H7X7XX
+choice STM32H7_PWR_REGULATOR
+	prompt "PWR Regulator"
+	default STM32H7_PWR_REGULATOR_SMPS
+	---help---
+		Select the regulator used to drive the internal voltage rails.
+config STM32H7_PWR_REGULATOR_SMPS
+	bool "SMPS"
+config STM32H7_PWR_REGULATOR_LDO
+	bool "LDO"
+endchoice # STM32H7 PWR Regulator
+endmenu # STM32H7 PWR Selection
+
 menu "OTG_HS Configuration"
 	depends on STM32H7_OTGHS
 

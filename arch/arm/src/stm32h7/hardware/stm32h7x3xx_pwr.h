@@ -123,7 +123,11 @@
 
 #define STM32_PWR_CR3_BYPASS        (1 << 0)  /* Bit 0: Power management unit bypass */
 #define STM32_PWR_CR3_LDOEN         (1 << 1)  /* Bit 1: Low drop-out regulator enable */
+#if defined(CONFIG_STM32H7_STM32H7X7XX)
+#define STM32_PWR_CR3_SMPSEN        (1 << 2)  /* Bit 2: Switched-mode power supply enable */
+#else
 #define STM32_PWR_CR3_LDOESCUEN     (1 << 2)  /* Bit 2: Supply configuration update enable */
+#endif
                                               /* Bits 3-7: Reserved */
 #define STM32_PWR_CR3_VBE           (1 << 8)  /* Bit 8: VBAT charging enable */
 #define STM32_PWR_CR3_VBRS          (1 << 9)  /* Bit 9: VBAT charging resistor selection */
