@@ -191,6 +191,17 @@ extern "C"
 int gpio_pin_register(FAR struct gpio_dev_s *dev, int minor);
 
 /****************************************************************************
+ * Name: gpio_pin_register_byname
+ *
+ * Description:
+ *   Register GPIO pin device driver with it's pin name.
+ *
+ ****************************************************************************/
+
+int gpio_pin_register_byname(FAR struct gpio_dev_s *dev,
+                             FAR const char *pinname);
+
+/****************************************************************************
  * Name: gpio_pin_unregister
  *
  * Description:

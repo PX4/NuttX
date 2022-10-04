@@ -576,6 +576,64 @@ int gpio_pin_register(FAR struct gpio_dev_s *dev, int minor)
 }
 
 /****************************************************************************
+ * Name: gpio_pin_register_byname
+ *
+ * Description:
+ *   Register GPIO pin device driver by it's name.
+ *
+ ****************************************************************************/
+
+int gpio_pin_register_byname(FAR struct gpio_dev_s *dev,
+                             FAR const char *pinname)
+{
+  char devname[32];
+  int ret;
+
+  DEBUGASSERT(dev != NULL && dev->gp_ops != NULL && pinname != NULL);
+
+  switch (dev->gp_pintype)
+    {
+      case GPIO_INPUT_PIN:
+      case GPIO_INPUT_PIN_PULLUP:
+      case GPIO_INPUT_PIN_PULLDOWN:
+        {
+          DEBUGASSERT(dev->gp_ops->go_read != NULL);
+        }
+        break;
+
+      case GPIO_OUTPUT_PIN:
+      case GPIO_OUTPUT_PIN_OPENDRAIN:
+        {
+          DEBUGASSERT(dev->gp_ops->go_read != NULL &&
+                     dev->gp_ops->go_write != NULL);
+        }
+        break;
+
+      default:
+        {
+          DEBUGASSERT(dev->gp_ops->go_read != NULL &&
+                      dev->gp_ops->go_attach != NULL &&
+                      dev->gp_ops->go_enable != NULL);
+
+          /* Make sure that the pin interrupt is disabled */
+
+          ret = dev->gp_ops->go_enable(dev, false);
+          if (ret < 0)
+            {
+              return ret;
+            }
+        }
+        break;
+    }
+
+  snprintf(devname, 32, "/dev/%s", pinname);
+
+  gpioinfo("Registering %s\n", devname);
+
+  return register_driver(devname, &g_gpio_drvrops, 0666, dev);
+}
+
+/****************************************************************************
  * Name: gpio_pin_unregister
  *
  * Description:
