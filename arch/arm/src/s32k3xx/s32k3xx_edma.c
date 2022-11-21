@@ -153,6 +153,12 @@ struct s32k3xx_edma_s
   struct s32k3xx_dmach_s dmach[S32K3XX_EDMA_NCHANNELS];
 };
 
+#ifdef CONFIG_S32K3XX_DTCM_HEAP
+extern const uint32_t DTCM_BASE_ADDR;
+extern const uint32_t DTCM_END_ADDR;
+#define DTCM_BACKDOOR_OFFSET 0x1000000
+#endif
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -645,6 +651,22 @@ static inline void s32k3xx_tcd_configure(struct s32k3xx_edmatcd_s *tcd,
   tcd->csr     |= config->flags & EDMA_CONFIG_INTHALF ?
                                   EDMA_TCD_CSR_INTHALF : 0;
   tcd->dlastsga = config->flags & EDMA_CONFIG_LOOPDEST ? -config->iter : 0;
+
+#ifdef CONFIG_S32K3XX_DTCM_HEAP
+  /* Remap address to backdoor address for eDMA */
+
+  if (tcd->saddr >= (uint32_t)&DTCM_BASE_ADDR
+      && tcd->saddr < (uint32_t)&DTCM_END_ADDR)
+    {
+        tcd->saddr += DTCM_BACKDOOR_OFFSET;
+    }
+
+  if (tcd->daddr >= (uint32_t)&DTCM_BASE_ADDR
+      && tcd->daddr < (uint32_t)&DTCM_END_ADDR)
+    {
+        tcd->daddr += DTCM_BACKDOOR_OFFSET;
+    }
+#endif
 
   /* And special case flags */
 
