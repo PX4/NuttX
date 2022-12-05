@@ -149,6 +149,7 @@ SECTIONS
   SRAM_END_ADDR          = ORIGIN(sram) + LENGTH(sram);
   SRAM_STDBY_BASE_ADDR   = ORIGIN(sram0_stdby);
   SRAM_STDBY_END_ADDR    = ORIGIN(sram0_stdby) + LENGTH(sram0_stdby);
+  SRAM_INIT_END_ADDR     = ORIGIN(sram) + 320K;
   ITCM_BASE_ADDR         = ORIGIN(itcm);
   ITCM_END_ADDR          = ORIGIN(itcm) + LENGTH(itcm);
   DTCM_BASE_ADDR         = ORIGIN(dtcm);
