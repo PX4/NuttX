@@ -149,6 +149,7 @@ config ARCH_CHIP_STM32H747XI
 	select STM32H7_IO_CONFIG_X
 	select STM32H7_HAVE_FDCAN1
 	select STM32H7_HAVE_FDCAN2
+	select STM32H7_HAVE_SMPS
 	---help---
 		Dual core STM32 H7 Cortex M7+M4, 2048 Kb FLASH, 1024K Kb SRAM
 		TFBGA240
@@ -216,6 +217,15 @@ config ARCH_CHIP_STM32H753ZI
 		with cryptographic accelerator, LQFP144
 
 endchoice # STM32 H7 Chip Selection
+
+config STM32H7_HAVE_SMPS
+	bool
+	default n
+
+config STM32H7_PWR_DIRECT_SMPS_SUPPLY
+	bool "Use direct SMPS supply mode"
+	depends on STM32H7_HAVE_SMPS
+	default n
 
 config STM32H7_IO_CONFIG_A
 	bool
