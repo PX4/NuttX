@@ -47,6 +47,14 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+#define IDLE_STACK      ((unsigned)&_ebss+CONFIG_IDLETHREAD_STACKSIZE)
+
+#ifdef CONFIG_DEBUG_FEATURES
+#define showprogress(c) imxrt_lowputc(c)
+#else
+#  define showprogress(c)
+#endif
+
 /* Memory Map ***************************************************************/
 
 /* 0x2020:0000 - Start of on-chip RAM (OCRAM) and start of .data (_sdata)
@@ -66,7 +74,7 @@
  */
 
 /****************************************************************************
- * Private Functions
+ * Private Types
  ****************************************************************************/
 
 #ifdef CONFIG_ARMV7M_STACKCHECK
@@ -74,6 +82,8 @@
 
 void __start(void) noinstrument_function;
 #endif
+
+extern const uint32_t _vectors[];
 
 /****************************************************************************
  * Name: imxrt_tcmenable
@@ -135,8 +145,20 @@ static inline void imxrt_tcmenable(void)
 
 void __start(void)
 {
-  const uint32_t *src;
-  uint32_t *dest;
+  const register uint32_t *src;
+  register uint32_t *dest;
+
+  /* Make sure that interrupts are disabled and set SP */
+
+  __asm__ __volatile__ ("\tcpsid  i\n");
+  __asm__ __volatile__ ("MSR MSP, %0\n" : : "r" (IDLE_STACK) :);
+
+  /* Make sure VECTAB is set to NuttX vector table
+   * and not the one from the boot ROM and have consistency
+   * with debugger that automatically set the VECTAB
+   */
+
+  putreg32((uint32_t)_vectors, NVIC_VECTAB);
 
 #ifdef CONFIG_ARMV7M_STACKCHECK
   /* Set the stack limit before we attempt to call any functions */
@@ -145,7 +167,7 @@ void __start(void)
                    "r"(CONFIG_IDLETHREAD_STACKSIZE - 64) :);
 #endif
 
-#ifdef CONFIG_BOOT_RUNFROMISRAM
+#if defined(CONFIG_BOOT_RUNFROMISRAM) || defined(CONFIG_IMXRT_INIT_FLEXRAM)
     imxrt_ocram_initialize();
 #endif
 
@@ -188,6 +210,7 @@ void __start(void)
   imxrt_clockconfig();
   arm_fpuconfig();
   imxrt_lowsetup();
+  showprogress('B');
 
   /* Enable/disable tightly coupled memories */
 
