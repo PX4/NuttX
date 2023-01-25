@@ -62,6 +62,11 @@
 #include "imxrt_periphclks.h"
 #include "imxrt_gpio.h"
 #include "imxrt_enet.h"
+#ifdef CONFIG_ARCH_FAMILY_IMXRT117x
+#include "hardware/rt117x/imxrt117x_ocotp.h"
+#else
+#include "hardware/imxrt_ocotp.h"
+#endif
 
 #ifdef CONFIG_IMXRT_ENET
 
@@ -114,35 +119,74 @@
 #  error "One of CONFIG_IMXRT_PHY_PROVIDES_TXC, CONFIG_IMXRT_MAC_PROVIDES_TXC must be selected"
 #endif
 
-#if defined(CONFIG_IMXRT_ENET1)
-#  define imxrt_clock_enet         imxrt_clockall_enet
-#  define GPR_GPR1_ENET_MASK       (GPR_GPR1_ENET1_CLK_SEL | \
-                                    GPR_GPR1_ENET1_TX_DIR_OUT)
-#  define IMXRT_ENET_IRQ            IMXRT_IRQ_ENET
-#  define IMXRT_ENETN_BASE          IMXRT_ENET_BASE
-#  if defined(CONFIG_IMXRT_MAC_PROVIDES_TXC)
-#    define GPR_GPR1_ENET_TX_DIR    GPR_GPR1_ENET1_TX_DIR_OUT
-#    define GPR_GPR1_ENET_CLK_SEL   0
+#ifdef CONFIG_ARCH_FAMILY_IMXRT117x
+#  if defined(CONFIG_IMXRT_ENET1)
+#    define IMXRT_ENET_IOMUXC_GPR    IMXRT_IOMUXC_GPR_GPR4
+#    define imxrt_clock_enet         imxrt_clockall_enet
+#    define GPR_ENET_MASK           (GPR_GPR4_ENET_TX_CLK_SEL | \
+                                     GPR_GPR4_ENET_REF_CLK_DIR)
+#    define IMXRT_ENET_IRQ           IMXRT_IRQ_ENET
+#    define IMXRT_ENETN_BASE         IMXRT_ENET_BASE
+#    if defined(CONFIG_IMXRT_MAC_PROVIDES_TXC)
+#      define GPR_ENET_TX_DIR        GPR_GPR4_ENET_REF_CLK_DIR_OUT
+#      define GPR_ENET_CLK_SEL       GPR_GPR4_ENET_TX_CLK_SEL_NS
+#    endif
+#    if defined(CONFIG_IMXRT_PHY_PROVIDES_TXC)
+#      define GPR_ENET_TX_DIR        GPR_GPR4_ENET_REF_CLK_DIR_IN
+#      define GPR_ENET_CLK_SEL       GPR_GPR4_ENET_TX_CLK_SEL_PAD
+#    endif
 #  endif
-#  if defined(CONFIG_IMXRT_PHY_PROVIDES_TXC)
-#    define GPR_GPR1_ENET_TX_DIR     GPR_GPR1_ENET1_TX_DIR_IN
-#    define GPR_GPR1_ENET_CLK_SEL    GPR_GPR1_ENET1_CLK_SEL
+#  if defined(CONFIG_IMXRT_ENET2)
+#    define IMXRT_ENET_IOMUXC_GPR    IMXRT_IOMUXC_GPR_GPR5
+#    define imxrt_clock_enet         imxrt_clockall_enet2
+#    define GPR_ENET_MASK           (GPR_GPR5_ENET1G_TX_CLK_SEL | \
+                                     GPR_GPR5_ENET1G_REF_CLK_DIR)
+#    define IMXRT_ENET_IRQ           IMXRT_IRQ_ENET2_1
+#    define IMXRT_ENET_IRQ_2         IMXRT_IRQ_ENET2_2
+#    define IMXRT_ENET_IRQ_3         IMXRT_IRQ_ENET2_3
+#    define IMXRT_ENETN_BASE         IMXRT_ENET_1G_BASE
+#    if defined(CONFIG_IMXRT_MAC_PROVIDES_TXC)
+#      define GPR_ENET_TX_DIR        GPR_GPR5_ENET1G_REF_CLK_DIR_OUT
+#      define GPR_ENET_CLK_SEL       GPR_GPR5_ENET1G_TX_CLK_SEL_CLK
+#    endif
+#    if defined(CONFIG_IMXRT_PHY_PROVIDES_TXC)
+#      define GPR_ENET_TX_DIR         GPR_GPR5_ENET1G_REF_CLK_DIR_IN
+#      define GPR_ENET_CLK_SEL        GPR_GPR5_ENET1G_TX_CLK_SEL_PAD
+#    endif
 #  endif
-#endif
+#else
+#  define IMXRT_ENET_IOMUXC_GPR  IMXRT_IOMUXC_GPR_GPR1
 
-#if defined(CONFIG_IMXRT_ENET2)
-#  define imxrt_clock_enet         imxrt_clockall_enet2
-#  define GPR_GPR1_ENET_MASK       (GPR_GPR1_ENET2_CLK_SEL | \
-                                    GPR_GPR1_ENET2_TX_DIR_OUT)
-#  define IMXRT_ENET_IRQ            IMXRT_IRQ_ENET2
-#  define IMXRT_ENETN_BASE          IMXRT_ENET2_BASE
-#  if defined(CONFIG_IMXRT_MAC_PROVIDES_TXC)
-#    define GPR_GPR1_ENET_TX_DIR    GPR_GPR1_ENET2_TX_DIR_OUT
-#    define GPR_GPR1_ENET_CLK_SEL   0
+#  if defined(CONFIG_IMXRT_ENET1)
+#    define imxrt_clock_enet         imxrt_clockall_enet
+#    define GPR_ENET_MASK           (GPR_GPR1_ENET1_CLK_SEL | \
+                                     GPR_GPR1_ENET1_TX_DIR_OUT)
+#    define IMXRT_ENET_IRQ           IMXRT_IRQ_ENET
+#    define IMXRT_ENETN_BASE         IMXRT_ENET_BASE
+#    if defined(CONFIG_IMXRT_MAC_PROVIDES_TXC)
+#      define GPR_ENET_TX_DIR        GPR_GPR1_ENET1_TX_DIR_OUT
+#      define GPR_ENET_CLK_SEL       0
+#    endif
+#    if defined(CONFIG_IMXRT_PHY_PROVIDES_TXC)
+#      define GPR_ENET_TX_DIR        GPR_GPR1_ENET1_TX_DIR_IN
+#      define GPR_ENET_CLK_SEL       GPR_GPR1_ENET1_CLK_SEL
+#    endif
 #  endif
-#  if defined(CONFIG_IMXRT_PHY_PROVIDES_TXC)
-#    define GPR_GPR1_ENET_TX_DIR     GPR_GPR1_ENET2_TX_DIR_IN
-#    define GPR_GPR1_ENET_CLK_SEL    GPR_GPR1_ENET2_CLK_SEL
+
+#  if defined(CONFIG_IMXRT_ENET2)
+#    define imxrt_clock_enet         imxrt_clockall_enet2
+#    define GPR_ENET_MASK            (GPR_GPR1_ENET2_CLK_SEL | \
+                                      GPR_GPR1_ENET2_TX_DIR_OUT)
+#    define IMXRT_ENET_IRQ            IMXRT_IRQ_ENET2
+#    define IMXRT_ENETN_BASE          IMXRT_ENET2_BASE
+#    if defined(CONFIG_IMXRT_MAC_PROVIDES_TXC)
+#      define GPR_ENET_TX_DIR         GPR_GPR1_ENET2_TX_DIR_OUT
+#      define GPR_ENET_CLK_SEL        0
+#    endif
+#    if defined(CONFIG_IMXRT_PHY_PROVIDES_TXC)
+#      define GPR_ENET_TX_DIR          GPR_GPR1_ENET2_TX_DIR_IN
+#      define GPR_ENET_CLK_SEL         GPR_GPR1_ENET2_CLK_SEL
+#    endif
 #  endif
 #endif
 
@@ -274,7 +318,11 @@
  *             = 23
  */
 
-#define IMXRT_MII_SPEED  0x38 /* 100Mbs. Revisit and remove hardcoded value */
+#ifdef CONFIG_ARCH_FAMILY_IMXRT117x
+#  define IMXRT_MII_SPEED  0x2f /* 100Mbs. Revisit and remove hardcoded value */
+#else
+#  define IMXRT_MII_SPEED  0x38 /* 100Mbs. Revisit and remove hardcoded value */
+#endif
 #if IMXRT_MII_SPEED > 63
 #  error "IMXRT_MII_SPEED is out-of-range"
 #endif
@@ -1450,6 +1498,14 @@ static int imxrt_ifup_action(struct net_driver_s *dev, bool resetphy)
 
   up_enable_irq(IMXRT_ENET_IRQ);
 
+#ifdef IMXRT_ENET_IRQ_2
+  up_enable_irq(IMXRT_ENET_IRQ_2);
+#endif
+
+#ifdef IMXRT_ENET_IRQ_3
+  up_enable_irq(IMXRT_ENET_IRQ_3);
+#endif
+
   priv->bifup = true;
 
   /* Enable RX and error interrupts at the controller (TX interrupts are
@@ -1522,6 +1578,14 @@ static int imxrt_ifdown(struct net_driver_s *dev)
   priv->ints = 0;
   imxrt_enet_putreg32(priv, priv->ints, IMXRT_ENET_EIMR_OFFSET);
   up_disable_irq(IMXRT_ENET_IRQ);
+
+#ifdef IMXRT_ENET_IRQ_2
+  up_disable_irq(IMXRT_ENET_IRQ_2);
+#endif
+
+#ifdef IMXRT_ENET_IRQ_3
+  up_disable_irq(IMXRT_ENET_IRQ_3);
+#endif
 
   /* Cancel the TX timeout timers */
 
@@ -2802,10 +2866,10 @@ int imxrt_netinitialize(int intf)
 
   /* Configure ENET1_TX_CLK */
 
-  regval = getreg32(IMXRT_IOMUXC_GPR_GPR1);
-  regval &= ~GPR_GPR1_ENET_MASK;
-  regval |= (GPR_GPR1_ENET_TX_DIR | GPR_GPR1_ENET_CLK_SEL);
-  putreg32(regval, IMXRT_IOMUXC_GPR_GPR1);
+  regval = getreg32(IMXRT_ENET_IOMUXC_GPR);
+  regval &= ~GPR_ENET_MASK;
+  regval |= (GPR_ENET_TX_DIR | GPR_ENET_CLK_SEL);
+  putreg32(regval, IMXRT_ENET_IOMUXC_GPR);
 
   /* Enable the ENET clock.  Clock is on during all modes,
    * except STOP mode.
@@ -2867,6 +2931,26 @@ int imxrt_netinitialize(int intf)
       return -EAGAIN;
     }
 
+#ifdef IMXRT_ENET_IRQ_2
+  if (irq_attach(IMXRT_ENET_IRQ_2, imxrt_enet_interrupt, priv))
+    {
+      /* We could not attach the ISR to the interrupt */
+
+      nerr("ERROR: Failed to attach EMACTX IRQ\n");
+      return -EAGAIN;
+    }
+#endif
+
+#ifdef IMXRT_ENET_IRQ_3
+  if (irq_attach(IMXRT_ENET_IRQ_3, imxrt_enet_interrupt, priv))
+    {
+      /* We could not attach the ISR to the interrupt */
+
+      nerr("ERROR: Failed to attach EMACTX IRQ\n");
+      return -EAGAIN;
+    }
+#endif
+
 #ifdef CONFIG_NET_ETHERNET
 
 #ifdef CONFIG_NET_USE_OTP_ETHERNET_MAC
@@ -2896,10 +2980,8 @@ int imxrt_netinitialize(int intf)
    * (b0 and b1, 1st octet)
    */
 
-  /* hardcoded offset: todo: need proper header file */
-
-  uidl   = getreg32(IMXRT_OCOTP_BASE + 0x410);
-  uidml  = getreg32(IMXRT_OCOTP_BASE + 0x420);
+  uidl   = getreg32(IMXRT_OCOTP_UNIQUE_ID_MSB);
+  uidml  = getreg32(IMXRT_OCOTP_UNIQUE_ID_LSB);
   mac    = priv->dev.d_mac.ether.ether_addr_octet;
 
   uidml |= 0x00000200;
