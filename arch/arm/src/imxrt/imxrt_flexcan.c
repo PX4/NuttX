@@ -1497,7 +1497,7 @@ static int imxrt_txavail(struct net_driver_s *dev)
  *
  ****************************************************************************/
 
-#ifdef CONFIG_NETDEV_CAN_BITRATE_IOCTL
+#ifdef CONFIG_NETDEV_IOCTL
 static int imxrt_ioctl(struct net_driver_s *dev, int cmd,
                          unsigned long arg)
 {
@@ -1508,6 +1508,7 @@ static int imxrt_ioctl(struct net_driver_s *dev, int cmd,
 
   switch (cmd)
     {
+#ifdef CONFIG_NETDEV_CAN_BITRATE_IOCTL
       case SIOCGCANBITRATE: /* Get bitrate from a CAN controller */
         {
           struct can_ioctl_data_s *req =
@@ -1576,7 +1577,7 @@ static int imxrt_ioctl(struct net_driver_s *dev, int cmd,
             }
         }
         break;
-
+#endif
       default:
         ret = -ENOTTY;
         break;
