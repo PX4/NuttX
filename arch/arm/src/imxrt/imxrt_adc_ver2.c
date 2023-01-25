@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/imxrt/imxrt_adc.c
+ * arch/arm/src/imxrt/imxrt_adc_ver2.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -56,7 +56,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define ADC_MAX_CHANNELS 16
+#define ADC_MAX_CHANNELS 14
 
 /****************************************************************************
  * Private Types
@@ -112,10 +112,10 @@ static const struct adc_ops_s g_adcops =
 #ifdef CONFIG_IMXRT_ADC1
 static struct imxrt_dev_s g_adcpriv1 =
 {
-  .irq         = IMXRT_IRQ_ADC1,
+  .irq         = IMXRT_IRQ_LPADC1,
   .intf        = 1,
   .initialized = 0,
-  .base        = IMXRT_ADC1_BASE,
+  .base        = IMXRT_LPADC1_BASE,
 };
 
 static struct adc_dev_s g_adcdev1 =
@@ -126,32 +126,28 @@ static struct adc_dev_s g_adcdev1 =
 
 gpio_pinset_t g_adcpinlist1[ADC_MAX_CHANNELS] =
 {
-    GPIO_ADC1_CH0,
-    GPIO_ADC1_CH1,
-    GPIO_ADC1_CH2,
-    GPIO_ADC1_CH3,
-    GPIO_ADC1_CH4,
-    GPIO_ADC1_CH5,
-    GPIO_ADC1_CH6,
-    GPIO_ADC1_CH7,
-    GPIO_ADC1_CH8,
-    GPIO_ADC1_CH9,
-    GPIO_ADC1_CH10,
-    GPIO_ADC1_CH11,
-    GPIO_ADC1_CH12,
-    GPIO_ADC1_CH13,
-    GPIO_ADC1_CH14,
-    GPIO_ADC1_CH15,
+    IMXRT_PADMUX_GPIO_AD_06_INDEX,
+    IMXRT_PADMUX_GPIO_AD_07_INDEX,
+    IMXRT_PADMUX_GPIO_AD_08_INDEX,
+    IMXRT_PADMUX_GPIO_AD_09_INDEX,
+    IMXRT_PADMUX_GPIO_AD_10_INDEX,
+    IMXRT_PADMUX_GPIO_AD_11_INDEX,
+    IMXRT_PADMUX_GPIO_AD_12_INDEX,
+    IMXRT_PADMUX_GPIO_AD_13_INDEX,
+    IMXRT_PADMUX_GPIO_AD_14_INDEX,
+    IMXRT_PADMUX_GPIO_AD_15_INDEX,
+    IMXRT_PADMUX_GPIO_AD_16_INDEX,
+    IMXRT_PADMUX_GPIO_AD_17_INDEX,
 };
 #endif
 
 #ifdef CONFIG_IMXRT_ADC2
 static struct imxrt_dev_s g_adcpriv2 =
 {
-  .irq         = IMXRT_IRQ_ADC2,
+  .irq         = IMXRT_IRQ_LPADC2,
   .intf        = 2,
   .initialized = 0,
-  .base        = IMXRT_ADC2_BASE,
+  .base        = IMXRT_LPADC2_BASE,
 };
 
 static struct adc_dev_s g_adcdev2 =
@@ -162,22 +158,20 @@ static struct adc_dev_s g_adcdev2 =
 
 gpio_pinset_t g_adcpinlist2[ADC_MAX_CHANNELS] =
 {
-    GPIO_ADC2_CH0,
-    GPIO_ADC2_CH1,
-    GPIO_ADC2_CH2,
-    GPIO_ADC2_CH3,
-    GPIO_ADC2_CH4,
-    GPIO_ADC2_CH5,
-    GPIO_ADC2_CH6,
-    GPIO_ADC2_CH7,
-    GPIO_ADC2_CH8,
-    GPIO_ADC2_CH9,
-    GPIO_ADC2_CH10,
-    GPIO_ADC2_CH11,
-    GPIO_ADC2_CH12,
-    GPIO_ADC2_CH13,
-    GPIO_ADC2_CH14,
-    GPIO_ADC2_CH15,
+    IMXRT_PADMUX_GPIO_AD_18_INDEX,
+    IMXRT_PADMUX_GPIO_AD_19_INDEX,
+    IMXRT_PADMUX_GPIO_AD_20_INDEX,
+    IMXRT_PADMUX_GPIO_AD_21_INDEX,
+    IMXRT_PADMUX_GPIO_AD_22_INDEX,
+    IMXRT_PADMUX_GPIO_AD_23_INDEX,
+    IMXRT_PADMUX_GPIO_AD_12_INDEX,
+    IMXRT_PADMUX_GPIO_AD_13_INDEX,
+    IMXRT_PADMUX_GPIO_AD_14_INDEX,
+    IMXRT_PADMUX_GPIO_AD_15_INDEX,
+    IMXRT_PADMUX_GPIO_AD_16_INDEX,
+    IMXRT_PADMUX_GPIO_AD_17_INDEX,
+    IMXRT_PADMUX_GPIO_AD_24_INDEX,
+    IMXRT_PADMUX_GPIO_AD_25_INDEX,
 };
 #endif
 
