@@ -60,6 +60,16 @@
 
 #ifdef USE_SERIALDRIVER
 
+/* Alias IOMUX_PULL_{UP|DOWN} to IOMUX V1 */
+
+#if defined(IOMUX_PULL_UP_47K)
+#define IOMUX_PULL_UP IOMUX_PULL_UP_47K
+#endif
+
+#if defined(IOMUX_PULL_DOWN_100K)
+#define IOMUX_PULL_DOWN IOMUX_PULL_DOWN_100K
+#endif
+
 /* The DMA buffer size when using RX DMA to emulate a FIFO.
  *
  * When streaming data, the generic serial layer will be called every time
@@ -2044,10 +2054,10 @@ static int imxrt_ioctl(struct file *filep, int cmd, unsigned long arg)
             uint32_t gpio_val = IOMUX_OPENDRAIN;
             gpio_val |= (arg & SER_SINGLEWIRE_PULL_MASK) ==
                          SER_SINGLEWIRE_PULLUP ?
-                                        IOMUX_PULL_UP_47K : IOMUX_PULL_NONE;
+                                        IOMUX_PULL_UP : IOMUX_PULL_NONE;
             gpio_val |= (arg & SER_SINGLEWIRE_PULL_MASK) ==
                          SER_SINGLEWIRE_PULLDOWN ?
-                                     IOMUX_PULL_DOWN_100K : IOMUX_PULL_NONE;
+                                     IOMUX_PULL_DOWN : IOMUX_PULL_NONE;
             imxrt_config_gpio((priv->tx_gpio &
                           ~(IOMUX_PULL_MASK | IOMUX_OPENDRAIN)) | gpio_val);
             regval |= LPUART_CTRL_LOOPS | LPUART_CTRL_RSRC;

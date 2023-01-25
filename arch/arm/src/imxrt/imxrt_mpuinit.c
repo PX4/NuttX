@@ -41,6 +41,12 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
+/* Alias IMXRT_SEMC0_BASE as IMXRT_EXTMEM_BASE */
+
+#if defined(IMXRT_SEMC0_BASE)
+#define IMXRT_EXTMEM_BASE IMXRT_SEMC0_BASE
+#endif
+
 #ifndef MAX
 #  define MAX(a,b) a > b ? a : b
 #endif
@@ -141,7 +147,7 @@ void imxrt_mpu_initialize(void)
                                             * Not Shareable      */
                        MPU_RASR_AP_RWRW);  /* P:RW   U:RW
                                             * Instruction access */
-
+#if defined(IMXRT_FLEXCIPHER_BASE)
   mpu_configure_region(IMXRT_FLEXCIPHER_BASE, 8 * 1024 * 1024,
                        MPU_RASR_TEX_NOR  | /* Normal             */
                        RASR_C_VALUE      | /* Cacheable          */
@@ -149,6 +155,27 @@ void imxrt_mpu_initialize(void)
                                             * Not Shareable      */
                        MPU_RASR_AP_RORO);  /* P:RO   U:RO
                                             * Instruction access */
+#endif
+
+#if defined(IMXRT_FLEXSPI2_CIPHER_BASE)
+  mpu_configure_region(IMXRT_FLEXSPI2_CIPHER_BASE, 8 * 1024 * 1024,
+                       MPU_RASR_TEX_NOR  | /* Normal             */
+                       RASR_C_VALUE      | /* Cacheable          */
+                       MPU_RASR_B        | /* Bufferable
+                                            * Not Shareable      */
+                       MPU_RASR_AP_RORO);  /* P:RO   U:RO
+                                            * Instruction access */
+#endif
+
+#if defined(IMXRT_FLEXSPI1_CIPHER_BASE)
+  mpu_configure_region(IMXRT_FLEXSPI1_CIPHER_BASE, 8 * 1024 * 1024,
+                       MPU_RASR_TEX_NOR  | /* Normal             */
+                       RASR_C_VALUE      | /* Cacheable          */
+                       MPU_RASR_B        | /* Bufferable
+                                            * Not Shareable      */
+                       MPU_RASR_AP_RORO);  /* P:RO   U:RO
+                                            * Instruction access */
+#endif
 
   mpu_configure_region(IMXRT_ITCM_BASE,  128 * 1024,
                        MPU_RASR_TEX_NOR  | /* Normal             */
