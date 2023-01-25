@@ -38,6 +38,8 @@
 #  include "imxrt105x_daisy.c"
 #elif defined(CONFIG_ARCH_FAMILY_IMXRT106x)
 #  include "imxrt106x_daisy.c"
+#elif defined(CONFIG_ARCH_FAMILY_IMXRT117x)
+#  include "imxrt117x_daisy.c"
 #else
 #  error Unrecognized i.MX RT architecture
 #endif
