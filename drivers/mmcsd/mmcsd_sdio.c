@@ -1279,6 +1279,10 @@ static int mmcsd_transferready(FAR struct mmcsd_state_s *priv)
           goto errorout;
         }
 
+      /* Do not hog the CPU */
+
+      nxsig_usleep(1000);
+
       /* We are still in the programming state. Calculate the elapsed
        * time... we can't stay in this loop forever!
        */
