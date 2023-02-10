@@ -586,6 +586,7 @@ void stm32_dmasetup(DMA_HANDLE handle, uint32_t paddr, uint32_t maddr,
   struct stm32_dma_s *dmast = (struct stm32_dma_s *)handle;
   uint32_t regoffset;
   uint32_t regval;
+  uint32_t timeout;
 
   dmainfo("paddr: %08" PRIx32 " maddr: %08" PRIx32
           " ntransfers: %zu scr: %08" PRIx32 "\n",
@@ -605,7 +606,30 @@ void stm32_dmasetup(DMA_HANDLE handle, uint32_t paddr, uint32_t maddr,
    * configuration..."
    */
 
-  while ((dmast_getreg(dmast, STM32_DMA_SCR_OFFSET) & DMA_SCR_EN) != 0);
+  if ((dmast_getreg(dmast, STM32_DMA_SCR_OFFSET) & DMA_SCR_EN) != 0)
+    {
+      /* Disable the DMA stream */
+
+      regval = dmast_getreg(dmast, STM32_DMA_SCR_OFFSET);
+      regval &= ~DMA_SCR_EN;
+      dmast_putreg(dmast, STM32_DMA_SCR_OFFSET, regval);
+
+      timeout = 10;
+      while (timeout != 0 &&
+             (dmast_getreg(dmast, STM32_DMA_SCR_OFFSET) & DMA_SCR_EN) != 0)
+        {
+          /* Do not hog the CPU */
+
+          nxsig_usleep(100);
+          timeout--;
+        }
+
+      if (timeout == 0)
+        {
+          DEBUGASSERT((dmast_getreg(dmast, STM32_DMA_SCR_OFFSET) &
+                      DMA_SCR_EN) == 0);
+        }
+    }
 
   /* "... All the stream dedicated bits set in the status register (DMA_LISR
    * and DMA_HISR) from the previous data block DMA transfer should be
