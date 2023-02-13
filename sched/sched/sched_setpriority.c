@@ -340,8 +340,9 @@ int nxsched_set_priority(FAR struct tcb_s *tcb, int sched_priority)
 
   /* Verify that the requested priority is in the valid range */
 
-  if (sched_priority < SCHED_PRIORITY_MIN ||
-      sched_priority > SCHED_PRIORITY_MAX)
+  if ((sched_priority < SCHED_PRIORITY_MIN ||
+       sched_priority > SCHED_PRIORITY_MAX)
+      && !(sched_priority == 0 && tcb->pid == 0))
     {
       return -EINVAL;
     }
