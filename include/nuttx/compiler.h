@@ -791,6 +791,10 @@
 
 #endif
 
+#ifndef CONFIG_HAVE_LONG_LONG
+#  undef CONFIG_FS_LARGEFILE
+#endif
+
 /* Decorators */
 
 #ifdef CONFIG_ARCH_RAMFUNCS

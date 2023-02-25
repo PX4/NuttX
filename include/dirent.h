@@ -86,7 +86,7 @@
 #define DT_LNK                    DTYPE_LINK
 #define DT_SOCK                   DTYPE_SOCK
 
-#if defined(CONFIG_FS_LARGEFILE) && defined(CONFIG_HAVE_LONG_LONG)
+#if defined(CONFIG_FS_LARGEFILE)
 #  define dirent64                dirent
 #  define readdir64               readdir
 #  define readdir64_r             readdir_r
