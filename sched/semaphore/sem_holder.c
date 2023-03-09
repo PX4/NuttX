@@ -24,6 +24,12 @@
 
 #include <nuttx/config.h>
 
+#if defined(CONFIG_BOARD_USE_PROBES)
+#  include <arch/board/board.h>
+#else
+# define PROBE(n,b)
+#endif
+
 #include <sched.h>
 #include <assert.h>
 #include <debug.h>
@@ -315,6 +321,33 @@ static int nxsem_recoverholders(FAR struct semholder_s *pholder,
   return 0;
 }
 
+struct pi_info {
+FAR struct tcb_s * h;
+FAR struct tcb_s * w;
+} g_pi_info[1024] = {0};
+volatile int g_pi_ndx = 0;
+volatile int g_pi_sample = 1;
+
+#define RUN_COUNTS_OR_PANIC(x)
+//#define RUN_COUNTS_OR_PANIC(x) PANIC((x))
+
+#define save_hw(hl,wa) if (g_pi_sample) {g_pi_info[g_pi_ndx].h = (hl); g_pi_info[g_pi_ndx].w = (wa); \
+                     g_pi_ndx++; g_pi_ndx &=1023;}
+
+volatile int g_boost_overflow = 0;
+volatile int g_boost_count = 0;
+
+int dump_holder()
+{
+  int last = g_pi_sample;
+  for (int i = 0; i < g_pi_ndx; i++) {
+      g_pi_sample = 0;
+      printf("%d h:%s w:%s\n", i+1, g_pi_info[i].h->name,g_pi_info[i].w->name);
+  }
+  g_pi_sample = last;
+  return 0;
+}
+
 /****************************************************************************
  * Name: nxsem_boostholderprio
  ****************************************************************************/
@@ -325,6 +358,23 @@ static int nxsem_boostholderprio(FAR struct semholder_s *pholder,
   FAR struct tcb_s *htcb = (FAR struct tcb_s *)pholder->htcb;
   FAR struct tcb_s *rtcb = (FAR struct tcb_s *)arg;
 
+  PROBE(1,0);
+
+  /* Make sure that the holder thread is still active.  If it exited without
+   * releasing its counts, then that would be a bad thing.  But we can take
+   * no real action because we don't know what the program is doing.
+   * Perhaps its plan is to kill a thread, then destroy the semaphore.
+   */
+
+  extern FAR struct task_tcb_s g_idletcb[];
+  if (htcb == (FAR struct tcb_s *) & g_idletcb[0])
+    {
+      volatile static int j = 0;
+      j++;
+      RUN_COUNTS_OR_PANIC("Idel Holding Semaphore");
+      while (j)
+        ;
+    }
 #if CONFIG_SEM_NNESTPRIO > 0
   /* If the priority of the thread that is waiting for a count is greater
    * than the base priority of the thread holding a count, then we may need
@@ -333,6 +383,8 @@ static int nxsem_boostholderprio(FAR struct semholder_s *pholder,
 
   if (rtcb->sched_priority > htcb->base_priority)
     {
+      PROBE(3,0);
+
       /* If the new priority is greater than the current, possibly already
        * boosted priority of the holder thread, then we will have to raise
        * the holder's priority now.
@@ -346,31 +398,40 @@ static int nxsem_boostholderprio(FAR struct semholder_s *pholder,
            * count, then we need to revert the holder thread to this saved
            * priority (not to its base priority).
            */
-
+          PROBE(4,0);
+          g_boost_count++;
           if (htcb->sched_priority > htcb->base_priority)
             {
               /* Save the current, boosted priority of the holder thread. */
 
               if (htcb->npend_reprio < CONFIG_SEM_NNESTPRIO)
                 {
+                  PROBE(5,0);
                   htcb->pend_reprios[htcb->npend_reprio] =
                     htcb->sched_priority;
                   htcb->npend_reprio++;
+                  PROBE(5,1);
                 }
               else
                 {
                   serr("ERROR: CONFIG_SEM_NNESTPRIO exceeded\n");
-                  DEBUGASSERT(htcb->npend_reprio < CONFIG_SEM_NNESTPRIO);
+                  PROBE(6,0);
+                  g_boost_overflow++;
+                  PROBE(6,1);
+                  RUN_COUNTS_OR_PANIC("htcb->npend_reprio < CONFIG_SEM_NNESTPRIO");
                 }
             }
+            PROBE(4,1);
 
           /* Raise the priority of the thread holding of the semaphore.
            * This cannot cause a context switch because we have preemption
            * disabled.  The holder thread may be marked "pending" and the
            * switch may occur during up_block_task() processing.
            */
-
+          PROBE(7,0);
+          save_hw(htcb, rtcb);
           nxsched_set_priority(htcb, rtcb->sched_priority);
+          PROBE(7,1);
         }
       else
         {
@@ -381,6 +442,7 @@ static int nxsem_boostholderprio(FAR struct semholder_s *pholder,
            * saved priority and not to the base priority.
            */
 
+          PROBE(8,0);
           if (htcb->npend_reprio < CONFIG_SEM_NNESTPRIO)
             {
               htcb->pend_reprios[htcb->npend_reprio] = rtcb->sched_priority;
@@ -390,8 +452,13 @@ static int nxsem_boostholderprio(FAR struct semholder_s *pholder,
             {
               serr("ERROR: CONFIG_SEM_NNESTPRIO exceeded\n");
               DEBUGASSERT(htcb->npend_reprio < CONFIG_SEM_NNESTPRIO);
+              PROBE(6,0);
+              g_boost_overflow++;
+              PROBE(6,0);
             }
+          PROBE(8,1);
         }
+      PROBE(3,1);
     }
 
 #else
@@ -411,7 +478,7 @@ static int nxsem_boostholderprio(FAR struct semholder_s *pholder,
       nxsched_set_priority(htcb, rtcb->sched_priority);
     }
 #endif
-
+  PROBE(1,1);
   return 0;
 }
 
