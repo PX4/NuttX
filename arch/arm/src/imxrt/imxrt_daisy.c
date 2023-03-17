@@ -55,7 +55,7 @@
 /****************************************************************************
  * Name: imxrt_daisy_select
  ****************************************************************************/
-
+#if !defined(IMXRT_DAISY_SELECT_PROVIDED)
 void imxrt_daisy_select(unsigned int index, unsigned int alt)
 {
   uintptr_t address;
@@ -69,3 +69,4 @@ void imxrt_daisy_select(unsigned int index, unsigned int alt)
       putreg32(alt, address);
     }
 }
+#endif
