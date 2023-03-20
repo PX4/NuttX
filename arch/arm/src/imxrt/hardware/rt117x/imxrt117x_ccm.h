@@ -787,8 +787,8 @@
 #define CCM_CCGR_KPP                         52
 #define CCM_CCGR_FLEXIO1                     53
 #define CCM_CCGR_FLEXIO2                     54
-#define CCM_CCGR_LPADC1                      55
-#define CCM_CCGR_LPADC2                      56
+#define CCM_CCGR_ADC1                        55
+#define CCM_CCGR_ADC2                        56
 #define CCM_CCGR_DAC                         57
 #define CCM_CCGR_ACMP1                       58
 #define CCM_CCGR_ACMP2                       59
@@ -802,9 +802,9 @@
 #define CCM_CCGR_GPT4                        67
 #define CCM_CCGR_GPT5                        68
 #define CCM_CCGR_GPT6                        69
-#define CCM_CCGR_QTIMER1                     70
-#define CCM_CCGR_QTIMER2                     71
-#define CCM_CCGR_QTIMER3                     72
+#define CCM_CCGR_TIMER1                      70
+#define CCM_CCGR_TIMER2                      71
+#define CCM_CCGR_TIMER3                      72
 #define CCM_CCGR_QTIMER4                     73
 #define CCM_CCGR_ENC1                        74
 #define CCM_CCGR_ENC2                        75
