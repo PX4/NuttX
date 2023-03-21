@@ -156,6 +156,7 @@ config ARCH_FAMILY_IMXRT117x
 	select ARMV7M_HAVE_DTCM
 	select IMXRT_HIGHSPEED_GPIO
 	select IMXRT_HAVE_FLEXSPI2
+	select IMXRT_ADC_VER2
 	select IMXRT_CLOCKCONFIG_VER2
 	select IMXRT_IOMUX_VER2
 
@@ -228,6 +229,10 @@ config IMXRT_HAVE_LCD
 	default n
 
 config IMXRT_SEMC_INIT_DONE
+	bool
+	default n
+
+config IMXRT_ADC_VER2
 	bool
 	default n
 
