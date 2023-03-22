@@ -32,6 +32,70 @@
 #include "sched/sched.h"
 #include "semaphore/semaphore.h"
 
+#ifdef CONFIG_PRIORITY_INHERITANCE_LOGGING
+struct nxsem_boostlog_t
+{
+  uint32_t used;
+  uint16_t dropped;
+  nxsem_boostlog_item_t slots[32];
+}
+nxsem_boostlog;
+
+static inline int nxsem_boostlog_push(nxsem_boostlog_item_t *item)
+{
+  if (~nxsem_boostlog.used == 0) {
+    nxsem_boostlog.dropped++;
+    return -1;
+  }
+  const uint8_t slot = __builtin_ffs(~nxsem_boostlog.used) - 1u;
+  nxsem_boostlog.slots[slot] = *item;
+  __atomic_or_fetch(&nxsem_boostlog.used, (1u << slot), __ATOMIC_SEQ_CST);
+  return 0;
+}
+
+int nxsem_boostlog_pop(nxsem_boostlog_item_t *item)
+{
+  if (nxsem_boostlog.used == 0) return -1;
+  const uint8_t slot = __builtin_ffs(nxsem_boostlog.used) - 1u;
+  *item = nxsem_boostlog.slots[slot];
+  __atomic_and_fetch(&nxsem_boostlog.used, ~(1u << slot), __ATOMIC_SEQ_CST);
+  return nxsem_boostlog.dropped;
+}
+
+extern unsigned int hrt_absolute_time(void);
+
+#define NX_SEMBOOST_LOG_PUSH_UP(rtcb) \
+  { \
+    nxsem_boostlog_item_t item = { \
+      .hrt = hrt_absolute_time(), \
+      .sem = sem, \
+      .prio_from = htcb->sched_priority, \
+      .prio_to = rtcb->sched_priority, \
+      .line = __LINE__ \
+    }; \
+    strncpy(item.name, htcb->name, sizeof(item.name) - 1); \
+    strncpy(item.reason, rtcb->name, sizeof(item.reason) - 1); \
+    nxsem_boostlog_push(&item); \
+  }
+
+#define NX_SEMBOOST_LOG_PUSH_DOWN(prio) \
+  { \
+    nxsem_boostlog_item_t item = { \
+      .hrt = hrt_absolute_time(), \
+      .sem = sem, \
+      .prio_from = htcb->sched_priority, \
+      .prio_to = prio, \
+      .line = __LINE__ \
+    }; \
+    strncpy(item.name, htcb->name, sizeof(item.name) - 1); \
+    nxsem_boostlog_push(&item); \
+  }
+
+#else
+#define NX_SEMBOOST_LOG_PUSH_UP(...)
+#define NX_SEMBOOST_LOG_PUSH_DOWN(...)
+#endif
+
 #ifdef CONFIG_PRIORITY_INHERITANCE
 
 /****************************************************************************
@@ -376,7 +440,7 @@ static int nxsem_boostholderprio(FAR struct semholder_s *pholder,
            * disabled.  The holder thread may be marked "pending" and the
            * switch may occur during up_block_task() processing.
            */
-
+          NX_SEMBOOST_LOG_PUSH_UP(rtcb);
           nxsched_set_priority(htcb, rtcb->sched_priority);
         }
       else
@@ -546,7 +610,7 @@ static int nxsem_restoreholderprio(FAR struct tcb_s *htcb,
             htcb->npend_reprio == 0);
 
           /* Reset the holder's priority back to the base priority. */
-
+          NX_SEMBOOST_LOG_PUSH_DOWN(htcb->base_priority);
           nxsched_reprioritize(htcb, htcb->base_priority);
         }
 
@@ -589,6 +653,7 @@ static int nxsem_restoreholderprio(FAR struct tcb_s *htcb,
            * base_priority)
            */
 
+          NX_SEMBOOST_LOG_PUSH_DOWN(rpriority);
           nxsched_set_priority(htcb, rpriority);
         }
       else

@@ -206,6 +206,25 @@ int sem_setprotocol(FAR sem_t *sem, int protocol);
 
 int sem_getprotocol(FAR sem_t *sem, FAR int *protocol);
 
+#define CONFIG_PRIORITY_INHERITANCE_LOGGING
+
+#ifdef CONFIG_PRIORITY_INHERITANCE_LOGGING
+
+typedef struct
+{
+  uint64_t hrt;
+  sem_t *sem;
+  char name[24];
+  char reason[24];
+  uint8_t prio_from;
+  uint8_t prio_to;
+  uint16_t line;
+}
+nxsem_boostlog_item_t;
+
+int nxsem_boostlog_pop(nxsem_boostlog_item_t *item);
+#endif
+
 #undef EXTERN
 #ifdef __cplusplus
 }
