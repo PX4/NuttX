@@ -630,7 +630,7 @@ void stm32_dmasetup(DMA_HANDLE handle, uint32_t paddr, uint32_t maddr,
        * to stop.
        */
 
-      dmast_modifyreg32(dmast, STM32_DMA_SCR_OFFSET, DMA_SCR_EN, 0);
+//      dmast_modifyreg32(dmast, STM32_DMA_SCR_OFFSET, DMA_SCR_EN, 0);
       timeout = 100;
       while (timeout != 0 &&
              (dmast_getreg(dmast, STM32_DMA_SCR_OFFSET) & DMA_SCR_EN) != 0)
