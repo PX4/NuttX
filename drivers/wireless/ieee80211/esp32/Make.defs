@@ -1,5 +1,5 @@
 ############################################################################
-# drivers/wireless/ieee80211/Make.defs
+# drivers/wireless/ieee80211/bcm43xxx/Make.defs
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -18,22 +18,15 @@
 #
 ############################################################################
 
-# Include nothing if IEEE 802.11 is disabled
-
-ifeq ($(CONFIG_DRIVERS_IEEE80211),y)
-
-# Include common IEEE 802.11 files into the build
-
-# Include IEEE 802.11 drivers into the build
+# Include esp32 drivers into the build
 
 ifeq ($(CONFIG_IEEE80211_ESP32C3_FULLMAC),y)
+  CSRCS += esp32_atcontrol.c
 
-include wireless/ieee80211/esp32/Make.defs
+# Include esp32xxx build support
 
-else
+DEPPATH += --dep-path wireless$(DELIM)ieee80211$(DELIM)esp32xxx
+VPATH += :wireless$(DELIM)ieee80211$(DELIM)esp32xxx
+CFLAGS += ${shell $(INCDIR) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)wireless$(DELIM)ieee80211$(DELIM)esp32xxx}
 
-include wireless/ieee80211/bcm43xxx/Make.defs
-
-endif
-
-endif # CONFIG_DRIVERS_IEEE80211
+endif # CONFIG_IEEE80211_ESP32C3_FULLMAC

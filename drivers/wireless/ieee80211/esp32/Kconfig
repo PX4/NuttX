@@ -1,0 +1,4 @@
+
+config IEEE80211_ESP32C3_FULLMAC
+    bool
+    default n
