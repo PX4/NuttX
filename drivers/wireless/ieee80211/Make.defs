@@ -26,14 +26,14 @@ ifeq ($(CONFIG_DRIVERS_IEEE80211),y)
 
 # Include IEEE 802.11 drivers into the build
 
-ifeq ($(CONFIG_IEEE80211_ESP32C3_FULLMAC),y)
+#ifeq ($(CONFIG_IEEE80211_ESP32C3_FULLMAC),y)
 
 include wireless/ieee80211/esp32/Make.defs
 
-else
+#else
 
-include wireless/ieee80211/bcm43xxx/Make.defs
+#include wireless/ieee80211/bcm43xxx/Make.defs
 
-endif
+# endif
 
 endif # CONFIG_DRIVERS_IEEE80211

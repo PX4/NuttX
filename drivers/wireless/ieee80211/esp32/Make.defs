@@ -22,6 +22,9 @@
 
 ifeq ($(CONFIG_IEEE80211_ESP32C3_FULLMAC),y)
   CSRCS += esp32_atcontrol.c
+  CSRCS += esp32_driver.c
+  CSRCS += esp32_netdev.c
+  CSRCS += esp32_sdio.c
 
 # Include esp32xxx build support
 
