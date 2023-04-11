@@ -304,7 +304,9 @@
 #  define BOARD_PHY_100BASET(s) 1 /* PHY only supports 100BASE-T1 */
 #  define BOARD_PHY_ISDUPLEX(s) 1 /* PHY only supports fullduplex */
 
-#  define CLAUSE45              1
+#  ifdef CONFIG_NETDEV_IOCTL
+#    define CLAUSE45            1
+#  endif
 #  define MMD1                  1
 #  define MMD1_PMA_STATUS1      1
 #  define MMD1_PS1_RECEIVE_LINK_STATUS (1 << 2)
@@ -2341,12 +2343,12 @@ static int s32k3xx_addmac(struct net_driver_s *dev, const uint8_t *mac)
 
   if (hashindex > 31)
     {
-      registeraddress = S32K3XX_ENET_GAUR;
+      registeraddress = S32K3XX_EMAC_MAC_HASH_TABLE_REG1;
       hashindex      -= 32;
     }
   else
     {
-      registeraddress = S32K3XX_ENET_GALR;
+      registeraddress = S32K3XX_EMAC_MAC_HASH_TABLE_REG0;
     }
 
   temp  = getreg32(registeraddress);
@@ -2389,12 +2391,12 @@ static int s32k3xx_rmmac(struct net_driver_s *dev, const uint8_t *mac)
 
   if (hashindex > 31)
     {
-      registeraddress = S32K3XX_ENET_GAUR;
+      registeraddress = S32K3XX_EMAC_MAC_HASH_TABLE_REG1;
       hashindex      -= 32;
     }
   else
     {
-      registeraddress = S32K3XX_ENET_GALR;
+      registeraddress = S32K3XX_EMAC_MAC_HASH_TABLE_REG0;
     }
 
   temp  = getreg32(registeraddress);
