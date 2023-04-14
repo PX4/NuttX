@@ -28,8 +28,8 @@ ifeq ($(CONFIG_IEEE80211_ESP32C3_FULLMAC),y)
 
 # Include esp32xxx build support
 
-DEPPATH += --dep-path wireless$(DELIM)ieee80211$(DELIM)esp32xxx
-VPATH += :wireless$(DELIM)ieee80211$(DELIM)esp32xxx
-CFLAGS += ${shell $(INCDIR) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)wireless$(DELIM)ieee80211$(DELIM)esp32xxx}
+DEPPATH += --dep-path wireless$(DELIM)ieee80211$(DELIM)esp32
+VPATH += :wireless$(DELIM)ieee80211$(DELIM)esp32
+CFLAGS += ${shell $(INCDIR) "$(CC)" $(TOPDIR)$(DELIM)drivers$(DELIM)wireless$(DELIM)ieee80211$(DELIM)esp32}
 
 endif # CONFIG_IEEE80211_ESP32C3_FULLMAC
