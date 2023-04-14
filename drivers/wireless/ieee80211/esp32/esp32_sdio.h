@@ -24,7 +24,7 @@
 
 /* SDIO chip configuration structure */
 
-struct bcmf_sdio_chip
+struct esp32_sdio_chip
 {
     uint32_t ram_size;
     uint32_t core_base[MAX_CORE_ID];
