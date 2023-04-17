@@ -605,11 +605,11 @@ struct tcb_s
 
 #ifdef CONFIG_PRIORITY_INHERITANCE
 #if CONFIG_SEM_NNESTPRIO > 0
-  uint8_t  nsem_held;               /* used to condition priority restore */
   uint8_t  npend_reprio;             /* Number of nested reprioritizations  */
   uint8_t  pend_reprios[CONFIG_SEM_NNESTPRIO];
 #endif
   uint8_t  base_priority;                /* "Normal" priority of the thread */
+  FAR struct semholder_s *holdsem;       /* List of held semaphores         */
 #endif
 
   uint8_t  task_state;                   /* Current state of the thread     */
