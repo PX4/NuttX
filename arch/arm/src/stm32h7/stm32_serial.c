@@ -1561,9 +1561,14 @@ static inline void up_setusartint(struct up_dev_s *priv, uint16_t ie)
   cr = up_serialin(priv, STM32_USART_CR1_OFFSET);
   cr &= ~(USART_CR1_USED_INTS);
   cr |= (ie & (USART_CR1_USED_INTS));
+
 #ifdef SERIAL_HAVE_RXDMA
-  cr |= USART_CR1_IDLEIE;
+  if (priv->rxdma != 0)
+    {
+      cr |= USART_CR1_IDLEIE;
+    }
 #endif
+
   up_serialout(priv, STM32_USART_CR1_OFFSET, cr);
 
   cr = up_serialin(priv, STM32_USART_CR3_OFFSET);
@@ -2142,7 +2147,8 @@ static int up_setup(struct uart_dev_s *dev)
    */
 
   regval  = up_serialin(priv, STM32_USART_CR1_OFFSET);
-  regval &= ~(USART_CR1_TE | USART_CR1_RE | USART_CR1_ALLINTS);
+  regval &= ~(USART_CR1_TE | USART_CR1_RE | USART_CR1_IDLEIE |
+              USART_CR1_ALLINTS);
 
   up_serialout(priv, STM32_USART_CR1_OFFSET, regval);
 
@@ -2172,7 +2178,10 @@ static int up_setup(struct uart_dev_s *dev)
   regval  = up_serialin(priv, STM32_USART_CR1_OFFSET);
   regval |= (USART_CR1_UE | USART_CR1_TE | USART_CR1_RE);
 #ifdef SERIAL_HAVE_RXDMA
-  regval |= USART_CR1_IDLEIE;
+  if (priv->rxdma != 0)
+    {
+      regval |= USART_CR1_IDLEIE;
+    }
 #endif
 
   regval |= USART_CR1_FIFOEN;
@@ -2523,10 +2532,7 @@ static int up_interrupt(int irq, void *context, FAR void *arg)
   if ((priv->sr & USART_ISR_IDLE) != 0)
     {
       up_serialout(priv, STM32_USART_ICR_OFFSET, USART_ICR_IDLECF);
-      if (priv->rxdma != 0)
-        {
-          up_dma_rxcallback(priv->rxdma, 0, priv);
-        }
+      up_dma_rxcallback(priv->rxdma, 0, priv);
     }
 #endif
 
