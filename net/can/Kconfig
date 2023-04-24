@@ -11,10 +11,10 @@ config NET_CAN
 	select NET_READAHEAD
 	depends on NET
 	---help---
-		Enable support for SocketCAN sockets that will permit.
+		Enable support for SocketCAN sockets.
 
-		This logic is a WIP.  Currently only fragmentary support is
-		available, not enough to actually do anything of consequence.
+		This requires a lower-half driver compatible with the SocketCAN
+		API.
 
 if NET_CAN
 
@@ -26,11 +26,22 @@ config NET_CAN_HAVE_CANFD
 	bool
 	default n
 
+config NET_CAN_HAVE_ERRORS
+	bool
+	default n
+
 config CAN_CONNS
-	int "Number of CAN connections"
+	int "Max number of CAN socket connections"
 	default 4
 	---help---
 		Maximum number of CAN connections (all tasks).
+
+config NET_CAN_EXTID
+	bool "Enable CAN extended IDs"
+	default n
+	---help---
+		Enables support for the 29-bit extended ID in SocketCAN stack.
+		Default Standard 11-bit IDs.
 
 config NET_CAN_CANFD
 	bool "Enable CAN FD support"
@@ -38,6 +49,13 @@ config NET_CAN_CANFD
 	depends on NET_CAN_HAVE_CANFD
 	---help---
 		Enable CAN FD support in SocketCAN stack
+
+config NET_CAN_ERRORS
+	bool "Enable CAN errors support"
+	default n
+	depends on NET_CAN_HAVE_ERRORS
+	---help---
+		Enable CAN errors support in SocketCAN stack
 
 config NET_CAN_SOCK_OPTS
 	bool "sockopt support"
