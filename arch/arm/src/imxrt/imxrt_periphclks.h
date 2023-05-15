@@ -134,6 +134,12 @@
 #define imxrt_clockoff_lpuart6()          imxrt_periphclk_configure(CCM_CCGR_LPUART6, CCM_CG_OFF)
 #define imxrt_clockoff_lpuart7()          imxrt_periphclk_configure(CCM_CCGR_LPUART7, CCM_CG_OFF)
 #define imxrt_clockoff_lpuart8()          imxrt_periphclk_configure(CCM_CCGR_LPUART8, CCM_CG_OFF)
+#ifdef CONFIG_ARCH_FAMILY_IMXRT117x
+#  define imxrt_clockoff_lpuart9()        imxrt_periphclk_configure(CCM_CCGR_LPUART9, CCM_CG_OFF)
+#  define imxrt_clockoff_lpuart10()       imxrt_periphclk_configure(CCM_CCGR_LPUART10, CCM_CG_OFF)
+#  define imxrt_clockoff_lpuart11()       imxrt_periphclk_configure(CCM_CCGR_LPUART11, CCM_CG_OFF)
+#  define imxrt_clockoff_lpuart12()       imxrt_periphclk_configure(CCM_CCGR_LPUART12, CCM_CG_OFF)
+#endif
 #define imxrt_clockoff_mqs()              imxrt_periphclk_configure(CCM_CCGR_MQS, CCM_CG_OFF)
 #define imxrt_clockoff_ocotp_ctrl()       imxrt_periphclk_configure(CCM_CCGR_OCOTP_CTRL, CCM_CG_OFF)
 #define imxrt_clockoff_ocram()            imxrt_periphclk_configure(CCM_CCGR_OCRAM, CCM_CG_OFF)
@@ -278,6 +284,12 @@
 #define imxrt_clockrun_lpuart6()          imxrt_periphclk_configure(CCM_CCGR_LPUART6, CCM_CG_RUN)
 #define imxrt_clockrun_lpuart7()          imxrt_periphclk_configure(CCM_CCGR_LPUART7, CCM_CG_RUN)
 #define imxrt_clockrun_lpuart8()          imxrt_periphclk_configure(CCM_CCGR_LPUART8, CCM_CG_RUN)
+#ifdef CONFIG_ARCH_FAMILY_IMXRT117x
+#  define imxrt_clockrun_lpuart9()        imxrt_periphclk_configure(CCM_CCGR_LPUART9, CCM_CG_RUN)
+#  define imxrt_clockrun_lpuart10()       imxrt_periphclk_configure(CCM_CCGR_LPUART10, CCM_CG_RUN)
+#  define imxrt_clockrun_lpuart11()       imxrt_periphclk_configure(CCM_CCGR_LPUART11, CCM_CG_RUN)
+#  define imxrt_clockrun_lpuart12()       imxrt_periphclk_configure(CCM_CCGR_LPUART12, CCM_CG_RUN)
+#endif
 #define imxrt_clockrun_mqs()              imxrt_periphclk_configure(CCM_CCGR_MQS, CCM_CG_RUN)
 #define imxrt_clockrun_ocotp_ctrl()       imxrt_periphclk_configure(CCM_CCGR_OCOTP_CTRL, CCM_CG_RUN)
 #define imxrt_clockrun_ocram()            imxrt_periphclk_configure(CCM_CCGR_OCRAM, CCM_CG_RUN)
@@ -422,6 +434,12 @@
 #define imxrt_clockall_lpuart6()          imxrt_periphclk_configure(CCM_CCGR_LPUART6, CCM_CG_ALL)
 #define imxrt_clockall_lpuart7()          imxrt_periphclk_configure(CCM_CCGR_LPUART7, CCM_CG_ALL)
 #define imxrt_clockall_lpuart8()          imxrt_periphclk_configure(CCM_CCGR_LPUART8, CCM_CG_ALL)
+#ifdef CONFIG_ARCH_FAMILY_IMXRT117x
+#  define imxrt_clockall_lpuart9()        imxrt_periphclk_configure(CCM_CCGR_LPUART9, CCM_CG_ALL)
+#  define imxrt_clockall_lpuart10()       imxrt_periphclk_configure(CCM_CCGR_LPUART10, CCM_CG_ALL)
+#  define imxrt_clockall_lpuart11()       imxrt_periphclk_configure(CCM_CCGR_LPUART11, CCM_CG_ALL)
+#  define imxrt_clockall_lpuart12()       imxrt_periphclk_configure(CCM_CCGR_LPUART12, CCM_CG_ALL)
+#endif
 #define imxrt_clockall_mqs()              imxrt_periphclk_configure(CCM_CCGR_MQS, CCM_CG_ALL)
 #define imxrt_clockall_ocotp_ctrl()       imxrt_periphclk_configure(CCM_CCGR_OCOTP_CTRL, CCM_CG_ALL)
 #define imxrt_clockall_ocram()            imxrt_periphclk_configure(CCM_CCGR_OCRAM, CCM_CG_ALL)

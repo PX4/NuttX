@@ -159,6 +159,10 @@ config ARCH_FAMILY_IMXRT117x
 	select IMXRT_ADC_VER2
 	select IMXRT_CLOCKCONFIG_VER2
 	select IMXRT_IOMUX_VER2
+	select IMXRT_HAVE_LPUART9
+	select IMXRT_HAVE_LPUART10
+	select IMXRT_HAVE_LPUART11
+	select IMXRT_HAVE_LPUART12
 
 config ARCH_FAMILY_IMXRT106x
 	bool
@@ -183,6 +187,22 @@ config IMXRT_FLEXIO
 	default n
 
 config IMXRT_HAVE_LPUART
+	bool
+	default n
+
+config IMXRT_HAVE_LPUART9
+	bool
+	default n
+
+config IMXRT_HAVE_LPUART10
+	bool
+	default n
+
+config IMXRT_HAVE_LPUART11
+	bool
+	default n
+
+config IMXRT_HAVE_LPUART12
 	bool
 	default n
 
@@ -460,6 +480,38 @@ config IMXRT_LPUART8
 	select LPUART8_SERIALDRIVER
 	select ARCH_HAVE_SERIAL_TERMIOS
 	select IMXRT_HAVE_LPUART
+
+config IMXRT_LPUART9
+	bool "LPUART9"
+	default n
+	select LPUART9_SERIALDRIVER
+	select ARCH_HAVE_SERIAL_TERMIOS
+	select IMXRT_HAVE_LPUART
+	depends on IMXRT_HAVE_LPUART9
+
+config IMXRT_LPUART10
+	bool "LPUART10"
+	default n
+	select LPUART10_SERIALDRIVER
+	select ARCH_HAVE_SERIAL_TERMIOS
+	select IMXRT_HAVE_LPUART
+	depends on IMXRT_HAVE_LPUART10
+
+config IMXRT_LPUART11
+	bool "LPUART11"
+	default n
+	select LPUART11_SERIALDRIVER
+	select ARCH_HAVE_SERIAL_TERMIOS
+	select IMXRT_HAVE_LPUART
+	depends on IMXRT_HAVE_LPUART11
+
+config IMXRT_LPUART12
+	bool "LPUART12"
+	default n
+	select LPUART12_SERIALDRIVER
+	select ARCH_HAVE_SERIAL_TERMIOS
+	select IMXRT_HAVE_LPUART
+	depends on IMXRT_HAVE_LPUART12
 
 endmenu # LPUART Peripherals
 
