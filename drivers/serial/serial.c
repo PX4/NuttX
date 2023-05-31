@@ -1663,7 +1663,8 @@ void uart_datareceived(FAR uart_dev_t *dev)
   uart_pollnotify(dev, POLLIN);
 
   /* Is there a thread waiting for read data?  */
-
+  irqstate_t flags;
+  flags = enter_critical_section();
   if (dev->recvwaiting)
     {
       /* Yes... wake it up */
@@ -1671,6 +1672,7 @@ void uart_datareceived(FAR uart_dev_t *dev)
       dev->recvwaiting = false;
       nxsem_post(&dev->recvsem);
     }
+  leave_critical_section(flags);
 
 #if defined(CONFIG_PM) && defined(CONFIG_SERIAL_CONSOLE)
   /* Call pm_activity when characters are received on the console device */
