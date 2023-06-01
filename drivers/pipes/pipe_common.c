@@ -144,6 +144,7 @@ FAR struct pipe_dev_s *pipecommon_allocdev(size_t bufsize)
        * should not have priority inheritance enabled.
        */
 
+      nxsem_set_protocol(&dev->d_bfsem, SEM_PRIO_NONE);
       nxsem_set_protocol(&dev->d_rdsem, SEM_PRIO_NONE);
       nxsem_set_protocol(&dev->d_wrsem, SEM_PRIO_NONE);
 
