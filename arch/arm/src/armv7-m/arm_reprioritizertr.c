@@ -102,6 +102,7 @@ void up_reprioritize_rtr(struct tcb_s *tcb, uint8_t priority)
        */
 
       switch_needed ^= nxsched_add_readytorun(tcb);
+      switch_needed = switch_needed && rtcb->lockcount == 0;
 
       /* Now, perform the context switch if one is needed (i.e. if the head
        * of the ready-to-run list is no longer the same).
