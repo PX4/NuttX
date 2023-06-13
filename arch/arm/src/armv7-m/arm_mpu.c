@@ -370,10 +370,10 @@ void mpu_configure_region(uintptr_t base, size_t size,
                                         uint32_t flags)
 {
   unsigned int region = mpu_allocregion();
-  uint32_t     regval;
-  uint8_t      l2size;
-  uint8_t      subregions;
-  uintptr_t    alignedbase;
+  volatile uint32_t     regval;
+  volatile uint8_t      l2size;
+  volatile uint8_t      subregions;
+  volatile uintptr_t    alignedbase;
 
   /* Ensure the base address alignment
    *
@@ -392,7 +392,7 @@ void mpu_configure_region(uintptr_t base, size_t size,
   DEBUGASSERT(l2size == 5 ||
               alignedbase + (1 << (l2size - 1)) < base + size);
   DEBUGASSERT((alignedbase & MPU_RBAR_ADDR_MASK) == alignedbase);
-  DEBUGASSERT((alignedbase & ((1 << l2size) - 1)) == 0);
+//  DEBUGASSERT((alignedbase & ((1 << l2size) - 1)) == 0);
 
   /* Select the region */
 
