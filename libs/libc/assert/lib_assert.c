@@ -25,6 +25,7 @@
 #include <nuttx/arch.h>
 
 #include <assert.h>
+#include <debug.h>
 #include <stdlib.h>
 
 /****************************************************************************
@@ -33,6 +34,7 @@
 
 void _assert(FAR const char *filename, int linenum)
 {
+  DEBUG_LOOP_ON_FAULT();
   up_assert(filename, linenum);
   exit(EXIT_FAILURE);
 }

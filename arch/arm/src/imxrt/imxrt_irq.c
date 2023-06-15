@@ -249,6 +249,7 @@ static void imxrt_dumpnvic(const char *msg, int irq)
 #ifdef CONFIG_DEBUG_FEATURES
 static int imxrt_nmi(int irq, void *context, void *arg)
 {
+  DEBUG_LOOP_ON_FAULT();
   up_irq_save();
   _err("PANIC!!! NMI received\n");
   PANIC();
@@ -257,6 +258,7 @@ static int imxrt_nmi(int irq, void *context, void *arg)
 
 static int imxrt_busfault(int irq, void *context, void *arg)
 {
+  DEBUG_LOOP_ON_FAULT();
   up_irq_save();
   _err("PANIC!!! Bus fault received: %08" PRIx32 "\n",
        getreg32(NVIC_CFAULTS));
@@ -266,6 +268,7 @@ static int imxrt_busfault(int irq, void *context, void *arg)
 
 static int imxrt_usagefault(int irq, void *context, void *arg)
 {
+  DEBUG_LOOP_ON_FAULT();
   up_irq_save();
   _err("PANIC!!! Usage fault received: %08" PRIx32 "\n",
        getreg32(NVIC_CFAULTS));

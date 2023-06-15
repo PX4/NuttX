@@ -456,12 +456,20 @@ static void arm_dumpstate(void)
 /****************************************************************************
  * Name: arm_assert
  ****************************************************************************/
-
+volatile static int wait = true;
+volatile static int cpu_continue = false;
 static void arm_assert(void)
 {
+  while(wait) {
+      if (cpu_continue)
+        return;
+  };
+
   /* Flush any buffered SYSLOG data */
 
   syslog_flush();
+
+
 
   /* Are we in an interrupt handler or the idle task? */
 
@@ -512,6 +520,7 @@ static void arm_assert(void)
 void up_assert(const char *filename, int lineno)
 {
   board_autoled_on(LED_ASSERTION);
+   DEBUG_LOOP_ON_FAULT();
 
   /* Flush any buffered SYSLOG data (prior to the assertion) */
 

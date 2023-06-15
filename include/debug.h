@@ -1108,6 +1108,8 @@ void _info(const char *format, ...) sysloglike(1, 2);
 #endif
 #endif /* CONFIG_CPP_HAVE_VARARGS */
 
+#define DEBUG_LOOP_ON_FAULT() {extern volatile bool g_debug_loop_on_fault; if (g_debug_loop_on_fault) {while(g_debug_loop_on_fault){}; return;}}
+
 #if defined(__cplusplus)
 }
 #endif
