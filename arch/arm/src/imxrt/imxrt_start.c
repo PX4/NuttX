@@ -143,6 +143,8 @@ static inline void imxrt_tcmenable(void)
  *
  ****************************************************************************/
 
+volatile bool g_boot_wait = false; //
+
 void __start(void)
 {
   const register uint32_t *src;
@@ -152,6 +154,8 @@ void __start(void)
 
   __asm__ __volatile__ ("\tcpsid  i\n");
   __asm__ __volatile__ ("MSR MSP, %0\n" : : "r" (IDLE_STACK) :);
+
+  putreg32(0, NVIC_SYSTICK_CTRL);
 
   /* Make sure VECTAB is set to NuttX vector table
    * and not the one from the boot ROM and have consistency
@@ -206,6 +210,8 @@ void __start(void)
 #endif
 
   /* Configure the UART so that we can get debug output as soon as possible */
+
+  while (g_boot_wait); //
 
   imxrt_clockconfig();
   arm_fpuconfig();
