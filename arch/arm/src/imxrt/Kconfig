@@ -1601,6 +1601,12 @@ endmenu # IMXRT_ENET
 
 menu "Memory Configuration"
 
+config IMXRT_INIT_FLEXRAM
+	bool "Calls out to the board code to set GPR16-18"
+	---help---
+		Some configuration will need to map flexRAM
+		this must be done prior to data/bss etc init.
+
 config IMXRT_DTCM
 	int "FLEXRAM DTCM Size in K"
 	default 128
