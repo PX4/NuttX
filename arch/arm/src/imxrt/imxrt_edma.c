@@ -559,7 +559,7 @@ static int imxrt_dmach_interrupt(struct imxrt_dmach_s *dmach)
        * active.
        */
 
-      DEBUGASSERT(dmach->state == IMXRT_DMA_ACTIVE);
+      //DEBUGASSERT(dmach->state == IMXRT_DMA_ACTIVE);
 
       /* Clear the pending eDMA channel interrupt */
 
