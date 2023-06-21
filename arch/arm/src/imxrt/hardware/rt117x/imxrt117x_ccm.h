@@ -794,7 +794,7 @@
 #define CCM_CCGR_ACMP2                       59
 #define CCM_CCGR_ACMP3                       60
 #define CCM_CCGR_ACMP4                       61
-#define CCM_CCGR_PIT1                        62
+#define CCM_CCGR_PIT                         62 // Renamed from PIT1 to PIT for compatibility
 #define CCM_CCGR_PIT2                        63
 #define CCM_CCGR_GPT1                        64
 #define CCM_CCGR_GPT2                        65

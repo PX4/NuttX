@@ -188,7 +188,7 @@
 #define IMXRT_FLEXSPIC_BASE        (0x400cc000) /*  16 KB, FlexSPI1 */
 #define IMXRT_FLEXSPI2C_BASE       (0x400d0000) /*  16 KB, FlexSPI2 */
 #define IMXRT_SEMC_BASE            (0x400d4000) /*  16 KB, SEMC */
-#define IMXRT_PIT1_BASE            (0x400d8000) /*  16 KB, PIT1 */
+#define IMXRT_PIT_BASE             (0x400d8000) /*  16 KB, PIT1 */
 
                                 /* (0x400dc000)     16 KB, Reserved */
 
