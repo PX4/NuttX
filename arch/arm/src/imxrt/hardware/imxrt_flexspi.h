@@ -41,8 +41,13 @@ struct flexspi_type_s
   volatile uint32_t INTR;                              /* Interrupt Register, offset: 0x14 */
   volatile uint32_t LUTKEY;                            /* LUT Key Register, offset: 0x18 */
   volatile uint32_t LUTCR;                             /* LUT Control Register, offset: 0x1c */
+#ifdef CONFIG_ARCH_FAMILY_IMXRT117x
+  volatile uint32_t AHBRXBUFCR0[8];                    /* AHB RX Buffer 0 Control Register 0..AHB RX Buffer 7 Control Register 0, array offset: 0x20, array step: 0x4 */
+       uint8_t RESERVED_0[32];
+#else
   volatile uint32_t AHBRXBUFCR0[4];                    /* AHB RX Buffer 0 Control Register 0..AHB RX Buffer 3 Control Register 0, array offset: 0x20, array step: 0x4 */
        uint8_t RESERVED_0[48];
+#endif
   volatile uint32_t FLSHCR0[4];                        /* Flash A1 Control Register 0..Flash B2 Control Register 0, array offset: 0x60, array step: 0x4 */
   volatile uint32_t FLSHCR1[4];                        /* Flash A1 Control Register 1..Flash B2 Control Register 1, array offset: 0x70, array step: 0x4 */
   volatile uint32_t FLSHCR2[4];                        /* Flash A1 Control Register 2..Flash B2 Control Register 2, array offset: 0x80, array step: 0x4 */
@@ -302,7 +307,11 @@ struct flexspi_type_s
 
 #define FLEXSPI_LUTCR_UNLOCK(x)                  (((uint32_t)(((uint32_t)(x)) << FLEXSPI_LUTCR_UNLOCK_SHIFT)) & FLEXSPI_LUTCR_UNLOCK_MASK)
 
-#define FLEXSPI_AHBRXBUFCR0_BUFSZ_MASK           (0xffu)
+#ifdef CONFIG_ARCH_FAMILY_IMXRT117x
+#  define FLEXSPI_AHBRXBUFCR0_BUFSZ_MASK         (0x3ffu)
+#else
+#  define FLEXSPI_AHBRXBUFCR0_BUFSZ_MASK         (0xffu)
+#endif
 #define FLEXSPI_AHBRXBUFCR0_BUFSZ_SHIFT          (0u)
 
 #define FLEXSPI_AHBRXBUFCR0_BUFSZ(x)             (((uint32_t)(((uint32_t)(x)) << FLEXSPI_AHBRXBUFCR0_BUFSZ_SHIFT)) & FLEXSPI_AHBRXBUFCR0_BUFSZ_MASK)
