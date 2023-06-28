@@ -62,6 +62,11 @@
 #include "imxrt_periphclks.h"
 #include "imxrt_gpio.h"
 #include "imxrt_enet.h"
+#ifdef CONFIG_ARCH_FAMILY_IMXRT117x
+#include "hardware/rt117x/imxrt117x_ocotp.h"
+#else
+#include "hardware/imxrt_ocotp.h"
+#endif
 
 #ifdef CONFIG_IMXRT_ENET
 
@@ -2937,10 +2942,8 @@ int imxrt_netinitialize(int intf)
    * (b0 and b1, 1st octet)
    */
 
-  /* hardcoded offset: todo: need proper header file */
-
-  uidl   = getreg32(IMXRT_OCOTP_BASE + 0x410);
-  uidml  = getreg32(IMXRT_OCOTP_BASE + 0x420);
+  uidl   = getreg32(IMXRT_OCOTP_UNIQUE_ID_MSB);
+  uidml  = getreg32(IMXRT_OCOTP_UNIQUE_ID_LSB);
   mac    = priv->dev.d_mac.ether.ether_addr_octet;
 
   uidml |= 0x00000200;
