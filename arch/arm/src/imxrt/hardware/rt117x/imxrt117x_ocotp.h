@@ -76,6 +76,19 @@
 #define IMXRT_OCOTP_FUSE_BASE        (IMXRT_OCOTP_BASE + IMXRT_OCOTP_FUSE_OFFSET)
 #define IMXRT_OCOTP_FUSE(n)          (IMXRT_OCOTP_FUSE_BASE + (n * 0x10))
 
+/* 64 Bit unique id consisting of:
+ * LOT_NO_ENC[42:0] 42 bits LOT ID
+ *     IMXRT_OCOTP_UNIQUE_ID_MSB[31:0] IMXRT_OCOTP_UNIQUE_ID_LSB[10:0]
+ * WAFER_NO[4:0] 5 bits The wafer number of the wafer on which the device was fabricated
+ *     IMXRT_OCOTP_UNIQUE_ID_LSB[15:11]
+ * DIE-YCORDINATE[7:0] 8 bits The Y-coordinate of the die location on the wafer
+ *     IMXRT_OCOTP_UNIQUE_ID_LSB[23:16]
+ * DIE-XCORDINATE[7:0] 8 bits The X-coordinate of the die location on the wafer
+ *     IMXRT_OCOTP_UNIQUE_ID_LSB[31:24]
+ */
+#define IMXRT_OCOTP_UNIQUE_ID_MSB    (IMXRT_OCOTP_FUSE(0x10)) /* Most Significant Bytes of 64 bit UUID */
+#define IMXRT_OCOTP_UNIQUE_ID_LSB    (IMXRT_OCOTP_FUSE(0x11)) /* Least Significant Bytes of 64 bit UUID */
+
 /* OTP Controller Control and Status Register (CTRL) */
 #define OCOTP_CTRL_ADDR_SHIFT       (0)        /* Bits 0-10: OTP write and read access address register */
 #define OCOTP_CTRL_ADDR_MASK        (0x3FF << OCOTP_CTRL_ADDR_SHIFT)
