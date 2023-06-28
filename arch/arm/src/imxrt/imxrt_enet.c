@@ -62,6 +62,11 @@
 #include "imxrt_periphclks.h"
 #include "imxrt_gpio.h"
 #include "imxrt_enet.h"
+#ifdef CONFIG_ARCH_FAMILY_IMXRT117x
+#include "hardware/rt117x/imxrt117x_ocotp.h"
+#else
+#include "hardware/imxrt_ocotp.h"
+#endif
 
 #ifdef CONFIG_IMXRT_ENET
 
@@ -137,6 +142,8 @@
 #    define GPR_ENET_MASK           (GPR_GPR5_ENET1G_TX_CLK_SEL | \
                                      GPR_GPR5_ENET1G_REF_CLK_DIR)
 #    define IMXRT_ENET_IRQ           IMXRT_IRQ_ENET2_1
+#    define IMXRT_ENET_IRQ_2         IMXRT_IRQ_ENET2_2
+#    define IMXRT_ENET_IRQ_3         IMXRT_IRQ_ENET2_3
 #    define IMXRT_ENETN_BASE         IMXRT_ENET_1G_BASE
 #    if defined(CONFIG_IMXRT_MAC_PROVIDES_TXC)
 #      define GPR_ENET_TX_DIR        GPR_GPR5_ENET1G_REF_CLK_DIR_OUT
@@ -1491,6 +1498,14 @@ static int imxrt_ifup_action(struct net_driver_s *dev, bool resetphy)
 
   up_enable_irq(IMXRT_ENET_IRQ);
 
+#ifdef IMXRT_ENET_IRQ_2
+  up_enable_irq(IMXRT_ENET_IRQ_2);
+#endif
+
+#ifdef IMXRT_ENET_IRQ_3
+  up_enable_irq(IMXRT_ENET_IRQ_3);
+#endif
+
   priv->bifup = true;
 
   /* Enable RX and error interrupts at the controller (TX interrupts are
@@ -1563,6 +1578,14 @@ static int imxrt_ifdown(struct net_driver_s *dev)
   priv->ints = 0;
   imxrt_enet_putreg32(priv, priv->ints, IMXRT_ENET_EIMR_OFFSET);
   up_disable_irq(IMXRT_ENET_IRQ);
+
+#ifdef IMXRT_ENET_IRQ_2
+  up_disable_irq(IMXRT_ENET_IRQ_2);
+#endif
+
+#ifdef IMXRT_ENET_IRQ_3
+  up_disable_irq(IMXRT_ENET_IRQ_3);
+#endif
 
   /* Cancel the TX timeout timers */
 
@@ -2908,6 +2931,26 @@ int imxrt_netinitialize(int intf)
       return -EAGAIN;
     }
 
+#ifdef IMXRT_ENET_IRQ_2
+  if (irq_attach(IMXRT_ENET_IRQ_2, imxrt_enet_interrupt, priv))
+    {
+      /* We could not attach the ISR to the interrupt */
+
+      nerr("ERROR: Failed to attach EMACTX IRQ\n");
+      return -EAGAIN;
+    }
+#endif
+
+#ifdef IMXRT_ENET_IRQ_3
+  if (irq_attach(IMXRT_ENET_IRQ_3, imxrt_enet_interrupt, priv))
+    {
+      /* We could not attach the ISR to the interrupt */
+
+      nerr("ERROR: Failed to attach EMACTX IRQ\n");
+      return -EAGAIN;
+    }
+#endif
+
 #ifdef CONFIG_NET_ETHERNET
 
 #ifdef CONFIG_NET_USE_OTP_ETHERNET_MAC
@@ -2937,10 +2980,8 @@ int imxrt_netinitialize(int intf)
    * (b0 and b1, 1st octet)
    */
 
-  /* hardcoded offset: todo: need proper header file */
-
-  uidl   = getreg32(IMXRT_OCOTP_BASE + 0x410);
-  uidml  = getreg32(IMXRT_OCOTP_BASE + 0x420);
+  uidl   = getreg32(IMXRT_OCOTP_UNIQUE_ID_MSB);
+  uidml  = getreg32(IMXRT_OCOTP_UNIQUE_ID_LSB);
   mac    = priv->dev.d_mac.ether.ether_addr_octet;
 
   uidml |= 0x00000200;
