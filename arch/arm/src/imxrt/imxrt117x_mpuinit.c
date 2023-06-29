@@ -84,9 +84,9 @@
   mpu_configure_region(IMXRT_ITCM_BASE, 256 * 1024,
                                            /* Instruction access Enabled */
                        MPU_RASR_AP_RWRW  | /* P:RW   U:RW                */
-                       MPU_RASR_TEX_SO   | /* Strongly Ordered           */
-                       MPU_RASR_C        | /* Cacheable                  */
-                       MPU_RASR_B          /* Bufferable                 */
+                       MPU_RASR_TEX_NOR    /* Normal                     */
+                                           /* Not Cacheable              */
+                                           /* Not Bufferable             */
                                            /* Not Shareable              */
                                            /* No Subregion disable       */
                        );
@@ -94,9 +94,9 @@
   mpu_configure_region(IMXRT_DTCM_BASE, 256 * 1024,
                                            /* Instruction access Enabled */
                        MPU_RASR_AP_RWRW  | /* P:RW   U:RW                */
-                       MPU_RASR_TEX_SO   | /* Strongly Ordered           */
-                       MPU_RASR_C        | /* Cacheable                  */
-                       MPU_RASR_B          /* Bufferable                 */
+                       MPU_RASR_TEX_NOR    /* Normal                     */
+                                           /* Not Cacheable              */
+                                           /* Not Bufferable             */
                                            /* Not Shareable              */
                                            /* No Subregion disable       */
                        );
