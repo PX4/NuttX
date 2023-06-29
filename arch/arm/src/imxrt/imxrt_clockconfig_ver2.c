@@ -125,6 +125,10 @@ static void imxrt_oscsetup(void)
   reg |= CCM_CR_CTRL_MUX_SRCSEL(M7_CLK_ROOT_OSC_RC_48M_DIV2);
   reg |= CCM_CR_CTRL_DIV(1);
   putreg32(reg, IMXRT_CCM_CR_CTRL(8));
+
+  /* FlexRAM AXI CLK ROOT */
+  putreg32(CCM_CG_CTRL_RSTDIV(1) | CCM_CG_CTRL_DIV0(1), IMXRT_CCM_CG_CTRL(0));
+
 }
 
 /****************************************************************************
