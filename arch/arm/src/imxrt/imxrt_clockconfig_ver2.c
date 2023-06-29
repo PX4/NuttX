@@ -37,6 +37,7 @@
 #include "hardware/rt117x/imxrt117x_pll.h"
 #include "hardware/rt117x/imxrt117x_anadig.h"
 #include "hardware/rt117x/imxrt117x_ocotp.h"
+#include "hardware/rt117x/imxrt117x_gpc.h"
 
 #include "hardware/imxrt_pinmux.h"
 #include "imxrt_iomuxc.h"
@@ -730,6 +731,19 @@ void imxrt_clockconfig()
   putreg32(0x1, IMXRT_CCM_GPR_PR_SET(1));
 
   putreg32(0x1, IMXRT_CCM_GPR_PR_SET(28));
+
+  /* Keep the system clock running so SYSTICK can wake up the system from
+   * wfi.
+   */
+
+  modifyreg32(IMXRT_GPC_CPU_MODE_CTRL_0_CM_MODE_CTRL,
+              GPC_CPU_MODE_CTRL_CM_MODE_CTRL_CPU_MODE_TARGET_MASK,
+              GPC_CPU_MODE_CTRL_CM_MODE_CTRL_CPU_MODE_TARGET(
+              GPC_CPU_MODE_RUN_MODE));
+
+  modifyreg32(IMXRT_GPC_CPU_MODE_CTRL_0_CM_MISC,
+              GPC_CPU_MODE_CTRL_CM_MISC_SLEEP_HOLD_EN,
+              0);
 }
 
 int imxrt_get_pll(enum ccm_clock_name clkname, uint32_t *frequency)
