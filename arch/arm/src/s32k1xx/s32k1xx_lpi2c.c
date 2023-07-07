@@ -1919,6 +1919,9 @@ static int s32k1xx_lpi2c_transfer(struct i2c_master_s *dev,
 {
   struct s32k1xx_lpi2c_priv_s *priv = (struct s32k1xx_lpi2c_priv_s *)dev;
   int ret;
+#ifdef CONFIG_S32K1XX_LPI2C_DMA
+  int m;
+#endif
 
   DEBUGASSERT(count > 0);
 
@@ -2022,6 +2025,20 @@ static int s32k1xx_lpi2c_transfer(struct i2c_master_s *dev,
 
   priv->dcnt = 0;
   priv->ptr = NULL;
+
+#ifdef CONFIG_S32K1XX_LPI2C_DMA
+  if (priv->dma)
+    {
+      for (m = 0; m < count; m++)
+        {
+          if (msgs[m].flags & I2C_M_READ)
+            {
+            up_invalidate_dcache((uintptr_t)msgs[m].buffer,
+                                (uintptr_t)msgs[m].buffer + msgs[m].length);
+            }
+        }
+    }
+#endif
 
   s32k1xx_lpi2c_sem_post(priv);
   return ret;
