@@ -57,23 +57,27 @@ void imxrt_periphclk_configure(unsigned int index, unsigned int value)
   uint32_t regval;
   regval = getreg32(IMXRT_CCM_LPCG_DIR(index));
 
-  if (value == CCM_CG_OFF)
+  if ((value & CCM_LPCG_DIR_ON) != (regval & CCM_LPCG_DIR_ON))
     {
-      regval &= ~CCM_LPCG_DIR_ON;
+      if (value == CCM_CG_OFF)
+        {
+          regval &= ~CCM_LPCG_DIR_ON;
+        }
+      else
+        {
+          regval |= CCM_LPCG_DIR_ON;
+        }
+
+      putreg32(regval, IMXRT_CCM_LPCG_DIR(index));
+
+      ARM_DSB();
+      ARM_ISB();
+
+      /* Ensure the clock setting is written and active before we return */
+
+      while ((getreg32(IMXRT_CCM_LPCG_STAT0(index)) & CCM_LPCG_STAT0_ON)
+             != (value & CCM_LPCG_STAT0_ON));
     }
-  else
-    {
-      regval |= CCM_LPCG_DIR_ON;
-    }
-
-  putreg32(regval, IMXRT_CCM_LPCG_DIR(index));
-
-  /* Ensure the clock setting is written and active before we return */
-
-  while (getreg32(IMXRT_CCM_LPCG_DIR(index)) != regval);
-
-  ARM_DSB();
-  ARM_ISB();
 }
 
 #else
