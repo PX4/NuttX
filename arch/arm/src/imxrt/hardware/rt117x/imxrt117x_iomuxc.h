@@ -1738,7 +1738,7 @@
 #  define PADMUX_MUXMODE_ALT8             (8 << PADMUX_MUXMODE_SHIFT)
 #  define PADMUX_MUXMODE_ALT9             (9 << PADMUX_MUXMODE_SHIFT)
 #  define PADMUX_MUXMODE_ALT10            (10 << PADMUX_MUXMODE_SHIFT)
-#  define PADMUX_MUXMODE_ALT11            (11 << PADMUX_MUXMODE_SHIFT)  
+#  define PADMUX_MUXMODE_ALT11            (11 << PADMUX_MUXMODE_SHIFT)
 #define PADMUX_SION                       (1 << 4)  /* Bit 4:      Software Input On Field (SION) */
                                                     /* Bits 5-31:  Reserved */
 
@@ -1922,8 +1922,6 @@
 
 /* GPIO_SNVS Pad CTL Registers */
 
-#define PADCTL_SNVS_SRE                   (1 << 0)  /* Bit 0:      Slew Rate Field (SRE) */
-#define PADCTL_SNVS_DSE                   (1 << 1)  /* Bit 1:      Drive Strength Field (DSE) */
 #define PADCTL_SNVS_PUE                   (1 << 2)  /* Bit 2:      Pull / Keep Select Field (PUE) */
 #define PADCTL_SNVS_PUS                   (1 << 3)  /* Bit 3:      Pull Up / Down Config. Field (PUS) */
 #  define PADCTL_SNVS_PULL_DOWN           (0 << 3)  /*             Weak pull down */
