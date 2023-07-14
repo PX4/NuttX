@@ -285,7 +285,11 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
 
       /* Select drive strength */
 
-      if ((ioset & IOMUX_DRIVE_MASK) == IOMUX_DRIVE_NORMALSTRENGTH)
+      if ((ioset & IOMUX_DRIVE_MASK) == IOMUX_DRIVE_HIGHSTRENGTH)
+        {
+          regval &= ~PADCTL_EMC_B1_PDRV;
+        }
+      else
         {
           regval |= PADCTL_EMC_B1_PDRV;
         }
@@ -316,6 +320,10 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
         {
           regval |= PADCTL_EMC_B1_ODE;
         }
+      else
+        {
+          regval &= ~(PADCTL_EMC_B1_ODE);
+        }
     }
   else if (padctl <= IMXRT_PADCTL_GPIO_EMC_B2_20)
     {
@@ -323,7 +331,11 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
 
       /* Select drive strength */
 
-      if ((ioset & IOMUX_DRIVE_MASK) == IOMUX_DRIVE_NORMALSTRENGTH)
+      if ((ioset & IOMUX_DRIVE_MASK) == IOMUX_DRIVE_HIGHSTRENGTH)
+        {
+          regval &= ~PADCTL_EMC_B2_PDRV;
+        }
+      else
         {
           regval |= PADCTL_EMC_B2_PDRV;
         }
@@ -354,6 +366,10 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
         {
           regval |= PADCTL_EMC_B2_ODE;
         }
+      else
+        {
+          regval &= ~(PADCTL_EMC_B2_ODE);
+        }
     }
   else if (padctl <= IMXRT_PADCTL_GPIO_AD_35)
     {
@@ -365,6 +381,10 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
         {
           regval |= PADCTL_AD_SRE;
         }
+      else
+        {
+          regval &= ~(PADCTL_AD_SRE);
+        }
 
       /* Select drive strength */
 
@@ -372,16 +392,22 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
         {
           regval |= PADCTL_AD_DSE;
         }
+      else
+        {
+          regval &= ~(PADCTL_AD_DSE);
+        }
 
       /* Handle pull/keep selection */
 
       switch (ioset & IOMUX_PULL_MASK)
         {
           case IOMUX_PULL_UP:
+            regval &= ~(PADCTL_AD_PUS | PADCTL_AD_PUE);
             regval |= (PADCTL_AD_PUE | PADCTL_AD_PULL_UP);
             break;
 
           case IOMUX_PULL_DOWN:
+            regval &= ~(PADCTL_AD_PUS | PADCTL_AD_PUE);
             regval |= (PADCTL_AD_PUE | PADCTL_AD_PULL_DOWN);
             break;
 
@@ -399,6 +425,10 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
         {
           regval |= PADCTL_AD_ODE;
         }
+      else
+        {
+          regval &= ~(PADCTL_AD_ODE);
+        }
     }
   else if (padctl <= IMXRT_PADCTL_GPIO_SD_B1_05)
     {
@@ -408,10 +438,16 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
 
       if ((ioset & IOMUX_DRIVE_MASK) == IOMUX_DRIVE_HIGHSTRENGTH)
         {
+          regval &= ~(PADCTL_SD_B1_PDRV);
+        }
+      else
+        {
           regval |= PADCTL_SD_B1_PDRV;
         }
 
       /* Handle pull/keep selection */
+
+      regval &= ~(PADCTL_SD_B1_PULL_MASK);
 
       switch (ioset & IOMUX_PULL_MASK)
         {
@@ -437,6 +473,10 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
         {
           regval |= PADCTL_SD_B1_ODE;
         }
+      else
+        {
+          regval &= ~(PADCTL_SD_B1_ODE);
+        }
     }
   else if (padctl <= IMXRT_PADCTL_GPIO_SD_B2_11)
     {
@@ -448,8 +488,14 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
         {
           regval |= PADCTL_SD_B2_PDRV;
         }
+      else
+        {
+          regval &= ~(PADCTL_SD_B2_PDRV);
+        }
 
       /* Handle pull/keep selection */
+
+      regval &= ~(PADCTL_SD_B2_PULL_MASK);
 
       switch (ioset & IOMUX_PULL_MASK)
         {
@@ -475,6 +521,10 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
         {
           regval |= PADCTL_SD_B2_ODE;
         }
+      else
+        {
+          regval &= ~(PADCTL_SD_B2_ODE);
+        }
     }
   else if (padctl <= IMXRT_PADCTL_GPIO_DISP_B1_11)
     {
@@ -484,10 +534,16 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
 
       if ((ioset & IOMUX_DRIVE_MASK) == IOMUX_DRIVE_HIGHSTRENGTH)
         {
+          regval &= ~PADCTL_DISP_B1_PDRV;
+        }
+      else
+        {
           regval |= PADCTL_DISP_B1_PDRV;
         }
 
       /* Handle pull/keep selection */
+
+      regval &= ~(PADCTL_DISP_B1_PULL_MASK);
 
       switch (ioset & IOMUX_PULL_MASK)
         {
@@ -513,6 +569,10 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
         {
           regval |= PADCTL_DISP_B1_ODE;
         }
+      else
+        {
+          regval &= ~(PADCTL_DISP_B1_ODE);
+        }
     }
   else if (padctl <= IMXRT_PADCTL_GPIO_DISP_B2_15)
     {
@@ -524,6 +584,10 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
         {
           regval |= PADCTL_DISP_B2_SRE;
         }
+      else
+        {
+          regval &= ~(PADCTL_DISP_B2_SRE);
+        }
 
       /* Select drive strength */
 
@@ -531,16 +595,22 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
         {
           regval |= PADCTL_DISP_B2_DSE;
         }
+      else
+        {
+          regval &= ~(PADCTL_DISP_B2_DSE);
+        }
 
       /* Handle pull/keep selection */
 
       switch (ioset & IOMUX_PULL_MASK)
         {
           case IOMUX_PULL_UP:
+            regval &= ~(PADCTL_DISP_B2_PUE | PADCTL_DISP_B2_PUS);
             regval |= (PADCTL_DISP_B2_PUE | PADCTL_DISP_B2_PULL_UP);
             break;
 
           case IOMUX_PULL_DOWN:
+            regval &= ~(PADCTL_DISP_B2_PUE | PADCTL_DISP_B2_PUS);
             regval |= (PADCTL_DISP_B2_PUE | PADCTL_DISP_B2_PULL_DOWN);
             break;
 
@@ -558,6 +628,11 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
         {
           regval |= PADCTL_DISP_B2_ODE;
         }
+      else
+        {
+          regval &= ~(PADCTL_DISP_B2_ODE);
+
+        }
     }
   else if (padctl <= IMXRT_PADCTL_GPIO_LPSR_15)
     {
@@ -571,6 +646,10 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
         {
           regval |= PADCTL_LPSR_SRE;
         }
+      else
+        {
+          regval &= ~(PADCTL_LPSR_SRE);
+        }
 
       /* Select drive strength */
 
@@ -578,16 +657,22 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
         {
           regval |= PADCTL_LPSR_DSE;
         }
+      else
+        {
+          regval &= ~(PADCTL_LPSR_DSE);
+        }
 
       /* Handle pull/keep selection */
 
       switch (ioset & IOMUX_PULL_MASK)
         {
           case IOMUX_PULL_UP:
+            regval &= ~(PADCTL_LPSR_PUE | PADCTL_LPSR_PUS);
             regval |= (PADCTL_LPSR_PUE | PADCTL_LPSR_PULL_UP);
             break;
 
           case IOMUX_PULL_DOWN:
+            regval &= ~(PADCTL_LPSR_PUE | PADCTL_LPSR_PUS);
             regval |= (PADCTL_LPSR_PUE | PADCTL_LPSR_PULL_DOWN);
             break;
 
@@ -605,6 +690,10 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
         {
           regval |= PADCTL_LPSR_ODE;
         }
+      else
+        {
+          regval &= ~(PADCTL_LPSR_ODE);
+        }
     }
   else if (padctl <= IMXRT_PADCTL_GPIO_SNVS_09)
     {
@@ -612,29 +701,17 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
 
       /* GPIO_SNVS **********************************************************/
 
-      /* Select slow/fast slew rate */
-
-      if ((ioset & IOMUX_SLEW_FAST) != 0)
-        {
-          regval |= PADCTL_SNVS_SRE;
-        }
-
-      /* Select drive strength */
-
-      if ((ioset & IOMUX_DRIVE_MASK) == IOMUX_DRIVE_HIGHSTRENGTH)
-        {
-          regval |= PADCTL_SNVS_DSE;
-        }
-
       /* Handle pull/keep selection */
 
       switch (ioset & IOMUX_PULL_MASK)
         {
           case IOMUX_PULL_UP:
+            regval &= ~(PADCTL_SNVS_PUE | PADCTL_SNVS_PUS);
             regval |= (PADCTL_SNVS_PUE | PADCTL_SNVS_PULL_UP);
             break;
 
           case IOMUX_PULL_DOWN:
+            regval &= ~(PADCTL_SNVS_PUE | PADCTL_SNVS_PUS);
             regval |= (PADCTL_SNVS_PUE | PADCTL_SNVS_PULL_DOWN);
             break;
 
@@ -651,6 +728,10 @@ int imxrt_iomux_configure(uintptr_t padctl, iomux_pinset_t ioset)
       if ((ioset & IOMUX_OPENDRAIN) != 0)
         {
           regval |= PADCTL_SNVS_ODE;
+        }
+      else
+        {
+          regval &= ~(PADCTL_SNVS_ODE);
         }
     }
   else
