@@ -33,6 +33,7 @@
 #include <assert.h>
 #include <debug.h>
 #include <errno.h>
+#include <barriers.h>
 
 #include <arpa/inet.h>
 
@@ -198,24 +199,19 @@
 #  error "Need at least one RX buffer"
 #endif
 
-/* Align assuming that the D-Cache is enabled (probably 32-bytes).
- *
- * REVISIT: The size of descriptors and buffers must also be in even units
- * of the cache line size  That is because the operations to clean and
- * invalidate the cache will operate on a full 32-byte cache line.  If
- * CONFIG_ENET_ENHANCEDBD is selected, then the size of the descriptor is
- * 32-bytes (and probably already the correct size for the cache line);
- * otherwise, the size of the descriptors much smaller, only 8 bytes.
+/*
+ * From ref manual TDSR/RDSR description
+ * For optimal performance the pointer should be 512-bit aligned, that is,
+ * evenly divisible by 64.
  */
 
-#define ENET_ALIGN        ARMV7M_DCACHE_LINESIZE
+#define ENET_ALIGN        64
 #define ENET_ALIGN_MASK   (ENET_ALIGN - 1)
 #define ENET_ALIGN_UP(n)  (((n) + ENET_ALIGN_MASK) & ~ENET_ALIGN_MASK)
 
-#define DESC_SIZE           sizeof(struct enet_desc_s)
-#define DESC_PADSIZE        ENET_ALIGN_UP(DESC_SIZE)
+#define DESC_SIZE         sizeof(struct enet_desc_s)
 
-#define ALIGNED_BUFSIZE     ENET_ALIGN_UP(CONFIG_NET_ETH_PKTSIZE + \
+#define ALIGNED_BUFSIZE   ENET_ALIGN_UP(CONFIG_NET_ETH_PKTSIZE + \
                                       CONFIG_NET_GUARDSIZE)
 #define NENET_NBUFFERS \
   (CONFIG_IMXRT_ENET_NTXBUFFERS + CONFIG_IMXRT_ENET_NRXBUFFERS)
@@ -375,16 +371,6 @@ struct imxrt_driver_s
   struct net_driver_s dev;     /* Interface understood by the network */
 };
 
-/* This union type forces the allocated size of TX&RX descriptors to be
- * padded to a exact multiple of the Cortex-M7 D-Cache line size.
- */
-
-union enet_desc_u
-{
-  uint8_t             pad[DESC_PADSIZE];
-  struct enet_desc_s  desc;
-};
-
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -393,7 +379,7 @@ static struct imxrt_driver_s g_enet[CONFIG_IMXRT_ENET_NETHIFS];
 
 /* The DMA descriptors */
 
-static union enet_desc_u g_desc_pool[NENET_NBUFFERS]
+static struct enet_desc_s g_desc_pool[NENET_NBUFFERS]
                                      aligned_data(ENET_ALIGN);
 
 /* The DMA buffers */
@@ -741,11 +727,16 @@ static int imxrt_transmit(struct imxrt_driver_s *priv)
       DEBUGASSERT(txdesc->data == buf);
     }
 
+#ifdef CONFIG_ARMV7M_DCACHE_WRITETHROUGH
+  /* Make sure that descriptors are flushed */
+  ARM_DSB();
+#else
   up_clean_dcache((uintptr_t)txdesc,
                   (uintptr_t)txdesc + sizeof(struct enet_desc_s));
 
   up_clean_dcache((uintptr_t)priv->dev.d_buf,
                   (uintptr_t)priv->dev.d_buf + priv->dev.d_len);
+#endif
 
   /* Start the TX transfer (if it was not already waiting for buffers) */
 
@@ -1057,8 +1048,12 @@ static void imxrt_receive(struct imxrt_driver_s *priv)
             imxrt_swap32((uint32_t)priv->txdesc[priv->txhead].data);
           rxdesc->status1 |= RXDESC_E;
 
+#ifdef CONFIG_ARMV7M_DCACHE_WRITETHROUGH
+          ARM_DSB();
+#else
           up_clean_dcache((uintptr_t)rxdesc,
                           (uintptr_t)rxdesc + sizeof(struct enet_desc_s));
+#endif
 
           /* Update the index to the next descriptor */
 
@@ -1483,6 +1478,11 @@ static int imxrt_ifup_action(struct net_driver_s *dev, bool resetphy)
 #endif
         ;
   imxrt_enet_putreg32(priv, regval, IMXRT_ENET_ECR_OFFSET);
+
+#ifdef CONFIG_ARMV7M_DCACHE_WRITETHROUGH
+  /* Make sure that descriptors are flushed */
+  ARM_DSB();
+#endif
 
   /* Indicate that there have been empty receive buffers produced */
 
@@ -2720,11 +2720,11 @@ static void imxrt_initbuffers(struct imxrt_driver_s *priv)
 
   /* Get an aligned TX descriptor (array) address */
 
-  priv->txdesc = &g_desc_pool[0].desc;
+  priv->txdesc = &g_desc_pool[0];
 
   /* Get an aligned RX descriptor (array) address */
 
-  priv->rxdesc = &g_desc_pool[CONFIG_IMXRT_ENET_NTXBUFFERS].desc;
+  priv->rxdesc = &g_desc_pool[CONFIG_IMXRT_ENET_NTXBUFFERS];
 
   /* Get the beginning of the first aligned buffer */
 
