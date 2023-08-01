@@ -1982,6 +1982,18 @@ static int s32k1xx_lpi2c_transfer(struct i2c_master_s *dev,
 
   if (s32k1xx_lpi2c_sem_waitdone(priv) < 0)
     {
+#ifdef CONFIG_S32K1XX_LPI2C_DMA
+    if (priv->rxdma != NULL)
+      {
+        s32k1xx_dmach_stop(priv->rxdma);
+      }
+
+    if (priv->txdma != NULL)
+      {
+        s32k1xx_dmach_stop(priv->txdma);
+      }
+
+#endif
       ret = -ETIMEDOUT;
       i2cerr("ERROR: Timed out: MCR: status: 0x%" PRIx32 "\n", priv->status);
     }
