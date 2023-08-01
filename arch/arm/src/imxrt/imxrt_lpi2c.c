@@ -2249,6 +2249,13 @@ static int imxrt_lpi2c_transfer(struct i2c_master_s *dev,
 
   if (imxrt_lpi2c_sem_waitdone(priv) < 0)
     {
+#ifdef CONFIG_IMXRT_LPI2C_DMA
+      if (priv->dma)
+        {
+          imxrt_dmach_stop(priv->dma);
+        }
+
+#endif
       ret = -ETIMEDOUT;
       i2cerr("ERROR: Timed out: MSR: status: 0x0%" PRIx32 "\n",
              priv->status);
