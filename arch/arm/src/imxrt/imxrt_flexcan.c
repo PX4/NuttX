@@ -65,7 +65,8 @@
  * is required.
  */
 
-#define CANWORK LPWORK
+#define CANWORK    LPWORK
+#define CANRCVWORK HPWORK
 
 /* CONFIG_IMXRT_FLEXCAN_NETHIFS determines the number of physical
  * interfaces that will be supported.
@@ -267,6 +268,7 @@ struct imxrt_driver_s
 #ifdef TX_TIMEOUT_WQ
   struct wdog_s txtimeout[TXMBCOUNT]; /* TX timeout timer */
 #endif
+  struct work_s rcvwork;            /* For deferring interrupt work to the wq */
   struct work_s irqwork;            /* For deferring interrupt work to the wq */
   struct work_s pollwork;           /* For deferring poll work to the work wq */
   struct canfd_frame *txdesc_fd;    /* A pointer to the list of TX descriptor for FD frames */
@@ -481,6 +483,7 @@ static void imxrt_txdone(struct imxrt_driver_s *priv);
 
 static int  imxrt_flexcan_interrupt(int irq, void *context,
                                       void *arg);
+static void imxrt_flexcan_interrupt_work(void *arg);
 
 /* Watchdog timer expirations */
 #ifdef TX_TIMEOUT_WQ
@@ -577,6 +580,7 @@ static int imxrt_transmit(struct imxrt_driver_s *priv)
 #endif
 #ifdef CONFIG_NET_CAN_RAW_TX_DEADLINE
   int32_t timeout;
+  uint32_t txmb = 0;
 #endif
 
   mbi = RXMBCOUNT + 1;
@@ -595,6 +599,9 @@ static int imxrt_transmit(struct imxrt_driver_s *priv)
 
       mb_bit <<= 1;
       mbi++;
+#ifdef CONFIG_NET_CAN_RAW_TX_DEADLINE
+      txmb++;
+#endif
     }
 
   if (mbi == TOTALMBCOUNT)
@@ -612,7 +619,7 @@ static int imxrt_transmit(struct imxrt_driver_s *priv)
     {
       struct timeval *tv =
              (struct timeval *)(priv->dev.d_buf + priv->dev.d_len);
-      priv->txmb[mbi].deadline = *tv;
+      priv->txmb[txmb].deadline = *tv;
       timeout  = (tv->tv_sec - ts.tv_sec)*CLK_TCK
                  + ((tv->tv_usec - ts.tv_nsec / 1000)*CLK_TCK) / 1000000;
       if (timeout < 0)
@@ -628,15 +635,15 @@ static int imxrt_transmit(struct imxrt_driver_s *priv)
         {
           timeout = ((CONFIG_NET_CAN_RAW_DEFAULT_TX_DEADLINE / 1000000)
               *CLK_TCK);
-          priv->txmb[mbi].deadline.tv_sec = ts.tv_sec +
+          priv->txmb[txmb].deadline.tv_sec = ts.tv_sec +
               CONFIG_NET_CAN_RAW_DEFAULT_TX_DEADLINE / 1000000;
-          priv->txmb[mbi].deadline.tv_usec = (ts.tv_nsec / 1000) +
+          priv->txmb[txmb].deadline.tv_usec = (ts.tv_nsec / 1000) +
               CONFIG_NET_CAN_RAW_DEFAULT_TX_DEADLINE % 1000000;
         }
       else
         {
-          priv->txmb[mbi].deadline.tv_sec = 0;
-          priv->txmb[mbi].deadline.tv_usec = 0;
+          priv->txmb[txmb].deadline.tv_sec = 0;
+          priv->txmb[txmb].deadline.tv_usec = 0;
           timeout = -1;
         }
     }
@@ -725,7 +732,7 @@ static int imxrt_transmit(struct imxrt_driver_s *priv)
 
   if (timeout > 0)
     {
-      wd_start(&priv->txtimeout[mbi - RXMBCOUNT], timeout + 1,
+      wd_start(&priv->txtimeout[txmb], timeout + 1,
                imxrt_txtimeout_expiry, (wdparm_t)priv);
     }
 #endif
@@ -983,6 +990,9 @@ static void imxrt_txdone(struct imxrt_driver_s *priv)
   uint32_t flags;
   uint32_t mbi;
   uint32_t mb_bit;
+#ifdef TX_TIMEOUT_WQ
+  uint32_t txmb;
+#endif
 
   flags  = getreg32(priv->base + IMXRT_CAN_IFLAG1_OFFSET);
   flags &= IFLAG1_TX;
@@ -991,8 +1001,13 @@ static void imxrt_txdone(struct imxrt_driver_s *priv)
 
   /* Process TX completions */
 
-  mb_bit = 1 << RXMBCOUNT;
-  for (mbi = 0; flags && mbi < TXMBCOUNT; mbi++)
+  mbi = RXMBCOUNT + 1;
+  mb_bit = 1 << mbi;
+#ifdef TX_TIMEOUT_WQ
+  txmb = 0;
+#endif
+
+  while (mbi < TOTALMBCOUNT)
     {
       if (flags & mb_bit)
         {
@@ -1005,13 +1020,17 @@ static void imxrt_txdone(struct imxrt_driver_s *priv)
            * mailbox be set to inactive
            */
 
-          wd_cancel(&priv->txtimeout[mbi]);
-          struct mb_s *mb = flexcan_get_mb(priv, mbi + RXMBCOUNT);
+          wd_cancel(&priv->txtimeout[txmb]);
+          struct mb_s *mb = flexcan_get_mb(priv, mbi);
           mb->cs.code = CAN_TXMB_INACTIVE;
 #endif
         }
 
       mb_bit <<= 1;
+      mbi++;
+#ifdef TX_TIMEOUT_WQ
+      txmb++;
+#endif
     }
 }
 
@@ -1049,6 +1068,43 @@ static void imxrt_txdone_work(void *arg)
 }
 
 /****************************************************************************
+ * Function: imxrt_flexcan_interrupt_work
+ *
+ * Description:
+ *   Three interrupt sources will vector this this function:
+ *   1. CAN MB transmit interrupt handler
+ *   2. CAN MB receive interrupt handler
+ *   3.
+ *
+ * Input Parameters:
+ *   irq     - Number of the IRQ that generated the interrupt
+ *   context - Interrupt register state save info (architecture-specific)
+ *
+ * Returned Value:
+ *   OK on success
+ *
+ * Assumptions:
+ *
+ ****************************************************************************/
+
+static void imxrt_flexcan_interrupt_work(void *arg)
+{
+  struct imxrt_driver_s *priv = (struct imxrt_driver_s *)arg;
+
+  uint32_t flags;
+  flags  = getreg32(priv->base + IMXRT_CAN_IFLAG1_OFFSET);
+  flags &= IFLAG1_RX;
+
+  net_lock();
+  imxrt_receive(priv, flags);
+  net_unlock();
+
+  /* Mask MB again */
+
+  modifyreg32(priv->base + IMXRT_CAN_IMASK1_OFFSET, 0, IFLAG1_RX);
+}
+
+/****************************************************************************
  * Function: imxrt_flexcan_interrupt
  *
  * Description:
@@ -1081,11 +1137,9 @@ static int imxrt_flexcan_interrupt(int irq, void *context,
 
       if (flags)
         {
-          /* Process immediately since scheduling a workqueue is too slow
-           * which causes us to drop CAN frames
-           */
-
-          imxrt_receive(priv, flags);
+          modifyreg32(priv->base + IMXRT_CAN_IMASK1_OFFSET, IFLAG1_RX, 0);
+          work_queue(CANRCVWORK, &priv->rcvwork,
+                     imxrt_flexcan_interrupt_work, priv, 0);
         }
 
       flags  = getreg32(priv->base + IMXRT_CAN_IFLAG1_OFFSET);
@@ -1097,9 +1151,7 @@ static int imxrt_flexcan_interrupt(int irq, void *context,
            * condition here.
            */
 
-          flags  = getreg32(priv->base + IMXRT_CAN_IMASK1_OFFSET);
-          flags &= ~(IFLAG1_TX);
-          putreg32(flags, priv->base + IMXRT_CAN_IMASK1_OFFSET);
+          modifyreg32(priv->base + IMXRT_CAN_IMASK1_OFFSET, IFLAG1_TX, 0);
           work_queue(CANWORK, &priv->irqwork, imxrt_txdone_work, priv, 0);
         }
     }
