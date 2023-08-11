@@ -2039,7 +2039,7 @@ static int s32k1xx_lpi2c_transfer(struct i2c_master_s *dev,
   priv->ptr = NULL;
 
 #ifdef CONFIG_S32K1XX_LPI2C_DMA
-  if (priv->dma)
+  if (priv->rxdma)
     {
       for (m = 0; m < count; m++)
         {
