@@ -34,7 +34,7 @@ SYSLOG Interfaces
 
   setlogmask()
   ------------
-  The additional setlogmask() interface can use use to filter SYSLOG output:
+  The additional setlogmask() interface can be used to filter SYSLOG output:
 
   Prototypes:
 
