@@ -1843,6 +1843,12 @@ config ARCH_BOARD_SAMV71_XULT
 	---help---
 		The port of NuttX to the Atmel SAMV71 Xplained Ultra evaluation board.
 
+config ARCH_BOARD_AT32F437_MINI
+	bool "Artery at32f437-mini board"
+	depends on ARCH_CHIP_AT32F437VM
+	---help---
+		Artery AT32F437-MINI board based on the Artery AT32F437VMT7 MCU.
+
 config ARCH_BOARD_SHENZHOU
 	bool "Shenzhou STM32F107 board"
 	depends on ARCH_CHIP_STM32F107VC
@@ -2744,6 +2750,7 @@ config ARCH_BOARD
 	default "same70-qmtech"            if ARCH_BOARD_SAME70_QMTECH
 	default "same70-xplained"          if ARCH_BOARD_SAME70_XPLAINED
 	default "samv71-xult"              if ARCH_BOARD_SAMV71_XULT
+	default "at32f437-mini"            if ARCH_BOARD_AT32F437_MINI	
 	default "shenzhou"                 if ARCH_BOARD_SHENZHOU
 	default "skp16c26"                 if ARCH_BOARD_SKP16C26
 	default "photon"                   if ARCH_BOARD_PHOTON
@@ -3641,6 +3648,9 @@ source "boards/arm/stm32f0l0g0/common/Kconfig"
 endif
 if ARCH_CHIP_RP2040
 source "boards/arm/rp2040/common/Kconfig"
+endif
+if ARCH_BOARD_AT32F437_MINI
+source "boards/arm/at32/at32f437-mini/Kconfig"
 endif
 endif
 
