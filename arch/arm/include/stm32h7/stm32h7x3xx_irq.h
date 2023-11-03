@@ -75,7 +75,7 @@
 #define STM32_IRQ_TIM1BRK      (STM32_IRQ_FIRST + 24)   /* 24: TIM1 break interrupt */
 #define STM32_IRQ_TIM1UP       (STM32_IRQ_FIRST + 25)   /* 25: TIM1 update interrupt */
 #define STM32_IRQ_TIM1TRGCOM   (STM32_IRQ_FIRST + 26)   /* 26: TIM1 trigger and commutation interrupts */
-#define STM32_IRQ_TIMCC        (STM32_IRQ_FIRST + 27)   /* 27: TIM1 capture / compare interrupt */
+#define STM32_IRQ_TIM1CC       (STM32_IRQ_FIRST + 27)   /* 27: TIM1 capture / compare interrupt */
 #define STM32_IRQ_TIM2         (STM32_IRQ_FIRST + 28)   /* 28: TIM2 global interrupt */
 #define STM32_IRQ_TIM3         (STM32_IRQ_FIRST + 29)   /* 29: TIM3 global interrupt */
 #define STM32_IRQ_TIM4         (STM32_IRQ_FIRST + 30)   /* 30: TIM4 global interrupt */
