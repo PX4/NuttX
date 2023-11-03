@@ -691,6 +691,7 @@ static int s32k1xx_transmit(struct s32k1xx_driver_s *priv)
       if (frame->can_id & CAN_EFF_FLAG)
         {
           cs.ide = 1;
+          cs.srr = 1;
           mb->id.ext = frame->can_id & MASKEXTID;
         }
       else
@@ -714,6 +715,7 @@ static int s32k1xx_transmit(struct s32k1xx_driver_s *priv)
       if (frame->can_id & CAN_EFF_FLAG)
         {
           cs.ide = 1;
+          cs.srr = 1;
           mb->id.ext = frame->can_id & MASKEXTID;
         }
       else

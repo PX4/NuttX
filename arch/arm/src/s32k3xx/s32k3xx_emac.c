@@ -304,7 +304,9 @@
 #  define BOARD_PHY_100BASET(s) 1 /* PHY only supports 100BASE-T1 */
 #  define BOARD_PHY_ISDUPLEX(s) 1 /* PHY only supports fullduplex */
 
-#  define CLAUSE45              1
+#  ifdef CONFIG_NETDEV_IOCTL
+#    define CLAUSE45            1
+#  endif
 #  define MMD1                  1
 #  define MMD1_PMA_STATUS1      1
 #  define MMD1_PS1_RECEIVE_LINK_STATUS (1 << 2)
@@ -2341,12 +2343,12 @@ static int s32k3xx_addmac(struct net_driver_s *dev, const uint8_t *mac)
 
   if (hashindex > 31)
     {
-      registeraddress = S32K3XX_ENET_GAUR;
+      registeraddress = S32K3XX_EMAC_MAC_HASH_TABLE_REG1;
       hashindex      -= 32;
     }
   else
     {
-      registeraddress = S32K3XX_ENET_GALR;
+      registeraddress = S32K3XX_EMAC_MAC_HASH_TABLE_REG0;
     }
 
   temp  = getreg32(registeraddress);
@@ -2389,12 +2391,12 @@ static int s32k3xx_rmmac(struct net_driver_s *dev, const uint8_t *mac)
 
   if (hashindex > 31)
     {
-      registeraddress = S32K3XX_ENET_GAUR;
+      registeraddress = S32K3XX_EMAC_MAC_HASH_TABLE_REG1;
       hashindex      -= 32;
     }
   else
     {
-      registeraddress = S32K3XX_ENET_GALR;
+      registeraddress = S32K3XX_EMAC_MAC_HASH_TABLE_REG0;
     }
 
   temp  = getreg32(registeraddress);
@@ -3548,23 +3550,19 @@ int s32k3xx_netinitialize(int intf)
    * b1, 1st octet)
    */
 
-  /* hardcoded offset: todo: need proper header file */
-
   mac    = priv->dev.d_mac.ether.ether_addr_octet;
+  uidl   = getreg32(S32K3XX_UTEST_UID);
+  uidml  = getreg32(S32K3XX_UTEST_UID + 0x4);
+
   uidml |= 0x00000200;
   uidml &= 0x0000feff;
 
-  /* FIXME UTEST DCF records */
-
-  uidml = 0x2211;
-  uidl = 0x66554433;
-
-  mac[5] = (uidml & 0x000000ff);
-  mac[4] = (uidml & 0x0000ff00) >> 8;
-  mac[3] = (uidl &  0x000000ff);
-  mac[2] = (uidl &  0x0000ff00) >> 8;
-  mac[1] = (uidl &  0x00ff0000) >> 16;
-  mac[0] = (uidl &  0xff000000) >> 24;
+  mac[0] = (uidml & 0x0000ff00) >> 8;
+  mac[1] = (uidml & 0x000000ff);
+  mac[2] = (uidl &  0xff000000) >> 24;
+  mac[3] = (uidl &  0x00ff0000) >> 16;
+  mac[4] = (uidl &  0x0000ff00) >> 8;
+  mac[5] = (uidl &  0x000000ff);
 #endif
 
 #ifdef CONFIG_S32K3XX_ENET_PHYINIT

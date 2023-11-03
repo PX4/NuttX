@@ -1363,8 +1363,9 @@ static inline void imxrt_serialout(struct imxrt_uart_s *priv,
 static int imxrt_dma_nextrx(struct imxrt_uart_s *priv)
 {
   int dmaresidual = imxrt_dmach_getcount(priv->rxdma);
+  DEBUGASSERT(dmaresidual <= RXDMA_BUFFER_SIZE);
 
-  return RXDMA_BUFFER_SIZE - dmaresidual;
+  return (RXDMA_BUFFER_SIZE - dmaresidual) % RXDMA_BUFFER_SIZE;
 }
 #endif
 
@@ -1734,6 +1735,7 @@ static int imxrt_interrupt(int irq, void *context, void *arg)
 {
   struct imxrt_uart_s *priv = (struct imxrt_uart_s *)arg;
   uint32_t usr;
+  uint32_t lsr;
   int passes = 0;
   bool handled;
 
@@ -1759,30 +1761,45 @@ static int imxrt_interrupt(int irq, void *context, void *arg)
        */
 
       usr  = imxrt_serialin(priv, IMXRT_LPUART_STAT_OFFSET);
+
+      /* Removed all W1C from the last sr */
+
+      lsr  = usr & ~(LPUART_STAT_LBKDIF | LPUART_STAT_RXEDGIF |
+                     LPUART_STAT_IDLE   | LPUART_STAT_OR      |
+                     LPUART_STAT_NF     | LPUART_STAT_FE      |
+                     LPUART_STAT_PF     | LPUART_STAT_MA1F    |
+                     LPUART_STAT_MA2F);
+
+      /* Keep what we will service */
+
       usr &= (LPUART_STAT_RDRF | LPUART_STAT_TDRE | LPUART_STAT_OR |
-              LPUART_STAT_FE | LPUART_STAT_NF | LPUART_STAT_PF |
+              LPUART_STAT_FE   | LPUART_STAT_NF   | LPUART_STAT_PF |
               LPUART_STAT_IDLE);
 
       /* Clear serial overrun, parity and framing errors */
 
       if ((usr & LPUART_STAT_OR) != 0)
         {
-          imxrt_serialout(priv, IMXRT_LPUART_STAT_OFFSET, LPUART_STAT_OR);
+          imxrt_serialout(priv, IMXRT_LPUART_STAT_OFFSET,
+                          lsr | LPUART_STAT_OR);
         }
 
       if ((usr & LPUART_STAT_NF) != 0)
         {
-          imxrt_serialout(priv, IMXRT_LPUART_STAT_OFFSET, LPUART_STAT_NF);
+          imxrt_serialout(priv, IMXRT_LPUART_STAT_OFFSET,
+                          lsr | LPUART_STAT_NF);
         }
 
       if ((usr & LPUART_STAT_PF) != 0)
         {
-          imxrt_serialout(priv, IMXRT_LPUART_STAT_OFFSET, LPUART_STAT_PF);
+          imxrt_serialout(priv, IMXRT_LPUART_STAT_OFFSET,
+                          lsr | LPUART_STAT_PF);
         }
 
       if ((usr & LPUART_STAT_FE) != 0)
         {
-          imxrt_serialout(priv, IMXRT_LPUART_STAT_OFFSET, LPUART_STAT_FE);
+          imxrt_serialout(priv, IMXRT_LPUART_STAT_OFFSET,
+                          lsr | LPUART_STAT_FE);
         }
 
       if ((usr & (LPUART_STAT_FE | LPUART_STAT_PF | LPUART_STAT_NF)) != 0)
@@ -1797,7 +1814,8 @@ static int imxrt_interrupt(int irq, void *context, void *arg)
 
       if ((usr & LPUART_STAT_IDLE) != 0)
         {
-          imxrt_serialout(priv, IMXRT_LPUART_STAT_OFFSET, LPUART_STAT_IDLE);
+          imxrt_serialout(priv, IMXRT_LPUART_STAT_OFFSET,
+                          lsr | LPUART_STAT_IDLE);
           imxrt_dma_rxcallback(priv->rxdma, priv, false, LPUART_STAT_IDLE);
         }
 #endif
@@ -2316,14 +2334,26 @@ static bool imxrt_rxflowcontrol(struct uart_dev_s *dev,
 #ifdef SERIAL_HAVE_RXDMA
 static int imxrt_dma_receive(struct uart_dev_s *dev, unsigned int *status)
 {
-  struct imxrt_uart_s *priv = (struct imxrt_uart_s *)dev;
-  uint32_t nextrx = imxrt_dma_nextrx(priv);
-  int c = 0;
+  struct imxrt_uart_s *priv   = (struct imxrt_uart_s *)dev;
+  static uint32_t last_nextrx = -1;
+  uint32_t nextrx             = imxrt_dma_nextrx(priv);
+  int c                       = 0;
 
   /* Check if more data is available */
 
   if (nextrx != priv->rxdmanext)
     {
+      /* Now we must ensure the cache is updated if the DMA has
+       * updated again.
+       */
+
+      if (last_nextrx != nextrx)
+        {
+          up_invalidate_dcache((uintptr_t)priv->rxfifo,
+                               (uintptr_t)priv->rxfifo + RXDMA_BUFFER_SIZE);
+          last_nextrx = nextrx;
+        }
+
       /* Now read from the DMA buffer */
 
       c = priv->rxfifo[priv->rxdmanext];
@@ -2692,9 +2722,6 @@ static void imxrt_dma_rxcallback(DMACH_HANDLE handle, void *arg, bool done,
   struct imxrt_uart_s *priv = (struct imxrt_uart_s *)arg;
   uint32_t sr;
 
-  up_invalidate_dcache((uintptr_t)priv->rxfifo,
-                       (uintptr_t)priv->rxfifo + RXDMA_BUFFER_SIZE);
-
   if (priv->rxenable && imxrt_dma_rxavailable(&priv->dev))
     {
       uart_recvchars(&priv->dev);
@@ -2711,12 +2738,10 @@ static void imxrt_dma_rxcallback(DMACH_HANDLE handle, void *arg, bool done,
 
   sr = imxrt_serialin(priv, IMXRT_LPUART_STAT_OFFSET);
 
-  if ((sr & (LPUART_STAT_OR | LPUART_STAT_NF | LPUART_STAT_FE)) != 0)
+  if ((sr & (LPUART_STAT_OR | LPUART_STAT_NF | LPUART_STAT_FE |
+      LPUART_STAT_PF)) != 0)
     {
-      imxrt_serialout(priv, IMXRT_LPUART_STAT_OFFSET,
-                      sr & (LPUART_STAT_OR |
-                            LPUART_STAT_NF |
-                            LPUART_STAT_FE));
+      imxrt_serialout(priv, IMXRT_LPUART_STAT_OFFSET, sr);
     }
 }
 #endif

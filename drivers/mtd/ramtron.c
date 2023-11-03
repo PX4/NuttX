@@ -69,8 +69,8 @@
  *  configuration:
  */
 
-#define RAMTRON_EMULATE_SECTOR_SHIFT  9
-#define RAMTRON_EMULATE_PAGE_SHIFT    9
+#define RAMTRON_EMULATE_SECTOR_SHIFT  CONFIG_RAMTRON_EMULATE_SECTOR_SHIFT
+#define RAMTRON_EMULATE_PAGE_SHIFT    CONFIG_RAMTRON_EMULATE_PAGE_SHIFT
 #define RAMTRON_EMULATE_PAGE_SIZE     (1 << RAMTRON_EMULATE_PAGE_SHIFT)
 
 /* RAMTRON Identification register values */
@@ -143,7 +143,7 @@ struct ramtron_dev_s
   FAR struct spi_dev_s *dev;               /* Saved SPI interface instance */
   uint8_t sectorshift;
   uint8_t pageshift;
-  uint16_t nsectors;
+  uint32_t nsectors;
   uint32_t npages;
   uint32_t speed;                          /* Overridable via ioctl */
   FAR const struct ramtron_parts_s *part;  /* Part instance */
