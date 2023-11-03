@@ -972,6 +972,24 @@ void stm32_stdclockconfig(void)
       putreg32(regval, STM32_RCC_D3CCIPR);
 #endif
 
+      /* Configure USART 234578 source clock */
+
+#if defined(STM32_RCC_D2CCIP2R_USART234578SELSRC)
+      regval = getreg32(STM32_RCC_D2CCIP2R);
+      regval &= ~RCC_D2CCIP2R_USART234578SEL_MASK;
+      regval |= STM32_RCC_D2CCIP2R_USART234578SELSRC;
+      putreg32(regval, STM32_RCC_D2CCIP2R);
+#endif
+
+      /* Configure USART 16 source clock */
+
+#if defined(STM32_RCC_D2CCIP2R_USART16SELSRC)
+      regval = getreg32(STM32_RCC_D2CCIP2R);
+      regval &= ~RCC_D2CCIP2R_USART16SEL_MASK;
+      regval |= STM32_RCC_D2CCIP2R_USART16SELSRC;
+      putreg32(regval, STM32_RCC_D2CCIP2R);
+#endif
+
       /* Configure USB source clock */
 
 #if defined(STM32_RCC_D2CCIP2R_USBSRC)
