@@ -89,6 +89,7 @@
 
 void stm32_clockconfig(void)
 {
+#ifndef CONFIG_STM32H7_BYPASS_CLOCKCONFIG
   /* Make sure that we are starting in the reset state */
 
   rcc_reset();
@@ -115,6 +116,7 @@ void stm32_clockconfig(void)
   stm32_stdclockconfig();
 
 #endif
+#endif  /* !CONFIG_STM32H7_BYPASS_CLOCKCONFIG */
 
   /* Enable peripheral clocking */
 
