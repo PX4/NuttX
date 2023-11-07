@@ -260,6 +260,31 @@ config STM32H7_IO_CONFIG_Z
 	bool
 	default n
 
+config ARCH_STM32H7_DUALCORE
+	bool
+	default n
+	select STM32H7_HSEM if !STM32H7_CORTEXM4_DISABLED
+	select STM32H7_HAVE_CM4
+
+choice
+	prompt "STM32 H7 Core selection"
+	default ARCH_CHIP_STM32H7_CORTEXM7
+
+config ARCH_CHIP_STM32H7_CORTEXM7
+	bool "STM32H7 Cortex-M7 core"
+	select ARCH_CORTEXM7
+	select ARMV7M_HAVE_ICACHE
+	select ARMV7M_HAVE_DCACHE
+	select ARMV7M_HAVE_ITCM
+	select ARMV7M_HAVE_DTCM
+
+config ARCH_CHIP_STM32H7_CORTEXM4
+	bool "STM32H7 Cortex-M4 core"
+	depends on ARCH_STM32H7_DUALCORE
+	select ARCH_CORTEXM4
+
+endchoice # STM32 H7 Core selection
+
 config STM32H7_STM32H7X3XX
 	bool
 	default n
@@ -280,12 +305,10 @@ config STM32H7_STM32H7X3XX
 config STM32H7_STM32H7X7XX
 	bool
 	default n
+	select ARCH_STM32H7_DUALCORE
 	select ARCH_HAVE_FPU
 	select ARCH_HAVE_DPFPU
-	select ARMV7M_HAVE_ICACHE
-	select ARMV7M_HAVE_DCACHE
-	select ARMV7M_HAVE_ITCM
-	select ARMV7M_HAVE_DTCM
+	select STM32H7_HAVE_LTDC
 	select STM32H7_HAVE_ETHERNET
 	select STM32H7_HAVE_FMC
 	select STM32H7_HAVE_GPIOF
