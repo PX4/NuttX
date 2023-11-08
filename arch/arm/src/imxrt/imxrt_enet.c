@@ -1598,6 +1598,10 @@ static int imxrt_ifdown(struct net_driver_s *dev)
 
   imxrt_reset(priv);
 
+  /* Configure the MII interface */
+
+  imxrt_initmii(priv);
+
   /* Mark the device "down" */
 
   priv->bifup = false;
