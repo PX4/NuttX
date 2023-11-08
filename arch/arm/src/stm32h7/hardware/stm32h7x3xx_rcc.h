@@ -1148,4 +1148,15 @@
 #define RCC_BDCR_BDRST                  (1 << 16)                    /* Bit 16: Backup domain software reset */
                                                                      /* Bits 17-31: Reserved */
 
+/* RCC Global Control register */
+
+#define RCC_GCR_WW1RSC                  (1 << 0)  /* Bit 0: WWDG1 reset scope control */
+#ifdef CONFIG_STM32H7_HAVE_CM4
+#  define RCC_GCR_WW2RSC                (1 << 1)  /* Bit 1: WWDG2 reset scope control */
+#endif
+#ifdef CONFIG_STM32H7_HAVE_CM4
+#  define RCC_GCR_BOOT_C1               (1 << 2)  /* Bit 2: Allows CPU1 to boot */
+#  define RCC_GCR_BOOT_C2               (1 << 3)  /* Bit 3: Allows CPU2 to boot */
+#endif
+
 #endif /* __ARCH_ARM_SRC_STM32H7_HARDWARE_STM32H7X3XX_RCC_H */

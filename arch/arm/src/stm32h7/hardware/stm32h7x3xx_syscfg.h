@@ -54,6 +54,9 @@
 
 #define STM32_SYSCFG_UR_OFFSET(n)     (0x0300 + ((n) << 2))
 #define STM32_SYSCFG_UR0_OFFSET       0x0300 /* User register 0 */
+#ifdef CONFIG_STM32H7_HAVE_CM4
+#  define STM32_SYSCFG_UR1_OFFSET     0x0304 /* User register 2 */
+#endif
 #define STM32_SYSCFG_UR2_OFFSET       0x0308 /* User register 2 */
 #define STM32_SYSCFG_UR3_OFFSET       0x030c /* User register 3 */
 #define STM32_SYSCFG_UR4_OFFSET       0x0310 /* User register 4 */
@@ -70,6 +73,27 @@
 #define STM32_SYSCFG_UR15_OFFSET      0x033c /* User register 15 */
 #define STM32_SYSCFG_UR16_OFFSET      0x0340 /* User register 16 */
 #define STM32_SYSCFG_UR17_OFFSET      0x0344 /* User register 17 */
+
+#define STM32_SYSCFG_UR0              (STM32_SYSCFG_BASE + STM32_SYSCFG_UR0_OFFSET)
+#ifdef CONFIG_STM32H7_HAVE_CM4
+#  define STM32_SYSCFG_UR1            (STM32_SYSCFG_BASE + STM32_SYSCFG_UR1_OFFSET)
+#endif
+#define STM32_SYSCFG_UR2              (STM32_SYSCFG_BASE + STM32_SYSCFG_UR2_OFFSET)
+#define STM32_SYSCFG_UR3              (STM32_SYSCFG_BASE + STM32_SYSCFG_UR3_OFFSET)
+#define STM32_SYSCFG_UR4              (STM32_SYSCFG_BASE + STM32_SYSCFG_UR4_OFFSET)
+#define STM32_SYSCFG_UR5              (STM32_SYSCFG_BASE + STM32_SYSCFG_UR5_OFFSET)
+#define STM32_SYSCFG_UR6              (STM32_SYSCFG_BASE + STM32_SYSCFG_UR6_OFFSET)
+#define STM32_SYSCFG_UR7              (STM32_SYSCFG_BASE + STM32_SYSCFG_UR7_OFFSET)
+#define STM32_SYSCFG_UR8              (STM32_SYSCFG_BASE + STM32_SYSCFG_UR8_OFFSET)
+#define STM32_SYSCFG_UR9              (STM32_SYSCFG_BASE + STM32_SYSCFG_UR9_OFFSET)
+#define STM32_SYSCFG_UR10             (STM32_SYSCFG_BASE + STM32_SYSCFG_UR10_OFFSET)
+#define STM32_SYSCFG_UR11             (STM32_SYSCFG_BASE + STM32_SYSCFG_UR11_OFFSET)
+#define STM32_SYSCFG_UR12             (STM32_SYSCFG_BASE + STM32_SYSCFG_UR12_OFFSET)
+#define STM32_SYSCFG_UR13             (STM32_SYSCFG_BASE + STM32_SYSCFG_UR13_OFFSET)
+#define STM32_SYSCFG_UR14             (STM32_SYSCFG_BASE + STM32_SYSCFG_UR14_OFFSET)
+#define STM32_SYSCFG_UR15             (STM32_SYSCFG_BASE + STM32_SYSCFG_UR15_OFFSET)
+#define STM32_SYSCFG_UR16             (STM32_SYSCFG_BASE + STM32_SYSCFG_UR16_OFFSET)
+#define STM32_SYSCFG_UR17             (STM32_SYSCFG_BASE + STM32_SYSCFG_UR17_OFFSET)
 
 /* Register Addresses *******************************************************/
 
@@ -191,6 +215,14 @@
 /* REVISIT:  Missing bitfield definitions */
 
 #define SYSCFG_UR0_
+
+/* User register 1 */
+
+#ifdef CONFIG_STM32H7_HAVE_CM4
+#  define SYSCFG_UR1_BCM4            (1 << 0)  /* Bit 0: Boot Cortex-M4 */
+#  define SYSCFG_UR1_BCM7            (1 << 16) /* Bit 16: Boot Cortex-M7 */
+#endif
+
 #define SYSCFG_UR2_
 #define SYSCFG_UR3_
 #define SYSCFG_UR4_
