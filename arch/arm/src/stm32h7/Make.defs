@@ -35,6 +35,18 @@ CHIP_CSRCS += stm32_allocateheap.c stm32_exti_gpio.c stm32_gpio.c stm32_irq.c
 CHIP_CSRCS += stm32_start.c stm32_rcc.c stm32_lowputc.c stm32_serial.c
 CHIP_CSRCS += stm32_uid.c
 
+ifeq ($(CONFIG_ARCH_STM32H7_DUALCORE),y)
+  CHIP_CSRCS += stm32_dualcore.c
+endif
+
+ifeq ($(CONFIG_STM32H7_HSEM),y)
+  CHIP_CSRCS += stm32_hsem.c
+endif
+
+ifeq ($(CONFIG_RPTUN),y)
+  CHIP_CSRCS += stm32_rptun.c
+endif
+
 ifeq ($(CONFIG_SCHED_TICKLESS),y)
 CHIP_CSRCS += stm32_tickless.c
 else
