@@ -31,20 +31,22 @@
 #include <string.h>
 #include <assert.h>
 #include <debug.h>
-#include <queue.h>
 #include <errno.h>
+
+#include <sys/param.h>
 
 #include <arpa/inet.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
+#include <nuttx/queue.h>
 #include <nuttx/wdog.h>
 #include <nuttx/wqueue.h>
 #include <nuttx/signal.h>
 #include <nuttx/net/mii.h>
-#include <nuttx/net/arp.h>
+#include <nuttx/net/ip.h>
 #include <nuttx/net/netdev.h>
-#include <crc64.h>
+#include <nuttx/crc64.h>
 
 #if defined(CONFIG_NET_PKT)
 #  include <nuttx/net/pkt.h>
@@ -212,10 +214,6 @@
 #endif
 #ifndef CONFIG_STM32H7_ETH_NTXDESC
 #  define CONFIG_STM32H7_ETH_NTXDESC 4
-#endif
-
-#ifndef min
-#  define min(a,b) ((a) < (b) ? (a) : (b))
 #endif
 
 /* We need at least one more free buffer than transmit buffers */
@@ -581,11 +579,7 @@
 #define ETH_DMAINT_XMIT_ENABLE    (ETH_DMACIER_NIE | ETH_DMACIER_TIE)
 #define ETH_DMAINT_XMIT_DISABLE   (ETH_DMACIER_TIE)
 
-#ifdef CONFIG_DEBUG_NET
-#  define ETH_DMAINT_ERROR_ENABLE (ETH_DMACIER_AIE | ETH_DMAINT_ABNORMAL)
-#else
-#  define ETH_DMAINT_ERROR_ENABLE (0)
-#endif
+#define ETH_DMAINT_ERROR_ENABLE (ETH_DMACIER_AIE | ETH_DMAINT_ABNORMAL)
 
 /* Helpers ******************************************************************/
 
@@ -687,9 +681,9 @@ static uint32_t stm32_getreg(uint32_t addr);
 static void stm32_putreg(uint32_t val, uint32_t addr);
 static void stm32_checksetup(void);
 #else
-# define stm32_getreg(addr)      getreg32(addr)
-# define stm32_putreg(val,addr)  putreg32(val,addr)
-# define stm32_checksetup()
+#  define stm32_getreg(addr)     getreg32(addr)
+#  define stm32_putreg(val,addr) putreg32(val,addr)
+#  define stm32_checksetup()
 #endif
 
 /* Free buffer management */
@@ -1323,77 +1317,48 @@ static int stm32_txpoll(struct net_driver_s *dev)
 
   DEBUGASSERT(priv->dev.d_buf != NULL);
 
-  /* If the polling resulted in data that should be sent out on the network,
-   * the field d_len is set to a value > 0.
+  /* Send the packet */
+
+  stm32_transmit(priv);
+  DEBUGASSERT(dev->d_len == 0 && dev->d_buf == NULL);
+
+  /* Check if the next TX descriptor is owned by the Ethernet DMA or
+   * CPU.  We cannot perform the TX poll if we are unable to accept
+   * another packet for transmission.
+   *
+   * In a race condition, ETH_TDES3_OWN may be cleared BUT still
+   * not available because stm32_freeframe() has not yet run. If
+   * stm32_freeframe() has run, the buffer1 pointer (tdes2) will be
+   * nullified (and inflight should be < CONFIG_STM32H7_ETH_NTXDESC).
    */
 
-  if (priv->dev.d_len > 0)
+  if ((priv->txhead->des3 & ETH_TDES3_RD_OWN) != 0 ||
+      priv->txhead->des0 != 0)
     {
-      /* Look up the destination MAC address and add it to the Ethernet
-       * header.
+      /* We have to terminate the poll if we have no more descriptors
+       * available for another transfer.
        */
 
-#ifdef CONFIG_NET_IPv4
-#ifdef CONFIG_NET_IPv6
-      if (IFF_IS_IPv4(priv->dev.d_flags))
-#endif
-        {
-          arp_out(&priv->dev);
-        }
-#endif /* CONFIG_NET_IPv4 */
+      nerr("No tx descriptors available");
 
-#ifdef CONFIG_NET_IPv6
-#ifdef CONFIG_NET_IPv4
-      else
-#endif
-        {
-          neighbor_out(&priv->dev);
-        }
-#endif /* CONFIG_NET_IPv6 */
+      return -EBUSY;
+    }
 
-      /* Send the packet */
+  /* We have the descriptor, we can continue the poll. Allocate a new
+   * buffer for the poll.
+   */
 
-      stm32_transmit(priv);
-      DEBUGASSERT(dev->d_len == 0 && dev->d_buf == NULL);
+  dev->d_buf = stm32_allocbuffer(priv);
 
-      /* Check if the next TX descriptor is owned by the Ethernet DMA or
-       * CPU.  We cannot perform the TX poll if we are unable to accept
-       * another packet for transmission.
-       *
-       * In a race condition, ETH_TDES3_OWN may be cleared BUT still
-       * not available because stm32_freeframe() has not yet run. If
-       * stm32_freeframe() has run, the buffer1 pointer (tdes2) will be
-       * nullified (and inflight should be < CONFIG_STM32H7_ETH_NTXDESC).
-       */
+  /* We can't continue the poll if we have no buffers */
 
-      if ((priv->txhead->des3 & ETH_TDES3_RD_OWN) != 0 ||
-          priv->txhead->des0 != 0)
-        {
-          /* We have to terminate the poll if we have no more descriptors
-           * available for another transfer.
-           */
+  if (dev->d_buf == NULL)
+    {
+      /* Terminate the poll. */
 
-          nerr("No tx descriptors available");
+      nerr("No tx buffer available");
 
-          return -EBUSY;
-        }
-
-      /* We have the descriptor, we can continue the poll. Allocate a new
-       * buffer for the poll.
-       */
-
-      dev->d_buf = stm32_allocbuffer(priv);
-
-      /* We can't continue the poll if we have no buffers */
-
-      if (dev->d_buf == NULL)
-        {
-          /* Terminate the poll. */
-
-          nerr("No tx buffer available");
-
-          return -ENOMEM;
-        }
+      return -ENOMEM;
     }
 
   /* If zero is returned, the polling will continue until all connections
@@ -1825,7 +1790,7 @@ static int stm32_recvframe(struct stm32_ethmac_s *priv)
 
                       up_invalidate_dcache((uintptr_t)dev->d_buf,
                                            (uintptr_t)dev->d_buf +
-                                           min(dev->d_len, ALIGNED_BUFSIZE));
+                                           MIN(dev->d_len, ALIGNED_BUFSIZE));
 
                       ninfo("rxhead: %p d_buf: %p d_len: %d\n",
                             priv->rxhead, dev->d_buf, dev->d_len);
@@ -1942,11 +1907,8 @@ static void stm32_receive(struct stm32_ethmac_s *priv)
         {
           ninfo("IPv4 frame\n");
 
-          /* Handle ARP on input then give the IPv4 packet to the network
-           * layer
-           */
+          /* Receive an IPv4 packet from the network device */
 
-          arp_ipin(&priv->dev);
           ipv4_input(&priv->dev);
 
           /* If the above function invocation resulted in data that should
@@ -1956,21 +1918,6 @@ static void stm32_receive(struct stm32_ethmac_s *priv)
 
           if (priv->dev.d_len > 0)
             {
-              /* Update the Ethernet header with the correct MAC address */
-
-#ifdef CONFIG_NET_IPv6
-              if (IFF_IS_IPv4(priv->dev.d_flags))
-#endif
-                {
-                  arp_out(&priv->dev);
-                }
-#ifdef CONFIG_NET_IPv6
-              else
-                {
-                  neighbor_out(&priv->dev);
-                }
-#endif
-
               /* And send the packet */
 
               stm32_transmit(priv);
@@ -1994,21 +1941,6 @@ static void stm32_receive(struct stm32_ethmac_s *priv)
 
           if (priv->dev.d_len > 0)
             {
-              /* Update the Ethernet header with the correct MAC address */
-
-#ifdef CONFIG_NET_IPv4
-              if (IFF_IS_IPv4(priv->dev.d_flags))
-                {
-                  arp_out(&priv->dev);
-                }
-              else
-#endif
-#ifdef CONFIG_NET_IPv6
-                {
-                  neighbor_out(&priv->dev);
-                }
-#endif
-
               /* And send the packet */
 
               stm32_transmit(priv);
@@ -2023,7 +1955,7 @@ static void stm32_receive(struct stm32_ethmac_s *priv)
 
           /* Handle ARP packet */
 
-          arp_arpin(&priv->dev);
+          arp_input(&priv->dev);
 
           /* If the above function invocation resulted in data that should
            * be sent out on the network, the field  d_len will set to a
@@ -2295,16 +2227,13 @@ static void stm32_interrupt_work(void *arg)
       stm32_putreg(ETH_DMACSR_NIS, STM32_ETH_DMACSR);
     }
 
-  /* Handle error interrupt only if CONFIG_DEBUG_NET is eanbled */
-
-#ifdef CONFIG_DEBUG_NET
   /* Check if there are pending "abnormal" interrupts */
 
   if ((dmasr & ETH_DMACSR_AIS) != 0)
     {
       /* Just let the user know what happened */
 
-      nerr("ERROR: Abormal event(s): %08x\n", dmasr);
+      nerr("ERROR: Abnormal event(s): %08" PRIx32 "\n", dmasr);
 
       /* Clear all pending abnormal events */
 
@@ -2313,8 +2242,29 @@ static void stm32_interrupt_work(void *arg)
       /* Clear the pending abnormal summary interrupt */
 
       stm32_putreg(ETH_DMACSR_AIS, STM32_ETH_DMACSR);
+
+      /* In case of any error that stops the DMA, reset the MAC. */
+
+      if (dmasr & (ETH_DMACIER_CDEE | ETH_DMACSR_FBE |
+          ETH_DMACSR_RPS | ETH_DMACSR_TPS))
+        {
+          /* As per the datasheet's recommendation, the MAC
+           * needs to be reset for all fatal errors. The
+           * scheduled job will take the interface down and
+           * up again.
+           */
+
+          work_queue(ETHWORK, &priv->irqwork, stm32_txtimeout_work, priv, 0);
+
+          /* Interrupts need to remain disabled, no other
+           * processing will take place. After reset
+           * everything will be restored.
+           */
+
+          net_unlock();
+          return;
+        }
     }
-#endif
 
   net_unlock();
 
@@ -2475,9 +2425,9 @@ static int stm32_ifup(struct net_driver_s *dev)
   int ret;
 
 #ifdef CONFIG_NET_IPv4
-  ninfo("Bringing up: %d.%d.%d.%d\n",
-        (int)(dev->d_ipaddr & 0xff), (int)((dev->d_ipaddr >> 8) & 0xff),
-        (int)((dev->d_ipaddr >> 16) & 0xff), (int)(dev->d_ipaddr >> 24));
+  ninfo("Bringing up: %u.%u.%u.%u\n",
+        ip4_addr1(dev->d_ipaddr), ip4_addr2(dev->d_ipaddr),
+        ip4_addr3(dev->d_ipaddr), ip4_addr4(dev->d_ipaddr));
 #endif
 #ifdef CONFIG_NET_IPv6
   ninfo("Bringing up: %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
@@ -3616,6 +3566,7 @@ static inline void stm32_selectmii(void)
  *
  ****************************************************************************/
 
+#ifdef CONFIG_STM32H7_RMII
 static inline void stm32_selectrmii(void)
 {
   uint32_t regval;
@@ -3625,6 +3576,7 @@ static inline void stm32_selectrmii(void)
   regval |= SYSCFG_PMC_EPIS_RMII;
   putreg32(regval, STM32_SYSCFG_PMC);
 }
+#endif
 
 /****************************************************************************
  * Function: stm32_ethgpioconfig

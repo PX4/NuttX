@@ -126,8 +126,8 @@ struct stm32_lowerhalf_s
 static uint16_t stm32_getreg(uint32_t addr);
 static void     stm32_putreg(uint16_t val, uint32_t addr);
 #else
-# define        stm32_getreg(addr)     getreg16(addr)
-# define        stm32_putreg(val,addr) putreg16(val,addr)
+#  define       stm32_getreg(addr)     getreg16(addr)
+#  define       stm32_putreg(val,addr) putreg16(val,addr)
 #endif
 
 static inline void stm32_setprescaler(struct stm32_lowerhalf_s *priv);
@@ -315,8 +315,8 @@ static int stm32_start(struct watchdog_lowerhalf_s *lower)
   struct stm32_lowerhalf_s *priv = (struct stm32_lowerhalf_s *)lower;
   irqstate_t flags;
 
-  wdinfo("Entry: started=%d\n");
   DEBUGASSERT(priv);
+  wdinfo("Entry: started=%d\n", priv->started);
 
   /* Have we already been started? */
 
@@ -462,9 +462,9 @@ static int stm32_getstatus(struct watchdog_lowerhalf_s *lower,
   status->timeleft = priv->timeout - elapsed;
 
   wdinfo("Status     :\n");
-  wdinfo("  flags    : %08x\n", status->flags);
-  wdinfo("  timeout  : %d\n", status->timeout);
-  wdinfo("  timeleft : %d\n", status->timeleft);
+  wdinfo("  flags    : %08"PRIx32"\n", status->flags);
+  wdinfo("  timeout  : %"PRIu32"\n", status->timeout);
+  wdinfo("  timeleft : %"PRIu32"\n", status->timeleft);
   return OK;
 }
 
@@ -493,14 +493,14 @@ static int stm32_settimeout(struct watchdog_lowerhalf_s *lower,
   int prescaler;
   int shift;
 
-  wdinfo("Entry: timeout=%d\n", timeout);
+  wdinfo("Entry: timeout=%"PRIu32"\n", timeout);
   DEBUGASSERT(priv);
 
   /* Can this timeout be represented? */
 
   if (timeout < 1 || timeout > IWDG_MAXTIMEOUT)
     {
-      wderr("ERROR: Cannot represent timeout=%d > %d\n",
+      wderr("ERROR: Cannot represent timeout=%"PRIu32" > %d\n",
             timeout, IWDG_MAXTIMEOUT);
       return -ERANGE;
     }
@@ -608,7 +608,8 @@ static int stm32_settimeout(struct watchdog_lowerhalf_s *lower,
     }
 #endif
 
-  wdinfo("prescaler=%d fiwdg=%d reload=%d\n", prescaler, fiwdg, reload);
+  wdinfo("prescaler=%d fiwdg=%"PRIu32" reload=%"PRIu64"\n", prescaler, fiwdg,
+         reload);
 
   return OK;
 }
@@ -639,7 +640,7 @@ void stm32_iwdginitialize(const char *devpath, uint32_t lsifreq)
 {
   struct stm32_lowerhalf_s *priv = &g_wdgdev;
 
-  wdinfo("Entry: devpath=%s lsifreq=%d\n", devpath, lsifreq);
+  wdinfo("Entry: devpath=%s lsifreq=%"PRIu32"\n", devpath, lsifreq);
 
   /* NOTE we assume that clocking to the IWDG has already been provided by
    * the RCC initialization logic.
@@ -659,7 +660,7 @@ void stm32_iwdginitialize(const char *devpath, uint32_t lsifreq)
    */
 
   stm32_rcc_enablelsi();
-  wdinfo("RCC CSR: %08x\n", getreg32(STM32_RCC_CSR));
+  wdinfo("RCC CSR: %08"PRIx32"\n", getreg32(STM32_RCC_CSR));
 
   /* Select an arbitrary initial timeout value.  But don't start the watchdog
    * yet. NOTE: If the "Hardware watchdog" feature is enabled through the
