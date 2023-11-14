@@ -90,6 +90,7 @@
  *
  ****************************************************************************/
 
+#ifdef CONFIG_ARMV7M_DCACHE
 static inline uint32_t arm_clz(unsigned int value)
 {
   uint32_t ret;
@@ -97,10 +98,159 @@ static inline uint32_t arm_clz(unsigned int value)
   __asm__ __volatile__ ("clz %0, %1" : "=r"(ret) : "r"(value));
   return ret;
 }
+#endif
+
+/****************************************************************************
+ * Private Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: up_get_cache_linesize
+ *
+ * Description:
+ *   Get cache linesize
+ *
+ * Input Parameters:
+ *   icache - Difference between icache and dcache.
+ *
+ * Returned Value:
+ *   Cache line size
+ *
+ ****************************************************************************/
+
+#if defined(CONFIG_ARMV7M_ICACHE) || defined(CONFIG_ARMV7M_DCACHE)
+static size_t up_get_cache_linesize(bool icache)
+{
+  uint32_t ccsidr;
+  uint32_t csselr;
+  uint32_t sshift;
+
+  csselr = getreg32(NVIC_CSSELR);
+
+  if (icache)
+    {
+      putreg32((csselr & ~NVIC_CSSELR_IND) |
+                NVIC_CSSELR_IND_ICACHE, NVIC_CSSELR);
+    }
+  else
+    {
+      putreg32((csselr & ~NVIC_CSSELR_IND) |
+                NVIC_CSSELR_IND_DCACHE, NVIC_CSSELR);
+    }
+
+  ccsidr = getreg32(NVIC_CCSIDR);
+  sshift = CCSIDR_LSSHIFT(ccsidr) + 4;   /* log2(cache-line-size-in-bytes) */
+
+  putreg32(csselr, NVIC_CSSELR);    /* restore csselr */
+
+  return 1 << sshift;
+}
+
+/****************************************************************************
+ * Name: up_get_cache_size
+ *
+ * Description:
+ *   Get cache size
+ *
+ * Input Parameters:
+ *   level - Difference between icache and dcache.
+ *
+ * Returned Value:
+ *   Cache size
+ *
+ ****************************************************************************/
+
+static size_t up_get_cache_size(bool icache)
+{
+  uint32_t ccsidr;
+  uint32_t csselr;
+  uint32_t sshift;
+  uint32_t sets;
+  uint32_t ways;
+  uint32_t line;
+
+  csselr = getreg32(NVIC_CSSELR);
+
+  if (icache)
+    {
+      putreg32((csselr & ~NVIC_CSSELR_IND) |
+                NVIC_CSSELR_IND_ICACHE, NVIC_CSSELR);
+    }
+  else
+    {
+      putreg32((csselr & ~NVIC_CSSELR_IND) |
+                NVIC_CSSELR_IND_DCACHE, NVIC_CSSELR);
+    }
+
+  ccsidr = getreg32(NVIC_CCSIDR);
+  sets   = CCSIDR_SETS(ccsidr) + 1;
+  ways   = CCSIDR_WAYS(ccsidr) + 1;
+  sshift = CCSIDR_LSSHIFT(ccsidr) + 4;   /* log2(cache-line-size-in-bytes) */
+  line   = 1 << sshift;
+
+  putreg32(csselr, NVIC_CSSELR);    /* restore csselr */
+
+  return sets * ways * line;
+}
+#endif
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
+
+/****************************************************************************
+ * Name: up_get_icache_linesize
+ *
+ * Description:
+ *   Get icache linesize
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   Cache line size
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_ARMV7M_ICACHE
+size_t up_get_icache_linesize(void)
+{
+  static uint32_t clsize;
+
+  if (clsize == 0)
+    {
+      clsize = up_get_cache_linesize(true);
+    }
+
+  return clsize;
+}
+
+/****************************************************************************
+ * Name: up_get_icache_size
+ *
+ * Description:
+ *   Get icache size
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   Cache size
+ *
+ ****************************************************************************/
+
+size_t up_get_icache_size(void)
+{
+  static uint32_t csize;
+
+  if (csize == 0)
+    {
+      csize = up_get_cache_size(true);
+    }
+
+  return csize;
+}
+#endif
 
 /****************************************************************************
  * Name: up_enable_icache
@@ -177,6 +327,68 @@ void up_disable_icache(void)
 #endif
 
 /****************************************************************************
+ * Name: up_invalidate_icache
+ *
+ * Description:
+ *   Invalidate the instruction cache within the specified region.
+ *
+ * Input Parameters:
+ *   start - virtual start address of region
+ *   end   - virtual end address of region + 1
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_ARMV7M_ICACHE
+void up_invalidate_icache(uintptr_t start, uintptr_t end)
+{
+  uint32_t ssize = up_get_icache_linesize();
+
+  /* Invalidate the I-Cache containing this range of addresses.
+   * Round down the start address to the nearest cache line boundary.
+   *
+   *   sshift = 5      : Offset to the beginning of the set field
+   *   (ssize - 1)  = 0x007f : Mask of the set field
+   */
+
+  ARM_DSB();
+
+  if ((start & (ssize - 1)) != 0)
+    {
+      start &= ~(ssize - 1);
+      putreg32(start, NVIC_ICIMVAU);
+      start += ssize;
+    }
+
+  while (start + ssize <= end)
+    {
+      /* The below store causes the cache to check its directory and
+       * determine if this address is contained in the cache. If so, it
+       * invalidate that cache line. Only the cache way containing the
+       * address is invalidated. If the address is not in the cache, then
+       * nothing is invalidated.
+       */
+
+      putreg32(start, NVIC_ICIMVAU);
+
+      /* Increment the address by the size of one cache line. */
+
+      start += ssize;
+    }
+
+  if (start < end)
+    {
+      putreg32(start, NVIC_ICIMVAU);
+    }
+
+  ARM_DSB();
+  ARM_ISB();
+}
+#endif /* CONFIG_ARMV7M_ICACHE */
+
+/****************************************************************************
  * Name: up_invalidate_icache_all
  *
  * Description:
@@ -206,6 +418,60 @@ void up_invalidate_icache_all(void)
 #endif
 
 /****************************************************************************
+ * Name: up_get_dcache_linesize
+ *
+ * Description:
+ *   Get dcache linesize
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   Cache line size
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_ARMV7M_DCACHE
+size_t up_get_dcache_linesize(void)
+{
+  static uint32_t clsize;
+
+  if (clsize == 0)
+    {
+      clsize = up_get_cache_linesize(false);
+    }
+
+  return clsize;
+}
+
+/****************************************************************************
+ * Name: up_get_dcache_size
+ *
+ * Description:
+ *   Get icache size
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   Cache size
+ *
+ ****************************************************************************/
+
+size_t up_get_dcache_size(void)
+{
+  static uint32_t csize;
+
+  if (csize == 0)
+    {
+      csize = up_get_cache_size(false);
+    }
+
+  return csize;
+}
+#endif
+
+/****************************************************************************
  * Name: up_enable_dcache
  *
  * Description:
@@ -229,6 +495,14 @@ void up_enable_dcache(void)
   uint32_t sw;
   uint32_t sets;
   uint32_t ways;
+
+  /* If dcache is already enabled, disable it first. */
+
+  ccr = getreg32(NVIC_CFGCON);
+  if ((ccr & NVIC_CFGCON_DC) != 0)
+    {
+      up_disable_dcache();
+    }
 
   /* Get the characteristics of the D-Cache */
 
@@ -385,20 +659,10 @@ void up_disable_dcache(void)
 #ifdef CONFIG_ARMV7M_DCACHE
 void up_invalidate_dcache(uintptr_t start, uintptr_t end)
 {
-  uint32_t ccsidr;
-  uint32_t sshift;
-  uint32_t ssize;
+  uint32_t ssize = up_get_dcache_linesize();
 
-  /* Get the characteristics of the D-Cache */
-
-  ccsidr = getreg32(NVIC_CCSIDR);
-  sshift = CCSIDR_LSSHIFT(ccsidr) + 4;   /* log2(cache-line-size-in-bytes) */
-
-  /* Invalidate the D-Cache containing this range of addresses */
-
-  ssize  = (1 << sshift);
-
-  /* Round down the start address to the nearest cache line boundary.
+  /* Invalidate the D-Cache containing this range of addresses
+   * Round down the start address to the nearest cache line boundary.
    *
    *   sshift = 5      : Offset to the beginning of the set field
    *   (ssize - 1)  = 0x007f : Mask of the set field
@@ -406,7 +670,7 @@ void up_invalidate_dcache(uintptr_t start, uintptr_t end)
 
   ARM_DSB();
 
-  if (start & (ssize - 1))
+  if ((start & (ssize - 1)) != 0)
     {
       start &= ~(ssize - 1);
       putreg32(start, NVIC_DCCIMVAC);
@@ -574,10 +838,10 @@ void up_clean_dcache(uintptr_t start, uintptr_t end)
       start += ssize;
     }
   while (start < end);
+#endif /* !CONFIG_ARMV7M_DCACHE_WRITETHROUGH */
 
   ARM_DSB();
   ARM_ISB();
-#endif /* !CONFIG_ARMV7M_DCACHE_WRITETHROUGH */
 }
 #endif /* CONFIG_ARMV7M_DCACHE */
 
@@ -651,10 +915,10 @@ void up_clean_dcache_all(void)
       while (tmpways--);
     }
   while (sets--);
+#endif /* !CONFIG_ARMV7M_DCACHE_WRITETHROUGH */
 
   ARM_DSB();
   ARM_ISB();
-#endif /* !CONFIG_ARMV7M_DCACHE_WRITETHROUGH */
 }
 #endif /* CONFIG_ARMV7M_DCACHE */
 

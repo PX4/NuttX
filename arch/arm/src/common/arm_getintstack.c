@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/armv7-m/arm_trigger_irq.c
+ * arch/arm/src/common/arm_getintstack.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -25,63 +25,25 @@
 #include <nuttx/config.h>
 
 #include <stdint.h>
-#include <assert.h>
-
-#include <nuttx/arch.h>
-#include <arch/irq.h>
 
 #include "arm_internal.h"
-#include "nvic.h"
-
-#ifdef CONFIG_ARCH_HAVE_IRQTRIGGER
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: up_trigger_irq
- *
- * Description:
- *   Trigger an IRQ by software.
- *
+ * Name: up_get_intstackbase
  ****************************************************************************/
 
-void up_trigger_irq(int irq, cpu_set_t cpuset)
+#if CONFIG_ARCH_INTERRUPTSTACK > 3
+uintptr_t up_get_intstackbase(void)
 {
-  uint32_t pend_bit = 0;
-
-  DEBUGASSERT(irq >= NVIC_IRQ_NMI && irq < NR_IRQS);
-
-  if (irq >= NVIC_IRQ_FIRST)
-    {
-      putreg32(irq - NVIC_IRQ_FIRST, NVIC_STIR);
-    }
-  else
-    {
-      switch (irq)
-        {
-          case NVIC_IRQ_PENDSV:
-            pend_bit = NVIC_INTCTRL_PENDSVSET;
-            break;
-
-          case NVIC_IRQ_NMI:
-            pend_bit = NVIC_INTCTRL_NMIPENDSET;
-            break;
-
-          case NVIC_IRQ_SYSTICK:
-            pend_bit = NVIC_INTCTRL_PENDSTSET;
-            break;
-
-          default:
-            break;
-        }
-
-      if (pend_bit)
-        {
-          modifyreg32(NVIC_INTCTRL, 0, pend_bit);
-        }
-    }
+#ifdef CONFIG_SMP
+  return arm_intstack_alloc();
+#else
+  return (uintptr_t)g_intstackalloc;
+#endif
 }
+#endif
 
-#endif /* CONFIG_ARCH_HAVE_IRQTRIGGER */

@@ -45,15 +45,15 @@
  */
 
 #ifdef CONFIG_DEBUG_HARDFAULT_ALERT
-# define hfalert(format, ...)  _alert(format, ##__VA_ARGS__)
+#  define hfalert(format, ...) _alert(format, ##__VA_ARGS__)
 #else
-# define hfalert(x...)
+#  define hfalert(x...)
 #endif
 
 #ifdef CONFIG_DEBUG_HARDFAULT_INFO
-# define hfinfo(format, ...)   _info(format, ##__VA_ARGS__)
+#  define hfinfo(format, ...)  _info(format, ##__VA_ARGS__)
 #else
-# define hfinfo(x...)
+#  define hfinfo(x...)
 #endif
 
 #define INSN_SVC0        0xdf00 /* insn: svc 0 */
@@ -152,9 +152,11 @@ int arm_hardfault(int irq, void *context, void *arg)
 
   hfalert("PANIC!!! Hard Fault!:");
   hfalert("\tIRQ: %d regs: %p\n", irq, context);
-  hfalert("\tBASEPRI: %08x PRIMASK: %08x IPSR: %08x CONTROL: %08x\n",
+  hfalert("\tBASEPRI: %08x PRIMASK: %08x IPSR: %08"
+          PRIx32 " CONTROL: %08" PRIx32 "\n",
           getbasepri(), getprimask(), getipsr(), getcontrol());
-  hfalert("\tCFSR: %08x HFSR: %08x DFSR: %08x BFAR: %08x AFSR: %08x\n",
+  hfalert("\tCFSR: %08" PRIx32 " HFSR: %08" PRIx32 " DFSR: %08"
+          PRIx32 " BFAR: %08" PRIx32 " AFSR: %08" PRIx32 "\n",
           cfsr, hfsr, getreg32(NVIC_DFAULTS),
           getreg32(NVIC_BFAULT_ADDR), getreg32(NVIC_AFAULTS));
 
@@ -170,6 +172,6 @@ int arm_hardfault(int irq, void *context, void *arg)
     }
 
   up_irq_save();
-  PANIC();
+  PANIC_WITH_REGS("panic", context);
   return OK;
 }
