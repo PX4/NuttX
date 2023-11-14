@@ -69,7 +69,7 @@
  * 0x2005:ffff - End of internal SRAM and end of heap (a
  */
 
-#define HEAP_BASE  ((uintptr_t)_ebss + CONFIG_IDLETHREAD_STACKSIZE)
+#define HEAP_BASE  ((uintptr_t)&_ebss + CONFIG_IDLETHREAD_STACKSIZE)
 
 /****************************************************************************
  * Public Data
