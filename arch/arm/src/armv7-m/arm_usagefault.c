@@ -111,6 +111,6 @@ int arm_usagefault(int irq, void *context, void *arg)
     }
 
   up_irq_save();
-  PANIC_WITH_REGS("panic", context);
+  PANIC();
   return OK;
 }

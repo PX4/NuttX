@@ -99,6 +99,6 @@ int arm_memfault(int irq, void *context, void *arg)
     }
 
   up_irq_save();
-  PANIC_WITH_REGS("panic", context);
+  PANIC();
   return OK; /* Won't get here */
 }
