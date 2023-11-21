@@ -628,7 +628,6 @@ struct up_dev_s
 #ifdef SERIAL_HAVE_TXDMA
   const unsigned int txdma_channel; /* DMA channel assigned */
   DMA_HANDLE        txdma;          /* currently-open trasnmit DMA stream */
-  sem_t             txdmasem;       /* Indicate TX DMA completion */
 #endif
 
   /* RX DMA state */
@@ -2224,9 +2223,6 @@ static int up_dma_setup(struct uart_dev_s *dev)
     {
       priv->txdma = stm32_dmachannel(priv->txdma_channel);
 
-      nxsem_init(&priv->txdmasem, 0, 1);
-      nxsem_set_protocol(&priv->txdmasem, SEM_PRIO_NONE);
-
       /* Enable receive Tx DMA for the UART */
 
       modifyreg32(priv->usartbase + STM32_USART_CR3_OFFSET,
@@ -3321,11 +3317,7 @@ static void up_dma_txcallback(DMA_HANDLE handle, uint8_t status, void *arg)
    * This is important to free TX buffer space by 'uart_xmitchars_done'.
    */
 
-  if (status & DMA_SCR_HTIE)
-    {
-      priv->dev.dmatx.nbytes += priv->dev.dmatx.length / 2;
-    }
-  else if (status & DMA_SCR_TCIE)
+  if (status & DMA_SCR_TCIE)
     {
       priv->dev.dmatx.nbytes += priv->dev.dmatx.length;
       if (priv->dev.dmatx.nlength)
@@ -3353,11 +3345,13 @@ static void up_dma_txcallback(DMA_HANDLE handle, uint8_t status, void *arg)
         }
     }
 
-  nxsem_post(&priv->txdmasem);
-
   /* Adjust the pointers */
 
   uart_xmitchars_done(&priv->dev);
+
+  /* Send more if availaible */
+
+  up_dma_txavailable(&priv->dev);
 }
 #endif
 
@@ -3376,8 +3370,7 @@ static void up_dma_txavailable(struct uart_dev_s *dev)
 
   /* Only send when the DMA is idle */
 
-  int rv = nxsem_trywait(&priv->txdmasem);
-  if (rv == OK)
+  if (stm32_dmaresidual(priv->txdma) == 0)
     {
       uart_xmitchars_dma(dev);
     }
