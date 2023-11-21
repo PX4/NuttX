@@ -760,7 +760,6 @@ struct imxrt_uart_s
 #ifdef SERIAL_HAVE_TXDMA
   const unsigned int dma_txreqsrc;  /* DMAMUX source of TX DMA request */
   DMACH_HANDLE       txdma;         /* currently-open trasnmit DMA stream */
-  sem_t              txdmasem;      /* Indicate TX DMA completion */
 #endif
 
   /* RX DMA state */
@@ -1060,7 +1059,7 @@ static char g_lpuart8rxbuffer[CONFIG_LPUART8_RXBUFSIZE];
 static char g_lpuart8txbuffer[LPUART8_TXBUFSIZE_ADJUSTED] \
   LPUART8_TXBUFSIZE_ALGN;
 #endif
-  
+
 #ifdef CONFIG_IMXRT_LPUART9
 static char g_lpuart9rxbuffer[CONFIG_LPUART9_RXBUFSIZE];
 static char g_lpuart9txbuffer[LPUART9_TXBUFSIZE_ADJUSTED]
@@ -2022,9 +2021,6 @@ static int imxrt_dma_setup(struct uart_dev_s *dev)
             {
               return -EBUSY;
             }
-
-          nxsem_init(&priv->txdmasem, 0, 1);
-          nxsem_set_protocol(&priv->txdmasem, SEM_PRIO_NONE);
         }
 
       /* Enable Tx DMA for the UART */
@@ -2228,7 +2224,6 @@ static void imxrt_dma_shutdown(struct uart_dev_s *dev)
 
       imxrt_dmach_free(priv->txdma);
       priv->txdma = NULL;
-      nxsem_destroy(&priv->txdmasem);
     }
 #endif
 }
@@ -3083,8 +3078,9 @@ static bool imxrt_dma_rxavailable(struct uart_dev_s *dev)
  * Name: imxrt_dma_txcallback
  *
  * Description:
- *   This function clears dma buffer at complete of DMA transfer and wakes up
- *   threads waiting for space in buffer.
+ *   This function clears dma buffer at completion of DMA transfer. It wakes
+ *   up threads waiting for space in buffer and restarts the DMA if there is
+ *   more data to send.
  *
  ****************************************************************************/
 
@@ -3093,19 +3089,20 @@ static void imxrt_dma_txcallback(DMACH_HANDLE handle, void *arg, bool done,
                                   int result)
 {
   struct imxrt_uart_s *priv = (struct imxrt_uart_s *)arg;
+
   /* Update 'nbytes' indicating number of bytes actually transferred by DMA.
    * This is important to free TX buffer space by 'uart_xmitchars_done'.
    */
 
   priv->dev.dmatx.nbytes = priv->dev.dmatx.length + priv->dev.dmatx.nlength;
 
-  /* Adjust the pointers */
+  /* Adjust the pointers and unblock writers */
 
   uart_xmitchars_done(&priv->dev);
 
-  /* Release waiter */
+  /* Send more data if available */
 
-  nxsem_post(&priv->txdmasem);
+  imxrt_dma_txavailable(&priv->dev);
 }
 #endif
 
@@ -3124,9 +3121,7 @@ static void imxrt_dma_txavailable(struct uart_dev_s *dev)
 
   /* Only send when the DMA is idle */
 
-  int rv = nxsem_trywait(&priv->txdmasem);
-
-  if (rv == 0)
+  if (imxrt_dmach_idle(priv->txdma) == 0)
     {
       uart_xmitchars_dma(dev);
     }
