@@ -444,6 +444,18 @@ FAR struct mtd_dev_s *mx35_initialize(FAR struct spi_dev_s *dev);
 
 FAR struct mtd_dev_s *rammtd_initialize(FAR uint8_t *start, size_t size);
 
+
+
+/****************************************************************************
+ * Name: m25p_initialize
+ *
+ * Description:
+ *   Initializes the for SPI-based M25P1 (128Kbit),  M25P64 (32Mbit), M25P64
+ *   (64Mbit), and M25P128 (128Mbit) FLASH (and compatible).
+ *
+ ****************************************************************************/
+
+
 /****************************************************************************
  * Name: ramtron_initialize
  *
