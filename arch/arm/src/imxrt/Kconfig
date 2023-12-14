@@ -178,6 +178,7 @@ config ARCH_FAMILY_IMXRT106x
 	select ARMV7M_HAVE_DTCM
 	select IMXRT_HIGHSPEED_GPIO
 	select IMXRT_HAVE_FLEXSPI2
+	select IMXRT_HAVE_FLEXIO3
 
 # Peripheral support
 
@@ -240,6 +241,10 @@ config IMXRT_LPSPI
 	default n
 
 config IMXRT_FLEXSPI
+	bool
+	default n
+
+config IMXRT_HAVE_FLEXIO3
 	bool
 	default n
 
@@ -319,7 +324,7 @@ config IMXRT_FLEXIO1
 	default n
 	select IMXRT_FLEXIO
 
-if IMXRT_FLEXIO1
+if (IMXRT_FLEXIO1 && !IMXRT_CLOCKCONFIG_VER2)
 
 choice
 	prompt "FLEXIO1 Clock Source"
@@ -376,7 +381,7 @@ config IMXRT_FLEXIO2
 	default n
 	select IMXRT_FLEXIO
 
-if IMXRT_FLEXIO2 || IMXRT_FLEXIO3
+if (IMXRT_FLEXIO2 || IMXRT_FLEXIO3) && !IMXRT_CLOCKCONFIG_VER2
 
 choice
 	prompt "FLEXIO2 Clock Source"
@@ -430,6 +435,7 @@ config IMXRT_FLEXIO3
 	bool "FLEXIO3"
 	default n
 	select IMXRT_FLEXIO
+	depends on IMXRT_HAVE_FLEXIO3
 	---help---
 		FLEXIO3 uses the FLEXIO2 clock settings.
 
