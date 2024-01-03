@@ -199,8 +199,9 @@
 #  error "Need at least one RX buffer"
 #endif
 
-/*
- * From ref manual TDSR/RDSR description
+#define nitems(_a)    (sizeof(_a) / sizeof(0[(_a)]))
+
+/* From ref manual TDSR/RDSR description
  * For optimal performance the pointer should be 512-bit aligned, that is,
  * evenly divisible by 64.
  */
@@ -250,8 +251,25 @@
  * ...and further PHY descriptions here.
  */
 
-#if defined(CONFIG_ETH0_PHY_KSZ8081)
-#  define BOARD_PHY_NAME        "KSZ8081"
+#if defined(CONFIG_ETH0_PHY_MULTI)
+#  if !defined(BOARD_ETH0_PHY_LIST)
+#    error "CONFIG_ETH0_PHY_MULTI requires board.h to define BOARD_ETH0_PHY_LIST!"
+#  endif
+#  define BOARD_PHY_NAME        g_board_phys[priv->current_phy].name
+#  define BOARD_PHYID1          g_board_phys[priv->current_phy].id1
+#  define BOARD_PHYID2          g_board_phys[priv->current_phy].id2
+#  define BOARD_PHY_STATUS      g_board_phys[priv->current_phy].status
+#  define BOARD_PHY_ADDR        priv->current_phy_address
+#  define BOARD_PHY_10BASET(s)  (imxrt_phy_status(priv, (s), g_board_phys[priv->current_phy].mbps10) != 0)
+#  define BOARD_PHY_100BASET(s) (imxrt_phy_status(priv, (s), g_board_phys[priv->current_phy].mbps100) != 0)
+#  define BOARD_PHY_ISDUPLEX(s) (imxrt_phy_status(priv, (s), g_board_phys[priv->current_phy].duplex) != 0)
+#  define BOARD_PHY_ISCLAUSE45() (g_board_phys[priv->current_phy].clause == 45)
+#  define CLAUSE45
+#  define MMD1                  1
+#  define MMD1_PMA_STATUS1      1
+#  define MMD1_PS1_RECEIVE_LINK_STATUS (1 << 2)
+#elif defined(CONFIG_ETH0_PHY_KSZ8081)
+#  define BOARD_PHY_NAME        MII_KSZ8081_NAME
 #  define BOARD_PHYID1          MII_PHYID1_KSZ8081
 #  define BOARD_PHYID2          MII_PHYID2_KSZ8081
 #  define BOARD_PHY_STATUS      MII_KSZ8081_PHYCTRL1
@@ -260,7 +278,7 @@
 #  define BOARD_PHY_100BASET(s) (((s) & MII_PHYCTRL1_MODE_100HDX) != 0)
 #  define BOARD_PHY_ISDUPLEX(s) (((s) & MII_PHYCTRL1_MODE_DUPLEX) != 0)
 #elif defined(CONFIG_ETH0_PHY_LAN8720)
-#  define BOARD_PHY_NAME        "LAN8720"
+#  define BOARD_PHY_NAME        MII_LAN8720_NAME
 #  define BOARD_PHYID1          MII_PHYID1_LAN8720
 #  define BOARD_PHYID2          MII_PHYID2_LAN8720
 #  define BOARD_PHY_STATUS      MII_LAN8720_SCSR
@@ -269,7 +287,7 @@
 #  define BOARD_PHY_100BASET(s) (((s)&MII_LAN8720_SPSCR_100MBPS) != 0)
 #  define BOARD_PHY_ISDUPLEX(s) (((s)&MII_LAN8720_SPSCR_DUPLEX) != 0)
 #elif defined(CONFIG_ETH0_PHY_LAN8742A)
-#  define BOARD_PHY_NAME        "LAN8742A"
+#  define BOARD_PHY_NAME        MII_LAN8742A_NAME
 #  define BOARD_PHYID1          MII_PHYID1_LAN8742A
 #  define BOARD_PHYID2          MII_PHYID2_LAN8742A
 #  define BOARD_PHY_STATUS      MII_LAN8740_SCSR
@@ -278,7 +296,7 @@
 #  define BOARD_PHY_100BASET(s) (((s)&MII_LAN8720_SPSCR_100MBPS) != 0)
 #  define BOARD_PHY_ISDUPLEX(s) (((s)&MII_LAN8720_SPSCR_DUPLEX) != 0)
 #elif defined(CONFIG_ETH0_PHY_DP83825I)
-#  define BOARD_PHY_NAME        "DP83825I"
+#  define BOARD_PHY_NAME        MII_DP83825I_NAME
 #  define BOARD_PHYID1          MII_PHYID1_DP83825I
 #  define BOARD_PHYID2          MII_PHYID2_DP83825I
 #  define BOARD_PHY_STATUS      MII_DP83825I_PHYSTS
@@ -287,7 +305,7 @@
 #  define BOARD_PHY_100BASET(s) (((s) & MII_DP83825I_PHYSTS_SPEED) == 0)
 #  define BOARD_PHY_ISDUPLEX(s) (((s) & MII_DP83825I_PHYSTS_DUPLEX) != 0)
 #elif defined(CONFIG_ETH0_PHY_TJA1103)
-#  define BOARD_PHY_NAME        "TJA1103"
+#  define BOARD_PHY_NAME        MII_TJA1103_NAME
 #  define BOARD_PHYID1          MII_PHYID1_TJA1103
 #  define BOARD_PHYID2          MII_PHYID2_TJA1103
 #  define BOARD_PHY_STATUS      MII_TJA110X_BSR
@@ -299,6 +317,15 @@
 #  define MMD1                  1
 #  define MMD1_PMA_STATUS1      1
 #  define MMD1_PS1_RECEIVE_LINK_STATUS (1 << 2)
+#elif defined(CONFIG_ETH0_PHY_YT8512)
+#  define BOARD_PHY_NAME        MII_YT8512_NAME
+#  define BOARD_PHYID1          MII_PHYID1_YT8512
+#  define BOARD_PHYID2          MII_PHYID2_YT8512
+#  define BOARD_PHY_STATUS      MII_YT8512_PHYSTS
+#  define BOARD_PHY_ADDR        (0)
+#  define BOARD_PHY_10BASET(s)  (((s) & MII_YT8512_PHYSTS_SPEED) == 0)
+#  define BOARD_PHY_100BASET(s) (((s) & MII_YT8512_PHYSTS_SPEED) != 0)
+#  define BOARD_PHY_ISDUPLEX(s) (((s) & MII_YT8512_PHYSTS_DUPLEX) != 0)
 #else
 #  error "Unrecognized or missing PHY selection"
 #endif
@@ -366,6 +393,10 @@ struct imxrt_driver_s
   struct enet_desc_s *txdesc;  /* A pointer to the list of TX descriptor */
   struct enet_desc_s *rxdesc;  /* A pointer to the list of RX descriptors */
 
+#if defined(CONFIG_ETH0_PHY_MULTI)
+  uint8_t  current_phy;         /* The index of the PHY being used */
+  uint8_t  current_phy_address; /* The address of the PHY being used */
+#endif
   /* This holds the information visible to the NuttX network */
 
   struct net_driver_s dev;     /* Interface understood by the network */
@@ -374,6 +405,15 @@ struct imxrt_driver_s
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
+/* BOARD_ETH0_PHY_LIST provided by the board.h for  CONFIG_ETH0_PHY_MULTI */
+
+#if defined(CONFIG_ETH0_PHY_MULTI)
+const struct phy_desc_s  g_board_phys[] =
+    {
+        BOARD_ETH0_PHY_LIST
+    };
+#endif
 
 static struct imxrt_driver_s g_enet[CONFIG_IMXRT_ENET_NETHIFS];
 
@@ -460,6 +500,13 @@ static int  imxrt_ioctl(struct net_driver_s *dev, int cmd,
 #endif
 
 /* PHY/MII support */
+
+#if defined(CONFIG_ETH0_PHY_MULTI)
+static int imxrt_phy_is(struct imxrt_driver_s *priv, const char *name);
+static int imxrt_phy_status(struct imxrt_driver_s *priv, int phydata,
+                            uint16_t mask);
+static int imxrt_determine_phy(struct imxrt_driver_s *priv);
+#endif
 
 #if defined(CONFIG_NETDEV_PHY_IOCTL) && defined(CONFIG_ARCH_PHY_INTERRUPT)
 static int imxrt_phyintenable(struct imxrt_driver_s *priv);
@@ -699,7 +746,7 @@ static int imxrt_transmit(struct imxrt_driver_s *priv)
    */
 
   txdesc->length   = imxrt_swap16(priv->dev.d_len);
-#ifdef CONFIG_IMXRT_ENETENHANCEDBD
+#ifdef CONFIG_IMXRT_ENET_ENHANCEDBD
   txdesc->bdu      = 0x00000000;
   txdesc->status2  = TXDESC_INT | TXDESC_TS; /* | TXDESC_IINS | TXDESC_PINS; */
 #endif
@@ -729,6 +776,7 @@ static int imxrt_transmit(struct imxrt_driver_s *priv)
 
 #ifdef CONFIG_ARMV7M_DCACHE_WRITETHROUGH
   /* Make sure that descriptors are flushed */
+
   ARM_DSB();
 #else
   up_clean_dcache((uintptr_t)txdesc,
@@ -1434,6 +1482,15 @@ static int imxrt_ifup_action(struct net_driver_s *dev, bool resetphy)
 
   /* Configure the PHY */
 
+#if defined(CONFIG_ETH0_PHY_MULTI)
+  ret = imxrt_determine_phy(priv);
+  if (ret < 0)
+    {
+      nerr("ERROR: Failed to determine the PHY: %d\n", ret);
+      return ret;
+    }
+#endif
+
   ret = imxrt_initphy(priv, resetphy);
   if (ret < 0)
     {
@@ -1451,7 +1508,7 @@ static int imxrt_ifup_action(struct net_driver_s *dev, bool resetphy)
 
   /* Select legacy of enhanced buffer descriptor format */
 
-#ifdef CONFIG_IMXRT_ENETENHANCEDBD
+#ifdef CONFIG_IMXRT_ENET_ENHANCEDBD
   imxrt_enet_putreg32(priv, ENET_ECR_EN1588, IMXRT_ENET_ECR_OFFSET);
 #else
   imxrt_enet_putreg32(priv, 0, IMXRT_ENET_ECR_OFFSET);
@@ -1481,6 +1538,7 @@ static int imxrt_ifup_action(struct net_driver_s *dev, bool resetphy)
 
 #ifdef CONFIG_ARMV7M_DCACHE_WRITETHROUGH
   /* Make sure that descriptors are flushed */
+
   ARM_DSB();
 #endif
 
@@ -1930,7 +1988,11 @@ static int imxrt_ioctl(struct net_driver_s *dev, int cmd, unsigned long arg)
           struct mii_ioctl_data_s *req =
             (struct mii_ioctl_data_s *)((uintptr_t)arg);
 #if defined(CLAUSE45)
-          if (MII_MSR == req->reg_num)
+          if (
+#  if defined(CONFIG_ETH0_PHY_MULTI)
+              BOARD_PHY_ISCLAUSE45() &&
+#  endif
+              MII_MSR == req->reg_num)
             {
               ret = imxrt_readmmd(priv, req->phy_id, MMD1, MMD1_PMA_STATUS1,
                                   &req->val_out);
@@ -1985,28 +2047,59 @@ static int imxrt_ioctl(struct net_driver_s *dev, int cmd, unsigned long arg)
 static int imxrt_phyintenable(struct imxrt_driver_s *priv)
 {
 #if defined(CONFIG_ETH0_PHY_KSZ8051) || defined(CONFIG_ETH0_PHY_KSZ8061) || \
-    defined(CONFIG_ETH0_PHY_KSZ8081) || defined(CONFIG_ETH0_PHY_DP83825I)
+    defined(CONFIG_ETH0_PHY_KSZ8081) || defined(CONFIG_ETH0_PHY_DP83825I) || \
+    defined(CONFIG_ETH0_YT8512)      || defined(CONFIG_ETH0_PHY_MULTI)
+
   uint16_t phyval;
   int ret;
+
+  /* Compile time Kzxxxx defaults */
+
+  uint16_t mask = MII_KSZ80X1_INT_LDEN | MII_KSZ80X1_INT_LUEN;
+  uint8_t  rreg = MII_KSZ8081_INT;
+  uint8_t  wreg = rreg;
+
+  /* Compile time YT8512 defaults */
+#  if defined(CONFIG_ETH0_YT8512)
+  mask = MII_YT8512_IMR_LD_EN | MII_YT8512_IMR_LU_EN;
+  rreg  = MII_YT8512_ISR;
+  wreg  = MII_YT8512_IMR;
+#  endif
+
+  /* Run time YT8512 defaults */
+#  if defined(CONFIG_ETH0_PHY_MULTI)
+  if (imxrt_phy_is(priv, MII_YT8512_NAME))
+    {
+      mask = MII_YT8512_IMR_LD_EN | MII_YT8512_IMR_LU_EN;
+      rreg  = MII_YT8512_ISR;
+      wreg  = MII_YT8512_IMR;
+    }
+  else if (!(imxrt_phy_is(priv, MII_KSZ8051_NAME) ||
+             imxrt_phy_is(priv, MII_KSZ8061_NAME) ||
+             imxrt_phy_is(priv, MII_KSZ8081_NAME) ||
+             imxrt_phy_is(priv, MII_DP83825I_NAME)))
+    {
+      return -ENOSYS;
+    }
+#  endif
 
   /* Read the interrupt status register in order to clear any pending
    * interrupts
    */
 
-  ret = imxrt_readmii(priv, priv->phyaddr, MII_KSZ8081_INT, &phyval);
+  ret = imxrt_readmii(priv, priv->phyaddr, rreg, &phyval);
   if (ret == OK)
     {
       /* Enable link up/down interrupts */
 
-      ret = imxrt_writemii(priv, priv->phyaddr, MII_KSZ8081_INT,
-                           (MII_KSZ80X1_INT_LDEN | MII_KSZ80X1_INT_LUEN));
+      ret = imxrt_writemii(priv, priv->phyaddr, wreg, mask);
     }
 
   return ret;
 #else
 #  error Unrecognized PHY
   return -ENOSYS;
-#endif
+#  endif
 }
 #endif
 
@@ -2161,6 +2254,126 @@ static int imxrt_readmii(struct imxrt_driver_s *priv, uint8_t phyaddr,
                                     ENET_MMFR_DATA_MASK);
   return OK;
 }
+
+#if defined(CONFIG_ETH0_PHY_MULTI)
+/****************************************************************************
+ * Function: imxrt_determine_phy
+ *
+ * Description:
+ *   Uses the board.h supplied PHY list to determine which PHY
+ *   is populated on this board.
+ *
+ * Input Parameters:
+ *   priv - Reference to the private ENET driver state structure
+ *
+ * Returned Value:
+ *   Zero on success, a -ENOENT errno value on failure.
+ *
+ ****************************************************************************/
+
+static int imxrt_determine_phy(struct imxrt_driver_s *priv)
+{
+  uint16_t phydata     = 0xffff;
+  uint8_t phyaddr      = 0;
+  uint8_t last_phyaddr = 0;
+  int retries;
+  int ret;
+
+  for (priv->current_phy = 0; priv->current_phy < nitems(g_board_phys);
+      priv->current_phy++)
+    {
+      priv->current_phy_address =
+          (uint8_t) g_board_phys[priv->current_phy].address_lo;
+      last_phyaddr = g_board_phys[priv->current_phy].address_high == 0xffff ?
+          priv->current_phy_address :
+          (uint8_t) g_board_phys[priv->current_phy].address_high;
+
+      for (phyaddr = priv->current_phy_address; phyaddr <= last_phyaddr;
+          phyaddr++)
+        {
+          retries = 0;
+          do
+            {
+              nxsig_usleep(100);
+              phydata = 0xffff;
+              ret = imxrt_readmii(priv, phyaddr, MII_PHYID1, &phydata);
+            }
+          while ((ret < 0 || phydata == 0xffff) && ++retries < 3);
+
+          if (retries <= 3 && ret == 0 &&
+              phydata == g_board_phys[priv->current_phy].id1)
+            {
+              do
+                {
+                  nxsig_usleep(100);
+                  phydata = 0xffff;
+                  ret = imxrt_readmii(priv, phyaddr, MII_PHYID2, &phydata);
+                }
+              while ((ret < 0 || phydata == 0xffff) && ++retries < 3);
+              if (retries <= 3 && ret == 0 &&
+                  (phydata & 0xfff0) ==
+                  (g_board_phys[priv->current_phy].id2 & 0xfff0))
+                {
+                  return OK;
+                }
+            }
+        }
+    }
+
+  return -ENOENT;
+}
+
+/****************************************************************************
+ * Function: imxrt_phy_is
+ *
+ * Description:
+ *   Compares the name with the current selected PHY's name
+ *
+ * Input Parameters:
+ *   priv - Reference to the private ENET driver state structure
+ *   name - a pointer to comapre to.
+ *
+ * Returned Value:
+ *   1 on match, a 0 on no match.
+ *
+ ****************************************************************************/
+
+static int imxrt_phy_is(struct imxrt_driver_s *priv, const char *name)
+{
+  return strcmp(g_board_phys[priv->current_phy].name, name) == 0;
+}
+
+/****************************************************************************
+ * Function: imxrt_phy_status
+ *
+ * Description:
+ *   Compares the name with the current selected PHY's name.
+ *
+ * Input Parameters:
+ *   priv    - Reference to the private ENET driver state structure
+ *   phydata - last read phy data - may be ignored if there is no
+ *             status register defined by the current PHY.
+ *   mask - A value to and with phydata if a status register is
+ *          defined. Or the value retunred if no status register is
+ *          defined.
+ *
+ * Returned Value:
+ *   mask or (phydat & mask)
+ *
+ ****************************************************************************/
+
+static int imxrt_phy_status(struct imxrt_driver_s *priv, int phydata,
+                            uint16_t mask)
+{
+  int rv = mask;
+  if (g_board_phys[priv->current_phy].status != 0xffff)
+    {
+      rv &= phydata;
+    }
+
+  return rv;
+}
+#endif
 
 #if 0
 #if defined(CLAUSE45)
@@ -2457,176 +2670,265 @@ static inline int imxrt_initphy(struct imxrt_driver_s *priv, bool renogphy)
           return -ENXIO;
         }
 
-#ifdef CONFIG_ETH0_PHY_KSZ8081
-      /* Reset PHY */
-
-      imxrt_writemii(priv, phyaddr, MII_MCR, MII_MCR_RESET);
-
-      /* Set RMII mode */
-
-      ret = imxrt_readmii(priv, phyaddr, MII_KSZ8081_PHYCTRL2, &phydata);
-      if (ret < 0)
+#if defined(CONFIG_ETH0_PHY_KSZ8081) || defined(CONFIG_ETH0_PHY_MULTI)
+#  if defined(CONFIG_ETH0_PHY_MULTI)
+      if (imxrt_phy_is(priv, MII_KSZ8081_NAME))
         {
-          nerr("ERROR: Failed to read MII_KSZ8081_PHYCTRL2\n");
-          return ret;
-        }
+#  endif
+          /* Reset PHY */
 
-      /* Indicate 50MHz clock */
+          imxrt_writemii(priv, phyaddr, MII_MCR, MII_MCR_RESET);
 
-      imxrt_writemii(priv, phyaddr, MII_KSZ8081_PHYCTRL2,
-                     (phydata | (1 << 7)));
+          /* Set RMII mode */
 
-      /* Switch off NAND Tree mode (in case it was set via pinning) */
-
-      ret = imxrt_readmii(priv, phyaddr, MII_KSZ8081_OMSO, &phydata);
-      if (ret < 0)
-        {
-          nerr("ERROR: Failed to read MII_KSZ8081_OMSO: %d\n", ret);
-          return ret;
-        }
-
-      imxrt_writemii(priv, phyaddr, MII_KSZ8081_OMSO,
-                     (phydata & ~(1 << 5)));
-
-      /* Set Ethernet led to green = activity and yellow = link and  */
-
-      ret = imxrt_readmii(priv, phyaddr, MII_KSZ8081_PHYCTRL2, &phydata);
-      if (ret < 0)
-        {
-          nerr("ERROR: Failed to read MII_KSZ8081_PHYCTRL2\n");
-          return ret;
-        }
-
-      imxrt_writemii(priv, phyaddr, MII_KSZ8081_PHYCTRL2,
-                     (phydata | (1 << 4)));
-
-      imxrt_writemii(priv, phyaddr, MII_ADVERTISE,
-                     MII_ADVERTISE_100BASETXFULL |
-                     MII_ADVERTISE_100BASETXHALF |
-                     MII_ADVERTISE_10BASETXFULL |
-                     MII_ADVERTISE_10BASETXHALF |
-                     MII_ADVERTISE_CSMA);
-
-#elif defined (CONFIG_ETH0_PHY_LAN8720) || defined (CONFIG_ETH0_PHY_LAN8742A)
-      /* Make sure that PHY comes up in correct mode when it's reset */
-
-      imxrt_writemii(priv, phyaddr, MII_LAN8720_MODES,
-                     MII_LAN8720_MODES_RESV | MII_LAN8720_MODES_ALL |
-                     MII_LAN8720_MODES_PHYAD(BOARD_PHY_ADDR));
-
-      /* ...and reset PHY */
-
-      imxrt_writemii(priv, phyaddr, MII_MCR, MII_MCR_RESET);
-
-#elif defined (CONFIG_ETH0_PHY_DP83825I)
-
-      /* Reset PHY */
-
-      imxrt_writemii(priv, phyaddr, MII_MCR, MII_MCR_RESET);
-
-      /* Set RMII mode and Indicate 50MHz clock */
-
-      imxrt_writemii(priv, phyaddr, MII_DP83825I_RCSR,
-                    MII_DP83825I_RCSC_ELAST_2 | MII_DP83825I_RCSC_RMIICS);
-
-      imxrt_writemii(priv, phyaddr, MII_ADVERTISE,
-                     MII_ADVERTISE_100BASETXFULL |
-                     MII_ADVERTISE_100BASETXHALF |
-                     MII_ADVERTISE_10BASETXFULL |
-                     MII_ADVERTISE_10BASETXHALF |
-                     MII_ADVERTISE_CSMA);
-
-#endif
-#if !defined(CONFIG_ETH0_PHY_TJA1103)
-
-      /* Start auto negotiation */
-
-      ninfo("%s: Start Autonegotiation...\n",  BOARD_PHY_NAME);
-      imxrt_writemii(priv, phyaddr, MII_MCR,
-                     (MII_MCR_ANRESTART | MII_MCR_ANENABLE));
-
-      /* Wait for auto negotiation to complete */
-
-      for (retries = 0; retries < LINK_NLOOPS; retries++)
-        {
-          ret = imxrt_readmii(priv, phyaddr, MII_MSR, &phydata);
+          ret = imxrt_readmii(priv, phyaddr, MII_KSZ8081_PHYCTRL2, &phydata);
           if (ret < 0)
             {
-              nerr("ERROR: Failed to read %s MII_MSR: %d\n",
-                    BOARD_PHY_NAME, ret);
+              nerr("ERROR: Failed to read MII_KSZ8081_PHYCTRL2\n");
               return ret;
+            }
+
+          /* Indicate 50MHz clock */
+
+          imxrt_writemii(priv, phyaddr, MII_KSZ8081_PHYCTRL2,
+                         (phydata | (1 << 7)));
+
+          /* Switch off NAND Tree mode (in case it was set via pinning) */
+
+          ret = imxrt_readmii(priv, phyaddr, MII_KSZ8081_OMSO, &phydata);
+          if (ret < 0)
+            {
+              nerr("ERROR: Failed to read MII_KSZ8081_OMSO: %d\n", ret);
+              return ret;
+            }
+
+          imxrt_writemii(priv, phyaddr, MII_KSZ8081_OMSO,
+                         (phydata & ~(1 << 5)));
+
+          /* Set Ethernet led to green = activity and yellow = link and  */
+
+          ret = imxrt_readmii(priv, phyaddr, MII_KSZ8081_PHYCTRL2, &phydata);
+          if (ret < 0)
+            {
+              nerr("ERROR: Failed to read MII_KSZ8081_PHYCTRL2\n");
+              return ret;
+            }
+
+          imxrt_writemii(priv, phyaddr, MII_KSZ8081_PHYCTRL2,
+                         (phydata | (1 << 4)));
+
+          imxrt_writemii(priv, phyaddr, MII_ADVERTISE,
+                         MII_ADVERTISE_100BASETXFULL |
+                         MII_ADVERTISE_100BASETXHALF |
+                         MII_ADVERTISE_10BASETXFULL |
+                         MII_ADVERTISE_10BASETXHALF |
+                         MII_ADVERTISE_CSMA);
+#  if defined(CONFIG_ETH0_PHY_MULTI)
+        }
+
+#  endif
+#endif
+#if defined (CONFIG_ETH0_PHY_LAN8720)  || \
+    defined (CONFIG_ETH0_PHY_LAN8742A) || \
+    defined (CONFIG_ETH0_PHY_MULTI)
+
+#  if defined(CONFIG_ETH0_PHY_MULTI)
+      if (imxrt_phy_is(priv, MII_LAN8720_NAME) ||
+          imxrt_phy_is(priv, MII_LAN8742A_NAME))
+        {
+#  endif
+
+          /* Make sure that PHY comes up in correct mode when it's reset */
+
+          imxrt_writemii(priv, phyaddr, MII_LAN8720_MODES,
+                         MII_LAN8720_MODES_RESV | MII_LAN8720_MODES_ALL |
+                         MII_LAN8720_MODES_PHYAD(BOARD_PHY_ADDR));
+
+          /* ...and reset PHY */
+
+          imxrt_writemii(priv, phyaddr, MII_MCR, MII_MCR_RESET);
+
+#  if defined(CONFIG_ETH0_PHY_MULTI)
+        }
+#  endif
+#endif
+#if defined (CONFIG_ETH0_PHY_DP83825I) || defined (CONFIG_ETH0_PHY_MULTI)
+
+#if defined(CONFIG_ETH0_PHY_MULTI)
+      if (imxrt_phy_is(priv, MII_DP83825I_NAME))
+        {
+#endif
+
+          /* Reset PHY */
+
+          imxrt_writemii(priv, phyaddr, MII_MCR, MII_MCR_RESET);
+
+          /* Set RMII mode and Indicate 50MHz clock */
+
+          imxrt_writemii(priv, phyaddr, MII_DP83825I_RCSR,
+                        MII_DP83825I_RCSC_ELAST_2 |
+                        MII_DP83825I_RCSC_RMIICS);
+
+          imxrt_writemii(priv, phyaddr, MII_ADVERTISE,
+                         MII_ADVERTISE_100BASETXFULL |
+                         MII_ADVERTISE_100BASETXHALF |
+                         MII_ADVERTISE_10BASETXFULL |
+                         MII_ADVERTISE_10BASETXHALF |
+                         MII_ADVERTISE_CSMA);
+
+#  if defined(CONFIG_ETH0_PHY_MULTI)
+        }
+#  endif
+#endif
+
+#if defined(CONFIG_ETH0_PHY_YT8512) || defined(CONFIG_ETH0_PHY_MULTI)
+#  if defined(CONFIG_ETH0_PHY_MULTI)
+      if (!imxrt_phy_is(priv, MII_YT8512_NAME))
+        {
+#  endif
+          /* Reset PHY */
+
+          imxrt_writemii(priv, phyaddr, MII_MCR, MII_MCR_RESET);
+
+          /* Config LEDs */
+
+          imxrt_writemii(priv, phyaddr, MII_YT8512_DEBUG_ADDR_OFFSET,
+                         MII_YT8512_LED0);
+
+          imxrt_readmii(priv, phyaddr, MII_YT8512_DEBUG_DATA, &phydata);
+
+          imxrt_writemii(priv, phyaddr, MII_YT8512_DEBUG_ADDR_OFFSET,
+                         MII_YT8512_LED0);
+
+          imxrt_writemii(priv, phyaddr, MII_YT8512_DEBUG_DATA, 0x331);
+
+          imxrt_writemii(priv, phyaddr, MII_YT8512_DEBUG_ADDR_OFFSET,
+                         MII_YT8512_LED1);
+
+          imxrt_readmii(priv, phyaddr, MII_YT8512_DEBUG_DATA, &phydata);
+
+          imxrt_writemii(priv, phyaddr, MII_YT8512_DEBUG_ADDR_OFFSET,
+                         MII_YT8512_LED1);
+
+          imxrt_writemii(priv, phyaddr, MII_YT8512_DEBUG_DATA, 0x30);
+
+          /* Set negotiation */
+
+          imxrt_writemii(priv, phyaddr, MII_ADVERTISE,
+                         MII_ADVERTISE_100BASETXFULL |
+                         MII_ADVERTISE_100BASETXHALF |
+                         MII_ADVERTISE_10BASETXFULL |
+                         MII_ADVERTISE_10BASETXHALF |
+                         MII_ADVERTISE_CSMA);
+
+#  if defined(CONFIG_ETH0_PHY_MULTI)
+        }
+#  endif
+#endif
+
+#if !defined(CONFIG_ETH0_PHY_TJA1103)
+#if defined(CONFIG_ETH0_PHY_MULTI)
+      if (!imxrt_phy_is(priv, MII_TJA1103_NAME))
+        {
+#endif
+          /* Start auto negotiation */
+
+          ninfo("%s: Start Autonegotiation...\n",  BOARD_PHY_NAME);
+          imxrt_writemii(priv, phyaddr, MII_MCR,
+                         (MII_MCR_ANRESTART | MII_MCR_ANENABLE));
+
+          /* Wait for auto negotiation to complete */
+
+          for (retries = 0; retries < LINK_NLOOPS; retries++)
+            {
+              ret = imxrt_readmii(priv, phyaddr, MII_MSR, &phydata);
+              if (ret < 0)
+                {
+                  nerr("ERROR: Failed to read %s MII_MSR: %d\n",
+                        BOARD_PHY_NAME, ret);
+                  return ret;
+                }
+
+              if (phydata & MII_MSR_ANEGCOMPLETE)
+                {
+                  break;
+                }
+
+              nxsig_usleep(LINK_WAITUS);
             }
 
           if (phydata & MII_MSR_ANEGCOMPLETE)
             {
-              break;
+              ninfo("%s: Autonegotiation complete\n",  BOARD_PHY_NAME);
+              ninfo("%s: MII_MSR: %04x\n", BOARD_PHY_NAME, phydata);
             }
+          else
+            {
+              /* TODO: Autonegotiation has right now failed. Maybe the Eth
+               * cable is not connected.  PHY chip have mechanisms to
+               * configure link OK. We should leave autconf on, and find a
+               * way to re-configure MCU whenever the link is ready.
+               */
 
-          nxsig_usleep(LINK_WAITUS);
+              ninfo("%s: Autonegotiation failed [%d] (is cable plugged-in ?)"
+                    ", default to 10Mbs mode\n",
+                    BOARD_PHY_NAME, retries);
+
+              /* Stop auto negotiation */
+
+              imxrt_writemii(priv, phyaddr, MII_MCR, 0);
+            }
+#  if defined(CONFIG_ETH0_PHY_MULTI)
         }
-
-      if (phydata & MII_MSR_ANEGCOMPLETE)
-        {
-          ninfo("%s: Autonegotiation complete\n",  BOARD_PHY_NAME);
-          ninfo("%s: MII_MSR: %04x\n", BOARD_PHY_NAME, phydata);
-        }
-      else
-        {
-          /* TODO: Autonegotiation has right now failed. Maybe the Eth cable
-           * is not connected.  PHY chip have mechanisms to configure link
-           * OK. We should leave autconf on, and find a way to re-configure
-           * MCU whenever the link is ready.
-           */
-
-          ninfo("%s: Autonegotiation failed [%d] (is cable plugged-in ?), "
-                "default to 10Mbs mode\n", \
-                BOARD_PHY_NAME, retries);
-
-          /* Stop auto negotiation */
-
-          imxrt_writemii(priv, phyaddr, MII_MCR, 0);
-        }
+#  endif
 #endif
     }
 
 #if !defined(CONFIG_ETH0_PHY_TJA1103)
-  /* When we get here we have a (negotiated) speed and duplex. This is also
-   * the point we enter if renegotiation is turned off, so have multiple
-   * attempts at reading the status register in case the PHY isn't awake
-   * properly.
-   */
-
-  retries = 0;
-  do
+#  if defined(CONFIG_ETH0_PHY_MULTI)
+  if (!imxrt_phy_is(priv, MII_TJA1103_NAME))
     {
-      phydata = 0xffff;
-      ret = imxrt_readmii(priv, phyaddr, BOARD_PHY_STATUS, &phydata);
-    }
-  while ((ret < 0 || phydata == 0xffff) && ++retries < 3);
+#  endif
+      /* When we get here we have a (negotiated) speed and duplex. This
+       * is also the point we enter if renegotiation is turned off, so have
+       * multiple attempts at reading the status register in case the PHY
+       * isn't awake properly.
+       */
 
-  /* If we didn't successfully read anything and we haven't tried a physical
-   * renegotiation then lets do that
-   */
-
-  if (retries >= 3)
-    {
-      if (renogphy == false)
+      retries = 0;
+      do
         {
-          /* Give things one more chance with renegotiation turned on */
-
-          return imxrt_initphy(priv, true);
+          phydata = 0xffff;
+          ret = imxrt_readmii(priv, phyaddr, BOARD_PHY_STATUS, &phydata);
         }
-      else
+      while ((ret < 0 || phydata == 0xffff) && ++retries < 3);
+
+      /* If we didn't successfully read anything and we haven't tried
+       * a physical renegotiation then lets do that
+       */
+
+      if (retries >= 3)
         {
-          /* That didn't end well, just give up */
+          if (renogphy == false)
+            {
+              /* Give things one more chance with renegotiation turned on */
 
-          nerr("ERROR: Failed to read %s BOARD_PHY_STATUS[%02x]: %d\n",
-               BOARD_PHY_NAME, BOARD_PHY_STATUS, ret);
-          return ret;
+              return imxrt_initphy(priv, true);
+            }
+          else
+            {
+              /* That didn't end well, just give up */
+
+              nerr("ERROR: Failed to read %s BOARD_PHY_STATUS[%02x]: %d\n",
+                   BOARD_PHY_NAME, BOARD_PHY_STATUS, ret);
+              return ret;
+            }
         }
-    }
 
-  ninfo("%s: BOARD_PHY_STATUS: %04x\n", BOARD_PHY_NAME, phydata);
+      ninfo("%s: BOARD_PHY_STATUS: %04x\n", BOARD_PHY_NAME, phydata);
+#  if defined(CONFIG_ETH0_PHY_MULTI)
+    }
+#  endif
 #endif
 
   /* Set up the transmit and receive control registers based on the
@@ -2741,7 +3043,7 @@ static void imxrt_initbuffers(struct imxrt_driver_s *priv)
       priv->txdesc[i].status1 = 0;
       priv->txdesc[i].length  = 0;
       priv->txdesc[i].data    = (uint8_t *)imxrt_swap32((uint32_t)addr);
-#ifdef CONFIG_IMXRT_ENETENHANCEDBD
+#ifdef CONFIG_IMXRT_ENET_ENHANCEDBD
       priv->txdesc[i].status2 = TXDESC_IINS | TXDESC_PINS;
 #endif
       addr                   += ALIGNED_BUFSIZE;
@@ -2754,7 +3056,7 @@ static void imxrt_initbuffers(struct imxrt_driver_s *priv)
       priv->rxdesc[i].status1 = RXDESC_E;
       priv->rxdesc[i].length  = 0;
       priv->rxdesc[i].data    = (uint8_t *)imxrt_swap32((uint32_t)addr);
-#ifdef CONFIG_IMXRT_ENETENHANCEDBD
+#ifdef CONFIG_IMXRT_ENET_ENHANCEDBD
       priv->rxdesc[i].bdu     = 0;
       priv->rxdesc[i].status2 = RXDESC_INT;
 #endif
