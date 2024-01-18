@@ -3318,12 +3318,16 @@ static void up_dma_txcallback(DMA_HANDLE handle, uint8_t status, void *arg)
    * This is important to free TX buffer space by 'uart_xmitchars_done'.
    */
 
+  PROBE(1, 0);
   if (status & DMA_SCR_TCIE)
     {
+      PROBE(2, 0);
       priv->dev.dmatx.nbytes += priv->dev.dmatx.length;
       if (priv->dev.dmatx.nlength)
         {
           /* Set up DMA on next buffer */
+
+          PROBE(3, 0);
 
           txdmacfg.paddr  = priv->usartbase + STM32_USART_TDR_OFFSET;
           txdmacfg.maddr  = (uint32_t) priv->dev.dmatx.nbuffer;
@@ -3342,17 +3346,30 @@ static void up_dma_txcallback(DMA_HANDLE handle, uint8_t status, void *arg)
           stm32_dmastart(priv->txdma, up_dma_txcallback,
                         (void *)priv, false);
 
+          PROBE(3, 1);
+          PROBE(2, 1);
+          PROBE(1, 1);
           return;
         }
+
+      PROBE(2, 1);
     }
 
   /* Adjust the pointers */
 
+  PROBE(4, 0);
+
   uart_xmitchars_done(&priv->dev);
+
+  PROBE(4, 1);
 
   /* Send more if availaible */
 
+  PROBE(5, 0);
   up_dma_txavailable(&priv->dev);
+  PROBE(5, 1);
+
+  PROBE(1, 1);
 }
 #endif
 
@@ -3373,7 +3390,9 @@ static void up_dma_txavailable(struct uart_dev_s *dev)
 
   if (stm32_dmaresidual(priv->txdma) == 0)
     {
+      PROBE(6, 0);
       uart_xmitchars_dma(dev);
+      PROBE(6, 1);
     }
 }
 #endif
@@ -3392,6 +3411,8 @@ static void up_dma_send(struct uart_dev_s *dev)
 {
   struct stm32_dma_config_s txdmacfg;
   struct up_dev_s *priv = (struct up_dev_s *)dev->priv;
+
+  PROBE(7, 0);
 
   /* We need to stop DMA before reconfiguration */
 
@@ -3430,6 +3451,7 @@ static void up_dma_send(struct uart_dev_s *dev)
   /* Start transmission with the callback on DMA completion */
 
   stm32_dmastart(priv->txdma, up_dma_txcallback, (void *)priv, false);
+  PROBE(7, 1);
 }
 #endif
 
