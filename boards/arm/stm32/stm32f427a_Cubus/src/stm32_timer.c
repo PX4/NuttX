@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/stm32/stm32_syscfg.h
+ * boards/arm/stm32/stm32f4discovery/src/stm32_timer.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,38 +18,48 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_STM32_STM32_SYSCFG_H
-#define __ARCH_ARM_SRC_STM32_STM32_SYSCFG_H
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include "chip.h"
+#include <nuttx/timers/timer.h>
 
-#if defined(CONFIG_STM32_STM32L15XX)
-#  include "hardware/stm32l15xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F20XX)
-#  include "hardware/stm32f20xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F30XX)
-#  include "hardware/stm32f30xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F33XX)
-#  include "hardware/stm32f33xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F37XX)
-#  include "hardware/stm32f37xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F4XXX)
-#  if defined(CONFIG_STM32_STM32F427A)
-#     include "hardware/stm32f427ax_syscfg.h"
-#  else
-#     include "hardware/stm32f40xxx_syscfg.h"
-#  endif
-#elif defined(CONFIG_STM32_STM32G4XXX)
-#  include "hardware/stm32g4xxxx_syscfg.h"
-#endif
+#include <debug.h>
+
+#include "stm32_tim.h"
+#include "stm32f4discovery.h"
+
+#ifdef CONFIG_TIMER
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-#endif /* __ARCH_ARM_SRC_STM32_STM32_SYSCFG_H */
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: stm32_timer_driver_setup
+ *
+ * Description:
+ *   Configure the timer driver.
+ *
+ * Input Parameters:
+ *   devpath - The full path to the timer device.
+ *             This should be of the form /dev/timer0
+ *   timer   - The timer's number.
+ *
+ * Returned Value:
+ *   Zero (OK) is returned on success; A negated errno value is returned
+ *   to indicate the nature of any failure.
+ *
+ ****************************************************************************/
+
+int stm32_timer_driver_setup(const char *devpath, int timer)
+{
+  return stm32_timer_initialize(devpath, timer);
+}
+
+#endif

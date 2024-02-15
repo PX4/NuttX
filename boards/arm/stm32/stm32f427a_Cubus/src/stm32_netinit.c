@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/stm32/hardware/stm32_memorymap.h
+ * boards/arm/stm32/stm32f4discovery/src/stm32_netinit.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,38 +18,22 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_STM32_HARDWARE_STM32_MEMORYMAP_H
-#define __ARCH_ARM_SRC_STM32_HARDWARE_STM32_MEMORYMAP_H
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include "chip.h"
 
-#if defined(CONFIG_STM32_STM32L15XX)
-#  include "hardware/stm32l15xxx_memorymap.h"
-#elif defined(CONFIG_STM32_STM32F10XX)
-#  include "hardware/stm32f10xxx_memorymap.h"
-#elif defined(CONFIG_STM32_STM32F20XX)
-#  include "hardware/stm32f20xxx_memorymap.h"
-#elif defined(CONFIG_STM32_STM32F30XX)
-#  include "hardware/stm32f30xxx_memorymap.h"
-#elif defined(CONFIG_STM32_STM32F33XX)
-#  include "hardware/stm32f33xxx_memorymap.h"
-#elif defined(CONFIG_STM32_STM32F37XX)
-#  include "hardware/stm32f37xxx_memorymap.h"
-#elif defined(CONFIG_STM32_STM32F4XXX)
-#  if defined (CONFIG_STM32_STM32F427A)
-#     include "hardware/stm32f427ax_memorymap.h"
-#  else
-#     include "hardware/stm32f40xxx_memorymap.h"
-#  endif
-#elif defined(CONFIG_STM32_STM32G4XXX)
-#  include "hardware/stm32g4xxxx_memorymap.h"
-#else
-#  error "Unsupported STM32 memory map"
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: arm_netinitialize
+ ****************************************************************************/
+
+#if defined(CONFIG_NET) && !defined(CONFIG_NETDEV_LATEINIT)
+void arm_netinitialize(void)
+{
+}
 #endif
-
-#endif /* __ARCH_ARM_SRC_STM32_HARDWARE_STM32_MEMORYMAP_H */

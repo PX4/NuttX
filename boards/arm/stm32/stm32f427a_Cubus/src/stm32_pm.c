@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/stm32/stm32_syscfg.h
+ * boards/arm/stm32/stm32f4discovery/src/stm32_pm.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,38 +18,56 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_STM32_STM32_SYSCFG_H
-#define __ARCH_ARM_SRC_STM32_STM32_SYSCFG_H
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include "chip.h"
+#include <nuttx/power/pm.h>
 
-#if defined(CONFIG_STM32_STM32L15XX)
-#  include "hardware/stm32l15xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F20XX)
-#  include "hardware/stm32f20xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F30XX)
-#  include "hardware/stm32f30xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F33XX)
-#  include "hardware/stm32f33xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F37XX)
-#  include "hardware/stm32f37xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F4XXX)
-#  if defined(CONFIG_STM32_STM32F427A)
-#     include "hardware/stm32f427ax_syscfg.h"
-#  else
-#     include "hardware/stm32f40xxx_syscfg.h"
-#  endif
-#elif defined(CONFIG_STM32_STM32G4XXX)
-#  include "hardware/stm32g4xxxx_syscfg.h"
-#endif
+#include "arm_internal.h"
+#include "stm32_pm.h"
+#include "stm32f4discovery.h"
+
+#ifdef CONFIG_PM
 
 /****************************************************************************
- * Pre-processor Definitions
+ * Public Functions
  ****************************************************************************/
 
-#endif /* __ARCH_ARM_SRC_STM32_STM32_SYSCFG_H */
+/****************************************************************************
+ * Name: stm32_pminitialize
+ *
+ * Description:
+ *   This function is called by MCU-specific logic at power-on reset in
+ *   order to provide one-time initialization the power management subsystem.
+ *   This function must be called *very* early in the initialization sequence
+ *   *before* any other device drivers are initialized (since they may
+ *   attempt to register with the power management subsystem).
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *    None.
+ *
+ ****************************************************************************/
+
+void arm_pminitialize(void)
+{
+  /* Initialize the NuttX power management subsystem proper */
+
+  pm_initialize();
+
+#if defined(CONFIG_ARCH_IDLE_CUSTOM) && defined(CONFIG_PM_BUTTONS)
+  /* Initialize the buttons to wake up the system from low power modes */
+
+  stm32_pm_buttons();
+#endif
+
+  /* Initialize the LED PM */
+
+  stm32_led_pminitialize();
+}
+
+#endif /* CONFIG_PM */

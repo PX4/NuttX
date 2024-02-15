@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/stm32/stm32_syscfg.h
+ * boards/arm/stm32/stm32f4discovery/src/stm32_reset.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,38 +18,45 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_STM32_STM32_SYSCFG_H
-#define __ARCH_ARM_SRC_STM32_STM32_SYSCFG_H
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include "chip.h"
 
-#if defined(CONFIG_STM32_STM32L15XX)
-#  include "hardware/stm32l15xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F20XX)
-#  include "hardware/stm32f20xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F30XX)
-#  include "hardware/stm32f30xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F33XX)
-#  include "hardware/stm32f33xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F37XX)
-#  include "hardware/stm32f37xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F4XXX)
-#  if defined(CONFIG_STM32_STM32F427A)
-#     include "hardware/stm32f427ax_syscfg.h"
-#  else
-#     include "hardware/stm32f40xxx_syscfg.h"
-#  endif
-#elif defined(CONFIG_STM32_STM32G4XXX)
-#  include "hardware/stm32g4xxxx_syscfg.h"
-#endif
+#include <nuttx/arch.h>
+#include <nuttx/board.h>
+
+#ifdef CONFIG_BOARDCTL_RESET
 
 /****************************************************************************
- * Pre-processor Definitions
+ * Public Functions
  ****************************************************************************/
 
-#endif /* __ARCH_ARM_SRC_STM32_STM32_SYSCFG_H */
+/****************************************************************************
+ * Name: board_reset
+ *
+ * Description:
+ *   Reset board.  Support for this function is required by board-level
+ *   logic if CONFIG_BOARDCTL_RESET is selected.
+ *
+ * Input Parameters:
+ *   status - Status information provided with the reset event.  This
+ *            meaning of this status information is board-specific.  If not
+ *            used by a board, the value zero may be provided in calls to
+ *            board_reset().
+ *
+ * Returned Value:
+ *   If this function returns, then it was not possible to power-off the
+ *   board due to some constraints.  The return value int this case is a
+ *   board-specific reason for the failure to shutdown.
+ *
+ ****************************************************************************/
+
+int board_reset(int status)
+{
+  up_systemreset();
+  return 0;
+}
+
+#endif /* CONFIG_BOARDCTL_RESET */

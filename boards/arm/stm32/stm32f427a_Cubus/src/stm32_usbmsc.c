@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/stm32/stm32_syscfg.h
+ * boards/arm/stm32/stm32f4discovery/src/stm32_usbmsc.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,38 +18,53 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_STM32_STM32_SYSCFG_H
-#define __ARCH_ARM_SRC_STM32_STM32_SYSCFG_H
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include "chip.h"
 
-#if defined(CONFIG_STM32_STM32L15XX)
-#  include "hardware/stm32l15xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F20XX)
-#  include "hardware/stm32f20xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F30XX)
-#  include "hardware/stm32f30xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F33XX)
-#  include "hardware/stm32f33xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F37XX)
-#  include "hardware/stm32f37xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F4XXX)
-#  if defined(CONFIG_STM32_STM32F427A)
-#     include "hardware/stm32f427ax_syscfg.h"
-#  else
-#     include "hardware/stm32f40xxx_syscfg.h"
-#  endif
-#elif defined(CONFIG_STM32_STM32G4XXX)
-#  include "hardware/stm32g4xxxx_syscfg.h"
-#endif
+#include <stdio.h>
+#include <syslog.h>
+#include <errno.h>
+
+#include <nuttx/board.h>
+
+#include "stm32.h"
 
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
 
-#endif /* __ARCH_ARM_SRC_STM32_STM32_SYSCFG_H */
+/* Configuration ************************************************************/
+
+#ifndef CONFIG_SYSTEM_USBMSC_DEVMINOR1
+#  define CONFIG_SYSTEM_USBMSC_DEVMINOR1 0
+#endif
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: board_usbmsc_initialize
+ *
+ * Description:
+ *   Perform architecture specific initialization of the USB MSC device.
+ *
+ ****************************************************************************/
+
+int board_usbmsc_initialize(int port)
+{
+  /* If system/usbmsc is built as an NSH command, then SD slot should
+   * already have been initialized in board_app_initialize()
+   * (see stm32_appinit.c).
+   * In this case, there is nothing further to be done here.
+   */
+
+#ifndef CONFIG_NSH_BUILTIN_APPS
+  return stm32_sdinitialize(CONFIG_SYSTEM_USBMSC_DEVMINOR1);
+#else
+  return OK;
+#endif
+}

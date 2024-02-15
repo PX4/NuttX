@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/stm32/stm32_syscfg.h
+ * boards/arm/stm32/stm32f4discovery/src/stm32_hciuart.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -18,38 +18,65 @@
  *
  ****************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_STM32_STM32_SYSCFG_H
-#define __ARCH_ARM_SRC_STM32_STM32_SYSCFG_H
-
 /****************************************************************************
  * Included Files
  ****************************************************************************/
 
 #include <nuttx/config.h>
-#include "chip.h"
 
-#if defined(CONFIG_STM32_STM32L15XX)
-#  include "hardware/stm32l15xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F20XX)
-#  include "hardware/stm32f20xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F30XX)
-#  include "hardware/stm32f30xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F33XX)
-#  include "hardware/stm32f33xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F37XX)
-#  include "hardware/stm32f37xxx_syscfg.h"
-#elif defined(CONFIG_STM32_STM32F4XXX)
-#  if defined(CONFIG_STM32_STM32F427A)
-#     include "hardware/stm32f427ax_syscfg.h"
-#  else
-#     include "hardware/stm32f40xxx_syscfg.h"
-#  endif
-#elif defined(CONFIG_STM32_STM32G4XXX)
-#  include "hardware/stm32g4xxxx_syscfg.h"
-#endif
+#include <stdbool.h>
+#include <stdio.h>
+#include <debug.h>
+#include <errno.h>
+
+#include <nuttx/wireless/bluetooth/bt_uart.h>
+
+#include "stm32_hciuart.h"
+#include "stm32f4discovery.h"
+
+#include <arch/board/board.h>
+
+#ifdef HAVE_HCIUART
 
 /****************************************************************************
- * Pre-processor Definitions
+ * Public Functions
  ****************************************************************************/
 
-#endif /* __ARCH_ARM_SRC_STM32_STM32_SYSCFG_H */
+/****************************************************************************
+ * Name: hciuart_dev_initialize
+ *
+ * Description:
+ *   This function is called by board initialization logic to configure the
+ *   Bluetooth HCI UART driver
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   Zero is returned on success.  Otherwise, a negated errno value is
+ *   returned to indicate the nature of the failure.
+ *
+ ****************************************************************************/
+
+int hciuart_dev_initialize(void)
+{
+  int ret;
+
+  /* Perform one-time initialization */
+
+  hciuart_initialize();
+
+  /* Instantiate the HCI UART lower half interface
+   * Then initialize the HCI UART upper half driver with the bluetooth stack
+   */
+
+  ret = btuart_register(hciuart_instantiate(HCIUART_SERDEV));
+  if (ret < 0)
+    {
+      wlerr("ERROR: btuart_register() failed: %d\n", ret);
+    }
+
+  return ret;
+}
+
+#endif /* HAVE_HCIUART */
