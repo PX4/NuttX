@@ -452,7 +452,7 @@ FAR struct mtd_dev_s *rammtd_initialize(FAR uint8_t *start, size_t size);
  *
  ****************************************************************************/
 
-FAR struct mtd_dev_s *mt25ql_initalize(FAR struct spi_dev_s *dev);
+FAR struct mtd_dev_s *mt25ql_initialize(FAR struct spi_dev_s *dev);
 
 /****************************************************************************
  * Name: ramtron_initialize
