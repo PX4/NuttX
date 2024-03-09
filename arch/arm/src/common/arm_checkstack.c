@@ -30,6 +30,7 @@
 #include <assert.h>
 #include <debug.h>
 
+#include <nuttx/addrenv.h>
 #include <nuttx/arch.h>
 #include <nuttx/board.h>
 
@@ -171,7 +172,7 @@ void arm_stack_color(void *stackbase, size_t nbytes)
     }
 
   stkend = STACK_ALIGN_DOWN(stkend);
-  nwords = (stkend - (uintptr_t)stackbase) >> 2;
+  nwords = (stkend - (uintptr_t)stkptr) >> 2;
 
   /* Set the entire stack to the coloration value */
 
@@ -182,7 +183,7 @@ void arm_stack_color(void *stackbase, size_t nbytes)
 }
 
 /****************************************************************************
- * Name: up_check_stack and friends
+ * Name: up_check_tcbstack and friends
  *
  * Description:
  *   Determine (approximately) how much stack has been used be searching the
@@ -202,58 +203,31 @@ size_t up_check_tcbstack(struct tcb_s *tcb)
   size_t size;
 
 #ifdef CONFIG_ARCH_ADDRENV
-  save_addrenv_t oldenv;
-  bool saved = false;
+  struct addrenv_s *oldenv;
 
-  if ((tcb->flags & TCB_FLAG_TTYPE_MASK) != TCB_FLAG_TTYPE_KERNEL)
+  if (tcb->addrenv_own != NULL)
     {
-      up_addrenv_select(&tcb->group->tg_addrenv, &oldenv);
-      saved = true;
+      addrenv_select(tcb->addrenv_own, &oldenv);
     }
 #endif
 
   size = arm_stack_check(tcb->stack_base_ptr, tcb->adj_stack_size);
 
 #ifdef CONFIG_ARCH_ADDRENV
-  if (saved)
+  if (tcb->addrenv_own != NULL)
     {
-      up_addrenv_restore(&oldenv);
+      addrenv_restore(oldenv);
     }
 #endif
 
   return size;
 }
 
-ssize_t up_check_tcbstack_remain(struct tcb_s *tcb)
-{
-  return tcb->adj_stack_size - up_check_tcbstack(tcb);
-}
-
-size_t up_check_stack(void)
-{
-  return up_check_tcbstack(running_task());
-}
-
-ssize_t up_check_stack_remain(void)
-{
-  return up_check_tcbstack_remain(running_task());
-}
-
 #if CONFIG_ARCH_INTERRUPTSTACK > 3
 size_t up_check_intstack(void)
 {
-#ifdef CONFIG_SMP
-  return arm_stack_check((void *)arm_intstack_alloc(),
+  return arm_stack_check((void *)up_get_intstackbase(),
                          STACK_ALIGN_DOWN(CONFIG_ARCH_INTERRUPTSTACK));
-#else
-  return arm_stack_check((void *)&g_intstackalloc,
-                         STACK_ALIGN_DOWN(CONFIG_ARCH_INTERRUPTSTACK));
-#endif
-}
-
-size_t up_check_intstack_remain(void)
-{
-  return STACK_ALIGN_DOWN(CONFIG_ARCH_INTERRUPTSTACK) - up_check_intstack();
 }
 #endif
 

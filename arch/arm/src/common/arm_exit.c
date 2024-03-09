@@ -24,8 +24,9 @@
 
 #include <nuttx/config.h>
 
-#include <sched.h>
+#include <assert.h>
 #include <debug.h>
+#include <sched.h>
 
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
@@ -139,4 +140,10 @@ void up_exit(int status)
   /* Then switch contexts */
 
   arm_fullcontextrestore(tcb->xcp.regs);
+
+  /* arm_fullcontextrestore() should not return but could if the software
+   * interrupts are disabled.
+   */
+
+  PANIC();
 }

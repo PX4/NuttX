@@ -184,6 +184,7 @@
  * noinline_function indicates that the function should never be inlined.
  */
 
+#  define always_inline_function __attribute__ ((always_inline,no_instrument_function))
 #  define inline_function __attribute__ ((always_inline,no_instrument_function))
 #  define noinline_function __attribute__ ((noinline))
 

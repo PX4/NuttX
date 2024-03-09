@@ -35,6 +35,7 @@
 #include <nuttx/arch.h>
 #include <nuttx/wdog.h>
 #include <nuttx/clock.h>
+#include <nuttx/compiler.h>
 #include <nuttx/sdio.h>
 #include <nuttx/wqueue.h>
 #include <nuttx/semaphore.h>
@@ -381,10 +382,14 @@ struct stm32_dev_s
 #if !defined(CONFIG_STM32H7_SDMMC_IDMA)
   struct work_s      cbfifo;          /* Monitor for Lame FIFO */
 #endif
-  uint8_t            rxfifo[FIFO_SIZE_IN_BYTES] /* To offload with IDMA */
+  uint8_t            rxfifo[FIFO_SIZE_IN_BYTES] /* To offload with IDMA and support un-alinged buffers */
                      aligned_data(ARMV7M_DCACHE_LINESIZE);
-#if defined(CONFIG_ARMV7M_DCACHE) && defined(CONFIG_STM32H7_SDMMC_IDMA)
-  bool               unaligned_rx; /* read buffer is not cache-line aligned */
+  bool               unaligned_rx; /* read buffer is not cache-line or 32 bit aligned */
+
+  /* Input dma buffer for unaligned transfers */
+#if defined(CONFIG_STM32H7_SDMMC_IDMA)
+  uint8_t sdmmc_rxbuffer[SDMMC_MAX_BLOCK_SIZE]
+          aligned_data(ARMV7M_DCACHE_LINESIZE);
 #endif
 };
 
@@ -418,15 +423,12 @@ struct stm32_sampleregs_s
 static inline void sdmmc_putreg32(struct stm32_dev_s *priv, uint32_t value,
                                   int offset);
 static inline uint32_t sdmmc_getreg32(struct stm32_dev_s *priv, int offset);
-static int  stm32_takesem(struct stm32_dev_s *priv);
-#define     stm32_givesem(priv) (nxsem_post(&priv->waitsem))
 static inline void stm32_setclkcr(struct stm32_dev_s *priv, uint32_t clkcr);
 static void stm32_configwaitints(struct stm32_dev_s *priv, uint32_t waitmask,
                                  sdio_eventset_t waitevents,
                                  sdio_eventset_t wkupevents);
 static void stm32_configxfrints(struct stm32_dev_s *priv, uint32_t xfrmask);
 static void stm32_setpwrctrl(struct stm32_dev_s *priv, uint32_t pwrctrl);
-static inline uint32_t stm32_getpwrctrl(struct stm32_dev_s *priv);
 
 /* Debug Helpers ************************************************************/
 
@@ -455,7 +457,7 @@ static void stm32_datadisable(struct stm32_dev_s *priv);
 #ifndef CONFIG_STM32H7_SDMMC_IDMA
 static void stm32_sendfifo(struct stm32_dev_s *priv);
 static void stm32_recvfifo(struct stm32_dev_s *priv);
-#elif defined(CONFIG_ARMV7M_DCACHE)
+#else
 static void stm32_recvdma(struct stm32_dev_s *priv);
 #endif
 static void stm32_eventtimeout(wdparm_t arg);
@@ -586,13 +588,14 @@ struct stm32_dev_s g_sdmmcdev1 =
     .dmasendsetup     = stm32_dmasendsetup,
 #endif
   },
-  .base              = STM32_SDMMC1_BASE,
-  .nirq              = STM32_IRQ_SDMMC1,
+  .base               = STM32_SDMMC1_BASE,
+  .nirq               = STM32_IRQ_SDMMC1,
 #if defined(CONFIG_MMCSD_SDIOWAIT_WRCOMPLETE)
-  .d0_gpio           = SDMMC1_SDIO_PULL(GPIO_SDMMC1_D0),
+  .d0_gpio            = SDMMC1_SDIO_PULL(GPIO_SDMMC1_D0),
 #endif
+  .waitsem            = SEM_INITIALIZER(0),
 #if defined(HAVE_SDMMC_SDIO_MODE) && defined(CONFIG_SDMMC1_SDIO_MODE)
-  .sdiomode          = true,
+  .sdiomode           = true,
 #endif
 };
 #endif
@@ -640,13 +643,14 @@ struct stm32_dev_s g_sdmmcdev2 =
     .dmasendsetup     = stm32_dmasendsetup,
 #endif
   },
-  .base              = STM32_SDMMC2_BASE,
-  .nirq              = STM32_IRQ_SDMMC2,
+  .base               = STM32_SDMMC2_BASE,
+  .nirq               = STM32_IRQ_SDMMC2,
 #if defined(CONFIG_MMCSD_SDIOWAIT_WRCOMPLETE)
-  .d0_gpio           = SDMMC2_SDIO_PULL(GPIO_SDMMC2_D0),
+  .d0_gpio            = SDMMC2_SDIO_PULL(GPIO_SDMMC2_D0),
 #endif
+  .waitsem            = SEM_INITIALIZER(0),
 #if defined(HAVE_SDMMC_SDIO_MODE) && defined(CONFIG_SDMMC2_SDIO_MODE)
-  .sdiomode          = true,
+  .sdiomode           = true,
 #endif
 };
 #endif
@@ -654,12 +658,6 @@ struct stm32_dev_s g_sdmmcdev2 =
 
 #if defined(CONFIG_STM32H7_SDMMC_XFRDEBUG)
 static struct stm32_sampleregs_s g_sampleregs[DEBUG_NSAMPLES];
-#endif
-
-/* Input dma buffer for unaligned transfers */
-#if defined(CONFIG_ARMV7M_DCACHE) && defined(CONFIG_STM32H7_SDMMC_IDMA)
-static uint8_t sdmmc_rxbuffer[SDMMC_MAX_BLOCK_SIZE]
-aligned_data(ARMV7M_DCACHE_LINESIZE);
 #endif
 
 /****************************************************************************
@@ -701,27 +699,6 @@ static inline void sdmmc_modifyreg32(struct stm32_dev_s *priv, int offset,
   regval |= setbits;
   putreg32(regval, priv->base + offset);
   leave_critical_section(flags);
-}
-
-/****************************************************************************
- * Name: stm32_takesem
- *
- * Description:
- *   Take the wait semaphore (handling false alarm wakeups due to the receipt
- *   of signals).
- *
- * Input Parameters:
- *   priv  - Instance of the SDMMC private state structure.
- *
- * Returned Value:
- *   Normally OK, but may return -ECANCELED in the rare event that the task
- *   has been canceled.
- *
- ****************************************************************************/
-
-static int stm32_takesem(struct stm32_dev_s *priv)
-{
-  return nxsem_wait_uninterruptible(&priv->waitsem);
 }
 
 /****************************************************************************
@@ -910,28 +887,6 @@ static void stm32_setpwrctrl(struct stm32_dev_s *priv, uint32_t pwrctrl)
   regval &= ~STM32_SDMMC_POWER_PWRCTRL_MASK;
   regval |= pwrctrl;
   sdmmc_putreg32(priv, regval, STM32_SDMMC_POWER_OFFSET);
-}
-
-/****************************************************************************
- * Name: stm32_getpwrctrl
- *
- * Description:
- *   Return the current value of the  the PWRCTRL field of the SDIO POWER
- *   register.  This function can be used to see if the SDIO is powered ON
- *   or OFF
- *
- * Input Parameters:
- *   priv  - Instance of the SDMMC private state structure.
- *
- * Returned Value:
- *   The current value of the  the PWRCTRL field of the SDIO POWER register.
- *
- ****************************************************************************/
-
-static inline uint32_t stm32_getpwrctrl(struct stm32_dev_s *priv)
-{
-  return sdmmc_getreg32(priv, STM32_SDMMC_POWER_OFFSET) &
-    STM32_SDMMC_POWER_PWRCTRL_MASK;
 }
 
 /****************************************************************************
@@ -1147,14 +1102,14 @@ static void stm32_dataconfig(struct stm32_dev_s *priv, uint32_t timeout,
     {
       DEBUGASSERT((dlen % priv->blocksize) == 0);
 
-#if defined(CONFIG_STM32H7_SDMMC_IDMA) && defined(CONFIG_ARMV7M_DCACHE)
-      /* If cache is enabled, and this is an unaligned receive,
-       * receive one block at a time to the internal buffer
+#if defined(CONFIG_STM32H7_SDMMC_IDMA)
+      /* If this is an unaligned receive, then receive one block at a
+       * time to the internal buffer
        */
 
       if (priv->unaligned_rx)
         {
-          DEBUGASSERT(priv->blocksize <= sizeof(sdmmc_rxbuffer));
+          DEBUGASSERT(priv->blocksize <= sizeof(priv->sdmmc_rxbuffer));
           dlen = priv->blocksize;
         }
 #endif
@@ -1371,7 +1326,7 @@ static void stm32_recvfifo(struct stm32_dev_s *priv)
  *
  ****************************************************************************/
 
-#if defined (CONFIG_STM32H7_SDMMC_IDMA) && defined(CONFIG_ARMV7M_DCACHE)
+#if defined (CONFIG_STM32H7_SDMMC_IDMA)
 static void stm32_recvdma(struct stm32_dev_s *priv)
 {
   uint32_t dctrl;
@@ -1384,12 +1339,13 @@ static void stm32_recvdma(struct stm32_dev_s *priv)
 
       /* Copy the received data to client buffer */
 
-      memcpy(priv->buffer, sdmmc_rxbuffer, priv->blocksize);
+      memcpy(priv->buffer, priv->sdmmc_rxbuffer, priv->blocksize);
 
       /* Invalidate the cache before receiving next block */
 
-      up_invalidate_dcache((uintptr_t)sdmmc_rxbuffer,
-                           (uintptr_t)sdmmc_rxbuffer + priv->blocksize);
+      up_invalidate_dcache((uintptr_t)priv->sdmmc_rxbuffer,
+                           (uintptr_t)priv->sdmmc_rxbuffer +
+                           priv->blocksize);
 
       /* Update how much there is left to receive */
 
@@ -1509,7 +1465,7 @@ static void stm32_endwait(struct stm32_dev_s *priv,
 
   /* Wake up the waiting thread */
 
-  stm32_givesem(priv);
+  nxsem_post(&priv->waitsem);
 }
 
 /****************************************************************************
@@ -1743,7 +1699,6 @@ static int stm32_sdmmc_interrupt(int irq, void *context, void *arg)
                   memcpy(priv->buffer, priv->rxfifo, priv->remaining);
                 }
 #else
-#  if defined(CONFIG_ARMV7M_DCACHE)
               if (priv->receivecnt)
                 {
                   /* Invalidate dcache, and copy the received data into
@@ -1753,7 +1708,6 @@ static int stm32_sdmmc_interrupt(int irq, void *context, void *arg)
                   stm32_recvdma(priv);
                 }
               else
-#  endif
 #endif
                 {
                   /* Then terminate the transfer.
@@ -1918,7 +1872,11 @@ static int stm32_lock(struct sdio_dev_s *dev, bool lock)
 {
   /* The multiplex bus is part of board support package. */
 
-  stm32_muxbus_sdio_lock(dev, lock);
+  /* FIXME: Implement the below function to support bus share:
+   *
+   * stm32_muxbus_sdio_lock(dev, lock);
+   */
+
   return OK;
 }
 #endif
@@ -2115,7 +2073,7 @@ static void stm32_clock(struct sdio_dev_s *dev, enum sdio_clock_e rate)
     default:
     case CLOCK_SDIO_DISABLED:
       clckr = STM32_CLCKCR_INIT;
-      return;
+      break;
 
     /* Enable in initial ID mode clocking (<400KHz) */
 
@@ -2980,7 +2938,7 @@ static sdio_eventset_t stm32_eventwait(struct sdio_dev_s *dev)
        * incremented and there will be no wait.
        */
 
-      ret = stm32_takesem(priv);
+      ret = nxsem_wait_uninterruptible(&priv->waitsem);
       if (ret < 0)
         {
           /* Task canceled.  Cancel the wdog (assuming it was started) and
@@ -3010,7 +2968,6 @@ static sdio_eventset_t stm32_eventwait(struct sdio_dev_s *dev)
   /* Disable event-related interrupts */
 
 errout_with_waitints:
-
   stm32_configwaitints(priv, 0, 0, 0);
 
   leave_critical_section(flags);
@@ -3194,8 +3151,9 @@ static int stm32_dmarecvsetup(struct sdio_dev_s *dev,
        * buffer instead.
        */
 
-      up_invalidate_dcache((uintptr_t)sdmmc_rxbuffer,
-                           (uintptr_t)sdmmc_rxbuffer + priv->blocksize);
+      up_invalidate_dcache((uintptr_t)priv->sdmmc_rxbuffer,
+                           (uintptr_t)priv->sdmmc_rxbuffer +
+                           priv->blocksize);
 
       priv->unaligned_rx = true;
     }
@@ -3206,6 +3164,12 @@ static int stm32_dmarecvsetup(struct sdio_dev_s *dev,
 
       priv->unaligned_rx = false;
     }
+#else
+
+  /* IDMA access must be 32 bit aligned */
+
+  priv->unaligned_rx = ((uintptr_t)buffer & 0x3) != 0;
+
 #endif
 
   /* Reset the DPSM configuration */
@@ -3231,14 +3195,12 @@ static int stm32_dmarecvsetup(struct sdio_dev_s *dev,
 
   /* Configure the RX DMA */
 
-#if defined(CONFIG_ARMV7M_DCACHE)
   if (priv->unaligned_rx)
     {
-      sdmmc_putreg32(priv, (uintptr_t)sdmmc_rxbuffer,
+      sdmmc_putreg32(priv, (uintptr_t)priv->sdmmc_rxbuffer,
                      STM32_SDMMC_IDMABASE0R_OFFSET);
     }
   else
-#endif
     {
       sdmmc_putreg32(priv, (uintptr_t)priv->buffer,
                      STM32_SDMMC_IDMABASE0R_OFFSET);
@@ -3286,9 +3248,7 @@ static int stm32_dmasendsetup(struct sdio_dev_s *dev,
   DEBUGASSERT(stm32_dmapreflight(dev, buffer, buflen) == 0);
 #endif
 
-#if defined(CONFIG_ARMV7M_DCACHE)
   priv->unaligned_rx = false;
-#endif
 
   /* Reset the DPSM configuration */
 
@@ -3531,18 +3491,6 @@ struct sdio_dev_s *sdio_initialize(int slotno)
       mcerr("ERROR: Unsupported SDMMC slot: %d\n", slotno);
       return NULL;
     }
-
-  /* Initialize the SDIO slot structure */
-
-  /* Initialize semaphores */
-
-  nxsem_init(&priv->waitsem, 0, 0);
-
-  /* The waitsem semaphore is used for signaling and, hence, should not have
-   * priority inheritance enabled.
-   */
-
-  nxsem_set_protocol(&priv->waitsem, SEM_PRIO_NONE);
 
   /* Reset the card and assure that it is in the initial, unconfigured
    * state.

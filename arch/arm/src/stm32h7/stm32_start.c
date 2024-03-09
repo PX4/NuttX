@@ -36,11 +36,18 @@
 #include "barriers.h"
 #include "nvic.h"
 #include "mpu.h"
+#ifdef CONFIG_ARM_MPU
+#  include "stm32_mpuinit.h"
+#endif
 
 #include "stm32_rcc.h"
 #include "stm32_userspace.h"
 #include "stm32_lowputc.h"
 #include "stm32_start.h"
+
+#ifdef CONFIG_ARCH_STM32H7_DUALCORE
+#  include "stm32_dualcore.h"
+#endif
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -62,7 +69,7 @@
  * 0x2005:ffff - End of internal SRAM and end of heap (a
  */
 
-#define HEAP_BASE  ((uintptr_t)&_ebss+CONFIG_IDLETHREAD_STACKSIZE)
+#define HEAP_BASE  ((uintptr_t)&_ebss + CONFIG_IDLETHREAD_STACKSIZE)
 
 /****************************************************************************
  * Public Data
@@ -108,6 +115,7 @@ const uintptr_t g_idle_topstack = HEAP_BASE;
 void __start(void) noinstrument_function;
 #endif
 
+#ifdef CONFIG_ARCH_CHIP_STM32H7_CORTEXM7
 /****************************************************************************
  * Name: stm32_tcmenable
  *
@@ -157,6 +165,7 @@ static inline void stm32_tcmenable(void)
 #warning Missing logic
 #endif
 }
+#endif
 
 /****************************************************************************
  * Public Functions
@@ -182,15 +191,21 @@ void __start(void)
                    "r"(CONFIG_IDLETHREAD_STACKSIZE - 64) :);
 #endif
 
+#ifdef CONFIG_ARCH_CHIP_STM32H7_CORTEXM4
+  /* Wait for CM7 initialization done */
+
+  stm32h7_waitfor_cm7();
+#endif
+
   /* If enabled reset the MPU */
 
   mpu_early_reset();
 
-/* Clear .bss.  We'll do this inline (vs. calling memset) just to be
+  /* Clear .bss.  We'll do this inline (vs. calling memset) just to be
    * certain that there are no issues with the state of global variables.
    */
 
-  for (dest = &_sbss; dest < &_ebss; )
+  for (dest = (uint32_t *)_sbss; dest < (uint32_t *)_ebss; )
     {
       *dest++ = 0;
     }
@@ -201,20 +216,24 @@ void __start(void)
    * end of all of the other read-only data (.text, .rodata) at _eronly.
    */
 
-  for (src = &_eronly, dest = &_sdata; dest < &_edata; )
+  for (src = (const uint32_t *)_eronly,
+       dest = (uint32_t *)_sdata; dest < (uint32_t *)_edata;
+      )
     {
       *dest++ = *src++;
     }
 
   /* Copy any necessary code sections from FLASH to RAM.  The correct
-   * destination in SRAM is geive by _sramfuncs and _eramfuncs.  The
+   * destination in SRAM is given by _sramfuncs and _eramfuncs.  The
    * temporary location is in flash after the data initialization code
    * at _framfuncs.  This should be done before stm32_clockconfig() is
    * called (in case it has some dependency on initialized C variables).
    */
 
 #ifdef CONFIG_ARCH_RAMFUNCS
-  for (src = &_framfuncs, dest = &_sramfuncs; dest < &_eramfuncs; )
+  for (src = (const uint32_t *)_framfuncs,
+       dest = (uint32_t *)_sramfuncs; dest < (uint32_t *)_eramfuncs;
+      )
     {
       *dest++ = *src++;
     }
@@ -227,20 +246,28 @@ void __start(void)
   stm32_lowsetup();
   showprogress('A');
 
+#ifdef CONFIG_ARCH_CHIP_STM32H7_CORTEXM7
   /* Enable/disable tightly coupled memories */
 
   stm32_tcmenable();
+#endif
 
   /* Initialize onboard resources */
 
   stm32_boardinitialize();
   showprogress('B');
 
+#ifdef CONFIG_ARCH_CHIP_STM32H7_CORTEXM7
   /* Enable I- and D-Caches */
 
   up_enable_icache();
   up_enable_dcache();
+#endif
   showprogress('C');
+
+#ifdef CONFIG_ARCH_PERF_EVENTS
+  up_perf_init((void *)STM32_CPUCLK_FREQUENCY);
+#endif
 
   /* Perform early serial initialization */
 
@@ -258,12 +285,27 @@ void __start(void)
 #ifdef CONFIG_BUILD_PROTECTED
   stm32_userspace();
 #endif
+
+#ifdef CONFIG_ARM_MPU
+  /* Configure the MPU */
+
+  stm32_mpuinitialize();
+#endif
   showprogress('E');
 
   /* Then start NuttX */
 
   showprogress('\r');
   showprogress('\n');
+
+#if defined(CONFIG_ARCH_STM32H7_DUALCORE) && \
+    defined(CONFIG_ARCH_CHIP_STM32H7_CORTEXM7) && \
+    defined(CONFIG_STM32H7_CORTEXM4_ENABLED)
+
+  /* Start CM4 core after clock configration is done */
+
+  stm32h7_start_cm4();
+#endif
 
   nx_start();
 

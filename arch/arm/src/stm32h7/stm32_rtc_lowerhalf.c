@@ -31,6 +31,7 @@
 #include <errno.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/mutex.h>
 #include <nuttx/timers/rtc.h>
 
 #include "arm_internal.h"
@@ -74,7 +75,7 @@ struct stm32_lowerhalf_s
    * this file.
    */
 
-  sem_t devsem;         /* Threads can only exclusively access the RTC */
+  mutex_t devlock;         /* Threads can only exclusively access the RTC */
 
 #ifdef CONFIG_RTC_ALARM
   /* Alarm callback information */
@@ -142,19 +143,14 @@ static const struct rtc_ops_s g_rtc_ops =
   .setperiodic    = stm32_setperiodic,
   .cancelperiodic = stm32_cancelperiodic,
 #endif
-#ifdef CONFIG_RTC_IOCTL
-  .ioctl       = NULL,
-#endif
-#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
-  .destroy     = NULL,
-#endif
 };
 
 /* STM32 RTC device state */
 
 static struct stm32_lowerhalf_s g_rtc_lowerhalf =
 {
-  .ops         = &g_rtc_ops,
+  .ops     = &g_rtc_ops,
+  .devlock = NXMUTEX_INITIALIZER,
 };
 
 /****************************************************************************
@@ -234,7 +230,7 @@ static int stm32_rdtime(struct rtc_lowerhalf_s *lower,
 
   priv = (struct stm32_lowerhalf_s *)lower;
 
-  ret = nxsem_wait(&priv->devsem);
+  ret = nxmutex_lock(&priv->devlock);
   if (ret < 0)
     {
       return ret;
@@ -259,12 +255,12 @@ static int stm32_rdtime(struct rtc_lowerhalf_s *lower,
     {
       int errcode = get_errno();
       DEBUGASSERT(errcode > 0);
-      nxsem_post(&priv->devsem);
+      nxmutex_unlock(&priv->devlock);
       return -errcode;
     }
 
 #endif
-  nxsem_post(&priv->devsem);
+  nxmutex_unlock(&priv->devlock);
   return ret;
 }
 
@@ -292,7 +288,7 @@ static int stm32_settime(struct rtc_lowerhalf_s *lower,
 
   priv = (struct stm32_lowerhalf_s *)lower;
 
-  ret = nxsem_wait(&priv->devsem);
+  ret = nxmutex_lock(&priv->devlock);
   if (ret < 0)
     {
       return ret;
@@ -320,7 +316,7 @@ static int stm32_settime(struct rtc_lowerhalf_s *lower,
   ret = up_rtc_settime(&ts);
 #endif
 
-  nxsem_post(&priv->devsem);
+  nxmutex_unlock(&priv->devlock);
   return ret;
 }
 
@@ -375,7 +371,7 @@ static int stm32_setalarm(struct rtc_lowerhalf_s *lower,
   DEBUGASSERT(alarminfo->id == RTC_ALARMA || alarminfo->id == RTC_ALARMB);
   priv = (struct stm32_lowerhalf_s *)lower;
 
-  ret = nxsem_wait(&priv->devsem);
+  ret = nxmutex_lock(&priv->devlock);
   if (ret < 0)
     {
       return ret;
@@ -408,8 +404,7 @@ static int stm32_setalarm(struct rtc_lowerhalf_s *lower,
         }
     }
 
-  nxsem_post(&priv->devsem);
-
+  nxmutex_unlock(&priv->devlock);
   return ret;
 }
 #endif
@@ -515,7 +510,7 @@ static int stm32_cancelalarm(struct rtc_lowerhalf_s *lower, int alarmid)
   DEBUGASSERT(alarmid == RTC_ALARMA || alarmid == RTC_ALARMB);
   priv = (struct stm32_lowerhalf_s *)lower;
 
-  ret = nxsem_wait(&priv->devsem);
+  ret = nxmutex_lock(&priv->devlock);
   if (ret < 0)
     {
       return ret;
@@ -537,8 +532,7 @@ static int stm32_cancelalarm(struct rtc_lowerhalf_s *lower, int alarmid)
       ret = stm32_rtc_cancelalarm((enum alm_id_e)alarmid);
     }
 
-  nxsem_post(&priv->devsem);
-
+  nxmutex_unlock(&priv->devlock);
   return ret;
 }
 #endif
@@ -658,18 +652,16 @@ static int stm32_setperiodic(struct rtc_lowerhalf_s *lower,
   DEBUGASSERT(lower != NULL && alarminfo != NULL);
   priv = (struct stm32_lowerhalf_s *)lower;
 
-  ret = nxsem_wait(&priv->devsem);
+  ret = nxmutex_lock(&priv->devlock);
   if (ret < 0)
     {
       return ret;
     }
 
   memcpy(&priv->periodic, alarminfo, sizeof(struct lower_setperiodic_s));
-
   ret = stm32_rtc_setperiodic(&alarminfo->period, stm32_periodic_callback);
 
-  nxsem_post(&priv->devsem);
-
+  nxmutex_unlock(&priv->devlock);
   return ret;
 }
 #endif
@@ -701,7 +693,7 @@ static int stm32_cancelperiodic(struct rtc_lowerhalf_s *lower, int id)
 
   DEBUGASSERT(id == 0);
 
-  ret = nxsem_wait(&priv->devsem);
+  ret = nxmutex_lock(&priv->devlock);
   if (ret < 0)
     {
       return ret;
@@ -709,8 +701,7 @@ static int stm32_cancelperiodic(struct rtc_lowerhalf_s *lower, int id)
 
   ret = stm32_rtc_cancelperiodic();
 
-  nxsem_post(&priv->devsem);
-
+  nxmutex_unlock(&priv->devlock);
   return ret;
 }
 #endif
@@ -743,8 +734,6 @@ static int stm32_cancelperiodic(struct rtc_lowerhalf_s *lower, int id)
 
 struct rtc_lowerhalf_s *stm32_rtc_lowerhalf(void)
 {
-  nxsem_init(&g_rtc_lowerhalf.devsem, 0, 1);
-
   return (struct rtc_lowerhalf_s *)&g_rtc_lowerhalf;
 }
 

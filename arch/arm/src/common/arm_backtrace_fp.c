@@ -33,8 +33,6 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#if defined(CONFIG_FRAME_POINTER) && !defined(CONFIG_ARM_THUMB)
-
 /****************************************************************************
  * Name: backtrace
  *
@@ -43,9 +41,7 @@
  *
  ****************************************************************************/
 
-#ifdef CONFIG_MM_KASAN
-__attribute__((no_sanitize_address))
-#endif
+nosanitize_address
 static int backtrace(uintptr_t *base, uintptr_t *limit,
                      uintptr_t *fp, uintptr_t *pc,
                      void **buffer, int size, int *skip)
@@ -54,14 +50,13 @@ static int backtrace(uintptr_t *base, uintptr_t *limit,
 
   if (pc)
     {
-      i++;
       if ((*skip)-- <= 0)
         {
-          *buffer++ = pc;
+          buffer[i++] = pc;
         }
     }
 
-  for (; i < size; fp = (uintptr_t *)*(fp - 1), i++)
+  for (; i < size; fp = (uintptr_t *)*(fp - 1))
     {
       if (fp > limit || fp < base || *fp == 0)
         {
@@ -70,7 +65,7 @@ static int backtrace(uintptr_t *base, uintptr_t *limit,
 
       if ((*skip)-- <= 0)
         {
-          *buffer++ = (void *)*fp;
+          buffer[i++] = (void *)*fp;
         }
     }
 
@@ -106,9 +101,6 @@ static int backtrace(uintptr_t *base, uintptr_t *limit,
  *
  ****************************************************************************/
 
-#ifdef CONFIG_MM_KASAN
-__attribute__((no_sanitize_address))
-#endif
 int up_backtrace(struct tcb_s *tcb,
                  void **buffer, int size, int skip)
 {
@@ -130,9 +122,9 @@ int up_backtrace(struct tcb_s *tcb,
         {
 #if CONFIG_ARCH_INTERRUPTSTACK > 7
 #  ifdef CONFIG_SMP
-          istacklimit = arm_intstack_top();
+          istacklimit = (void *)arm_intstack_top();
 #  else
-          istacklimit = &g_intstacktop;
+          istacklimit = g_intstacktop;
 #  endif /* CONFIG_SMP */
           ret = backtrace(istacklimit - (CONFIG_ARCH_INTERRUPTSTACK & ~7),
                           istacklimit,
@@ -176,4 +168,3 @@ int up_backtrace(struct tcb_s *tcb,
 
   return ret;
 }
-#endif /* CONFIG_FRAME_POINTER && !CONFIG_ARM_THUMB */

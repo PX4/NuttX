@@ -26,6 +26,8 @@
 
 #include <inttypes.h>
 #include <stdio.h>
+#include <stdbool.h>
+#include <sys/param.h>
 #include <fcntl.h>
 
 #include <nuttx/arch.h>
@@ -45,10 +47,6 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
-
-#ifndef MAX
-#  define MAX(a,b)                  ((a) > (b) ? (a) : (b))
-#endif
 
 #ifndef ALIGN_UP
 #  define ALIGN_UP(s, a)            (((s) + (a) - 1) & ~((a) - 1))
@@ -70,7 +68,6 @@ struct rptun_priv_s
   rmutex_t                     lock;
   struct metal_list            node;
   sem_t                        semtx;
-  unsigned long                cmd;
 #ifdef CONFIG_RPTUN_WORKQUEUE
   struct work_s                work;
 #else
@@ -133,7 +130,7 @@ static void rptun_ns_bind(FAR struct rpmsg_device *rdev,
                           FAR const char *name, uint32_t dest);
 
 static int rptun_dev_start(FAR struct remoteproc *rproc);
-static int rptun_dev_stop(FAR struct remoteproc *rproc);
+static int rptun_dev_stop(FAR struct remoteproc *rproc, bool stop_ns);
 static int rptun_dev_ioctl(FAR struct file *filep, int cmd,
                            unsigned long arg);
 
@@ -177,10 +174,6 @@ static const struct file_operations g_rptun_devops =
   NULL,             /* write */
   NULL,             /* seek */
   rptun_dev_ioctl,  /* ioctl */
-  NULL              /* poll */
-#ifndef CONFIG_DISABLE_PSEUDOFS_OPERATIONS
-  , NULL            /* unlink */
-#endif
 };
 
 #ifdef CONFIG_RPTUN_LOADER
@@ -196,8 +189,7 @@ static const struct image_store_ops g_rptun_storeops =
 static METAL_DECLARE_LIST(g_rptun_cb);
 static METAL_DECLARE_LIST(g_rptun_priv);
 
-static rmutex_t g_rptun_lockcb   = NXRMUTEX_INITIALIZER;
-static rmutex_t g_rptun_lockpriv = NXRMUTEX_INITIALIZER;
+static rmutex_t g_rptun_lockcb = NXRMUTEX_INITIALIZER;
 
 /****************************************************************************
  * Private Functions
@@ -230,28 +222,20 @@ static inline void rptun_pm_action(FAR struct rptun_priv_s *priv,
 #  define rptun_pm_action(priv, stay)
 #endif
 
+static void rptun_start_worker(FAR void *arg)
+{
+  FAR struct rptun_priv_s *priv = arg;
+
+  if (priv->rproc.state == RPROC_OFFLINE)
+    {
+      rptun_dev_start(&priv->rproc);
+    }
+}
+
 static void rptun_worker(FAR void *arg)
 {
   FAR struct rptun_priv_s *priv = arg;
 
-  switch (priv->cmd)
-    {
-      case RPTUNIOC_START:
-        if (priv->rproc.state == RPROC_OFFLINE)
-          {
-            rptun_dev_start(&priv->rproc);
-          }
-        break;
-
-      case RPTUNIOC_STOP:
-        if (priv->rproc.state != RPROC_OFFLINE)
-          {
-            rptun_dev_stop(&priv->rproc);
-          }
-        break;
-    }
-
-  priv->cmd = RPTUNIOC_NONE;
   remoteproc_get_notification(&priv->rproc, RPTUN_NOTIFY_ALL);
 }
 
@@ -263,7 +247,7 @@ static void rptun_wakeup_rx(FAR struct rptun_priv_s *priv)
 
 static void rptun_in_recursive(int tid, FAR void *arg)
 {
-  *((FAR bool *)arg) = (gettid() == tid);
+  *((FAR bool *)arg) = (nxsched_gettid() == tid);
 }
 
 static bool rptun_is_recursive(FAR struct rptun_priv_s *priv)
@@ -278,8 +262,13 @@ static int rptun_thread(int argc, FAR char *argv[])
 {
   FAR struct rptun_priv_s *priv;
 
-  priv = (FAR struct rptun_priv_s *)((uintptr_t)strtoul(argv[2], NULL, 0));
-  priv->tid = gettid();
+  priv = (FAR struct rptun_priv_s *)((uintptr_t)strtoul(argv[2], NULL, 16));
+  priv->tid = nxsched_gettid();
+
+  if (RPTUN_IS_AUTOSTART(priv->dev))
+    {
+      rptun_start_worker(priv);
+    }
 
   while (1)
     {
@@ -292,12 +281,18 @@ static int rptun_thread(int argc, FAR char *argv[])
 
 static void rptun_wakeup_rx(FAR struct rptun_priv_s *priv)
 {
-  nxsem_post(&priv->semrx);
+  int semcount;
+
+  nxsem_get_value(&priv->semrx, &semcount);
+  if (semcount < 1)
+    {
+      nxsem_post(&priv->semrx);
+    }
 }
 
 static bool rptun_is_recursive(FAR struct rptun_priv_s *priv)
 {
-  return gettid() == priv->tid;
+  return nxsched_gettid() == priv->tid;
 }
 #endif
 
@@ -464,10 +459,10 @@ static int rptun_notify_wait(FAR struct remoteproc *rproc, uint32_t id)
 
 static void *rptun_get_priv_by_rdev(FAR struct rpmsg_device *rdev)
 {
-  struct rpmsg_virtio_device *rvdev;
-  struct virtio_device *vdev;
-  struct remoteproc_virtio *rpvdev;
-  struct remoteproc *rproc;
+  FAR struct rpmsg_virtio_device *rvdev;
+  FAR struct virtio_device *vdev;
+  FAR struct remoteproc_virtio *rpvdev;
+  FAR struct remoteproc *rproc;
 
   if (!rdev)
     {
@@ -719,13 +714,16 @@ static int rptun_dev_start(FAR struct remoteproc *rproc)
   ret = remoteproc_start(rproc);
   if (ret)
     {
+      rpmsg_deinit_vdev(&priv->rvdev);
       remoteproc_remove_virtio(rproc, vdev);
+      remoteproc_shutdown(rproc);
       return ret;
     }
 
   /* Register callback to mbox for receiving remote message */
 
   RPTUN_REGISTER_CALLBACK(priv->dev, rptun_callback, priv);
+  rptun_wakeup_rx(priv);
 
   /* Broadcast device_created to all registers */
 
@@ -742,12 +740,6 @@ static int rptun_dev_start(FAR struct remoteproc *rproc)
 
   nxrmutex_unlock(&g_rptun_lockcb);
 
-  /* Add priv to list */
-
-  nxrmutex_lock(&g_rptun_lockpriv);
-  metal_list_add_tail(&g_rptun_priv, &priv->node);
-  nxrmutex_unlock(&g_rptun_lockpriv);
-
   virtqueue_enable_cb(priv->rvdev.svq);
 
 #ifdef CONFIG_RPTUN_PING
@@ -756,15 +748,42 @@ static int rptun_dev_start(FAR struct remoteproc *rproc)
   return 0;
 }
 
-static int rptun_dev_stop(FAR struct remoteproc *rproc)
+static int rptun_dev_stop(FAR struct remoteproc *rproc, bool stop_ns)
 {
   FAR struct rptun_priv_s *priv = rproc->priv;
+  FAR struct rpmsg_device *rdev = &priv->rvdev.rdev;
   FAR struct metal_list *node;
+  FAR struct metal_list *tmp;
   FAR struct rptun_cb_s *cb;
+
+  if (priv->rproc.state == RPROC_OFFLINE)
+    {
+      return OK;
+    }
+  else if (priv->rproc.state == RPROC_CONFIGURED ||
+           priv->rproc.state == RPROC_READY)
+    {
+      return -EBUSY;
+    }
+
+  rdev->support_ns = stop_ns;
 
 #ifdef CONFIG_RPTUN_PING
   rptun_ping_deinit(&priv->ping);
 #endif
+
+  nxrmutex_lock(&priv->lock);
+
+  metal_list_for_each_safe(&priv->bind, node, tmp)
+    {
+      FAR struct rptun_bind_s *bind;
+
+      bind = metal_container_of(node, struct rptun_bind_s, node);
+      metal_list_del(node);
+      kmm_free(bind);
+    }
+
+  nxrmutex_unlock(&priv->lock);
 
   /* Unregister callback from mbox */
 
@@ -772,13 +791,9 @@ static int rptun_dev_stop(FAR struct remoteproc *rproc)
 
   /* Remove priv from list */
 
-  nxrmutex_lock(&g_rptun_lockpriv);
-  metal_list_del(&priv->node);
-  nxrmutex_unlock(&g_rptun_lockpriv);
+  nxrmutex_lock(&g_rptun_lockcb);
 
   /* Broadcast device_destroy to all registers */
-
-  nxrmutex_lock(&g_rptun_lockcb);
 
   metal_list_for_each(&g_rptun_cb, node)
     {
@@ -791,16 +806,16 @@ static int rptun_dev_stop(FAR struct remoteproc *rproc)
 
   nxrmutex_unlock(&g_rptun_lockcb);
 
+  /* Remote proc remove */
+
+  rpmsg_deinit_vdev(&priv->rvdev);
+  remoteproc_remove_virtio(rproc, priv->rvdev.vdev);
+
   /* Remote proc stop and shutdown */
 
   remoteproc_shutdown(rproc);
 
-  /* Remote proc remove */
-
-  remoteproc_remove_virtio(rproc, priv->rvdev.vdev);
-  rpmsg_deinit_vdev(&priv->rvdev);
-
-  return 0;
+  return OK;
 }
 
 static int rptun_do_ioctl(FAR struct rptun_priv_s *priv, int cmd,
@@ -811,9 +826,21 @@ static int rptun_do_ioctl(FAR struct rptun_priv_s *priv, int cmd,
   switch (cmd)
     {
       case RPTUNIOC_START:
+        if (priv->rproc.state == RPROC_OFFLINE)
+          {
+            ret = rptun_dev_start(&priv->rproc);
+          }
+        else
+          {
+            ret = rptun_dev_stop(&priv->rproc, false);
+            if (ret == OK)
+              {
+                ret = rptun_dev_start(&priv->rproc);
+              }
+          }
+        break;
       case RPTUNIOC_STOP:
-        priv->cmd = cmd;
-        rptun_wakeup_rx(priv);
+        ret = rptun_dev_stop(&priv->rproc, true);
         break;
       case RPTUNIOC_RESET:
         RPTUN_RESET(priv->dev, arg);
@@ -853,7 +880,7 @@ static int rptun_store_open(FAR void *store_,
   int len = 0x100;
   int ret;
 
-  ret = file_open(&store->file, path, O_RDONLY);
+  ret = file_open(&store->file, path, O_RDONLY | O_CLOEXEC);
   if (ret < 0)
     {
       return ret;
@@ -1069,13 +1096,18 @@ int rpmsg_register_callback(FAR void *priv_,
   cb->ns_match       = ns_match;
   cb->ns_bind        = ns_bind;
 
-  nxrmutex_lock(&g_rptun_lockpriv);
+  nxrmutex_lock(&g_rptun_lockcb);
 
   metal_list_for_each(&g_rptun_priv, node)
     {
       FAR struct rptun_priv_s *priv;
 
       priv = metal_container_of(node, struct rptun_priv_s, node);
+      if (priv->rproc.state != RPROC_RUNNING)
+        {
+          continue;
+        }
+
       if (device_created)
         {
           device_created(&priv->rvdev.rdev, priv_);
@@ -1109,9 +1141,6 @@ again:
       nxrmutex_unlock(&priv->lock);
     }
 
-  nxrmutex_unlock(&g_rptun_lockpriv);
-
-  nxrmutex_lock(&g_rptun_lockcb);
   metal_list_add_tail(&g_rptun_cb, &cb->node);
   nxrmutex_unlock(&g_rptun_lockcb);
 
@@ -1147,29 +1176,30 @@ void rpmsg_unregister_callback(FAR void *priv_,
         }
     }
 
-  nxrmutex_unlock(&g_rptun_lockcb);
-
   if (device_destroy)
     {
-      nxrmutex_lock(&g_rptun_lockpriv);
-
       metal_list_for_each(&g_rptun_priv, pnode)
         {
           struct rptun_priv_s *priv;
 
           priv = metal_container_of(pnode,
                                     struct rptun_priv_s, node);
-          device_destroy(&priv->rvdev.rdev, priv_);
-        }
 
-      nxrmutex_unlock(&g_rptun_lockpriv);
+          if (priv->rproc.state == RPROC_RUNNING)
+            {
+              device_destroy(&priv->rvdev.rdev, priv_);
+            }
+        }
     }
+
+  nxrmutex_unlock(&g_rptun_lockcb);
 }
 
 int rptun_initialize(FAR struct rptun_dev_s *dev)
 {
   struct metal_init_params params = METAL_INIT_DEFAULTS;
   FAR struct rptun_priv_s *priv;
+  static bool onceinit;
 #ifndef CONFIG_RPTUN_WORKQUEUE
   FAR char *argv[3];
   char arg1[19];
@@ -1177,10 +1207,15 @@ int rptun_initialize(FAR struct rptun_dev_s *dev)
   char name[32];
   int ret;
 
-  ret = metal_init(&params);
-  if (ret < 0)
+  if (!onceinit)
     {
-      return ret;
+      ret = metal_init(&params);
+      if (ret < 0)
+        {
+          return ret;
+        }
+
+      onceinit = true;
     }
 
   priv = kmm_zalloc(sizeof(struct rptun_priv_s));
@@ -1203,25 +1238,15 @@ int rptun_initialize(FAR struct rptun_dev_s *dev)
       goto err_driver;
     }
 
+  nxsem_init(&priv->semtx, 0, 0);
+
 #ifdef CONFIG_RPTUN_WORKQUEUE
   if (RPTUN_IS_AUTOSTART(dev))
     {
-      priv->cmd = RPTUNIOC_START;
-      work_queue(HPWORK, &priv->work, rptun_worker, priv, 0);
+      work_queue(HPWORK, &priv->work, rptun_start_worker, priv, 0);
     }
 #else
-  if (RPTUN_IS_AUTOSTART(dev))
-    {
-      priv->cmd = RPTUNIOC_START;
-      nxsem_init(&priv->semrx, 0, 1);
-    }
-  else
-    {
-      nxsem_init(&priv->semrx, 0, 0);
-    }
-
-  nxsem_set_protocol(&priv->semrx, SEM_PRIO_NONE);
-
+  nxsem_init(&priv->semrx, 0, 0);
   snprintf(arg1, sizeof(arg1), "0x%" PRIxPTR, (uintptr_t)priv);
   argv[0] = (void *)RPTUN_GET_CPUNAME(dev);
   argv[1] = arg1;
@@ -1232,13 +1257,17 @@ int rptun_initialize(FAR struct rptun_dev_s *dev)
   if (ret < 0)
     {
       unregister_driver(name);
+      nxsem_destroy(&priv->semtx);
       nxsem_destroy(&priv->semrx);
       goto err_driver;
     }
 #endif
 
-  nxsem_init(&priv->semtx, 0, 0);
-  nxsem_set_protocol(&priv->semtx, SEM_PRIO_NONE);
+  /* Add priv to list */
+
+  nxrmutex_lock(&g_rptun_lockcb);
+  metal_list_add_tail(&g_rptun_priv, &priv->node);
+  nxrmutex_unlock(&g_rptun_lockcb);
 
   return OK;
 
@@ -1254,6 +1283,11 @@ err_mem:
 int rptun_boot(FAR const char *cpuname)
 {
   return rptun_ioctl_foreach(cpuname, RPTUNIOC_START, 0);
+}
+
+int rptun_poweroff(FAR const char *cpuname)
+{
+  return rptun_ioctl_foreach(cpuname, RPTUNIOC_STOP, 0);
 }
 
 int rptun_reset(FAR const char *cpuname, int value)

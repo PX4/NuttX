@@ -32,7 +32,7 @@
 
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
-#include <nuttx/time.h>
+#include <nuttx/clock.h>
 
 #include "arm_internal.h"
 #include "stm32_rcc.h"
@@ -975,7 +975,7 @@ int up_rtc_initialize(void)
           modifyreg32(STM32_RCC_BDCR, 0, RCC_BDCR_BDRST);
           modifyreg32(STM32_RCC_BDCR, RCC_BDCR_BDRST, 0);
 
-# if RCC_BDCR_RTCSEL == RCC_BDCR_RTCSEL_LSE
+#if RCC_BDCR_RTCSEL == RCC_BDCR_RTCSEL_LSE
           /* Because of the Backup domain Reset - we must re enable the LSE
            * if it is used
            */
@@ -1180,7 +1180,7 @@ int up_rtc_getdatetime(struct tm *tp)
 
   tmp = (dr & RTC_DR_WDU_MASK) >> RTC_DR_WDU_SHIFT;
   tp->tm_wday = tmp % 7;
-  tp->tm_yday = tp->tm_mday +
+  tp->tm_yday = tp->tm_mday - 1 +
     clock_daysbeforemonth(tp->tm_mon, clock_isleapyear(tp->tm_year + 1900));
   tp->tm_isdst = 0;
 
