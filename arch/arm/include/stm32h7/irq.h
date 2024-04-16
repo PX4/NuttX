@@ -69,6 +69,8 @@
 
 #if defined(CONFIG_STM32H7_STM32H7X3XX)
 #  include <arch/stm32h7/stm32h7x3xx_irq.h>
+#elif defined(CONFIG_STM32H7_STM32H7X5XX)
+#  include <arch/stm32h7/stm32h7x3xx_irq.h>   /* because of SDMMC2 */
 #elif defined(CONFIG_STM32H7_STM32H7X7XX)
 #  include <arch/stm32h7/stm32h7x7xx_irq.h>
 #else
