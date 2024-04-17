@@ -658,7 +658,7 @@ static int s32k1xx_dma_nextrx(struct s32k1xx_uart_s *priv)
 {
   int dmaresidual = s32k1xx_dmach_getcount(priv->rxdma);
 
-  return RXDMA_BUFFER_SIZE - dmaresidual;
+  return (RXDMA_BUFFER_SIZE - dmaresidual) % RXDMA_BUFFER_SIZE;
 }
 #endif
 
@@ -1766,9 +1766,12 @@ static void s32k1xx_dma_txavailable(struct uart_dev_s *dev)
 
   /* Only send when the DMA is idle */
 
-  nxsem_wait(&priv->txdmasem);
+  int rv = nxsem_trywait(&priv->txdmasem);
 
-  uart_xmitchars_dma(dev);
+  if (rv == OK)
+    {
+      uart_xmitchars_dma(dev);
+    }
 }
 #endif
 

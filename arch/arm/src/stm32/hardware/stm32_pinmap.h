@@ -34,7 +34,11 @@
 /* STM32L15xx family */
 
 #  if defined(CONFIG_STM32_STM32L15XX)
-#    include "hardware/stm32l15xxx_pinmap.h"
+#    if defined(CONFIG_STM32_USE_LEGACY_PINMAP)
+#      include "hardware/stm32l15xxx_pinmap_legacy.h"
+#    else
+#      include "hardware/stm32l15xxx_pinmap.h"
+#    endif
 #  else
 #    error "Unsupported EnergyLite chip"
 #  endif
@@ -46,17 +50,29 @@
 /* STM32F100 Value Line */
 
 #  if defined(CONFIG_STM32_VALUELINE)
+#  if defined(CONFIG_STM32_USE_LEGACY_PINMAP)
+#    include "hardware/stm32f100_pinmap_legacy.h"
+#  else
 #    include "hardware/stm32f100_pinmap.h"
+#  endif
 
 /* STM32 F102 USB Access Medium Density Family */
 #  elif defined(CONFIG_ARCH_CHIP_STM32F102CB)
+#  if defined(CONFIG_STM32_USE_LEGACY_PINMAP)
+#    include "hardware/stm32f102_pinmap_legacy.h"
+#  else
 #    include "hardware/stm32f102_pinmap.h"
+#  endif
 
 /* STM32 F103 Low / Medium Density Family */
 #  elif defined(CONFIG_ARCH_CHIP_STM32F103C4) || \
         defined(CONFIG_ARCH_CHIP_STM32F103C8) || \
         defined(CONFIG_ARCH_CHIP_STM32F103CB)
+#  if defined(CONFIG_STM32_USE_LEGACY_PINMAP)
+#    include "hardware/stm32f103c_pinmap_legacy.h"
+#  else
 #    include "hardware/stm32f103c_pinmap.h"
+#  endif
 
 /* STM32 F103 High Density Family */
 
@@ -69,31 +85,55 @@
         defined(CONFIG_ARCH_CHIP_STM32F103RD) || \
         defined(CONFIG_ARCH_CHIP_STM32F103RE) || \
         defined(CONFIG_ARCH_CHIP_STM32F103RG)
+#  if defined(CONFIG_STM32_USE_LEGACY_PINMAP)
+#    include "hardware/stm32f103r_pinmap_legacy.h"
+#  else
 #    include "hardware/stm32f103r_pinmap.h"
+#  endif
 
 /* STM32F103VC, STM32F103VD, and STM32F103VE are all provided in 100 pin
  * packages and differ only in the available FLASH and SRAM.
  */
 
 #  elif defined(CONFIG_ARCH_CHIP_STM32F103VC) || defined(CONFIG_ARCH_CHIP_STM32F103VE)
+#  if defined(CONFIG_STM32_USE_LEGACY_PINMAP)
+#    include "hardware/stm32f103v_pinmap_legacy.h"
+#  else
 #    include "hardware/stm32f103v_pinmap.h"
+#  endif
 
 /* STM32F103ZC, STM32F103ZD, and STM32F103ZE are all provided in 144 pin
  * packages and differ only in the available FLASH and SRAM.
  */
 #  elif defined(CONFIG_ARCH_CHIP_STM32F103ZE)
+#  if defined(CONFIG_STM32_USE_LEGACY_PINMAP)
+#    include "hardware/stm32f103z_pinmap_legacy.h"
+#  else
 #    include "hardware/stm32f103z_pinmap.h"
+#  endif
 
 /* STM32 F105/F107 Connectivity Line */
 
 #  elif defined(CONFIG_ARCH_CHIP_STM32F105VB)
+#  if defined(CONFIG_STM32_USE_LEGACY_PINMAP)
+#    include "hardware/stm32f105v_pinmap_legacy.h"
+#  else
 #    include "hardware/stm32f105v_pinmap.h"
+#  endif
 
 #  elif defined(CONFIG_ARCH_CHIP_STM32F105RB)
+#  if defined(CONFIG_STM32_USE_LEGACY_PINMAP)
+#    include "hardware/stm32f105r_pinmap_legacy.h"
+#  else
 #    include "hardware/stm32f105r_pinmap.h"
+#  endif
 
 #  elif defined(CONFIG_ARCH_CHIP_STM32F107VC)
+#  if defined(CONFIG_STM32_USE_LEGACY_PINMAP)
+#    include "hardware/stm32f107v_pinmap_legacy.h"
+#  else
 #    include "hardware/stm32f107v_pinmap.h"
+#  endif
 #  else
 #    error "Unsupported STM32F10XXX chip"
 #  endif
@@ -101,26 +141,49 @@
 /* STM32 F2 Family **********************************************************/
 
 #elif defined(CONFIG_STM32_STM32F20XX)
-#  include "hardware/stm32f20xxx_pinmap.h"
-
+#  if defined(CONFIG_STM32_USE_LEGACY_PINMAP)
+#    include "hardware/stm32f20xxx_pinmap_legacy.h"
+#  else
+#    include "hardware/stm32f20xxx_pinmap.h"
+#  endif
 /* STM32 F3 Family **********************************************************/
 
 #elif defined(CONFIG_STM32_STM32F30XX)
-#  include "hardware/stm32f30xxx_pinmap.h"
+#  if defined(CONFIG_STM32_USE_LEGACY_PINMAP)
+#    include "hardware/stm32f30xxx_pinmap_legacy.h"
+#  else
+#    include "hardware/stm32f30xxx_pinmap.h"
+#  endif
 #elif defined(CONFIG_STM32_STM32F33XX)
-#  include "hardware/stm32f33xxx_pinmap.h"
+#  if defined(CONFIG_STM32_USE_LEGACY_PINMAP)
+#    include "hardware/stm32f33xxx_pinmap_legacy.h"
+#  else
+#    include "hardware/stm32f33xxx_pinmap.h"
+#  endif
 #elif defined(CONFIG_STM32_STM32F37XX)
-#  include "hardware/stm32f37xxx_pinmap.h"
+#  if defined(CONFIG_STM32_USE_LEGACY_PINMAP)
+#    include "hardware/stm32f37xxx_pinmap_legacy.h"
+#  else
+#    include "hardware/stm32f37xxx_pinmap.h"
+#  endif
 
 /* STM32 F412 Family ********************************************************/
 
 #elif defined(CONFIG_STM32_STM32F412)
-#  include "hardware/stm32f412xx_pinmap.h"
+#  if defined(CONFIG_STM32_USE_LEGACY_PINMAP)
+#    include "hardware/stm32f412xx_pinmap_legacy.h"
+#  else
+#    include "hardware/stm32f412xx_pinmap.h"
+#  endif
 
 /* STM32 F4 Family **********************************************************/
 
 #elif defined(CONFIG_STM32_STM32F4XXX)
-#  include "hardware/stm32f40xxx_pinmap.h"
+#  if defined(CONFIG_STM32_USE_LEGACY_PINMAP)
+#    include "hardware/stm32f40xxx_pinmap_legacy.h"
+#  else
+#    include "hardware/stm32f40xxx_pinmap.h"
+#  endif
 
 /* STM32 G4 Family **********************************************************/
 

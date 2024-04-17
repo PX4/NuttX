@@ -328,6 +328,8 @@ static inline int can_readahead_timestamp(struct can_conn_s *conn,
 
   if ((iob = iob_peek_queue(&conn->readahead)) != NULL)
     {
+      FAR struct iob_s *tmp;
+
       DEBUGASSERT(iob->io_pktlen > 0);
 
       /* Transfer that buffered data from the I/O buffer chain into
@@ -336,38 +338,17 @@ static inline int can_readahead_timestamp(struct can_conn_s *conn,
 
       recvlen = iob_copyout(buffer, iob, sizeof(struct timeval), 0);
 
-      /* If we took all of the data from the I/O buffer chain is empty, then
-       * release it.  If there is still data available in the I/O buffer
-       * chain, then just trim the data that we have taken from the
-       * beginning of the I/O buffer chain.
-       */
+      /* Remove the I/O buffer chain from the head of the read-ahead
+        * buffer queue.
+        */
 
-      if (recvlen >= iob->io_pktlen)
-        {
-          FAR struct iob_s *tmp;
+      tmp = iob_remove_queue(&conn->readahead);
+      DEBUGASSERT(tmp == iob);
+      UNUSED(tmp);
 
-          /* Remove the I/O buffer chain from the head of the read-ahead
-           * buffer queue.
-           */
+      /* And free the I/O buffer chain */
 
-          tmp = iob_remove_queue(&conn->readahead);
-          DEBUGASSERT(tmp == iob);
-          UNUSED(tmp);
-
-          /* And free the I/O buffer chain */
-
-          iob_free_chain(iob, IOBUSER_NET_CAN_READAHEAD);
-        }
-      else
-        {
-          /* The bytes that we have received from the head of the I/O
-           * buffer chain (probably changing the head of the I/O
-           * buffer queue).
-           */
-
-          iob_trimhead_queue(&conn->readahead, recvlen,
-                             IOBUSER_NET_CAN_READAHEAD);
-        }
+      iob_free_chain(iob, IOBUSER_NET_CAN_READAHEAD);
 
       return recvlen;
     }

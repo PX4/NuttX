@@ -1345,6 +1345,19 @@ static void efm32_epin_request(struct efm32_usbdev_s *priv,
           empmsk |= USB_DIEPEMPMSK(privep->epphy);
           efm32_putreg(empmsk, EFM32_USB_DIEPEMPMSK);
 
+#ifdef CONFIG_DEBUG_FEATURES
+          /* Check if the configured TXFIFO size is sufficient for a given
+           * request. If not, raise an assertion here.
+           */
+
+          regval = emf32_putreg(regval, EMF32_USB_DIEPTXF(privep->epphy));
+          regval &= _USB_DIEPTXF1_INEPNTXFDEP_MASK;
+          regval >>= _USB_DIEPTXF1_INEPNTXFDEP_SHIFT;
+          uerr("EP%" PRId8 " TXLEN=%" PRId32 " nwords=%d\n",
+               privep->epphy, regval, nwords);
+          DEBUGASSERT(regval >= nwords);
+#endif
+
           /* Terminate the transfer.  We will try again when the TxFIFO empty
            * interrupt is received.
            */
@@ -1535,8 +1548,8 @@ static inline void efm32_ep0out_receive(struct efm32_ep_s *privep,
 
   /* Sanity Checking */
 
-  DEBUGASSERT(privep && privep->ep.priv);
-  priv = (struct efm32_usbdev_s *)privep->ep.priv;
+  DEBUGASSERT(privep && privep->dev);
+  priv = (struct efm32_usbdev_s *)privep->dev;
 
   uinfo("EP0: bcnt=%d\n", bcnt);
   usbtrace(TRACE_READ(EP0), bcnt);
@@ -5157,9 +5170,6 @@ static void efm32_swinitialize(struct efm32_usbdev_s *priv)
 
   priv->epavail[0] = EFM32_EP_AVAILABLE;
   priv->epavail[1] = EFM32_EP_AVAILABLE;
-
-  priv->epin[EP0].ep.priv  = priv;
-  priv->epout[EP0].ep.priv = priv;
 
   /* Initialize the endpoint lists */
 

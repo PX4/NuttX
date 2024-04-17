@@ -26,13 +26,21 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <nuttx/usb/usbdev.h>
 
 #include <stdint.h>
 
-#include "stm32.h"
 #include "hardware/stm32_otghs.h"
 
 #if defined(CONFIG_STM32_OTGHS)
+
+/****************************************************************************
+ * Pre-processor Definitions
+ ****************************************************************************/
+
+/* Number of endpoints */
+
+#define STM32_NENDPOINTS             (4)          /* ep0-3 x 2 for IN and OUT */
 
 /****************************************************************************
  * Public Function Prototypes
