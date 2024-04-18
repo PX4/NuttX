@@ -155,7 +155,18 @@
 
 /* Peripherals */
 
-#  define STM32H7_NGPIO                   (9)         /* GPIOA-GPIOI */
+#  if defined(CONFIG_STM32H7_IO_CONFIG_B)
+#      define STM32H7_NGPIO               (11)        /* GPIOA-GPIOK */
+#  elif defined(CONFIG_STM32H7_IO_CONFIG_I)
+#      define STM32H7_NGPIO               (9)         /* GPIOA-GPIOI */
+#  elif defined(CONFIG_STM32H7_IO_CONFIG_X)
+#      define STM32H7_NGPIO               (11)        /* GPIOA-GPIOK */
+#  elif defined(CONFIG_STM32H7_IO_CONFIG_Z)
+#      define STM32H7_NGPIO               (8)         /* GPIOA-GPIOH */
+#  else
+#      error CONFIG_STM32H7_IO_CONFIG_x Not Set
+#  endif
+
 #  define STM32H7_NDMA                    (4)         /* (4) DMA1, DMA2, BDMA and MDMA */
 #  define STM32H7_NADC                    (3)         /* (3) ADC1-3*/
 #  define STM32H7_NDAC                    (2)         /* (2) DAC1-2*/
