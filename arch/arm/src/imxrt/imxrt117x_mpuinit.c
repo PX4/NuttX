@@ -51,6 +51,7 @@
            MPU_RASR_XN;             /* Execute-never to prevent instruction fetch */
   putreg32(regval, MPU_RASR);
 
+#ifdef CONFIG_IMXRT_SEMC
   mpu_configure_region(IMXRT_SEMC0_BASE, 512 * 1024 * 1024,
                                            /* Instruction access Enabled */
                        MPU_RASR_AP_RWRW  | /* P:RW   U:RW                */
@@ -60,6 +61,7 @@
                                            /* Not Shareable              */
                                            /* No Subregion disable       */
                        );
+#endif
 
   mpu_configure_region(IMXRT_FLEXSPI2_CIPHER_BASE, 512 * 1024 * 1024,
                                            /* Instruction access Enabled */
@@ -83,7 +85,7 @@
 
   mpu_configure_region(IMXRT_ITCM_BASE, 256 * 1024,
                                            /* Instruction access Enabled */
-                       MPU_RASR_AP_RWRW  | /* P:RW   U:RW                */
+                       MPU_RASR_AP_RORO  | /* P:R0   U:R0                */
                        MPU_RASR_TEX_NOR    /* Normal                     */
                                            /* Not Cacheable              */
                                            /* Not Bufferable             */
