@@ -1414,6 +1414,38 @@ config ARCH_BOARD_NUCLEO_H743ZI2
 	---help---
 		STMicro Nucleo H743ZI2 board based on the STMicro STM32H743ZI MCU.
 
+config ARCH_BOARD_NUCLEO_H745ZI
+	bool "STM32H745 Nucleo H745ZI"
+	depends on ARCH_CHIP_STM32H745ZI
+	select ARCH_HAVE_LEDS
+	select ARCH_HAVE_BUTTONS
+	select STM32H7_HAVE_PWR_DIRECT_SMPS_SUPPLY
+	---help---
+		STMicro Nucleo H745ZI board based on the STMicro STM32H745ZI MCU.
+
+config ARCH_BOARD_STM32H745I_DISCO
+	bool "STM32H745I-DISCO board"
+	depends on ARCH_CHIP_STM32H745XI
+	select ARCH_HAVE_LEDS
+	select ARCH_HAVE_BUTTONS
+	---help---
+		STMicro STM32H745I-DISCO board based on the STMicro
+		STM32H745XI MCU.
+
+config ARCH_BOARD_LINUM_STM32H753BI
+	bool "Linum (STM32H753BI) board"
+	depends on ARCH_CHIP_STM32H753BI
+	select ARCH_HAVE_LEDS
+	select ARCH_HAVE_BUTTONS
+	---help---
+		The Linum board is based on the STMicro STM32H753BI MCU.
+
+config ARCH_BOARD_OPENH743I
+	bool "Waveshare OpenH743I board"
+	depends on ARCH_CHIP_STM32H743II
+	---help---
+		Waveshare OpenH743I board based on the STMicro STM32H743II MCU.
+
 config ARCH_BOARD_NUCLEO_L152RE
 	bool "STM32L152 Nucleo L152RE"
 	depends on ARCH_CHIP_STM32L152RE
@@ -2078,6 +2110,7 @@ config ARCH_BOARD_STM32H747I_DISCO
 	select ARCH_HAVE_LEDS
 	select ARCH_HAVE_BUTTONS
 	select ARCH_HAVE_IRQBUTTONS
+	select STM32H7_HAVE_PWR_DIRECT_SMPS_SUPPLY
 	---help---
 		STMicro STM32H747I-DISCO development board featuring the STM32H747XIH6
 		MCU. The STM32H747XIH6 is a dual core (480MHz Cortex-M7, 240MHz Cortex-M4)
