@@ -29,10 +29,29 @@
 
 #include <stdint.h>
 
+#include <arch/board/board.h>
+
 #include "chip.h"
+#include "stm32_rcc.h"
 #include "hardware/stm32_otg.h"
 
 #if defined(CONFIG_STM32H7_OTGFS) || defined(CONFIG_STM32H7_OTGHS)
+
+#if (STM32_RCC_D2CCIP2R_USBSRC == RCC_D2CCIP2R_USBSEL_HSI48) && \
+    !defined(CONFIG_STM32H7_HSI48)
+#  error board.h selected HSI48 as USB clock source, but HSI48 is not \
+         enabled. Enable STM32H7_HSI48
+#endif
+
+#if defined(CONFIG_STM32H7_OTGHS) && !defined(CONFIG_STM32H7_OTGHS_FS) && \
+    defined(CONFIG_STM32H7_OTGHS_NO_ULPI)
+#  error OTG HS selected but no ULPI enabled
+#endif
+
+#if defined(CONFIG_STM32H7_OTGHS_EXTERNAL_ULPI) &&  \
+    !defined(CONFIG_STM32H7_SYSCFG_IOCOMPENSATION)
+#  error External ULPI needs IOCOMPENSATION enabled
+#endif
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -40,27 +59,11 @@
 
 /* Configuration ************************************************************/
 
-#if defined(CONFIG_STM32H7_OTGFS)
-#  define STM32_IRQ_OTG         STM32_IRQ_OTGFS
-#  define STM32_OTG_BASE        STM32_OTGFS_BASE /* OTG FS */
-#  define STM32_NENDPOINTS      (7)              /* ep0-8 x 2 for IN and OUT but driver internals use byte to map + one bit for direction */
-#  define GPIO_OTG_DM           GPIO_OTGFS_DM
-#  define GPIO_OTG_DP           GPIO_OTGFS_DP
-#  define GPIO_OTG_ID           GPIO_OTGFS_ID
-#  define GPIO_OTG_SOF          GPIO_OTGFS_SOF
-#  define STM32_OTG_FIFO_SIZE   4096
-#endif
+/* ep0-8 x 2 for IN and OUT but driver internals use byte to map + one
+ * bit for direction
+ */
 
-#if defined(CONFIG_STM32H7_OTGHS)
-#  define STM32_IRQ_OTG         STM32_IRQ_OTGHS
-#  define STM32_OTG_BASE        STM32_OTGHS_BASE /* OTG HS/FS */
-#  define STM32_NENDPOINTS      (7)              /* ep0-8 x 2 for IN and OUT but driver internals use byte to map + one bit for direction */
-#  define GPIO_OTG_DM           GPIO_OTGHS_DM
-#  define GPIO_OTG_DP           GPIO_OTGHS_DP
-#  define GPIO_OTG_ID           GPIO_OTGHS_ID
-#  define GPIO_OTG_SOF          GPIO_OTGHS_SOF
-#  define STM32_OTG_FIFO_SIZE   4096
-#endif
+#define STM32_NENDPOINTS      (7)
 
 /****************************************************************************
  * Public Function Prototypes

@@ -29,6 +29,18 @@
 #include "arm_internal.h"
 
 /****************************************************************************
+ * Public Data
+ ****************************************************************************/
+
+/* g_current_regs[] holds a references to the current interrupt level
+ * register storage structure.  If is non-NULL only during interrupt
+ * processing.  Access to g_current_regs[] must be through the macro
+ * CURRENT_REGS for portability.
+ */
+
+volatile uint32_t *g_current_regs[CONFIG_SMP_NCPUS];
+
+/****************************************************************************
  * Private Functions
  ****************************************************************************/
 
@@ -47,7 +59,7 @@ static inline void arm_color_intstack(void)
 #ifdef CONFIG_SMP
   uint32_t *ptr = (uint32_t *)arm_intstack_alloc();
 #else
-  uint32_t *ptr = (uint32_t *)&g_intstackalloc;
+  uint32_t *ptr = (uint32_t *)g_intstackalloc;
 #endif
   ssize_t size;
 
@@ -85,6 +97,12 @@ static inline void arm_color_intstack(void)
 
 void up_initialize(void)
 {
+#if CONFIG_ARCH_INTERRUPTSTACK > 7
+  /* Reinitializes the stack pointer */
+
+  arm_initialize_stack();
+#endif
+
   /* Colorize the interrupt stack */
 
   arm_color_intstack();

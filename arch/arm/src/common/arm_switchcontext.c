@@ -24,24 +24,80 @@
 
 #include <nuttx/config.h>
 
-#include <arch/syscall.h>
+#include <sched.h>
+#include <assert.h>
+#include <debug.h>
+#include <nuttx/arch.h>
+#include <nuttx/sched.h>
+
+#include "sched/sched.h"
+#include "group/group.h"
+#include "clock/clock.h"
+#include "arm_internal.h"
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
- * Name: arm_switchcontext
+ * Name: up_switch_context
  *
  * Description:
- *   Save the current thread context and restore the specified context.
+ *   A task is currently in the ready-to-run list but has been prepped
+ *   to execute. Restore its context, and start execution.
  *
- * Returned Value:
- *   None
+ * Input Parameters:
+ *   tcb: Refers to the head task of the ready-to-run list
+ *     which will be executed.
+ *   rtcb: Refers to the running task which will be blocked.
  *
  ****************************************************************************/
 
-void arm_switchcontext(uint32_t **saveregs, uint32_t *restoreregs)
+void up_switch_context(struct tcb_s *tcb, struct tcb_s *rtcb)
 {
-  sys_call2(SYS_switch_context, (uintptr_t)saveregs, (uintptr_t)restoreregs);
+  /* Update scheduler parameters */
+
+  nxsched_suspend_scheduler(rtcb);
+
+  /* Are we in an interrupt handler? */
+
+  if (CURRENT_REGS)
+    {
+      /* Yes, then we have to do things differently.
+       * Just copy the CURRENT_REGS into the OLD rtcb.
+       */
+
+      arm_savestate(rtcb->xcp.regs);
+
+      /* Update scheduler parameters */
+
+      nxsched_resume_scheduler(tcb);
+
+      /* Then switch contexts.  Any necessary address environment
+       * changes will be made when the interrupt returns.
+       */
+
+      arm_restorestate(tcb->xcp.regs);
+    }
+
+  /* No, then we will need to perform the user context switch */
+
+  else
+    {
+      /* Update scheduler parameters */
+
+      nxsched_resume_scheduler(tcb);
+
+      /* Switch context to the context of the task at the head of the
+       * ready to run list.
+       */
+
+      arm_switchcontext(&rtcb->xcp.regs, tcb->xcp.regs);
+
+      /* arm_switchcontext forces a context switch to the task at the
+       * head of the ready-to-run list.  It does not 'return' in the
+       * normal sense.  When it does return, it is because the blocked
+       * task is again ready to run and has execution priority.
+       */
+    }
 }

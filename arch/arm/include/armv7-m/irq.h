@@ -72,8 +72,9 @@
 #define REG_R9              (7)  /* R9 */
 #define REG_R10             (8)  /* R10 */
 #define REG_R11             (9)  /* R11 */
-#define REG_EXC_RETURN      (10) /* EXC_RETURN */
-#define SW_INT_REGS         (11)
+#define REG_CONTROL         (10) /* CONTROL */
+#define REG_EXC_RETURN      (11) /* EXC_RETURN */
+#define SW_INT_REGS         (12)
 
 #ifdef CONFIG_ARCH_FPU
 
@@ -268,7 +269,7 @@ struct xcptcontext
 
 /* Get/set the PRIMASK register */
 
-static inline uint8_t getprimask(void) inline_function;
+static inline uint8_t getprimask(void) always_inline_function;
 static inline uint8_t getprimask(void)
 {
   uint32_t primask;
@@ -282,7 +283,7 @@ static inline uint8_t getprimask(void)
   return (uint8_t)primask;
 }
 
-static inline void setprimask(uint32_t primask) inline_function;
+static inline void setprimask(uint32_t primask) always_inline_function;
 static inline void setprimask(uint32_t primask)
 {
   __asm__ __volatile__
@@ -293,13 +294,13 @@ static inline void setprimask(uint32_t primask)
       : "memory");
 }
 
-static inline void cpsie(void) inline_function;
+static inline void cpsie(void) always_inline_function;
 static inline void cpsie(void)
 {
   __asm__ __volatile__ ("\tcpsie  i\n");
 }
 
-static inline void cpsid(void) inline_function;
+static inline void cpsid(void) always_inline_function;
 static inline void cpsid(void)
 {
   __asm__ __volatile__ ("\tcpsid  i\n");
@@ -311,7 +312,7 @@ static inline void cpsid(void)
  * lower priority level as the BASEPRI value.
  */
 
-static inline uint8_t getbasepri(void) inline_function;
+static inline uint8_t getbasepri(void) always_inline_function;
 static inline uint8_t getbasepri(void)
 {
   uint32_t basepri;
@@ -326,7 +327,7 @@ static inline uint8_t getbasepri(void)
   return (uint8_t)basepri;
 }
 
-static inline void setbasepri(uint32_t basepri) inline_function;
+static inline void setbasepri(uint32_t basepri) always_inline_function;
 static inline void setbasepri(uint32_t basepri)
 {
   __asm__ __volatile__
@@ -344,7 +345,7 @@ static inline void setbasepri(uint32_t basepri)
  * 837070 Workaround may be required if we are raising the priority.
  */
 
-static inline void raisebasepri(uint32_t basepri) inline_function;
+static inline void raisebasepri(uint32_t basepri) always_inline_function;
 static inline void raisebasepri(uint32_t basepri)
 {
   register uint32_t primask;
@@ -379,7 +380,7 @@ static inline void raisebasepri(uint32_t basepri)
 
 /* Disable IRQs */
 
-static inline void up_irq_disable(void) inline_function;
+static inline void up_irq_disable(void) always_inline_function;
 static inline void up_irq_disable(void)
 {
 #ifdef CONFIG_ARMV7M_USEBASEPRI
@@ -393,7 +394,7 @@ static inline void up_irq_disable(void)
 
 /* Save the current primask state & disable IRQs */
 
-static inline irqstate_t up_irq_save(void) inline_function;
+static inline irqstate_t up_irq_save(void) always_inline_function;
 static inline irqstate_t up_irq_save(void)
 {
 #ifdef CONFIG_ARMV7M_USEBASEPRI
@@ -425,7 +426,7 @@ static inline irqstate_t up_irq_save(void)
 
 /* Enable IRQs */
 
-static inline void up_irq_enable(void) inline_function;
+static inline void up_irq_enable(void) always_inline_function;
 static inline void up_irq_enable(void)
 {
   /* In this case, we are always retaining or lowering the priority value */
@@ -436,7 +437,7 @@ static inline void up_irq_enable(void)
 
 /* Restore saved primask state */
 
-static inline void up_irq_restore(irqstate_t flags) inline_function;
+static inline void up_irq_restore(irqstate_t flags) always_inline_function;
 static inline void up_irq_restore(irqstate_t flags)
 {
 #ifdef CONFIG_ARMV7M_USEBASEPRI
@@ -457,14 +458,14 @@ static inline void up_irq_restore(irqstate_t flags)
       "1:\n"
       :
       : "r" (flags)
-      : "memory");
+      : "cc", "memory");
 
 #endif
 }
 
 /* Get/set IPSR */
 
-static inline uint32_t getipsr(void) inline_function;
+static inline uint32_t getipsr(void) always_inline_function;
 static inline uint32_t getipsr(void)
 {
   uint32_t ipsr;
@@ -478,9 +479,36 @@ static inline uint32_t getipsr(void)
   return ipsr;
 }
 
+/* Get/set FAULTMASK */
+
+static inline uint32_t getfaultmask(void) always_inline_function;
+static inline uint32_t getfaultmask(void)
+{
+  uint32_t faultmask;
+  __asm__ __volatile__
+    (
+     "\tmrs  %0, faultmask\n"
+     : "=r" (faultmask)
+     :
+     : "memory");
+
+  return faultmask;
+}
+
+static inline void setfaultmask(uint32_t faultmask) always_inline_function;
+static inline void setfaultmask(uint32_t faultmask)
+{
+  __asm__ __volatile__
+    (
+      "\tmsr faultmask, %0\n"
+      :
+      : "r" (faultmask)
+      : "memory");
+}
+
 /* Get/set CONTROL */
 
-static inline uint32_t getcontrol(void) inline_function;
+static inline uint32_t getcontrol(void) always_inline_function;
 static inline uint32_t getcontrol(void)
 {
   uint32_t control;
@@ -494,7 +522,7 @@ static inline uint32_t getcontrol(void)
   return control;
 }
 
-static inline void setcontrol(uint32_t control) inline_function;
+static inline void setcontrol(uint32_t control) always_inline_function;
 static inline void setcontrol(uint32_t control)
 {
   __asm__ __volatile__

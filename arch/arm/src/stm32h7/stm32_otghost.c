@@ -24,6 +24,7 @@
 
 #include <nuttx/config.h>
 
+#include <sys/param.h>
 #include <sys/types.h>
 #include <inttypes.h>
 #include <stdint.h>
@@ -39,6 +40,7 @@
 #include <nuttx/kmalloc.h>
 #include <nuttx/clock.h>
 #include <nuttx/signal.h>
+#include <nuttx/mutex.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/usb/usb.h>
 #include <nuttx/usb/usbhost.h>
@@ -61,6 +63,33 @@
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
+
+/* OTG host selection *******************************************************/
+
+#if defined(CONFIG_STM32H7_OTGFS_HOST)
+#  define STM32_IRQ_OTG         STM32_IRQ_OTGFS
+#  define STM32_OTG_BASE        STM32_OTGFS_BASE
+#  define GPIO_OTG_DM           GPIO_OTGFS_DM
+#  define GPIO_OTG_DP           GPIO_OTGFS_DP
+#  define GPIO_OTG_ID           GPIO_OTGFS_ID
+#  define GPIO_OTG_SOF          GPIO_OTGFS_SOF
+#  define STM32_OTG_FIFO_SIZE   4096
+#elif defined(CONFIG_STM32H7_OTGHS_HOST)
+#  error OTGHS HOST role not supported yet
+#  define STM32_IRQ_OTG         STM32_IRQ_OTGHS
+#  define STM32_OTG_BASE        STM32_OTGHS_BASE
+#  define GPIO_OTG_DM           GPIO_OTGHS_DM
+#  define GPIO_OTG_DP           GPIO_OTGHS_DP
+#  define GPIO_OTG_ID           GPIO_OTGHS_ID
+#  define GPIO_OTG_SOF          GPIO_OTGHS_SOF
+#  define STM32_OTG_FIFO_SIZE   4096
+#else
+#  error Not selected USBDEV peripheral
+#endif
+
+#if defined(CONFIG_STM32H7_OTGFS_HOST) && defined(CONFIG_STM32H7_OTGHS_HOST)
+#  error Only one HOST role supported
+#endif
 
 /* Configuration ************************************************************/
 
@@ -144,16 +173,6 @@
 #define STM32_FLUSH_DELAY         200000      /* In loop counts */
 #define STM32_SETUP_DELAY         SEC2TICK(5) /* 5 seconds in system ticks */
 #define STM32_DATANAK_DELAY       SEC2TICK(5) /* 5 seconds in system ticks */
-
-/* Ever-present MIN/MAX macros */
-
-#ifndef MIN
-#  define  MIN(a, b) (((a) < (b)) ? (a) : (b))
-#endif
-
-#ifndef MAX
-#  define  MAX(a, b) (((a) > (b)) ? (a) : (b))
-#endif
 
 /****************************************************************************
  * Private Types
@@ -255,7 +274,7 @@ struct stm32_usbhost_s
   volatile bool     connected; /* Connected to device */
   volatile bool     change;    /* Connection change */
   volatile bool     pscwait;   /* True: Thread is waiting for a port event */
-  sem_t             exclsem;   /* Support mutually exclusive access */
+  mutex_t           lock;      /* Support mutually exclusive access */
   sem_t             pscsem;    /* Semaphore to wait for a port event */
   struct stm32_ctrlinfo_s ep0; /* Root hub port EP0 description */
 
@@ -264,6 +283,8 @@ struct stm32_usbhost_s
 
   volatile struct usbhost_hubport_s *hport;
 #endif
+
+  struct usbhost_devaddr_s devgen;  /* Address generation data */
 
   /* The state of each host channel */
 
@@ -282,8 +303,8 @@ static void stm32_checkreg(uint32_t addr, uint32_t val, bool iswrite);
 static uint32_t stm32_getreg(uint32_t addr);
 static void stm32_putreg(uint32_t addr, uint32_t value);
 #else
-# define stm32_getreg(addr)     getreg32(addr)
-# define stm32_putreg(addr,val) putreg32(val,addr)
+#  define stm32_getreg(addr)     getreg32(addr)
+#  define stm32_putreg(addr,val) putreg32(val,addr)
 #endif
 
 static inline void stm32_modifyreg(uint32_t addr, uint32_t clrbits,
@@ -294,12 +315,6 @@ static inline void stm32_modifyreg(uint32_t addr, uint32_t clrbits,
 #else
 #  define stm32_pktdump(m,b,n)
 #endif
-
-/* Semaphores ***************************************************************/
-
-static int  stm32_takesem(sem_t *sem);
-static int  stm32_takesem_noncancelable(sem_t *sem);
-#define stm32_givesem(s) nxsem_post(s);
 
 /* Byte stream access helper functions **************************************/
 
@@ -480,14 +495,18 @@ static inline int stm32_hw_initialize(struct stm32_usbhost_s *priv);
  * single global instance.
  */
 
-static struct stm32_usbhost_s g_usbhost;
+static struct stm32_usbhost_s g_usbhost =
+{
+  .lock = NXMUTEX_INITIALIZER,
+  .pscsem = SEM_INITIALIZER(0),
+};
 
 /* This is the connection/enumeration interface */
 
 static struct usbhost_connection_s g_usbconn =
 {
-  .wait             = stm32_wait,
-  .enumerate        = stm32_enumerate,
+  .wait      = stm32_wait,
+  .enumerate = stm32_enumerate,
 };
 
 /****************************************************************************
@@ -505,7 +524,7 @@ static struct usbhost_connection_s g_usbconn =
 #ifdef CONFIG_STM32H7_USBHOST_REGDEBUG
 static void stm32_printreg(uint32_t addr, uint32_t val, bool iswrite)
 {
-  llerr("%08x%s%08x\n", addr, iswrite ? "<-" : "->", val);
+  uinfo("%08x%s%08x\n", addr, iswrite ? "<-" : "->", val);
 }
 #endif
 
@@ -555,7 +574,7 @@ static void stm32_checkreg(uint32_t addr, uint32_t val, bool iswrite)
             {
               /* No.. More than one. */
 
-              llerr("[repeats %d more times]\n", count);
+              uinfo("[repeats %d more times]\n", count);
             }
         }
 
@@ -628,54 +647,6 @@ static inline void stm32_modifyreg(uint32_t addr, uint32_t clrbits,
                                    uint32_t setbits)
 {
   stm32_putreg(addr, (((stm32_getreg(addr)) & ~clrbits) | setbits));
-}
-
-/****************************************************************************
- * Name: stm32_takesem
- *
- * Description:
- *   This is just a wrapper to handle the annoying behavior of semaphore
- *   waits that return due to the receipt of a signal.
- *
- ****************************************************************************/
-
-static int stm32_takesem(sem_t *sem)
-{
-  return nxsem_wait_uninterruptible(sem);
-}
-
-/****************************************************************************
- * Name: stm32_takesem_noncancelable
- *
- * Description:
- *   This is just a wrapper to handle the annoying behavior of semaphore
- *   waits that return due to the receipt of a signal.  This version also
- *   ignores attempts to cancel the thread.
- *
- ****************************************************************************/
-
-static int stm32_takesem_noncancelable(sem_t *sem)
-{
-  int result;
-  int ret = OK;
-
-  do
-    {
-      result = nxsem_wait_uninterruptible(sem);
-
-      /* The only expected error is ECANCELED which would occur if the
-       * calling thread were canceled.
-       */
-
-      DEBUGASSERT(result == OK || result == -ECANCELED);
-      if (ret == OK && result < 0)
-        {
-          ret = result;
-        }
-    }
-  while (result < 0);
-
-  return ret;
 }
 
 /****************************************************************************
@@ -1177,7 +1148,7 @@ static void stm32_chan_wakeup(struct stm32_usbhost_s *priv,
                                      OTG_VTRACE2_CHANWAKEUP_OUT,
                           chan->epno, chan->result);
 
-          stm32_givesem(&chan->waitsem);
+          nxsem_post(&chan->waitsem);
           chan->waiter = false;
         }
 
@@ -2978,7 +2949,7 @@ static void stm32_gint_connected(struct stm32_usbhost_s *priv)
       priv->smstate = SMSTATE_ATTACHED;
       if (priv->pscwait)
         {
-          stm32_givesem(&priv->pscsem);
+          nxsem_post(&priv->pscsem);
           priv->pscwait = false;
         }
     }
@@ -3026,7 +2997,7 @@ static void stm32_gint_disconnected(struct stm32_usbhost_s *priv)
 
       if (priv->pscwait)
         {
-          stm32_givesem(&priv->pscsem);
+          nxsem_post(&priv->pscsem);
           priv->pscwait = false;
         }
     }
@@ -3924,7 +3895,7 @@ static int stm32_wait(struct usbhost_connection_s *conn,
       /* Wait for the next connection event */
 
       priv->pscwait = true;
-      ret = stm32_takesem(&priv->pscsem);
+      ret = nxsem_wait_uninterruptible(&priv->pscsem);
       if (ret < 0)
         {
           return ret;
@@ -4106,7 +4077,7 @@ static int stm32_ep0configure(struct usbhost_driver_s *drvr,
 
   /* We must have exclusive access to the USB host hardware and structures */
 
-  ret = stm32_takesem(&priv->exclsem);
+  ret = nxmutex_lock(&priv->lock);
   if (ret < 0)
     {
       return ret;
@@ -4130,7 +4101,7 @@ static int stm32_ep0configure(struct usbhost_driver_s *drvr,
 
   stm32_chan_configure(priv, ep0info->inndx);
 
-  stm32_givesem(&priv->exclsem);
+  nxmutex_unlock(&priv->lock);
   return OK;
 }
 
@@ -4173,7 +4144,7 @@ static int stm32_epalloc(struct usbhost_driver_s *drvr,
    * structures.
    */
 
-  ret = stm32_takesem(&priv->exclsem);
+  ret = nxmutex_lock(&priv->lock);
   if (ret < 0)
     {
       return ret;
@@ -4194,7 +4165,7 @@ static int stm32_epalloc(struct usbhost_driver_s *drvr,
       ret = stm32_xfrep_alloc(priv, epdesc, ep);
     }
 
-  stm32_givesem(&priv->exclsem);
+  nxmutex_unlock(&priv->lock);
   return ret;
 }
 
@@ -4227,7 +4198,7 @@ static int stm32_epfree(struct usbhost_driver_s *drvr, usbhost_ep_t ep)
 
   /* We must have exclusive access to the USB host hardware and structures */
 
-  ret = stm32_takesem_noncancelable(&priv->exclsem);
+  ret = nxmutex_lock(&priv->lock);
 
   /* A single channel is represent by an index in the range of 0 to
    * STM32_MAX_TX_FIFOS.  Otherwise, the ep must be a pointer to an allocated
@@ -4255,7 +4226,7 @@ static int stm32_epfree(struct usbhost_driver_s *drvr, usbhost_ep_t ep)
       kmm_free(ctrlep);
     }
 
-  stm32_givesem(&priv->exclsem);
+  nxmutex_unlock(&priv->lock);
   return ret;
 }
 
@@ -4301,7 +4272,7 @@ static int stm32_alloc(struct usbhost_driver_s *drvr,
 
   /* There is no special memory requirement for the STM32. */
 
-  alloc = (uint8_t *)kmm_malloc(CONFIG_STM32H7_OTG_DESCSIZE);
+  alloc = kmm_malloc(CONFIG_STM32H7_OTG_DESCSIZE);
   if (!alloc)
     {
       return -ENOMEM;
@@ -4385,7 +4356,7 @@ static int stm32_ioalloc(struct usbhost_driver_s *drvr,
 
   /* There is no special memory requirement */
 
-  alloc = (uint8_t *)kmm_malloc(buflen);
+  alloc = kmm_malloc(buflen);
   if (!alloc)
     {
       return -ENOMEM;
@@ -4491,7 +4462,7 @@ static int stm32_ctrlin(struct usbhost_driver_s *drvr, usbhost_ep_t ep0,
 
   /* We must have exclusive access to the USB host hardware and structures */
 
-  ret = stm32_takesem(&priv->exclsem);
+  ret = nxmutex_lock(&priv->lock);
   if (ret < 0)
     {
       return ret;
@@ -4535,7 +4506,7 @@ static int stm32_ctrlin(struct usbhost_driver_s *drvr, usbhost_ep_t ep0,
             {
               /* All success transactions exit here */
 
-              stm32_givesem(&priv->exclsem);
+              nxmutex_unlock(&priv->lock);
               return OK;
             }
 
@@ -4550,7 +4521,7 @@ static int stm32_ctrlin(struct usbhost_driver_s *drvr, usbhost_ep_t ep0,
 
   /* All failures exit here after all retries and timeouts are exhausted */
 
-  stm32_givesem(&priv->exclsem);
+  nxmutex_unlock(&priv->lock);
   return -ETIMEDOUT;
 }
 
@@ -4578,7 +4549,7 @@ static int stm32_ctrlout(struct usbhost_driver_s *drvr, usbhost_ep_t ep0,
 
   /* We must have exclusive access to the USB host hardware and structures */
 
-  ret = stm32_takesem(&priv->exclsem);
+  ret = nxmutex_lock(&priv->lock);
   if (ret < 0)
     {
       return ret;
@@ -4626,7 +4597,7 @@ static int stm32_ctrlout(struct usbhost_driver_s *drvr, usbhost_ep_t ep0,
                 {
                   /* All success transactins exit here */
 
-                  stm32_givesem(&priv->exclsem);
+                  nxmutex_unlock(&priv->lock);
                   return OK;
                 }
 
@@ -4642,7 +4613,7 @@ static int stm32_ctrlout(struct usbhost_driver_s *drvr, usbhost_ep_t ep0,
 
   /* All failures exit here after all retries and timeouts are exhausted */
 
-  stm32_givesem(&priv->exclsem);
+  nxmutex_unlock(&priv->lock);
   return -ETIMEDOUT;
 }
 
@@ -4700,7 +4671,7 @@ static ssize_t stm32_transfer(struct usbhost_driver_s *drvr,
 
   /* We must have exclusive access to the USB host hardware and structures */
 
-  ret = stm32_takesem(&priv->exclsem);
+  ret = nxmutex_lock(&priv->lock);
   if (ret < 0)
     {
       return (ssize_t)ret;
@@ -4717,7 +4688,7 @@ static ssize_t stm32_transfer(struct usbhost_driver_s *drvr,
       nbytes = stm32_out_transfer(priv, chidx, buffer, buflen);
     }
 
-  stm32_givesem(&priv->exclsem);
+  nxmutex_unlock(&priv->lock);
   return nbytes;
 }
 
@@ -4772,7 +4743,7 @@ static int stm32_asynch(struct usbhost_driver_s *drvr, usbhost_ep_t ep,
 
   /* We must have exclusive access to the USB host hardware and structures */
 
-  ret = stm32_takesem(&priv->exclsem);
+  ret = nxmutex_lock(&priv->lock);
   if (ret < 0)
     {
       return ret;
@@ -4789,7 +4760,7 @@ static int stm32_asynch(struct usbhost_driver_s *drvr, usbhost_ep_t ep,
       ret = stm32_out_asynch(priv, chidx, buffer, buflen, callback, arg);
     }
 
-  stm32_givesem(&priv->exclsem);
+  nxmutex_unlock(&priv->lock);
   return ret;
 }
 #endif /* CONFIG_USBHOST_ASYNCH */
@@ -4848,7 +4819,7 @@ static int stm32_cancel(struct usbhost_driver_s *drvr, usbhost_ep_t ep)
 
       /* Wake'em up! */
 
-      stm32_givesem(&chan->waitsem);
+      nxsem_post(&chan->waitsem);
       chan->waiter = false;
     }
 
@@ -4925,7 +4896,7 @@ static int stm32_connect(struct usbhost_driver_s *drvr,
   if (priv->pscwait)
     {
       priv->pscwait = false;
-      stm32_givesem(&priv->pscsem);
+      nxsem_post(&priv->pscsem);
     }
 
   leave_critical_section(flags);
@@ -5277,18 +5248,8 @@ static inline void stm32_sw_initialize(struct stm32_usbhost_s *priv)
 
   /* Initialize function address generation logic */
 
-  usbhost_devaddr_initialize(&priv->rhport);
-
-  /* Initialize semaphores */
-
-  nxsem_init(&priv->pscsem,  0, 0);
-  nxsem_init(&priv->exclsem, 0, 1);
-
-  /* The pscsem semaphore is used for signaling and, hence, should not have
-   * priority inheritance enabled.
-   */
-
-  nxsem_set_protocol(&priv->pscsem, SEM_PRIO_NONE);
+  usbhost_devaddr_initialize(&priv->devgen);
+  priv->rhport.pdevgen = &priv->devgen;
 
   /* Initialize the driver state data */
 
@@ -5307,13 +5268,7 @@ static inline void stm32_sw_initialize(struct stm32_usbhost_s *priv)
       struct stm32_chan_s *chan = &priv->chan[i];
 
       chan->chidx = i;
-
-      /* The waitsem semaphore is used for signaling and, hence, should not
-       * have priority inheritance enabled.
-       */
-
-      nxsem_init(&chan->waitsem,  0, 0);
-      nxsem_set_protocol(&chan->waitsem, SEM_PRIO_NONE);
+      nxsem_init(&chan->waitsem, 0, 0);
     }
 }
 
@@ -5511,7 +5466,7 @@ struct usbhost_connection_s *stm32_otgfshost_initialize(int controller)
 
   /* Attach USB host controller interrupt handler */
 
-  if (irq_attach(STM32_IRQ_OTGFS, stm32_gint_isr, NULL) != 0)
+  if (irq_attach(STM32_IRQ_OTG, stm32_gint_isr, NULL) != 0)
     {
       usbhost_trace1(OTG_TRACE1_IRQATTACH, 0);
       return NULL;
@@ -5523,7 +5478,7 @@ struct usbhost_connection_s *stm32_otgfshost_initialize(int controller)
 
   /* Enable interrupts at the interrupt controller */
 
-  up_enable_irq(STM32_IRQ_OTGFS);
+  up_enable_irq(STM32_IRQ_OTG);
   return &g_usbconn;
 }
 

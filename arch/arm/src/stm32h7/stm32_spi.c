@@ -60,7 +60,7 @@
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
 #include <nuttx/compiler.h>
-#include <nuttx/semaphore.h>
+#include <nuttx/mutex.h>
 #include <nuttx/spi/spi.h>
 #include <nuttx/power/pm.h>
 
@@ -256,7 +256,7 @@ struct stm32_spidev_s
   uint32_t         rxccr;        /* DMA control register for RX transfers */
 #endif
   bool             initialized;  /* Has SPI interface been initialized */
-  sem_t            exclsem;      /* Held while chip is selected for mutual exclusion */
+  mutex_t          lock;         /* Held while chip is selected for mutual exclusion */
   uint32_t         frequency;    /* Requested clock frequency */
   uint32_t         actual;       /* Actual clock frequency */
   int8_t           nbits;        /* Width of word in bits */
@@ -395,9 +395,9 @@ static uint8_t g_spi1_rxbuf[SPI1_DMABUFSIZE_ADJUSTED] SPI1_DMABUFSIZE_ALGN;
 static struct stm32_spidev_s g_spi1dev =
 {
   .spidev   =
-              {
-               &g_sp1iops
-              },
+  {
+    .ops    = &g_sp1iops,
+  },
   .spibase  = STM32_SPI1_BASE,
   .spiclock = SPI123_KERNEL_CLOCK_FREQ,
   .spiirq   = STM32_IRQ_SPI1,
@@ -409,7 +409,10 @@ static struct stm32_spidev_s g_spi1dev =
   .txbuf    = g_spi1_txbuf,
   .buflen   = SPI1_DMABUFSIZE_ADJUSTED,
 #  endif
+  .rxsem    = SEM_INITIALIZER(0),
+  .txsem    = SEM_INITIALIZER(0),
 #endif
+  .lock     = NXMUTEX_INITIALIZER,
 #ifdef CONFIG_PM
   .pm_cb.prepare = spi_pm_prepare,
 #endif
@@ -464,9 +467,9 @@ static uint8_t g_spi2_rxbuf[SPI2_DMABUFSIZE_ADJUSTED] SPI2_DMABUFSIZE_ALGN;
 static struct stm32_spidev_s g_spi2dev =
 {
   .spidev   =
-              {
-               &g_sp2iops
-              },
+  {
+    .ops    = &g_sp2iops,
+  },
   .spibase  = STM32_SPI2_BASE,
   .spiclock = SPI123_KERNEL_CLOCK_FREQ,
   .spiirq   = STM32_IRQ_SPI2,
@@ -478,7 +481,10 @@ static struct stm32_spidev_s g_spi2dev =
   .txbuf    = g_spi2_txbuf,
   .buflen   = SPI2_DMABUFSIZE_ADJUSTED,
 #  endif
+  .rxsem    = SEM_INITIALIZER(0),
+  .txsem    = SEM_INITIALIZER(0),
 #endif
+  .lock     = NXMUTEX_INITIALIZER,
 #ifdef CONFIG_PM
   .pm_cb.prepare = spi_pm_prepare,
 #endif
@@ -533,9 +539,9 @@ static uint8_t g_spi3_rxbuf[SPI3_DMABUFSIZE_ADJUSTED] SPI3_DMABUFSIZE_ALGN;
 static struct stm32_spidev_s g_spi3dev =
 {
   .spidev   =
-              {
-               &g_sp3iops
-              },
+  {
+    .ops    = &g_sp3iops,
+  },
   .spibase  = STM32_SPI3_BASE,
   .spiclock = SPI123_KERNEL_CLOCK_FREQ,
   .spiirq   = STM32_IRQ_SPI3,
@@ -547,7 +553,10 @@ static struct stm32_spidev_s g_spi3dev =
   .txbuf    = g_spi3_txbuf,
   .buflen   = SPI3_DMABUFSIZE_ADJUSTED,
 #  endif
+  .rxsem    = SEM_INITIALIZER(0),
+  .txsem    = SEM_INITIALIZER(0),
 #endif
+  .lock     = NXMUTEX_INITIALIZER,
 #ifdef CONFIG_PM
   .pm_cb.prepare = spi_pm_prepare,
 #endif
@@ -602,9 +611,9 @@ static uint8_t g_spi4_rxbuf[SPI4_DMABUFSIZE_ADJUSTED] SPI4_DMABUFSIZE_ALGN;
 static struct stm32_spidev_s g_spi4dev =
 {
   .spidev   =
-              {
-               &g_sp4iops
-              },
+  {
+    .ops    = &g_sp4iops,
+  },
   .spibase  = STM32_SPI4_BASE,
   .spiclock = SPI45_KERNEL_CLOCK_FREQ,
   .spiirq   = STM32_IRQ_SPI4,
@@ -616,7 +625,10 @@ static struct stm32_spidev_s g_spi4dev =
   .txbuf    = g_spi4_txbuf,
   .buflen   = SPI4_DMABUFSIZE_ADJUSTED,
 #  endif
+  .rxsem    = SEM_INITIALIZER(0),
+  .txsem    = SEM_INITIALIZER(0),
 #endif
+  .lock     = NXMUTEX_INITIALIZER,
 #ifdef CONFIG_PM
   .pm_cb.prepare = spi_pm_prepare,
 #endif
@@ -671,9 +683,9 @@ static uint8_t g_spi5_rxbuf[SPI5_DMABUFSIZE_ADJUSTED] SPI5_DMABUFSIZE_ALGN;
 static struct stm32_spidev_s g_spi5dev =
 {
   .spidev   =
-              {
-               &g_sp5iops
-              },
+  {
+    .ops    = &g_sp5iops,
+  },
   .spibase  = STM32_SPI5_BASE,
   .spiclock = SPI45_KERNEL_CLOCK_FREQ,
   .spiirq   = STM32_IRQ_SPI5,
@@ -685,7 +697,10 @@ static struct stm32_spidev_s g_spi5dev =
   .txbuf    = g_spi5_txbuf,
   .buflen   = SPI5_DMABUFSIZE_ADJUSTED,
 #  endif
+  .rxsem    = SEM_INITIALIZER(0),
+  .txsem    = SEM_INITIALIZER(0),
 #endif
+  .lock     = NXMUTEX_INITIALIZER,
 #ifdef CONFIG_PM
   .pm_cb.prepare = spi_pm_prepare,
 #endif
@@ -741,21 +756,24 @@ static uint8_t g_spi6_rxbuf[SPI6_DMABUFSIZE_ADJUSTED] SPI6_DMABUFSIZE_ALGN
 static struct stm32_spidev_s g_spi6dev =
 {
   .spidev   =
-              {
-               &g_sp6iops
-              },
+  {
+    .ops    = &g_sp6iops,
+  },
   .spibase  = STM32_SPI6_BASE,
   .spiclock = SPI6_KERNEL_CLOCK_FREQ,
   .spiirq   = STM32_IRQ_SPI6,
 #ifdef CONFIG_STM32H7_SPI6_DMA
   .rxch     = DMAMAP_SPI6_RX,
   .txch     = DMAMAP_SPI6_TX,
-#if defined(SPI6_DMABUFSIZE_ADJUSTED)
+#  if defined(SPI6_DMABUFSIZE_ADJUSTED)
   .rxbuf    = g_spi6_rxbuf,
   .txbuf    = g_spi6_txbuf,
   .buflen   = SPI6_DMABUFSIZE_ADJUSTED,
-#    endif
+#  endif
+  .rxsem    = SEM_INITIALIZER(0),
+  .txsem    = SEM_INITIALIZER(0),
 #endif
+  .lock     = NXMUTEX_INITIALIZER,
 #ifdef CONFIG_PM
   .pm_cb.prepare = spi_pm_prepare,
 #endif
@@ -1418,11 +1436,11 @@ static int spi_lock(struct spi_dev_s *dev, bool lock)
 
   if (lock)
     {
-      ret = nxsem_wait_uninterruptible(&priv->exclsem);
+      ret = nxmutex_lock(&priv->lock);
     }
   else
     {
-      ret = nxsem_post(&priv->exclsem);
+      ret = nxmutex_unlock(&priv->lock);
     }
 
   return ret;
@@ -2035,7 +2053,7 @@ static void spi_exchange(struct spi_dev_s *dev, const void *txbuffer,
   static uint8_t rxdummy[ARMV7M_DCACHE_LINESIZE]
     aligned_data(ARMV7M_DCACHE_LINESIZE);
   static const uint16_t txdummy = 0xffff;
-  void * orig_rxbuffer = rxbuffer;
+  void *orig_rxbuffer = rxbuffer;
 
   DEBUGASSERT(priv != NULL);
 
@@ -2378,7 +2396,6 @@ static int spi_pm_prepare(struct pm_callback_s *cb, int domain,
   struct stm32_spidev_s *priv =
       (struct stm32_spidev_s *)((char *)cb -
                                     offsetof(struct stm32_spidev_s, pm_cb));
-  int sval;
 
   /* Logic to prepare for a reduced power state goes here. */
 
@@ -2393,13 +2410,7 @@ static int spi_pm_prepare(struct pm_callback_s *cb, int domain,
 
       /* Check if exclusive lock for SPI bus is held. */
 
-      if (nxsem_get_value(&priv->exclsem, &sval) < 0)
-        {
-          DEBUGPANIC();
-          return -EINVAL;
-        }
-
-      if (sval <= 0)
+      if (nxmutex_is_locked(&priv->lock))
         {
           /* Exclusive lock is held, do not allow entry to deeper PM
            * states.
@@ -2504,22 +2515,7 @@ static void spi_bus_initialize(struct stm32_spidev_s *priv)
 
   spi_putreg(priv, STM32_SPI_CRCPOLY_OFFSET, 7);
 
-  /* Initialize the SPI semaphore that enforces mutually exclusive access. */
-
-  nxsem_init(&priv->exclsem, 0, 1);
-
 #ifdef CONFIG_STM32H7_SPI_DMA
-  /* Initialize the SPI semaphores that is used to wait for DMA completion.
-   * This semaphore is used for signaling and, hence, should not have
-   * priority inheritance enabled.
-   */
-
-  nxsem_init(&priv->rxsem, 0, 0);
-  nxsem_init(&priv->txsem, 0, 0);
-
-  nxsem_set_protocol(&priv->rxsem, SEM_PRIO_NONE);
-  nxsem_set_protocol(&priv->txsem, SEM_PRIO_NONE);
-
   /* Get DMA channels.  NOTE: stm32_dmachannel() will always assign the DMA
    * channel.  If the channel is not available, then stm32_dmachannel() will
    * block and wait until the channel becomes available.  WARNING: If you
