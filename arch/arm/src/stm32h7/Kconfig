@@ -234,10 +234,33 @@ config STM32H7_HAVE_SMPS
 	bool
 	default n
 
+config STM32H7_HAVE_PWR_DIRECT_SMPS_SUPPLY
+	bool
+	default n
+
 config STM32H7_PWR_DIRECT_SMPS_SUPPLY
 	bool "Use direct SMPS supply mode"
 	depends on STM32H7_HAVE_SMPS
 	default n
+
+choice
+	prompt "STM32 H7 Power Supply Selection"
+	default STM32H7_PWR_DEFAULT_SUPPLY
+	depends on STM32H7_HAVE_SMPS && !STM32H7_HAVE_PWR_DIRECT_SMPS_SUPPLY
+	---help---
+	    The STM32H7x5 and STM32H7x7 support power supply configrations for the VCORE core domain and an external supply,
+	    by configuring the SMPS step-down converter and voltage regulator.
+	    Note:The SMPS step-down converter is not available on all packages.
+
+	    Currenlty the only supported modes are Direct SMPS supply and LDO supply.
+
+config STM32H7_PWR_DEFAULT_SUPPLY
+	bool "Default"
+
+config STM32H7_PWR_LDO_SUPPLY
+	bool "Use LDO supply mode"
+
+endchoice # "STM32 H7 Power Supply Selection"
 
 config STM32H7_IO_CONFIG_A
 	bool
@@ -283,19 +306,18 @@ config STM32H7_STM32H7X3XX
 config STM32H7_STM32H7X5XX
 	bool
 	default n
+	select ARCH_STM32H7_DUALCORE
 	select ARCH_HAVE_FPU
 	select ARCH_HAVE_DPFPU
-	select ARMV7M_HAVE_ICACHE
-	select ARMV7M_HAVE_DCACHE
-	select ARMV7M_HAVE_ITCM
-	select ARMV7M_HAVE_DTCM
+	select STM32H7_HAVE_LTDC
 	select STM32H7_HAVE_ETHERNET
 	select STM32H7_HAVE_FMC
-	select STM32H7_HAVE_GPIOF
-	select STM32H7_HAVE_GPIOG
+	select STM32H7_HAVE_GPIOF if !STM32H7_IO_CONFIG_V
+	select STM32H7_HAVE_GPIOG if !STM32H7_IO_CONFIG_V
 	select STM32H7_HAVE_SPI4
-	select STM32H7_HAVE_SPI5
+	select STM32H7_HAVE_SPI5 if !STM32H7_IO_CONFIG_V
 	select STM32H7_HAVE_SPI6
+	select STM32H7_HAVE_SMPS
 
 config STM32H7_STM32H7X7XX
 	bool

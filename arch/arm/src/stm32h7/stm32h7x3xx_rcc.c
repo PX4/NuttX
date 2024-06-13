@@ -131,6 +131,30 @@
 #  endif
 #endif
 
+/* When the SoC supports SMPS we currently support 2 configurations:
+ * Direct SMP Supply OR LDO only supply.
+ *
+ * When the Soc does not supports SMPS we support only the LDO supply.
+ */
+
+#ifdef CONFIG_STM32H7_HAVE_SMPS
+#  define STM32_PWR_CR3_MASK  ~(STM32_PWR_CR3_BYPASS      | \
+                              STM32_PWR_CR3_LDOEN         | \
+                              STM32_PWR_CR3_LDOESCUEN     | \
+                              STM32_PWR_CR3_SMPSEXTHP     | \
+                              STM32_PWR_CR3_SMPSLEVEL_MASK)
+
+#  if defined(CONFIG_STM32H7_PWR_DIRECT_SMPS_SUPPLY)
+#    define STM32_PWR_CR3_SELECTION STM32_PWR_CR3_LDOESCUEN
+#  else
+#    define STM32_PWR_CR3_SELECTION STM32_PWR_CR3_LDOEN
+#  endif
+#else
+#  define STM32_PWR_CR3_MASK  0xffffffff
+#  define STM32_PWR_CR3_SELECTION (STM32_PWR_CR3_LDOEN | STM32_PWR_CR3_SCUEN)
+
+#endif
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
@@ -863,7 +887,8 @@ void stm32_stdclockconfig(void)
        */
 
       regval = getreg32(STM32_PWR_CR3);
-      regval |= STM32_PWR_CR3_LDOEN | STM32_PWR_CR3_LDOESCUEN;
+      regval &= STM32_PWR_CR3_MASK;
+      regval |= STM32_PWR_CR3_SELECTION;
       putreg32(regval, STM32_PWR_CR3);
 
       /* Set the voltage output scale */
