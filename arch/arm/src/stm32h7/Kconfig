@@ -5300,6 +5300,10 @@ config STM32H7_ETHMAC_REGDEBUG
 		Enable very low-level register access debug.  Depends on
 		CONFIG_DEBUG_FEATURES.
 
+config STM32H7_NO_PHY
+	bool "MAC has no PHY"
+	default n
+
 endmenu # Ethernet MAC configuration
 
 menu "QEncoder Driver"
