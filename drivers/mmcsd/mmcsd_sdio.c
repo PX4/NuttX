@@ -2513,11 +2513,8 @@ static int mmcsd_widebus(FAR struct mmcsd_state_s *priv)
        * Configuring MMC - Use MMC_SWITCH access modes.
        */
 
-      uint32_t arg = MMCSD_CMD6_MODE_WRITE_BYTE | MMCSD_CMD6_BUSWIDTH_RW;
-
-      arg |= MMCSD_CMD6_BUS_WIDTH_4;
-
-      mmcsd_sendcmdpoll(priv, MMCSD_CMD6, arg);
+      mmcsd_sendcmdpoll(priv, MMCSD_CMD6,
+                        MMC_CMD6_BUSWIDTH(EXT_CSD_BUS_WIDTH_4));
       ret = mmcsd_recv_r1(priv, MMCSD_CMD6);
 
       if (ret != OK)
