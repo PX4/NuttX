@@ -67,7 +67,7 @@ struct mcp2515_config_s
   struct spi_dev_s *spi;    /* SPI used for MCP2515 communication */
   uint32_t baud;            /* Configured baud */
   uint32_t btp;             /* Bit timing/prescaler register setting */
-  uint8_t devid;            /* MCP2515 device ID */
+  uint32_t devid;           /* MCP2515 device ID */
   uint8_t mode;             /* See enum mcp2515_canmod_e */
   uint8_t nfilters;         /* Number of standard/extended filters */
 #ifdef MCP2515_LOOPBACK
