@@ -367,6 +367,7 @@ static inline void raisebasepri(uint32_t basepri)
      "\tmrs   %0, primask\n"
      "\tcpsid i\n"
      "\tmsr   basepri, %1\n"
+     "\tisb\n"
      "\tmsr   primask, %0\n"
      : "+r" (primask)
      : "r"  (basepri)

@@ -1833,6 +1833,9 @@ static uint32_t spi_send(struct spi_dev_s *dev, uint32_t wd)
 
   DEBUGASSERT(priv && priv->spibase);
 
+  spi_enable(priv, false);
+  spi_enable(priv, true);
+
   /* Clear suspend flag */
 
   spi_modifyreg(priv, STM32_SPI_IFCR_OFFSET, 0, SPI_IFCR_SUSPC);
