@@ -252,6 +252,9 @@ static int mcp2515_del_extfilter(FAR struct mcp2515_can_s *priv, int ndx);
 static int mcp2515_add_stdfilter(FAR struct mcp2515_can_s *priv,
               FAR struct canioc_stdfilter_s *stdconfig);
 static int mcp2515_del_stdfilter(FAR struct mcp2515_can_s *priv, int ndx);
+
+/* SPI locking helpers */
+
 static irqstate_t mcp2515_spi_lock(FAR struct spi_dev_s *dev);
 static void mcp2515_spi_unlock(FAR struct spi_dev_s *dev, irqstate_t flags);
 
@@ -1166,6 +1169,23 @@ static int mcp2515_del_stdfilter(FAR struct mcp2515_can_s *priv, int ndx)
   return OK;
 }
 
+/****************************************************************************
+ * Name: mcp2515_spi_lock
+ *
+ * Description:
+ *   On SPI buses where there are multiple devices, it will be necessary to
+ *   lock SPI to have exclusive access to the buses for a sequence of
+ *   transfers. This function locks the bus for both tasks and interrupts.
+ *
+ * Input Parameters:
+ *   dev  - Device-specific state data
+ *
+ * Returned Value:
+ *  An opaque, architecture-specific value that represents the state of
+ *  the interrupts prior to the call to mcp2515_spi_lock();
+ *
+ ****************************************************************************/
+
 static irqstate_t mcp2515_spi_lock(FAR struct spi_dev_s *dev)
 {
   irqstate_t flags = enter_critical_section();
@@ -1176,6 +1196,24 @@ static irqstate_t mcp2515_spi_lock(FAR struct spi_dev_s *dev)
     }
   return flags;
 }
+
+/****************************************************************************
+ * Name: mcp2515_spi_unlock
+ *
+ * Description:
+ *   On SPI buses where there are multiple devices, it will be necessary to
+ *   lock SPI to have exclusive access to the buses for a sequence of
+ *   transfers. This function unlocks the bus for both tasks and interrupts.
+ *
+ * Input Parameters:
+ *   dev   - Device-specific state data
+ *   flags - The architecture-specific value that represents the state of
+ *           the interrupts prior to the call to mcp2515_spi_lock();
+ *
+ * Returned Value:
+ *  None
+ *
+ ****************************************************************************/
 
 static void mcp2515_spi_unlock(FAR struct spi_dev_s *dev, irqstate_t flags)
 {
@@ -1315,7 +1353,7 @@ static int mcp2515_setup(FAR struct can_dev_s *dev)
   ret = mcp2515_hw_initialize(priv);
   if (ret < 0)
     {
-      canerr("ERROR: MCP2515%d H/W initialization failed: %d\n",
+      canerr("ERROR: MCP2515%lu H/W initialization failed: %d\n",
             config->devid, ret);
       return ret;
     }
@@ -1385,7 +1423,7 @@ static void mcp2515_rxint(FAR struct can_dev_s *dev, bool enable)
   config = priv->config;
   DEBUGASSERT(config);
 
-  caninfo("CAN%d enable: %d\n", config->devid, enable);
+  caninfo("CAN%lu enable: %d\n", config->devid, enable);
   UNUSED(config);
 
   /* Enable/disable the receive interrupts */
@@ -1427,7 +1465,7 @@ static void mcp2515_txint(FAR struct can_dev_s *dev, bool enable)
 
   DEBUGASSERT(priv && priv->config);
 
-  caninfo("CAN%d enable: %d\n", priv->config->devid, enable);
+  caninfo("CAN%lu enable: %d\n", priv->config->devid, enable);
 
   /* Enable/disable the receive interrupts */
 
@@ -1768,8 +1806,8 @@ static int mcp2515_send(FAR struct can_dev_s *dev, FAR struct can_msg_s *msg)
   DEBUGASSERT(priv && priv->config);
   config = priv->config;
 
-  caninfo("CAN%d\n", config->devid);
-  caninfo("CAN%d ID: %" PRId32 " DLC: %d\n",
+  caninfo("CAN%lu\n", config->devid);
+  caninfo("CAN%lu ID: %" PRId32 " DLC: %d\n",
           config->devid, (uint32_t)msg->cm_hdr.ch_id, msg->cm_hdr.ch_dlc);
   UNUSED(config);
 
@@ -2392,7 +2430,7 @@ static int mcp2515_hw_initialize(struct mcp2515_can_s *priv)
   FAR struct mcp2515_config_s *config = priv->config;
   uint8_t regval;
 
-  caninfo("CAN%d\n", config->devid);
+  caninfo("CAN%lu\n", config->devid);
   UNUSED(config);
 
   /* Setup CNF1 register */
