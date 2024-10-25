@@ -59,40 +59,6 @@
 #define SPI_TRANSFER_BUF_LEN   (6 + CAN_FRAME_MAX_DATA_LEN)
 #define MCP2515_NUM_TX_BUFFERS 3
 
-/* Bit timing */
-
-#define MCP2515_PROPSEG  CONFIG_MCP2515_PROPSEG
-#define MCP2515_PHSEG1   CONFIG_MCP2515_PHASESEG1
-#define MCP2515_PHSEG2   CONFIG_MCP2515_PHASESEG2
-#define MCP2515_TSEG1    (MCP2515_PROPSEG + MCP2515_PHSEG1)
-#define MCP2515_TSEG2    MCP2515_PHSEG2
-#define MCP2515_BRP      ((uint8_t)(((float)(MCP2515_CANCLK_FREQUENCY) / \
-                         ((float)(MCP2515_TSEG1 + MCP2515_TSEG2 + 1) * \
-                         (float)(2 * CONFIG_MCP2515_BITRATE))) - 1))
-#define MCP2515_SJW      CONFIG_MCP2515_SJW
-
-#if MCP2515_PROPSEG < 1
-#  error Invalid PROPSEG. It cannot be lower than 1
-#endif
-#if MCP2515_PROPSEG > 8
-#  error Invalid PROPSEG. It cannot be greater than 8
-#endif
-#if MCP2515_PHSEG1 < 1
-#  error Invalid PHSEG1. It cannot be lower than 1
-#endif
-#if MCP2515_PHSEG1 > 8
-#  error Invalid PHSEG1. It cannot be greater than 1
-#endif
-#if MCP2515_TSEG2 < 2
-#  error Invalid TSEG2. It cannot be lower than 2
-#endif
-#if MCP2515_TSEG2 > 8
-#  error Invalid TSEG2. It cannot be greater than 8
-#endif
-#if MCP2515_SJW > 4
-#  error Invalid SJW. It cannot be greater than 4
-#endif
-
 /* MCP2515 RXB0 element size */
 
 /* MCP2515 RXB1 element size */
@@ -1549,7 +1515,7 @@ static int mcp2515_ioctl(FAR struct can_dev_s *dev, int cmd,
           bt->bt_tseg2  = ((regval & CNF3_PHSEG2_MASK) >>
                                      CNF3_PHSEG2_SHIFT) + 1;
 
-          bt->bt_baud   = MCP2515_CANCLK_FREQUENCY / brp /
+          bt->bt_baud   = priv->config->clkfreq / brp /
                           (bt->bt_tseg1 + bt->bt_tseg2 + 1);
           ret = OK;
         }
@@ -1586,7 +1552,7 @@ static int mcp2515_ioctl(FAR struct can_dev_s *dev, int cmd,
           uint8_t regval;
 
           DEBUGASSERT(bt != NULL);
-          DEBUGASSERT(bt->bt_baud < MCP2515_CANCLK_FREQUENCY);
+          DEBUGASSERT(bt->bt_baud < priv->config->clkfreq);
           DEBUGASSERT(bt->bt_sjw > 0 && bt->bt_sjw <= 4);
           DEBUGASSERT(bt->bt_tseg1 > 1 && bt->bt_tseg1 <= 16);
           DEBUGASSERT(bt->bt_tseg2 > 1 && bt->bt_tseg2 <= 8);
@@ -1612,7 +1578,7 @@ static int mcp2515_ioctl(FAR struct can_dev_s *dev, int cmd,
           phseg1 = tseg2;
           prseg  = tseg1 - phseg1;
 
-          brp = (uint32_t)(((float) MCP2515_CANCLK_FREQUENCY /
+          brp = (uint32_t)(((float) priv->config->clkfreq /
              ((float)(tseg1 + tseg2 + 1) * (float)(2 * bt->bt_baud))) - 1);
 
           /* Save the value of the new bit timing register */
@@ -1627,9 +1593,11 @@ static int mcp2515_ioctl(FAR struct can_dev_s *dev, int cmd,
 
           /* Setup CNF1 register */
 
+          priv->btp = brp;
+
           mcp2515_readregs(priv, MCP2515_CNF1, &regval, 1);
           regval = (regval & ~CNF1_BRP_MASK) |
-                   (brp << CNF1_BRP_SHIFT);
+                   (priv->btp << CNF1_BRP_SHIFT);
           regval = (regval & ~CNF1_SJW_MASK) |
                    ((sjw) << CNF1_SJW_SHIFT);
           mcp2515_writeregs(priv, MCP2515_CNF1, &regval, 1);
@@ -2437,18 +2405,18 @@ static int mcp2515_hw_initialize(struct mcp2515_can_s *priv)
 
   mcp2515_readregs(priv, MCP2515_CNF1, &regval, 1);
   regval = (regval & ~CNF1_BRP_MASK) |
-           (MCP2515_BRP << CNF1_BRP_SHIFT);
+           (priv->btp << CNF1_BRP_SHIFT);
   regval = (regval & ~CNF1_SJW_MASK) |
-           ((MCP2515_SJW - 1) << CNF1_SJW_SHIFT);
+           ((priv->config->sjw - 1) << CNF1_SJW_SHIFT);
   mcp2515_writeregs(priv, MCP2515_CNF1, &regval, 1);
 
   /* Setup CNF2 register */
 
   mcp2515_readregs(priv, MCP2515_CNF2, &regval, 1);
   regval = (regval & ~CNF2_PRSEG_MASK) |
-           ((MCP2515_PROPSEG - 1) << CNF2_PRSEG_SHIFT);
+           ((priv->config->propseg - 1) << CNF2_PRSEG_SHIFT);
   regval = (regval & ~CNF2_PHSEG1_MASK) |
-           ((MCP2515_PHSEG1 - 1) << CNF2_PHSEG1_SHIFT);
+           ((priv->config->phaseseg1 - 1) << CNF2_PHSEG1_SHIFT);
   regval = (regval | CNF2_SAM | CNF2_BTLMODE);
   mcp2515_writeregs(priv, MCP2515_CNF2, &regval, 1);
 
@@ -2456,7 +2424,7 @@ static int mcp2515_hw_initialize(struct mcp2515_can_s *priv)
 
   mcp2515_readregs(priv, MCP2515_CNF3, &regval, 1);
   regval = (regval & ~CNF3_PHSEG2_MASK) |
-           ((MCP2515_PHSEG2 - 1) << CNF3_PHSEG2_SHIFT);
+           ((priv->config->phaseseg2 - 1) << CNF3_PHSEG2_SHIFT);
   regval = (regval | CNF3_SOF);
   mcp2515_writeregs(priv, MCP2515_CNF3, &regval, 1);
 
@@ -2594,6 +2562,18 @@ FAR struct mcp2515_can_s *
   /* Set the initial bit timing.  This might change subsequently
    * due to IOCTL command processing.
    */
+
+  DEBUGASSERT(priv->config->propseg >= 1);
+  DEBUGASSERT(priv->config->propseg <= 8);
+  DEBUGASSERT(priv->config->phaseseg1 >= 1);
+  DEBUGASSERT(priv->config->phaseseg1 <= 8);
+  DEBUGASSERT(priv->config->phaseseg2 >= 2);
+  DEBUGASSERT(priv->config->phaseseg2 <= 8);
+  DEBUGASSERT(priv->config->sjw <= 4);
+
+  priv->btp = ((uint8_t)(((float)(priv->config->clkfreq) / \
+              ((float)(priv->config->phaseseg1 + priv->config->phaseseg2 + 1) * \
+              (float)(2 * priv->config->baud))) - 1));
 
   /* Initialize mutex & semaphores */
 

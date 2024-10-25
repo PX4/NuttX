@@ -147,45 +147,6 @@ config CAN_MCP2515
 
 if CAN_MCP2515
 
-config MCP2515_BITRATE
-	int "MCP2515 bitrate"
-	default 500000
-	---help---
-		MCP2515 bitrate in bits per second.
-
-config MCP2515_PROPSEG
-	int "MCP2515 Propagation Segment TQ"
-	default 2
-	range 1 8
-	---help---
-		The length of the bit time is Tquanta * (SyncSeg + PropSeg + PhaseSeg1 + PhaseSeg2).
-
-config MCP2515_PHASESEG1
-	int "MCP2515 Phase Segment 1"
-	default 2
-	range 1 8
-	---help---
-		The length of the bit time is Tquanta * (SyncSeg + PropSeg + PhaseSeg1 + PhaseSeg2).
-
-config MCP2515_PHASESEG2
-	int "MCP2515 Phase Segment 2"
-	default 3
-	range 2 8
-	---help---
-		The length of the bit time is Tquanta * (SyncSeg + PropSeg + PhaseSeg1 + PhaseSeg2).
-
-config MCP2515_SJW
-	int "MCP2515 Synchronization Jump Width"
-	default 1
-	range 1 4
-	---help---
-		The duration of a synchronization jump is SJW.
-
-config MCP2515_CLK_FREQUENCY
-	int "MCP2515 on-board clock frequency"
-	default 8000000
-	range 1 25000000
-
 config MCP2515_SPI_SCK_FREQUENCY
 	int "MCP2515 SPI SCK Frequency"
 	default 1000000

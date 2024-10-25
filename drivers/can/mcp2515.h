@@ -420,8 +420,4 @@
 
 #define DEFAULT_CANCTRL_CONFMODE 0x87
 
-/* Crystal Frequency used on MCP2515 board */
-
-#define MCP2515_CANCLK_FREQUENCY CONFIG_MCP2515_CLK_FREQUENCY
-
 #endif /* __DRIVERS_CAN_MCP2514_H */

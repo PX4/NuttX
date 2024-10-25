@@ -65,10 +65,13 @@ typedef CODE void (*mcp2515_handler_t)(FAR struct mcp2515_config_s *config,
 struct mcp2515_config_s
 {
   struct spi_dev_s *spi;    /* SPI used for MCP2515 communication */
-  uint32_t baud;            /* Configured baud */
-  uint32_t btp;             /* Bit timing/prescaler register setting */
+  uint32_t baud;            /* Baud (CAN bitrate) */
   uint32_t devid;           /* MCP2515 device ID */
-  uint8_t mode;             /* See enum mcp2515_canmod_e */
+  uint32_t clkfreq;         /* MCP2515 on-board clock frequency */
+  uint8_t propseg;          /* Propagation Segment TQs */
+  uint8_t phaseseg1;        /* Phase Segment 1 TQs */
+  uint8_t phaseseg2;        /* Phase Segment 2 TQs */
+  uint8_t sjw;              /* Synchronization Jump Width TQs */
   uint8_t nfilters;         /* Number of standard/extended filters */
 #ifdef MCP2515_LOOPBACK
   bool loopback;            /* True: Loopback mode */
