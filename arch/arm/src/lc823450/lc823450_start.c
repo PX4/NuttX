@@ -134,6 +134,7 @@ extern uint32_t _svect;
  *
  ****************************************************************************/
 
+osentry_function
 void __start(void)
 {
   const uint32_t *src;

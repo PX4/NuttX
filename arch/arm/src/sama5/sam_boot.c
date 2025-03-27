@@ -366,6 +366,7 @@ static inline void sam_wdtdisable(void)
  *
  ****************************************************************************/
 
+osentry_function
 void arm_boot(void)
 {
 #ifdef CONFIG_ARCH_RAMFUNCS
