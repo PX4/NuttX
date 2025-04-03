@@ -128,7 +128,7 @@ void __start(void)
   /* Set up clock */
 
   rp23xx_clockconfig();
-  rp23xx_boardearlyinitialize();
+  rp23xx_boardearlyinitialize(); // inits uart as well
 
   /* Initialize all spinlock states */
 
@@ -161,8 +161,8 @@ void __start(void)
 #endif
 
   /* Initialize onboard resources */
-
-  rp23xx_boardinitialize();
+  showprogress('c');
+  //rp23xx_boardinitialize(); // FIXME - messes up serial conf? YESSSS! showprogress stops due to this it seems!
   showprogress('D');
 
   /* Then start NuttX */
