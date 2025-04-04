@@ -167,6 +167,11 @@ static struct up_dev_s g_uart0priv =
 
 static uart_dev_t g_uart0port =
 {
+#ifdef CONFIG_UART0_SERIAL_CONSOLE
+  .isconsole = true,
+#else
+  .isconsole = false,
+#endif
   .recv =
     {
       .size   = CONFIG_UART0_RXBUFSIZE,
@@ -206,6 +211,11 @@ static struct up_dev_s g_uart1priv =
 
 static uart_dev_t g_uart1port =
 {
+#ifdef CONFIG_UART1_SERIAL_CONSOLE
+  .isconsole = true,
+#else
+  .isconsole = false,
+#endif
   .recv =
     {
       .size   = CONFIG_UART1_RXBUFSIZE,
@@ -773,8 +783,9 @@ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
           priv->baud = cfgetispeed(termiosp);
 
           /* Configure the UART line format and speed. */
-
+#ifndef CONFIG_SUPPRESS_UART_CONFIG
           up_set_format(dev);
+#endif
 
           spin_unlock_irqrestore(&priv->lock, flags);
         }
