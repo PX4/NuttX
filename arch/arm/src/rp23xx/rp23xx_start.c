@@ -162,7 +162,7 @@ void __start(void)
 
   /* Initialize onboard resources */
   showprogress('c');
-  //rp23xx_boardinitialize(); // FIXME - messes up serial conf? YESSSS! showprogress stops due to this it seems!
+  rp23xx_boardinitialize();
   showprogress('D');
 
   /* Then start NuttX */
