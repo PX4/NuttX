@@ -143,6 +143,7 @@ static inline void imxrt_tcmenable(void)
  *
  ****************************************************************************/
 
+osentry_function
 void __start(void)
 {
   const register uint32_t *src;
