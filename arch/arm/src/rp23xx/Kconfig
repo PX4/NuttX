@@ -1058,3 +1058,46 @@ config RP23XX_BOARD_HAS_WS2812
 	---help---
 		See the Board Selection menu to configure the pins used
 		by ws2812.
+
+
+
+#####################################################################
+#  Flash File System Configuration
+#####################################################################
+
+config RP23XX_FLASH_FILE_SYSTEM
+	bool "Configure a read/write filesystem on unused flash memory"
+	default n
+	select MTD
+	select MTD_SMART
+	select FS_SMARTFS
+	---help---
+		See the Board Selection menu to configure the size of the
+		flash chip for a particular board.
+
+if RP23XX_FLASH_FILE_SYSTEM
+
+config RP23XX_FLASH_MOUNT_POINT
+	string "mount point for flash file system"
+	default "/flash"
+	---help---
+		This is the mount point where the flash file system will
+		be mounted.  Leave this string empty to prevent automatic
+		mounting of the filesystem.
+
+endif # RP23XX_FLASH_FILE_SYSTEM
+
+
+#####################################################################
+#  FLASH File System Configuration
+#####################################################################
+
+if RP23XX_FLASH_FILE_SYSTEM
+
+config RP23XX_FLASH_LENGTH
+	int "Size of flash memory in bytes."
+	default 2097152
+	---help---
+		This is the overall amount of flash memory on the board.
+
+endif # RP23XX_FLASH_FILE_SYSTEM

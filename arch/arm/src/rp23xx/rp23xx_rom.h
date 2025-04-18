@@ -78,6 +78,7 @@
 /* reserved for 32-bit pointer: 0x0008 */
 #define RT_FLAG_FUNC_ARM_NONSEC 0x0010
 
+// 0x00000014 16-bit pointer Pointer to ROM entry table (BOOTROM_ROMTABLE_START)
 #define BOOTROM_FUNC_TABLE_OFFSET 0x14
 
 #define BOOTROM_IS_A2() ((*(volatile uint8_t *)0x13) == 2)
@@ -93,6 +94,48 @@
 #endif
 
 #define ROM_TABLE_CODE(c1, c2) ((c1) | ((c2) << 8))
+
+#define STR(s)           #s
+#define RAM_CODE_ATTR(f) __attribute__((noinline, section(".ram_code." f)))
+#define RAM_CODE(f)      RAM_CODE_ATTR(STR(f)) f
+
+
+#define ROM_HWORD_AS_PTR(a) ((void *)(uintptr_t) (*(uint16_t *)(uintptr_t)a))
+
+// 0x00000018 16-bit pointer Pointer to a helper function (rom_table_lookup_entry())
+#define ROM_LOOKUP(x) rom_func_lookup(x)
+          //((rom_table_lookup_fn)ROM_HWORD_AS_PTR(0x18)) \
+          //(ROM_HWORD_AS_PTR(BOOTROM_FUNC_TABLE_OFFSET),x)
+
+
+
+/*! \brief Return true if executing in the NonSecure state (Arm-only)
+ *  \ingroup pico_platform
+ *
+ * \return True if currently executing in the NonSecure state on an Arm processor
+ */
+#define pico_default_asm_volatile(...) __asm volatile (".syntax unified\n" __VA_ARGS__)
+
+static __inline bool pico_processor_state_is_nonsecure(void) {
+#ifndef __riscv
+    // todo add a define to disable NS checking at all?
+    // IDAU-Exempt addresses return S=1 when tested in the Secure state,
+    // whereas executing a tt in the NonSecure state will always return S=0.
+    uint32_t tt;
+    pico_default_asm_volatile (
+        "movs %0, #0\n"
+        "tt %0, %0\n"
+        : "=r" (tt) : : "cc"
+    );
+    return !(tt & (1u << 22));
+#else
+    // NonSecure is an Arm concept, there is nothing meaningful to return
+    // here. Note it's not possible in general to detect whether you are
+    // executing in U-mode as, for example, M-mode is classically
+    // virtualisable in U-mode.
+    return false;
+#endif
+}
 
 /****************************************************************************
  * Public Type Definitions
