@@ -142,7 +142,7 @@ void __start(void)
   /* Set up clock */
 
   rp23xx_clockconfig();
-  rp23xx_boardearlyinitialize();
+  rp23xx_boardearlyinitialize(); // inits uart as well
 
   /* Initialize spinlock states
    * Errata RP2350-E2 SIO SPINLOCK writes are mirrored at +0x80 offset
@@ -180,7 +180,7 @@ void __start(void)
 #endif
 
   /* Initialize onboard resources */
-
+  showprogress('c');
   rp23xx_boardinitialize();
   showprogress('D');
 
