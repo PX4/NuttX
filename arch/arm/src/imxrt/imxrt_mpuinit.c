@@ -130,6 +130,9 @@ void imxrt_mpu_initialize(void)
 #  if defined(CONFIG_ARCH_FAMILY_IMXRT117x)
 #     include "imxrt117x_mpuinit.c"
 #  else
+
+  mpu_reset();
+
   mpu_configure_region(0xc0000000, 512 * 1024 * 1024,
                        MPU_RASR_TEX_DEV  | /* Device
                                             * Not Cacheable
@@ -154,15 +157,15 @@ void imxrt_mpu_initialize(void)
                        MPU_RASR_AP_RORO);  /* P:RO   U:RO
                                             * Instruction access */
 
-  mpu_configure_region(IMXRT_ITCM_BASE,  128 * 1024,
+  mpu_configure_region(IMXRT_ITCM_BASE,  CONFIG_IMXRT_ITCM * 1024,
                        MPU_RASR_TEX_NOR  | /* Normal             */
                        RASR_C_VALUE      | /* Cacheable          */
                        RASR_B_VALUE      | /* Bufferable
                                             * Not Shareable      */
-                       MPU_RASR_AP_RWRW);  /* P:RW   U:RW
+                       MPU_RASR_AP_RORO);  /* P:RO   U:RO
                                             * Instruction access */
 
-  mpu_configure_region(IMXRT_DTCM_BASE,  128 * 1024,
+  mpu_configure_region(IMXRT_DTCM_BASE,  CONFIG_IMXRT_DTCM * 1024,
                        MPU_RASR_TEX_NOR  | /* Normal             */
                        RASR_C_VALUE      | /* Cacheable          */
                        RASR_B_VALUE      | /* Bufferable
