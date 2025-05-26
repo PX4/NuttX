@@ -35,6 +35,7 @@
 #include "arm_internal.h"
 #include "barriers.h"
 #include "nvic.h"
+#include "ram_vectors.h"
 
 #include "imxrt_clockconfig.h"
 #include "imxrt_mpuinit.h"
@@ -204,6 +205,10 @@ void __start(void)
     {
       *dest++ = *src++;
     }
+#endif
+
+#ifdef CONFIG_ARCH_RAMVECTORS
+  arm_ramvec_initialize();
 #endif
 
   /* Configure the UART so that we can get debug output as soon as possible */
