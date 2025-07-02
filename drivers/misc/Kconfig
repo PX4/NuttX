@@ -87,3 +87,11 @@ config DRVR_INVALIDATE
 endif # DRVR_WRITEBUFFER || DRVR_READAHEAD
 
 endmenu # Buffering
+config DRVR_GPIO_FAILSAFE
+        bool "GPIO failsafe trigger driver"
+        default n
+        depends on WATCHDOG
+        ---help---
+                Enable a simple driver that stops the system watchdog when
+                a board-provided GPIO interrupt is triggered.
+
