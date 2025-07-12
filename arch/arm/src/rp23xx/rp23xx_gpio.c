@@ -291,16 +291,30 @@ int rp23xx_gpio_get_function_pin(uint32_t func, uint32_t port)
 
 void rp23xx_gpio_set_function(uint32_t gpio, uint32_t func)
 {
+  // OK
   DEBUGASSERT(gpio < RP23XX_GPIO_NUM);
 
+  // https://github.com/raspberrypi/pico-sdk/blob/9a4113fbbae65ee82d8cd6537963bc3d3b14bcca/src/rp2_common/hardware_gpio/gpio.c#L38
   modbits_reg32(RP23XX_PADS_BANK0_GPIO_IE,
-                RP23XX_PADS_BANK0_GPIO_ISO |
-                RP23XX_PADS_BANK0_GPIO_IE |
-                RP23XX_PADS_BANK0_GPIO_OD,
+                //SDK: not including RP23XX_PADS_BANK0_GPIO_ISO | // FIXME: is this needed?
+                RP23XX_PADS_BANK0_GPIO_IE | RP23XX_PADS_BANK0_GPIO_OD,
+                // platforms/nuttx/NuttX/nuttx/arch/arm/src/chip/hardware/rp23xx_pads_bank0.h
                 RP23XX_PADS_BANK0_GPIO(gpio));
 
+  // SDK: Zero all fields apart from fsel; we want this IO to do what the peripheral tells it.
+  // SDK: This doesn't affect e.g. pullup/pulldown, as these are in pad controls.
+  // SDK: io_bank0_hw->io[gpio].ctrl = fn << IO_BANK0_GPIO0_CTRL_FUNCSEL_LSB;
+  // SDK: #define RP23XX_IO_BANK0_GPIO_CTRL(n)            (RP23XX_IO_BANK0_BASE + RP23XX_IO_BANK0_GPIO_CTRL_OFFSET(n))
   putreg32(func & RP23XX_IO_BANK0_GPIO_CTRL_FUNCSEL_MASK,
            RP23XX_IO_BANK0_GPIO_CTRL(gpio));
+
+  // SDK [rp2350]: Remove pad isolation now that the correct peripheral is in control of the pad
+  // SDK [rp2350]   hw_clear_bits(&pads_bank0_hw->io[gpio], PADS_BANK0_GPIO0_ISO_BITS);
+  // https://github.com/raspberrypi/pico-sdk/blob/master/src/rp2_common/hardware_base/include/hardware/address_mapped.h#L145
+  // *(io_rw_32 *) hw_clear_alias_untyped((volatile void *) addr) = mask;
+  // #define hw_clear_alias_untyped(addr) ((void *)(REG_ALIAS_CLR_BITS + hw_alias_check_addr(addr)))
+  clrbits_reg32(RP23XX_PADS_BANK0_GPIO_ISO,
+  		RP23XX_PADS_BANK0_GPIO(gpio));
 
   g_gpio_function[gpio] = func;
 }
@@ -315,6 +329,7 @@ void rp23xx_gpio_set_function(uint32_t gpio, uint32_t func)
 
 void rp23xx_gpio_set_pulls(uint32_t gpio, int up, int down)
 {
+  // OK
   DEBUGASSERT(gpio < RP23XX_GPIO_NUM);
 
   modbits_reg32((up   ? RP23XX_PADS_BANK0_GPIO_PUE : 0) |
@@ -393,7 +408,8 @@ void rp23xx_gpio_enable_irq(uint32_t gpio)
   if (g_gpio_irq_handlers[gpio] != NULL)
     {
       /* Set interrupt enable bit */
-
+      // FIXME - isn't this separate per core like in SDK (different IRQ control base)?!
+      // https://github.com/raspberrypi/pico-sdk/blob/9a4113fbbae65ee82d8cd6537963bc3d3b14bcca/src/rp2_common/hardware_gpio/gpio.c#L173-L196
       reg = RP23XX_IO_BANK0_PROC_INTE(gpio, 0);
       clrbits_reg32(0xf << ((gpio % 8) * 4), reg);
       setbits_reg32(0x1 << ((gpio % 8) * 4 + g_gpio_irq_modes[gpio]), reg);
@@ -417,7 +433,8 @@ void rp23xx_gpio_disable_irq(uint32_t gpio)
   if (g_gpio_irq_handlers[gpio] != NULL)
     {
       /* Clear interrupt enable bit */
-
+      // FIXME - isn't this separate per core like in SDK (different IRQ control base)?!
+      // https://github.com/raspberrypi/pico-sdk/blob/9a4113fbbae65ee82d8cd6537963bc3d3b14bcca/src/rp2_common/hardware_gpio/gpio.c#L173-L196
       reg = RP23XX_IO_BANK0_PROC_INTE(gpio, 0);
       clrbits_reg32(0xf << ((gpio % 8) * 4), reg);
     }
