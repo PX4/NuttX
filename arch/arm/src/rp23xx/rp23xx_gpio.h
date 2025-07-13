@@ -103,7 +103,7 @@ extern "C"
 
 static inline void rp23xx_gpio_put(uint32_t gpio, int set)
 {
-  // OK?
+  // logic now matches pico-sdk:
   // https://github.com/raspberrypi/pico-sdk/blob/9a4113fbbae65ee82d8cd6537963bc3d3b14bcca/src/rp2_common/hardware_gpio/include/hardware/gpio.h#L1139-L1170
   #if RP23XX_GPIO_NUM > 32
   uint32_t value = 1ul << (gpio & 0x1fu);
@@ -138,7 +138,8 @@ static inline bool rp23xx_gpio_get(uint32_t gpio)
 
   DEBUGASSERT(gpio < RP23XX_GPIO_NUM);
 
-  // RP3250B: https://github.com/raspberrypi/pico-sdk/blob/9a4113fbbae65ee82d8cd6537963bc3d3b14bcca/src/rp2_common/hardware_gpio/include/hardware/gpio.h#L859-L869
+  // for RP3250B:
+  // https://github.com/raspberrypi/pico-sdk/blob/9a4113fbbae65ee82d8cd6537963bc3d3b14bcca/src/rp2_common/hardware_gpio/include/hardware/gpio.h#L859-L869
   if (gpio >= 32) {
   	reg_addr = RP23XX_SIO_GPIO_HI_IN;
   	mask = (1u << (gpio - 32));
@@ -148,7 +149,7 @@ static inline bool rp23xx_gpio_get(uint32_t gpio)
 
 static inline void rp23xx_gpio_setdir(uint32_t gpio, int out)
 {
-  // OK
+  // logic now matches pico-sdk:
   // https://github.com/raspberrypi/pico-sdk/blob/9a4113fbbae65ee82d8cd6537963bc3d3b14bcca/src/rp2_common/hardware_gpio/include/hardware/gpio.h#L1334-L1365
   #if RP23XX_GPIO_NUM > 32
   uint32_t value = 1ul << (gpio & 0x1fu);
@@ -191,7 +192,6 @@ static inline void rp23xx_gpio_setdir(uint32_t gpio, int out)
 static inline void rp23xx_gpio_set_input_hysteresis_enabled(uint32_t gpio,
                                                             bool enabled)
 {
-  // OK
   DEBUGASSERT(gpio < RP23XX_GPIO_NUM);
 
   modbits_reg32(enabled ? RP23XX_PADS_BANK0_GPIO_SCHMITT : 0,
