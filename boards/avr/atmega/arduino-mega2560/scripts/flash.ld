@@ -112,16 +112,15 @@ SECTIONS
     .text            :
     {
         _stext = . ;
-        *(.vectors)
+        KEEP(*(.vectors))
         *(.init)
         *(.handlers)
         *(.progmem .progmem.*)
+        . = ALIGN(2);
         *(.text)
         *(.text.*)
         _etext = . ;
     } > flash
-
-    _eronly = ABSOLUTE(.);
 
     .data            :
     {
@@ -132,6 +131,8 @@ SECTIONS
         CONSTRUCTORS
         _edata = ABSOLUTE(.);
     } > sram AT > flash
+
+    _eronly = LOADADDR(.data);
 
     .bss            :
     {

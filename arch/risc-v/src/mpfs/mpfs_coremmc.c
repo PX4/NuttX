@@ -210,6 +210,11 @@ static int  mpfs_registercallback(struct sdio_dev_s *dev,
                                   worker_t callback, void *arg);
 static void mpfs_callback(void *arg);
 
+#ifdef CONFIG_MMCSD_SDIOWAIT_WRCOMPLETE
+static int mpfs_coremmc_wrcomplete_interrupt(int irq, void *context,
+                                             void *arg);
+#endif
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -246,6 +251,11 @@ struct mpfs_dev_s g_coremmc_dev =
   },
   .hw_base           = CONFIG_MPFS_COREMMC_BASE,
   .plic_irq          = MPFS_IRQ_FABRIC_F2H_0 + CONFIG_MPFS_COREMMC_IRQNUM,
+  .lock              = SP_UNLOCKED,
+#ifdef CONFIG_MMCSD_SDIOWAIT_WRCOMPLETE
+  .wrcomplete_irq    = MPFS_IRQ_FABRIC_F2H_0 +
+                       CONFIG_MPFS_COREMMC_WRCOMPLETE_IRQNUM,
+#endif
   .blocksize         = 512,
   .fifo_depth        = 0,
   .onebit            = false,
@@ -475,13 +485,24 @@ static void mpfs_configwaitints(struct mpfs_dev_s *priv, uint32_t waitmask,
    * operation.
    */
 
-  flags = enter_critical_section();
+  flags = spin_lock_irqsave(&priv->lock);
+
+#ifdef CONFIG_MMCSD_SDIOWAIT_WRCOMPLETE
+  if ((waitevents & SDIOWAIT_WRCOMPLETE) != 0)
+    {
+      up_enable_irq(priv->wrcomplete_irq);
+    }
+  else if ((priv->waitevents & SDIOWAIT_WRCOMPLETE) != 0)
+    {
+      up_disable_irq(priv->wrcomplete_irq);
+    }
+#endif
 
   priv->waitevents = waitevents;
   priv->wkupevent  = wkupevent;
   priv->waitmask   = waitmask;
 
-  leave_critical_section(flags);
+  spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 /****************************************************************************
@@ -505,12 +526,9 @@ static void mpfs_configxfrints(struct mpfs_dev_s *priv, uint32_t xfrmask,
 {
   irqstate_t flags;
 
-  flags = enter_critical_section();
+  flags = spin_lock_irqsave(&priv->lock);
   priv->xfrmask = xfrmask;
   priv->xfr_blkmask = xfr_blkmask;
-
-  mcinfo("Mask: %08" PRIx32 "\n", priv->xfrmask | priv->waitmask);
-  mcinfo("blkmask: %08" PRIx32 "\n", priv->xfr_blkmask);
 
   mpfs_putreg8(priv, priv->xfrmask | priv->waitmask, MPFS_COREMMC_IMR);
 
@@ -523,7 +541,7 @@ static void mpfs_configxfrints(struct mpfs_dev_s *priv, uint32_t xfrmask,
       mpfs_putreg8(priv, priv->xfr_blkmask, MPFS_COREMMC_SBIMR);
     }
 
-  leave_critical_section(flags);
+  spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 /****************************************************************************
@@ -777,6 +795,34 @@ static void mpfs_endtransfer(struct mpfs_dev_s *priv,
       mpfs_endwait(priv, wkupevent);
     }
 }
+
+/****************************************************************************
+ * Name: mpfs_coremmc_wrcomplete_interrupt
+ *
+ * Description:
+ *   coremmc interrupt handler for SD card wrcomplete (DAT0) detection
+ *
+ * Input Parameters:
+ *   priv  - Instance of the coremmc private state structure.
+ *
+ * Returned Value:
+ *   OK    - Interrupt handled
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_MMCSD_SDIOWAIT_WRCOMPLETE
+static int mpfs_coremmc_wrcomplete_interrupt(int irq, void *context,
+                                             void *arg)
+{
+  struct mpfs_dev_s *priv = (struct mpfs_dev_s *)arg;
+
+  DEBUGASSERT(priv != NULL);
+
+  mpfs_endwait(priv, SDIOWAIT_WRCOMPLETE);
+
+  return OK;
+}
+#endif
 
 /****************************************************************************
  * Name: mpfs_coremmc_interrupt
@@ -1311,7 +1357,19 @@ static int mpfs_attach(struct sdio_dev_s *dev)
       mpfs_putreg8(priv, 0x00, MPFS_COREMMC_MBIMR);
       mpfs_putreg8(priv, 0xff, MPFS_COREMMC_MBICR);
 
-      up_enable_irq(priv->plic_irq);
+#ifdef CONFIG_MMCSD_SDIOWAIT_WRCOMPLETE
+      ret = irq_attach(priv->wrcomplete_irq,
+                       mpfs_coremmc_wrcomplete_interrupt, priv);
+
+      if (ret != OK)
+        {
+          irq_detach(priv->plic_irq);
+        }
+      else
+#endif
+        {
+          up_enable_irq(priv->plic_irq);
+        }
     }
 
   mcinfo("attach: %d\n", ret);
@@ -1785,7 +1843,7 @@ static int mpfs_check_recverror(struct mpfs_dev_s *priv)
  * Input Parameters:
  *   dev    - An instance of the SDIO device interface
  *   cmd    - Command
- *   rshort - Buffer for reveiving the response
+ *   rshort - Buffer for receiving the response
  *
  * Returned Value:
  *   OK on success; a negated errno on failure.
@@ -1829,7 +1887,7 @@ static int mpfs_recvshortcrc(struct sdio_dev_s *dev, uint32_t cmd,
  * Input Parameters:
  *   dev    - An instance of the SDIO device interface
  *   cmd    - Command
- *   rshort - Buffer for reveiving the response
+ *   rshort - Buffer for receiving the response
  *
  * Returned Value:
  *   OK on success; a negated errno on failure.
@@ -1873,7 +1931,7 @@ static int mpfs_recvshort(struct sdio_dev_s *dev, uint32_t cmd,
  * Input Parameters:
  *   dev    - An instance of the SDIO device interface
  *   cmd    - Command
- *   rlong  - Buffer for reveiving the response
+ *   rlong  - Buffer for receiving the response
  *
  * Returned Value:
  *   OK on success; a negated errno on failure.
@@ -2292,7 +2350,7 @@ void mpfs_coremmc_sdio_mediachange(struct sdio_dev_s *dev, bool cardinslot)
 
   /* Update card status */
 
-  flags = enter_critical_section();
+  flags = spin_lock_irqsave(&priv->lock);
   cdstatus = priv->cdstatus;
   if (cardinslot)
     {
@@ -2303,7 +2361,7 @@ void mpfs_coremmc_sdio_mediachange(struct sdio_dev_s *dev, bool cardinslot)
       priv->cdstatus &= ~SDIO_STATUS_PRESENT;
     }
 
-  leave_critical_section(flags);
+  spin_unlock_irqrestore(&priv->lock, flags);
 
   mcinfo("cdstatus OLD: %02" PRIx8 " NEW: %02" PRIx8 "\n",
          cdstatus, priv->cdstatus);
@@ -2339,7 +2397,7 @@ void mpfs_coremmc_sdio_wrprotect(struct sdio_dev_s *dev, bool wrprotect)
 
   /* Update card status */
 
-  flags = enter_critical_section();
+  flags = spin_lock_irqsave(&priv->lock);
   if (wrprotect)
     {
       priv->cdstatus |= SDIO_STATUS_WRPROTECTED;
@@ -2349,7 +2407,5 @@ void mpfs_coremmc_sdio_wrprotect(struct sdio_dev_s *dev, bool wrprotect)
       priv->cdstatus &= ~SDIO_STATUS_WRPROTECTED;
     }
 
-  mcinfo("cdstatus: %02" PRIx8 "\n", priv->cdstatus);
-
-  leave_critical_section(flags);
+  spin_unlock_irqrestore(&priv->lock, flags);
 }

@@ -22,6 +22,10 @@
 
 ifeq ($(CONFIG_ARCH_BOARD_COMMON),y)
 
+ifeq ($(CONFIG_ESPRESSIF_ADC),y)
+  CSRCS += esp32s2_board_adc.c
+endif
+
 ifeq ($(CONFIG_WATCHDOG),y)
   CSRCS += esp32s2_board_wdt.c
 endif
@@ -50,7 +54,7 @@ ifeq ($(CONFIG_SENSORS_MAX6675),y)
   CSRCS += esp32s2_max6675.c
 endif
 
-ifeq ($(CONFIG_ESP32S2_I2S),y)
+ifeq ($(CONFIG_ESPRESSIF_I2S),y)
   CSRCS += esp32s2_board_i2sdev.c
 endif
 
@@ -80,6 +84,10 @@ endif
 
 ifeq ($(CONFIG_ESP_PCNT),y)
   CSRCS += esp32s2_board_pcnt.c
+endif
+
+ifeq ($(CONFIG_MMCSD_SPI), y)
+  CSRCS += esp32s2_board_sdmmc.c
 endif
 
 ifeq ($(CONFIG_ESP32S2_TWAI)$(CONFIG_ARCH_BUTTONS),y)

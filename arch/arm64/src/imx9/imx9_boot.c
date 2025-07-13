@@ -87,6 +87,43 @@ const struct arm_mmu_config g_mmu_config =
  * Public Functions
  ****************************************************************************/
 
+#ifdef CONFIG_SMP
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+/****************************************************************************
+ * Name: arm64_get_mpid
+ *
+ * Description:
+ *   The function from cpu index to get cpu mpid which is reading
+ * from mpidr_el1 register. Different ARM64 Core will use different
+ * Affn define, the mpidr_el1 value is not CPU number, So we need
+ * to change CPU number to mpid and vice versa
+ *
+ ****************************************************************************/
+
+uint64_t arm64_get_mpid(int cpu)
+{
+  return CORE_TO_MPID(cpu, 1);
+}
+
+/****************************************************************************
+ * Name: arm64_get_cpuid
+ *
+ * Description:
+ *   The function from mpid to get cpu id
+ *
+ ****************************************************************************/
+
+int arm64_get_cpuid(uint64_t mpid)
+{
+  return MPID_TO_CORE(mpid);
+}
+
+#endif /* CONFIG_SMP */
+
 /****************************************************************************
  * Name: arm64_el_init
  *
@@ -126,7 +163,7 @@ void arm64_el_init(void)
 
 void arm64_chip_boot(void)
 {
-#ifdef CONFIG_IMX9_BOOTLOADER
+#if defined(CONFIG_IMX9_BOOTLOADER) && CONFIG_ARCH_ARM64_EXCEPTION_LEVEL == 3
   imx9_mix_powerup();
 
   /* Before DDR init we need to initialize clocks and trdc */
@@ -142,9 +179,11 @@ void arm64_chip_boot(void)
 #endif
 #endif
 
+#ifdef CONFIG_ARCH_USE_MMU
   /* MAP IO and DRAM, enable MMU. */
 
   arm64_mmu_init(true);
+#endif
 
   /* Do UART early initialization & pin muxing */
 

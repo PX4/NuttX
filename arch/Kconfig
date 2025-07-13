@@ -434,6 +434,12 @@ config ARCH_HAVE_FORK
 	bool
 	default n
 
+config ARCH_HAVE_CRC32
+	bool
+	default n
+	---help---
+		Architecture supports CRC32 instruction
+
 config ARCH_HAVE_FPU
 	bool
 	default n
@@ -486,6 +492,23 @@ config ARCH_HAVE_RESET
 	bool
 	default n
 
+config ARCH_LDST_16BIT_NOT_ATOMIC
+	bool
+	default n
+	select ARCH_HAVE_8BIT_SERIAL_BUFSIZE
+	---help---
+	This configuration option denotes architecture incapable of loading
+	16-bit values atomically, ie. in a single instruction. If this is set,
+	it means that the architecture needs two (or more) instructions
+	to perform such load AND that a interrupt service routine may run
+	between their execution. The same applies for stores.
+
+	If set, any code running in non-interrupt context that reads 16-bit
+	variable that may be written in interrupt context must disable
+	interrupts or use another method that makes the read atomic.
+	(The same applies for non-interrupt context write and interrupt
+	context read.)
+
 config ARCH_HAVE_TESTSET
 	bool
 	default n
@@ -521,6 +544,10 @@ config ARCH_HAVE_BACKTRACE
 
 config ARCH_HAVE_DEBUG
 	bool "Architecture have debug support"
+	default n
+
+config ARCH_HAVE_MEMTAG
+	bool "Architecture have memory tagging support"
 	default n
 
 config ARCH_HAVE_PERF_EVENTS
@@ -906,7 +933,7 @@ config PAGING
 	default n
 	depends on BUILD_KERNEL && ARCH_USE_MMU && !ARCH_ROMPGTABLE && !LEGACY_PAGING
 	---help---
-		If set =y in your configation file, this setting will enable on-demand
+		If set =y in your configuration file, this setting will enable on-demand
 		paging, which relies on a MMU to enable larger virtual memory spaces
 		and map it to physical memory on-demand (usually during a page-fault
 		exception).
@@ -916,7 +943,7 @@ menuconfig LEGACY_PAGING
 	default n
 	depends on EXPERIMENTAL && ARCH_USE_MMU && !ARCH_ROMPGTABLE
 	---help---
-		If set =y in your configation file, this setting will enable lazy loading
+		If set =y in your configuration file, this setting will enable lazy loading
 		backed up by the experimental on-demand paging feature as described in
 		https://nuttx.apache.org/docs/latest/components/paging.html.
 
@@ -1180,7 +1207,7 @@ config ARCH_MINIMAL_VECTORTABLE
 		if it occurs will result in an unexpected interrupt crash.
 
 config ARCH_MINIMAL_VECTORTABLE_DYNAMIC
-	bool "Dynaminc Minimal RAM usage for vector table"
+	bool "Dynamic Minimal RAM usage for vector table"
 	default n
 	depends on ARCH_MINIMAL_VECTORTABLE
 	---help---

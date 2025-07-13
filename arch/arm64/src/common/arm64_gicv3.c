@@ -29,6 +29,7 @@
 #include <assert.h>
 
 #include <nuttx/arch.h>
+#include <nuttx/compiler.h>
 #include <arch/barriers.h>
 #include <arch/irq.h>
 #include <arch/chip/chip.h>
@@ -82,12 +83,14 @@
 /* Redistributor base addresses for each core */
 
 static unsigned long g_gic_rdists[CONFIG_SMP_NCPUS];
+static volatile spinlock_t g_gic_lock = SP_UNLOCKED;
 
 /***************************************************************************
  * Private Functions
  ***************************************************************************/
 
-static inline void sys_set_bit(unsigned long addr, unsigned int bit)
+unused_code static inline void sys_set_bit(unsigned long addr,
+                                           unsigned int bit)
 {
   uint32_t temp;
 
@@ -105,7 +108,8 @@ static inline void sys_clear_bit(unsigned long addr, unsigned int bit)
   putreg32(temp, addr);
 }
 
-static inline int sys_test_bit(unsigned long addr, unsigned int bit)
+unused_code static inline int sys_test_bit(unsigned long addr,
+                                           unsigned int bit)
 {
   uint32_t temp;
 
@@ -116,20 +120,6 @@ static inline int sys_test_bit(unsigned long addr, unsigned int bit)
 static inline unsigned long gic_get_rdist(void)
 {
   return g_gic_rdists[this_cpu()];
-}
-
-static inline uint32_t read_gicd_wait_rwp(void)
-{
-  uint32_t value;
-
-  value = getreg32(GICD_CTLR);
-
-  while (value & BIT(GICD_CTLR_RWP))
-    {
-      value = getreg32(GICD_CTLR);
-    }
-
-  return value;
 }
 
 /* Wait for register write pending
@@ -174,6 +164,7 @@ void arm64_gic_irq_set_priority(unsigned int intid, unsigned int prio,
   uint32_t      shift;
   uint32_t      val;
   unsigned long base = GET_DIST_BASE(intid);
+  irqstate_t    irq_flags;
 
   /* Disable the interrupt */
 
@@ -191,6 +182,13 @@ void arm64_gic_irq_set_priority(unsigned int intid, unsigned int prio,
       idx     = intid / GIC_NUM_CFG_PER_REG;
       shift   = (intid & (GIC_NUM_CFG_PER_REG - 1)) * 2;
 
+      /* GICD_ICFGR requires full 32-bit RMW operations.
+       * Each interrupt uses 2 bits; thus updates must be synchronized
+       * to avoid losing configuration in concurrent environments.
+       */
+
+      irq_flags = spin_lock_irqsave(&g_gic_lock);
+
       val = getreg32(ICFGR(base, idx));
       val &= ~(GICD_ICFGR_MASK << shift);
       if (flags & IRQ_TYPE_EDGE)
@@ -199,6 +197,7 @@ void arm64_gic_irq_set_priority(unsigned int intid, unsigned int prio,
         }
 
       putreg32(val, ICFGR(base, idx));
+      spin_unlock_irqrestore(&g_gic_lock, irq_flags);
     }
 }
 
@@ -227,11 +226,19 @@ int arm64_gic_irq_trigger(unsigned int intid, uint32_t flags)
   uint32_t      shift;
   uint32_t      val;
   unsigned long base = GET_DIST_BASE(intid);
+  irqstate_t    irq_flags;
 
   if (!GIC_IS_SGI(intid))
     {
       idx   = intid / GIC_NUM_CFG_PER_REG;
       shift = (intid & (GIC_NUM_CFG_PER_REG - 1)) * 2;
+
+      /* GICD_ICFGR requires full 32-bit RMW operations.
+       * Each interrupt uses 2 bits; thus updates must be synchronized
+       * to avoid losing configuration in concurrent environments.
+       */
+
+      irq_flags = spin_lock_irqsave(&g_gic_lock);
 
       val = getreg32(ICFGR(base, idx));
       val &= ~(GICD_ICFGR_MASK << shift);
@@ -241,6 +248,7 @@ int arm64_gic_irq_trigger(unsigned int intid, uint32_t flags)
         }
 
       putreg32(val, ICFGR(base, idx));
+      spin_unlock_irqrestore(&g_gic_lock, irq_flags);
       return OK;
     }
 

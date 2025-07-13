@@ -128,7 +128,7 @@ static inline void timer_restart(FAR struct posix_timer_s *timer,
        */
 
       frame = (delay + timer->pt_delay) / timer->pt_delay;
-      timer->pt_overrun = frame - 1;
+      timer->pt_overrun   = frame - 1;
       timer->pt_expected += frame * timer->pt_delay;
 
       wd_start_abstick(&timer->pt_wdog, timer->pt_expected,
@@ -316,9 +316,7 @@ int timer_settime(timer_t timerid, int flags,
     {
       /* Calculate a delay corresponding to the absolute time in 'value' */
 
-      clock_abstime2ticks(timer->pt_clock, &value->it_value,
-                          &timer->pt_expected);
-      timer->pt_expected += clock_systime_ticks();
+      clock_abstime2ticks(timer->pt_clock, &value->it_value, &delay);
     }
   else
     {
@@ -328,8 +326,9 @@ int timer_settime(timer_t timerid, int flags,
        */
 
       delay = clock_time2ticks(&value->it_value);
-      timer->pt_expected = clock_systime_ticks() + delay;
     }
+
+  timer->pt_expected = clock_delay2abstick(delay);
 
   /* Then start the watchdog */
 

@@ -1,0 +1,247 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+if ARCH_CHIP_AVRDX
+comment "AVR DA/DB Configuration Options"
+
+# Hidden configuration options selected by specific chip
+# Available serial ports
+config AVR_HAS_USART_2
+	bool
+	default n
+
+config AVR_HAS_USART_4
+	bool
+	default n
+
+config AVR_HAS_USART_5
+	bool
+	default n
+
+# Available I/O ports (only those not common for all devices)
+config AVR_HAS_PORTB
+	bool
+	default n
+
+config AVR_HAS_PORTE
+	bool
+	default n
+
+config AVR_HAS_PORTG
+	bool
+	default n
+
+choice
+	prompt "Atmel AVR DA/DB chip selection"
+	default ARCH_CHIP_AVR128DA28
+
+config ARCH_CHIP_AVR128DA28
+	bool "AVR128DA28"
+	select AVR_HAS_RAMPZ
+	select AVR_HAS_USART_2
+	---help---
+		Atmel AVR128DA28 8-bit AVR.
+
+config ARCH_CHIP_AVR128DA64
+	bool "AVR128DA64"
+	select AVR_HAS_RAMPZ
+	select AVR_HAS_USART_2
+	select AVR_HAS_USART_4
+	select AVR_HAS_USART_5
+	select AVR_HAS_PORTB
+	select AVR_HAS_PORTE
+	select AVR_HAS_PORTG
+	---help---
+		Atmel AVR128DA64 8-bit AVR.
+
+config ARCH_CHIP_AVR128DB64
+	bool "AVR128DB64"
+	select AVR_HAS_RAMPZ
+	select AVR_HAS_USART_2
+	select AVR_HAS_USART_4
+	select AVR_HAS_USART_5
+	select AVR_HAS_PORTB
+	select AVR_HAS_PORTE
+	select AVR_HAS_PORTG
+	---help---
+		Atmel AVR128DB64 8-bit AVR.
+
+endchoice # AVR DA/DB Configuration Options
+
+config AVR_AVRDX_GPIO_ISR_MUX
+	bool "GPIO ISR multiplexer"
+	default n
+	---help---
+		Compile ISR multiplexer code for GPIO. It can be used
+		instead of direct call of irq_attach when multiple
+		users (eg. drivers) want to use the same interrupt
+		vector with different pins on the same port.
+
+		Say Y if your board needs this.
+
+menu "AVR DA/DB Peripheral Selections"
+
+config AVR_USART0
+	bool "Enable serial driver for USART0"
+	select USART0_SERIALDRIVER
+	select ARCH_HAVE_SERIAL_TERMIOS
+	depends on AVR_HAS_USART_2
+	depends on SERIAL
+	---help---
+		Enable serial driver on USART0
+
+config AVR_USART0_ALT
+	bool "Activate USART0 alternative pinout"
+	depends on AVR_USART0
+	---help---
+		Board is wired to use alternative I/O pins,
+		4-5 instead of 0-1 for TxD/RxD
+
+config AVR_USART1
+	bool "Enable serial driver for USART1"
+	select USART1_SERIALDRIVER
+	select ARCH_HAVE_SERIAL_TERMIOS
+	depends on AVR_HAS_USART_2
+	depends on SERIAL
+	---help---
+		Enable serial driver on USART1
+
+config AVR_USART1_ALT
+	bool "Activate USART1 alternative pinout"
+	depends on AVR_USART1
+	---help---
+		Board is wired to use alternative I/O pins,
+		4-5 instead of 0-1 for TxD/RxD
+
+config AVR_USART2
+	bool "Enable serial driver for USART2"
+	select USART2_SERIALDRIVER
+	select ARCH_HAVE_SERIAL_TERMIOS
+	depends on AVR_HAS_USART_2
+	depends on SERIAL
+	---help---
+		Enable serial driver on USART2
+
+config AVR_USART2_ALT
+	bool "Activate USART2 alternative pinout"
+	depends on AVR_USART2
+	---help---
+		Board is wired to use alternative I/O pins,
+		4-5 instead of 0-1 for TxD/RxD
+
+config AVR_USART3
+	bool "Enable serial driver for USART3"
+	select USART3_SERIALDRIVER
+	select ARCH_HAVE_SERIAL_TERMIOS
+	depends on AVR_HAS_USART_4
+	depends on SERIAL
+	---help---
+		Enable serial driver on USART3
+
+config AVR_USART3_ALT
+	bool "Activate USART3 alternative pinout"
+	depends on AVR_USART3
+	---help---
+		Board is wired to use alternative I/O pins,
+		4-5 instead of 0-1 for TxD/RxD
+
+config AVR_USART4
+	bool "Enable serial driver for USART4"
+	select USART4_SERIALDRIVER
+	select ARCH_HAVE_SERIAL_TERMIOS
+	depends on AVR_HAS_USART_4
+	depends on SERIAL
+	---help---
+		Enable serial driver on USART1
+
+config AVR_USART4_ALT
+	bool "Activate USART4 alternative pinout"
+	depends on AVR_USART4
+	---help---
+		Board is wired to use alternative I/O pins,
+		4-5 instead of 0-1 for TxD/RxD
+
+config AVR_USART5
+	bool "Enable serial driver for USART5"
+	select USART5_SERIALDRIVER
+	select ARCH_HAVE_SERIAL_TERMIOS
+	depends on AVR_HAS_USART_5
+	depends on SERIAL
+	---help---
+		Enable serial driver on USART5
+
+config AVR_USART5_ALT
+	bool "Activate USART5 alternative pinout"
+	depends on AVR_USART5
+	---help---
+		Board is wired to use alternative I/O pins,
+		4-5 instead of 0-1 for TxD/RxD
+
+endmenu # AVR DA/DB Peripheral Selections
+
+choice
+	prompt "Internal High-Frequency Oscillator clock speed"
+	default AVRDX_HFO_CLOCK_24MHZ
+
+config AVRDX_HFO_CLOCK_1MHZ
+	bool "1MHz"
+	---help---
+		Internal oscillator set to 1MHz
+
+config AVRDX_HFO_CLOCK_2MHZ
+	bool "2MHz"
+	---help---
+		Internal oscillator set to 2MHz
+
+config AVRDX_HFO_CLOCK_3MHZ
+	bool "3MHz"
+	---help---
+		Internal oscillator set to 3MHz
+
+config AVRDX_HFO_CLOCK_4MHZ
+	bool "4MHz"
+	---help---
+		Internal oscillator set to 4MHz
+
+config AVRDX_HFO_CLOCK_8MHZ
+	bool "8MHz"
+	---help---
+		Internal oscillator set to 8MHz
+
+config AVRDX_HFO_CLOCK_12MHZ
+	bool "12MHz"
+	---help---
+		Internal oscillator set to 12MHz
+
+config AVRDX_HFO_CLOCK_16MHZ
+	bool "16MHz"
+	---help---
+		Internal oscillator set to 16MHz
+
+config AVRDX_HFO_CLOCK_20MHZ
+	bool "20MHz"
+	---help---
+		Internal oscillator set to 20MHz
+
+config AVRDX_HFO_CLOCK_24MHZ
+	bool "24MHz"
+	---help---
+		Internal oscillator set to 24MHz
+
+endchoice
+
+config AVRDX_HFO_CLOCK_FREQ
+	int
+	default 1000000 if AVRDX_HFO_CLOCK_1MHZ
+	default 2000000 if AVRDX_HFO_CLOCK_2MHZ
+	default 3000000 if AVRDX_HFO_CLOCK_3MHZ
+	default 4000000 if AVRDX_HFO_CLOCK_4MHZ
+	default 8000000 if AVRDX_HFO_CLOCK_8MHZ
+	default 12000000 if AVRDX_HFO_CLOCK_12MHZ
+	default 16000000 if AVRDX_HFO_CLOCK_16MHZ
+	default 20000000 if AVRDX_HFO_CLOCK_20MHZ
+	default 24000000 if AVRDX_HFO_CLOCK_24MHZ
+
+endif

@@ -35,7 +35,9 @@
 #include <nuttx/kmalloc.h>
 #include <nuttx/pci/pci.h>
 
-#include <nuttx/can/can.h>
+#ifdef CONFIG_CAN_KVASER_CHARDEV
+#  include <nuttx/can/can.h>
+#endif
 
 #ifdef CONFIG_CAN_KVASER_SOCKET
 #  include <nuttx/wqueue.h>
@@ -369,7 +371,7 @@ static void kvaser_setup(FAR struct kvaser_sja_s *priv)
 {
   /* REVISIT: missing bus timings configuration and output control.
    *
-   * This driver was verified on QEMU with virtual host CAN netwrok,
+   * This driver was verified on QEMU with virtual host CAN network,
    * which doesn't need bus timings and output control registers set.
    * For real hardware, these registers must be properly configured !
    */
@@ -820,7 +822,7 @@ static void kvaser_chardev_receive(FAR struct kvaser_sja_s *priv)
           canerr("ERROR: Received message with extended"
                  " identifier.  Dropped\n");
 
-          /* Relese RX buffer */
+          /* Release RX buffer */
 
           kvaser_putreg_sja(priv, SJA1000_CMD_REG, SJA1000_RELEASE_BUF);
 
@@ -1591,7 +1593,7 @@ static void kvaser_init(FAR struct kvaser_driver_s *priv)
  * Name: kvaser_count_sja
  *
  * Description:
- *   Proble SJA1000 devices on board and return the number of vailalbe chips.
+ *   Probe SJA1000 devices on board and return the number of available chips.
  *
  *****************************************************************************/
 

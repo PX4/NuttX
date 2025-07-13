@@ -41,6 +41,10 @@
 #include "esp_board_i2c.h"
 #include "esp_board_bmp180.h"
 
+#ifdef CONFIG_ESPRESSIF_ADC
+#  include "esp_board_adc.h"
+#endif
+
 #ifdef CONFIG_WATCHDOG
 #  include "espressif/esp_wdt.h"
 #endif
@@ -101,13 +105,21 @@
 #  include "esp_ble.h"
 #endif
 
-#ifdef CONFIG_SPI_SLAVE_DRIVER
+#ifdef CONFIG_SPI_SLAVE
 #  include "espressif/esp_spi.h"
 #  include "esp_board_spislavedev.h"
 #endif
 
 #ifdef CONFIG_SYSTEM_NXDIAG_ESPRESSIF_CHIP_WO_TOOL
 #  include "espressif/esp_nxdiag.h"
+#endif
+
+#ifdef CONFIG_ESP_SDM
+#  include "espressif/esp_sdm.h"
+#endif
+
+#ifdef CONFIG_ESPRESSIF_SHA_ACCELERATOR
+#  include "espressif/esp_sha.h"
 #endif
 
 #include "esp32c3-generic.h"
@@ -173,6 +185,16 @@ int esp_bringup(void)
     }
 #endif
 
+#if defined(CONFIG_ESPRESSIF_SHA_ACCELERATOR) && \
+    !defined(CONFIG_CRYPTO_CRYPTODEV_HARDWARE)
+  ret = esp_sha_init();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR,
+             "ERROR: Failed to initialize SHA: %d\n", ret);
+    }
+#endif
+
 #ifdef CONFIG_ESPRESSIF_MWDT0
   ret = esp_wdt_initialize("/dev/watchdog0", ESP_WDT_MWDT0);
   if (ret < 0)
@@ -221,7 +243,7 @@ int esp_bringup(void)
 #endif
 #endif
 
-#if defined(CONFIG_ESPRESSIF_SPI) && defined(CONFIG_SPI_DRIVER)
+#ifdef CONFIG_ESPRESSIF_SPI
 #  ifdef CONFIG_ESPRESSIF_SPI2
   ret = board_spidev_initialize(ESPRESSIF_SPI2);
   if (ret < 0)
@@ -237,7 +259,7 @@ int esp_bringup(void)
       syslog(LOG_ERR, "ERROR: Failed to init spidev 3: %d\n", ret);
     }
 #  endif /* CONFIG_ESPRESSIF_SPI_BITBANG */
-#endif /* CONFIG_ESPRESSIF_SPI && CONFIG_SPI_DRIVER*/
+#endif /* CONFIG_ESPRESSIF_SPI */
 
 #ifdef CONFIG_ESPRESSIF_SPIFLASH
   ret = board_spiflash_init();
@@ -290,7 +312,7 @@ int esp_bringup(void)
     }
 #endif
 
-#if defined(CONFIG_SPI_SLAVE_DRIVER) && defined(CONFIG_ESPRESSIF_SPI2)
+#if defined(CONFIG_SPI_SLAVE) && defined(CONFIG_ESPRESSIF_SPI2)
   ret = board_spislavedev_initialize(ESPRESSIF_SPI2);
   if (ret < 0)
     {
@@ -331,7 +353,7 @@ int esp_bringup(void)
     }
 #endif
 
-#if defined(CONFIG_I2C_DRIVER)
+#if defined(CONFIG_I2C)
   /* Configure I2C peripheral interfaces */
 
   ret = board_i2c_init();
@@ -351,6 +373,23 @@ int esp_bringup(void)
     {
       syslog(LOG_ERR, "Failed to initialize BMP180 "
              "Driver for I2C0: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_ESP_SDM
+  struct esp_sdm_chan_config_s config =
+  {
+    .gpio_num = 5,
+    .sample_rate_hz = 1000 * 1000,
+    .flags = 0,
+  };
+
+  struct dac_dev_s *dev = esp_sdminitialize(config);
+  ret = dac_register("/dev/dac0", dev);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to initialize DAC driver: %d\n",
+             ret);
     }
 #endif
 
@@ -396,6 +435,14 @@ int esp_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: esp_nxdiag_initialize failed: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_ESPRESSIF_ADC
+  ret = board_adc_init();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to initialize ADC driver: %d\n", ret);
     }
 #endif
 

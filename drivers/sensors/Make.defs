@@ -34,6 +34,14 @@ ifeq ($(CONFIG_SENSORS_RPMSG),y)
   CSRCS += sensor_rpmsg.c
 endif
 
+ifeq ($(CONFIG_SENSORS_NAU7802),y)
+  CSRCS += nau7802.c
+endif
+
+ifeq ($(CONFIG_SENSORS_L86_XXX),y)
+  CSRCS += l86xxx_uorb.c
+endif
+
 ifeq ($(CONFIG_SENSORS_GNSS),y)
   CSRCS += gnss_uorb.c
 endif
@@ -202,6 +210,10 @@ endif
 
 ifeq ($(CONFIG_SENSORS_BME680),y)
   CSRCS += bme680_uorb.c
+endif
+
+ifeq ($(CONFIG_SENSORS_BME688),y)
+  CSRCS += bme688_uorb.c
 endif
 
 ifeq ($(CONFIG_SENSORS_ISL29023),y)
@@ -448,6 +460,12 @@ endif
 
 ifeq ($(CONFIG_SENSORS_MAX31865),y)
   CSRCS += max31865.c
+endif
+
+# SONY CXD5602PWBIMU
+
+ifeq ($(CONFIG_SENSORS_CXD5602PWBIMU),y)
+  CSRCS += cxd5602pwbimu.c
 endif
 
 # Include sensor driver build support

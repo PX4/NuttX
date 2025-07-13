@@ -45,22 +45,6 @@ extern "C"
  * Pre-processor Definitions
  ****************************************************************************/
 
-#if defined(CONFIG_ESP32_WIFI_STATION)
-#  define ESP32_WLAN_HAS_STA
-#  define ESP32_WLAN_STA_DEVNO    0
-#  define ESP32_WLAN_DEVS         1
-#elif defined(CONFIG_ESP32_WIFI_SOFTAP)
-#  define ESP32_WLAN_HAS_SOFTAP
-#  define ESP32_WLAN_SOFTAP_DEVNO 0
-#  define ESP32_WLAN_DEVS         1
-#elif defined(CONFIG_ESP32_WIFI_STATION_SOFTAP)
-#  define ESP32_WLAN_HAS_STA
-#  define ESP32_WLAN_HAS_SOFTAP
-#  define ESP32_WLAN_STA_DEVNO    0
-#  define ESP32_WLAN_SOFTAP_DEVNO 1
-#  define ESP32_WLAN_DEVS         2
-#endif
-
 #define SSID_MAX_LEN                (32)
 #define PWD_MAX_LEN                 (64)
 
@@ -69,23 +53,6 @@ extern "C"
 /* Define esp_err_t */
 
 typedef int esp_err_t;
-
-/* Wi-Fi event ID */
-
-enum wifi_adpt_evt_e
-{
-  WIFI_ADPT_EVT_SCAN_DONE = 0,
-  WIFI_ADPT_EVT_STA_START,
-  WIFI_ADPT_EVT_STA_CONNECT,
-  WIFI_ADPT_EVT_STA_DISCONNECT,
-  WIFI_ADPT_EVT_STA_AUTHMODE_CHANGE,
-  WIFI_ADPT_EVT_STA_STOP,
-  WIFI_ADPT_EVT_AP_START,
-  WIFI_ADPT_EVT_AP_STOP,
-  WIFI_ADPT_EVT_AP_STACONNECTED,
-  WIFI_ADPT_EVT_AP_STADISCONNECTED,
-  WIFI_ADPT_EVT_MAX,
-};
 
 enum coex_log_level_e
 {
@@ -144,25 +111,6 @@ int esp_wifi_adapter_init(void);
 void esp_wifi_free_eb(void *eb);
 
 /****************************************************************************
- * Name: esp_wifi_notify_subscribe
- *
- * Description:
- *   Enable event notification
- *
- * Input Parameters:
- *   pid   - Task PID
- *   event - Signal event data pointer
- *
- * Returned Value:
- *   0 if success or -1 if fail
- *
- ****************************************************************************/
-
-int esp_wifi_notify_subscribe(pid_t pid, struct sigevent *event);
-
-#ifdef ESP32_WLAN_HAS_STA
-
-/****************************************************************************
  * Name: esp_wifi_sta_start
  *
  * Description:
@@ -212,7 +160,7 @@ int esp_wifi_sta_stop(void);
  *
  ****************************************************************************/
 
-int esp_wifi_sta_send_data(void *pbuf, uint32_t len);
+int esp_wifi_sta_send_data(void *pbuf, size_t len);
 
 /****************************************************************************
  * Name: esp_wifi_sta_register_recv_cb
@@ -496,9 +444,6 @@ int esp_wifi_sta_country(struct iwreq *iwr, bool set);
  ****************************************************************************/
 
 int esp_wifi_sta_rssi(struct iwreq *iwr, bool set);
-#endif /* ESP32_WLAN_HAS_STA */
-
-#ifdef ESP32_WLAN_HAS_SOFTAP
 
 /****************************************************************************
  * Name: esp_wifi_softap_start
@@ -550,7 +495,7 @@ int esp_wifi_softap_stop(void);
  *
  ****************************************************************************/
 
-int esp_wifi_softap_send_data(void *pbuf, uint32_t len);
+int esp_wifi_softap_send_data(void *pbuf, size_t len);
 
 /****************************************************************************
  * Name: esp_wifi_softap_register_recv_cb
@@ -834,7 +779,6 @@ int esp_wifi_softap_country(struct iwreq *iwr, bool set);
  ****************************************************************************/
 
 int esp_wifi_softap_rssi(struct iwreq *iwr, bool set);
-#endif /* ESP32_WLAN_HAS_SOFTAP */
 
 /****************************************************************************
  * Name: esp32_wifi_bt_coexist_init
@@ -851,7 +795,7 @@ int esp_wifi_softap_rssi(struct iwreq *iwr, bool set);
  *
  ****************************************************************************/
 
-#ifdef CONFIG_ESP32_WIFI_BT_COEXIST
+#ifdef CONFIG_ESPRESSIF_WIFI_BT_COEXIST
 int esp32_wifi_bt_coexist_init(void);
 void coex_dbg_set_log_level(int level);
 #endif

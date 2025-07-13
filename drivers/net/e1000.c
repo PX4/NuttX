@@ -48,12 +48,12 @@
  * Pre-processor Definitions
  *****************************************************************************/
 
-#if CONFIG_NET_E1000_TXDESC % 2 != 0
-#  error CONFIG_NET_E1000_TXDESC must be multiple of 2
+#if CONFIG_NET_E1000_TXDESC % 8 != 0
+#  error CONFIG_NET_E1000_TXDESC must be multiple of 8
 #endif
 
-#if CONFIG_NET_E1000_RXDESC % 2 != 0
-#  error CONFIG_NET_E1000_RXDESC must be multiple of 2
+#if CONFIG_NET_E1000_RXDESC % 8 != 0
+#  error CONFIG_NET_E1000_RXDESC must be multiple of 8
 #endif
 
 /* Packet buffer size */
@@ -69,7 +69,7 @@
 /* After RX packet is done, we provide free netpkt to the RX descriptor ring.
  * The upper-half network logic is responsible for freeing the RX packets
  * so we need some additional spare netpkt buffers to assure that it's
- * allways possible to allocate the new RX packet in the recevier logic.
+ * always possible to allocate the new RX packet in the receiver logic.
  * It's hard to tell how many spare buffers is needed, for now it's set to 8.
  */
 
@@ -143,10 +143,6 @@ struct e1000_driver_s
 
   struct netdev_lowerhalf_s dev;
   struct work_s work;
-
-  /* Driver state */
-
-  bool bifup;
 
   /* Packets list */
 
@@ -480,13 +476,16 @@ static void e1000_dump_mem(FAR struct e1000_driver_s *priv,
  * Name: e1000_txclean
  *
  * Description:
- *   Clean transmition ring
+ *   Clean transmission ring
  *
  * Input Parameters:
  *   priv - Reference to the driver state structure
  *
  * Returned Value:
  *   None
+ *
+ * Assumption:
+ *   This function can be called only after card reset and when TX is disabled
  *
  *****************************************************************************/
 
@@ -528,6 +527,9 @@ static void e1000_txclean(FAR struct e1000_driver_s *priv)
  * Returned Value:
  *   None
  *
+ * Assumption:
+ *   This function can be called only after card reset and when RX is disabled
+ *
  *****************************************************************************/
 
 static void e1000_rxclean(FAR struct e1000_driver_s *priv)
@@ -535,7 +537,7 @@ static void e1000_rxclean(FAR struct e1000_driver_s *priv)
   priv->rx_now = 0;
 
   e1000_putreg_mem(priv, E1000_RDH, 0);
-  e1000_putreg_mem(priv, E1000_RDT, 0);
+  e1000_putreg_mem(priv, E1000_RDT, E1000_RX_DESC - 1);
 }
 
 /*****************************************************************************
@@ -559,10 +561,11 @@ static void e1000_rxclean(FAR struct e1000_driver_s *priv)
 static int e1000_transmit(FAR struct netdev_lowerhalf_s *dev,
                           FAR netpkt_t *pkt)
 {
-  FAR struct e1000_driver_s *priv = (FAR struct e1000_driver_s *)dev;
-  uint64_t                   pa   = 0;
-  int                        desc = priv->tx_now;
-  size_t                     len  = netpkt_getdatalen(dev, pkt);
+  FAR struct e1000_driver_s *priv    = (FAR struct e1000_driver_s *)dev;
+  uint64_t                   pa      = 0;
+  int                        desc    = priv->tx_now;
+  size_t                     len     = netpkt_getdatalen(dev, pkt);
+  size_t                     tx_next = (priv->tx_now + 1) % E1000_TX_DESC;
 
   ninfo("transmit\n");
 
@@ -579,13 +582,20 @@ static int e1000_transmit(FAR struct netdev_lowerhalf_s *dev,
       return -ENETDOWN;
     }
 
+  /* Drop packet if ring full */
+
+  if (tx_next == priv->tx_done)
+    {
+      return -ENOMEM;
+    }
+
   /* Store TX packet reference */
 
   priv->tx_pkt[priv->tx_now] = pkt;
 
   /* Prepare next TX descriptor */
 
-  priv->tx_now = (priv->tx_now + 1) % E1000_TX_DESC;
+  priv->tx_now = tx_next;
 
   /* Setup TX descriptor */
 
@@ -673,7 +683,7 @@ static FAR netpkt_t *e1000_receive(FAR struct netdev_lowerhalf_s *dev)
 
   e1000_putreg_mem(priv, E1000_RDT, desc);
 
-  /* Handle errros */
+  /* Handle errors */
 
   if (rx->errors)
     {
@@ -757,15 +767,11 @@ static void e1000_link_work(FAR void *arg)
       ninfo("Link up, status = 0x%x\n", tmp);
 
       netdev_lower_carrier_on(&priv->dev);
-
-      /* Clear Tx and RX rings */
-
-      e1000_txclean(priv);
-      e1000_rxclean(priv);
     }
   else
     {
       ninfo("Link down\n");
+
       netdev_lower_carrier_off(&priv->dev);
     }
 }
@@ -989,12 +995,16 @@ static int e1000_ifup(FAR struct netdev_lowerhalf_s *dev)
         dev->netdev.d_ipv6addr[6], dev->netdev.d_ipv6addr[7]);
 #endif
 
+  flags = enter_critical_section();
+
   /* Enable the Ethernet */
 
-  flags = enter_critical_section();
   e1000_enable(priv);
-  priv->bifup = true;
   leave_critical_section(flags);
+
+  /* Update link status in case link status interrupt is missing */
+
+  e1000_link_work(priv);
 
   return OK;
 }
@@ -1032,7 +1042,6 @@ static int e1000_ifdown(FAR struct netdev_lowerhalf_s *dev)
 
   /* Mark the device "down" */
 
-  priv->bifup = false;
   leave_critical_section(flags);
   return OK;
 }
@@ -1166,7 +1175,29 @@ static int e1000_rmmac(FAR struct netdev_lowerhalf_s *dev,
 
 static void e1000_disable(FAR struct e1000_driver_s *priv)
 {
-  int i = 0;
+  uint32_t regval;
+  int      i = 0;
+
+  /* Disable interrupts */
+
+  e1000_putreg_mem(priv, E1000_IMC, priv->irqs);
+  up_disable_irq(priv->irq);
+
+  /* Disable Transmitter */
+
+  regval = e1000_getreg_mem(priv, E1000_TCTL);
+  regval &= ~E1000_TCTL_EN;
+  e1000_putreg_mem(priv, E1000_TCTL, regval);
+
+  /* Disable Receiver */
+
+  e1000_putreg_mem(priv, E1000_RCTL, 0);
+
+  /* We have to reset device, otherwise writing to RDH and THD corrupts
+   * the device state.
+   */
+
+  e1000_putreg_mem(priv, E1000_CTRL, E1000_CTRL_RST);
 
   /* Reset Tx tail */
 
@@ -1175,19 +1206,6 @@ static void e1000_disable(FAR struct e1000_driver_s *priv)
   /* Reset Rx tail */
 
   e1000_rxclean(priv);
-
-  /* Disable interrupts */
-
-  e1000_putreg_mem(priv, E1000_IMC, priv->irqs);
-  up_disable_irq(priv->irq);
-
-  /* Disable Transmiter */
-
-  e1000_putreg_mem(priv, E1000_TCTL, 0);
-
-  /* Disable Receiver */
-
-  e1000_putreg_mem(priv, E1000_RCTL, 0);
 
   /* Free RX packets */
 
@@ -1289,10 +1307,6 @@ static void e1000_enable(FAR struct e1000_driver_s *priv)
 
   e1000_rxclean(priv);
 
-  /* All RX descriptors availalbe */
-
-  e1000_putreg_mem(priv, E1000_RDT, E1000_RX_DESC);
-
   /* Enable interrupts */
 
   e1000_putreg_mem(priv, E1000_IMS, priv->irqs);
@@ -1303,7 +1317,7 @@ static void e1000_enable(FAR struct e1000_driver_s *priv)
   regval = E1000_CTRL_SLU | E1000_CTRL_ASDE;
   e1000_putreg_mem(priv, E1000_CTRL, regval);
 
-  /* Setup and enable Transmiter */
+  /* Setup and enable Transmitter */
 
   regval = e1000_getreg_mem(priv, E1000_TCTL);
   regval |= E1000_TCTL_EN | E1000_TCTL_PSP;
@@ -1319,7 +1333,7 @@ static void e1000_enable(FAR struct e1000_driver_s *priv)
 #endif
   e1000_putreg_mem(priv, E1000_RCTL, regval);
 
-  /* REVISIT: Set granuality to Descriptors */
+  /* REVISIT: Set granularity to Descriptors */
 
   regval = e1000_getreg_mem(priv, E1000_RXDCTL);
   regval |= E1000_RXDCTL_GRAN;
@@ -1372,7 +1386,7 @@ static int e1000_initialize(FAR struct e1000_driver_s *priv)
       priv->irq = pci_get_irq(priv->pcidev);
     }
 
-  /* Attach interupts */
+  /* Attach interrupts */
 
   irq_attach(priv->irq, e1000_interrupt, priv);
 
@@ -1401,7 +1415,7 @@ static int e1000_initialize(FAR struct e1000_driver_s *priv)
     }
   else
     {
-      nwarn("Receive Address not vaild!\n");
+      nwarn("Receive Address not valid!\n");
     }
 
   return OK;

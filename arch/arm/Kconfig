@@ -354,6 +354,19 @@ config ARCH_CHIP_NUC1XX
 	---help---
 		Nuvoton NUC100/120 architectures (ARM Cortex-M0).
 
+config ARCH_CHIP_MCX_NXXX
+	bool "NXP MCX NXXx Cortex-M33"
+	select ARCH_CORTEXM33
+	select ARCH_HAVE_FPU
+	select ARCH_HAVE_DFPU
+	---help---
+		NXXx architectures (Cortex-M33)
+
+config ARCH_CHIP_RA4
+	bool "Renesas RA4"
+	---help---
+		Renesas RA4 Architecture (ARM Cortex-M4F/M33).
+
 config ARCH_CHIP_RP2040
 	bool "Raspberry Pi RP2040"
 	select ARCH_CORTEXM0
@@ -374,6 +387,8 @@ config ARCH_CHIP_RP23XX
 	select ARCH_HAVE_MULTICPU
 	select ARCH_HAVE_I2CRESET
 	select ARM_HAVE_WFE_SEV
+	select ARM_HAVE_DSP
+	select ARCH_HAVE_FPU
 	select ARCH_HAVE_CUSTOM_TESTSET
 	select ARCH_HAVE_PWM_MULTICHAN
 	select ARCH_BOARD_COMMON
@@ -497,13 +512,20 @@ config ARCH_CHIP_STM32L0
 	bool "STMicro STM32 L0"
 	select ARCH_CORTEXM0
 	---help---
-		STMicro STM32L0 architectures (ARM Cortex-M0).
+		STMicro STM32L0 architectures (ARM Cortex-M0+).
 
 config ARCH_CHIP_STM32G0
 	bool "STMicro STM32 G0"
 	select ARCH_CORTEXM0
+	select ARCH_HAVE_PROGMEM
 	---help---
-		STMicro STM32G0 architectures (ARM Cortex-M0).
+		STMicro STM32G0 architectures (ARM Cortex-M0+).
+
+config ARCH_CHIP_STM32C0
+	bool "STMicro STM32 C0"
+	select ARCH_CORTEXM0
+	---help---
+		STMicro STM32C0 architectures (ARM Cortex-M0+).
 
 config ARCH_CHIP_STM32F7
 	bool "STMicro STM32 F7"
@@ -930,6 +952,7 @@ config ARCH_ARMV7A
 	bool
 	default n
 	select ARCH_HAVE_CPUINFO
+	select ARCH_HAVE_DEBUG
 	select ARCH_HAVE_PERF_EVENTS
 	select ARM_HAVE_WFE_SEV
 
@@ -982,7 +1005,6 @@ config ARCH_ARMV7R
 	default n
 	select ARCH_HAVE_CPUINFO
 	select ARCH_HAVE_PERF_EVENTS
-	select ARM_THUMB if BUILD_PROTECTED
 
 config ARCH_CORTEXR4
 	bool
@@ -1155,6 +1177,7 @@ config ARCH_CHIP
 	default "nrf53"		if ARCH_CHIP_NRF53
 	default "nrf91"		if ARCH_CHIP_NRF91
 	default "nuc1xx"	if ARCH_CHIP_NUC1XX
+	default "ra4"			if ARCH_CHIP_RA4
 	default "rp2040"	if ARCH_CHIP_RP2040
 	default "rp23xx"	if ARCH_CHIP_RP23XX
 	default "s32k1xx"	if ARCH_CHIP_S32K1XX
@@ -1165,7 +1188,7 @@ config ARCH_CHIP
 	default "sam34"		if ARCH_CHIP_SAM34
 	default "samv7"		if ARCH_CHIP_SAMV7
 	default "stm32"		if ARCH_CHIP_STM32
-	default "stm32f0l0g0"	if ARCH_CHIP_STM32F0 || ARCH_CHIP_STM32L0 || ARCH_CHIP_STM32G0
+	default "stm32f0l0g0"	if ARCH_CHIP_STM32F0 || ARCH_CHIP_STM32L0 || ARCH_CHIP_STM32G0 || ARCH_CHIP_STM32C0
 	default "stm32f7"	if ARCH_CHIP_STM32F7
 	default "stm32h7"	if ARCH_CHIP_STM32H7
 	default "stm32l4"	if ARCH_CHIP_STM32L4
@@ -1187,6 +1210,7 @@ config ARCH_CHIP
 	default "at32"		if ARCH_CHIP_AT32
 	default "cxd32xx"	if ARCH_CHIP_CXD32XX
 	default "csk6"		if ARCH_CHIP_CSK6
+	default "mcx-nxxx"	if ARCH_CHIP_MCX_NXXX
 
 config ARM_THUMB
 	bool "Thumb Mode"
@@ -1465,7 +1489,7 @@ config ARM_SEMIHOSTING_HOSTFS_CACHE_COHERENCE
 	bool "Cache coherence in semihosting hostfs"
 	depends on ARCH_DCACHE
 	---help---
-		Flush & Invalidte cache before & after bkpt instruction.
+		Flush & Invalidate cache before & after bkpt instruction.
 
 endif # ARM_SEMIHOSTING_HOSTFS
 
@@ -1616,6 +1640,9 @@ endif
 if ARCH_CHIP_NUC1XX
 source "arch/arm/src/nuc1xx/Kconfig"
 endif
+if ARCH_CHIP_RA4
+source "arch/arm/src/ra4/Kconfig"
+endif
 if ARCH_CHIP_RP2040
 source "arch/arm/src/rp2040/Kconfig"
 endif
@@ -1640,7 +1667,7 @@ endif
 if ARCH_CHIP_STM32
 source "arch/arm/src/stm32/Kconfig"
 endif
-if ARCH_CHIP_STM32F0 || ARCH_CHIP_STM32L0 || ARCH_CHIP_STM32G0
+if ARCH_CHIP_STM32F0 || ARCH_CHIP_STM32L0 || ARCH_CHIP_STM32G0 || ARCH_CHIP_STM32C0
 source "arch/arm/src/stm32f0l0g0/Kconfig"
 endif
 if ARCH_CHIP_STM32F7
@@ -1702,5 +1729,8 @@ source "arch/arm/src/at32/Kconfig"
 endif
 if ARCH_CHIP_CXD32XX
 source "arch/arm/src/cxd32xx/Kconfig"
+endif
+if ARCH_CHIP_MCX_NXXX
+source "arch/arm/src/mcx-nxxx/Kconfig"
 endif
 endif # ARCH_ARM

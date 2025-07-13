@@ -41,6 +41,10 @@
 
 #define NXSTYLE_VERSION "0.01"
 
+#ifdef WIN32
+#  define realpath(n,r) _fullpath((r),(n),_MAX_PATH)
+#endif
+
 #define LINE_SIZE      512
 #define RANGE_NUMBER   4096
 #define DEFAULT_WIDTH  78
@@ -188,6 +192,7 @@ static const char *g_white_prefix[] =
   "ASCII_",  /* Ref:  include/nuttx/ascii.h */
   "Dl_info", /* Ref:  include/dlfcn.h */
   "Elf",     /* Ref:  include/elf.h, include/elf32.h, include/elf64.h */
+  "Ifx",     /* Ref:  arch/tricore/src */
   "PRId",    /* Ref:  inttypes.h */
   "PRIi",    /* Ref:  inttypes.h */
   "PRIo",    /* Ref:  inttypes.h */
@@ -200,6 +205,8 @@ static const char *g_white_prefix[] =
   "SCNx",    /* Ref:  inttypes.h */
   "SYS_",    /* Ref:  include/sys/syscall.h */
   "STUB_",   /* Ref:  syscall/syscall_lookup.h, syscall/sycall_stublookup.c */
+  "TEEC_",   /* Ref:  apps/tee/libteec/optee_client/libteec/include/tee_client_api.h */
+  "V4L2_",   /* Ref:  include/sys/video_controls.h */
   "XK_",     /* Ref:  include/input/X11_keysymdef.h */
   "b8",      /* Ref:  include/fixedmath.h */
   "b16",     /* Ref:  include/fixedmath.h */
@@ -210,8 +217,6 @@ static const char *g_white_prefix[] =
   "ub32",    /* Ref:  include/fixedmath.h */
   "lua_",    /* Ref:  apps/interpreters/lua/lua-5.x.x/src/lua.h */
   "luaL_",   /* Ref:  apps/interpreters/lua/lua-5.x.x/src/lauxlib.h */
-  "V4L2_",   /* Ref:  include/sys/video_controls.h */
-  "Ifx",     /* Ref:  arch/tricore/src */
   NULL
 };
 
@@ -223,6 +228,14 @@ static const char *g_white_suffix[] =
   "kHz",
   "kbps",
   "us",
+
+  /* Ref:  arch/avr/src/avrdx/avrdx_serial.c (and others
+   * in arch/avr/src/avrdx.) I/O register constants
+   * for AVR DA/DB chips.
+   */
+
+  "bm",
+  "bp",
   NULL
 };
 
@@ -628,6 +641,16 @@ static const char *g_white_content_list[] =
   "inflateEnd",
   "zError",
 
+  /* Ref:
+   * apps/tee/libteec/optee_client/libteec/include/tee_client_api.h
+   */
+
+  "clockSeqAndNode",
+  "paramTypes",
+  "timeLow",
+  "timeMid",
+  "timeHiAndVersion",
+
   NULL
 };
 
@@ -699,6 +722,67 @@ static void show_usage(char *progname, int exitcode, char *what)
   fprintf(stderr, "                   2 - output each line (default)\n");
   exit(exitcode);
 }
+
+#ifndef HAVE_STRNDUP
+/********************************************************************************
+ * Name: my_strndup
+ *
+ * Description:
+ *   Duplicate a specific number of bytes from a string.
+ *   Implementation of strndup() for Windows Native
+ *   MinGW does not seem to provide strndup
+ *
+ ********************************************************************************/
+
+char *my_strndup(const char *s, size_t size)
+{
+  char *dest = NULL;
+  size_t len;
+
+  len = strnlen(s, size);
+  len = len < size ? len : size;
+  dest = malloc(len + 1);
+
+  if (dest == NULL)
+    {
+      return NULL;
+    }
+
+  memcpy(dest, s, len);
+  dest[len] = '\0';
+  return dest;
+}
+#undef strndup
+#  define strndup my_strndup
+#endif
+
+#ifdef CONFIG_WINDOWS_NATIVE
+/********************************************************************************
+ * Name: backslash_to_slash
+ *
+ * Description:
+ *   Replace backslashes \ to forward slashes /.
+ *
+ ********************************************************************************/
+
+static void backslash_to_slash(char *str)
+{
+  char *p;
+
+  if (str == NULL)
+    {
+      return;
+    }
+
+  for (p = str; *p; ++p)
+    {
+      if (*p == '\\')
+        {
+           *p = '/';
+        }
+    }
+}
+#endif
 
 /********************************************************************************
  * Name: skip
@@ -1123,7 +1207,7 @@ int main(int argc, char **argv, char **envp)
 {
   FILE *instream;       /* File input stream */
   char line[LINE_SIZE]; /* The current line being examined */
-  char buffer[100];     /* Localy format error strings */
+  char buffer[100];     /* Locally format error strings */
   char *lptr;           /* Temporary pointer into line[] */
   char *ext;            /* Temporary file extension */
   bool btabs;           /* True: TAB characters found on the line */
@@ -1227,6 +1311,9 @@ int main(int argc, char **argv, char **envp)
       return 1;
     }
 
+#ifdef CONFIG_WINDOWS_NATIVE
+  backslash_to_slash(g_file_name);
+#endif
   /* Are we parsing a header file? */
 
   ext = strrchr(g_file_name, '.');

@@ -41,9 +41,11 @@ Help message::
 
   Options:
   -h
-  -c spell check with codespell(install with: pip install codespell)
+  -c spell check with codespell (install with: pip install codespell)
+  -u encoding check with cvt2utf (install with: pip install cvt2utf)
   -r range check only (coupled with -p or -g)
   -p <patch list> (default)
+  -m Change-Id check in commit message (coupled with -g)
   -g <commit list>
   -f <file list>
   -  read standard input mainly used by git pre-commit hook as below:
@@ -875,7 +877,7 @@ Help is also available::
     $ tools/refresh.sh --help
     tools/refresh.sh is a tool for refreshing board configurations
 
-USAGE: ``./refresh.sh [options] <board>/<config>+``
+USAGE: ``./refresh.sh [options] <arch>|<chip>|<board>:<config>+``
 
 Where [options] include::
 
@@ -927,6 +929,28 @@ The steps to refresh the file taken by refresh.sh are:
    option, this file copy will occur automatically.  Otherwise,
    refresh.sh will prompt you first to avoid overwriting the
    defconfig file with changes that you may not want.
+
+Usage examples:
+
+Update all boards without verbose output::
+
+       $ ./tools/refresh.sh --silent --defaults all
+
+Update all boards and configs from `arm` architecture::
+
+       $ ./tools/refresh.sh --silent arch:arm
+
+Update all boards from `stm32f7` chip family::
+
+       $ ./tools/refresh.sh --silent chip:stm32f7
+
+Update all configs from `stm32f103-minimum` board::
+
+       $ ./tools/refresh.sh --silent board:stm32f103-minimum
+
+Update only the `nsh` config from stm32f103-minimum board::
+
+       $ ./tools/refresh.sh --silent stm32f103-minimum:nsh
 
 rmcr.c
 ------

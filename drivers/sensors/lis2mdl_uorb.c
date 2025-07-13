@@ -49,12 +49,6 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-/* The LIS2MDL supports up to 3.4MHz bus speeds */
-
-#ifndef CONFIG_SENSORS_LIS2MDL_I2C_FREQUENCY
-#define CONFIG_SENSORS_LIS2MDL_I2C_FREQUENCY 1000000
-#endif
-
 /* The value that should be in the "who am I" register */
 
 #define WHO_AM_I_VAL 0x40
@@ -1140,7 +1134,7 @@ static int lis2mdl_control(FAR struct sensor_lowerhalf_s *lower,
 
     default:
       err = -EINVAL;
-      snerr("Unknown command for LIS2MDL: lu\n", cmd);
+      snerr("Unknown command for LIS2MDL: %d\n", cmd);
       break;
     }
 
@@ -1251,7 +1245,7 @@ static int lis2mdl_thread(int argc, char **argv)
  *   devno   - The device number to use for the topic (i.e. /dev/mag0)
  *   attach  - A function which is called by this driver to attach the
  *             LIS2MDL interrupt handler to an IRQ. Pass NULL to operate
- *             in polling mode. This function should return 0 on succes
+ *             in polling mode. This function should return 0 on success
  *             and a negated error code otherwise.
  *
  * Returned Value:

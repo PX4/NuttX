@@ -132,9 +132,6 @@ struct esp_wireless_priv_s
 static inline void phy_digital_regs_store(void);
 static inline void phy_digital_regs_load(void);
 static int esp_swi_irq(int irq, void *context, void *arg);
-#ifdef CONFIG_ESP32_WIFI
-static void esp_wifi_set_log_level(void);
-#endif
 
 /****************************************************************************
  * Extern Functions declaration
@@ -364,41 +361,6 @@ static int esp_swi_irq(int irq, void *context, void *arg)
   return OK;
 }
 
-#ifdef CONFIG_ESPRESSIF_WIFI
-
-/****************************************************************************
- * Name: esp_wifi_set_log_level
- *
- * Description:
- *   Sets the log level for the ESP32 WiFi module based on preprocessor
- *   definitions. The log level can be verbose, warning, or error.
- *
- * Input Parameters:
- *   None
- *
- * Returned Value:
- *   None
- *
- ****************************************************************************/
-
-static void esp_wifi_set_log_level(void)
-{
-  wifi_log_level_t wifi_log_level = WIFI_LOG_NONE;
-
-  /* set WiFi log level */
-
-#if defined(CONFIG_DEBUG_WIRELESS_INFO)
-  wifi_log_level = WIFI_LOG_VERBOSE;
-#elif defined(CONFIG_DEBUG_WIRELESS_WARN)
-  wifi_log_level = WIFI_LOG_WARNING;
-#elif defined(CONFIG_LOG_MAXIMUM_LEVEL)
-  wifi_log_level = WIFI_LOG_ERROR;
-#endif
-
-  esp_wifi_internal_set_log_level(wifi_log_level);
-}
-#endif /* CONFIG_ESPRESSIF_WIFI */
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
@@ -603,7 +565,7 @@ static uint8_t phy_find_bin_type_according_country(const char *country)
   if (i == num)
     {
       phy_init_data_type = ESP_PHY_INIT_DATA_TYPE_DEFAULT;
-      wlerr("Use the default certification code beacuse %c%c doesn't "
+      wlerr("Use the default certification code because %c%c doesn't "
             "have a certificate\n", country[0], country[1]);
     }
 
@@ -618,7 +580,7 @@ static uint8_t phy_find_bin_type_according_country(const char *country)
  *
  * Input Parameters:
  *   output_data    - Output data buffer pointer
- *   control_info   - PHY init data control infomation
+ *   control_info   - PHY init data control information
  *   input_data     - Input data buffer pointer
  *   init_data_type - PHY init data type
  *
@@ -1074,8 +1036,8 @@ int esp_phy_update_country_info(const char *country)
  *
  ****************************************************************************/
 
-int32_t esp_timer_create(const esp_timer_create_args_t *create_args,
-                         esp_timer_handle_t *out_handle)
+int esp_timer_create(const esp_timer_create_args_t *create_args,
+                     esp_timer_handle_t *out_handle)
 {
   int ret;
   struct rt_timer_args_s rt_timer_args;
@@ -1111,7 +1073,7 @@ int32_t esp_timer_create(const esp_timer_create_args_t *create_args,
  *
  ****************************************************************************/
 
-int32_t esp_timer_start_once(esp_timer_handle_t timer, uint64_t timeout_us)
+int esp_timer_start_once(esp_timer_handle_t timer, uint64_t timeout_us)
 {
   struct rt_timer_s *rt_timer = (struct rt_timer_s *)timer;
 
@@ -1135,7 +1097,7 @@ int32_t esp_timer_start_once(esp_timer_handle_t timer, uint64_t timeout_us)
  *
  ****************************************************************************/
 
-int32_t esp_timer_start_periodic(esp_timer_handle_t timer, uint64_t period)
+int esp_timer_start_periodic(esp_timer_handle_t timer, uint64_t period)
 {
   struct rt_timer_s *rt_timer = (struct rt_timer_s *)timer;
 
@@ -1158,7 +1120,7 @@ int32_t esp_timer_start_periodic(esp_timer_handle_t timer, uint64_t period)
  *
  ****************************************************************************/
 
-int32_t esp_timer_stop(esp_timer_handle_t timer)
+int esp_timer_stop(esp_timer_handle_t timer)
 {
   struct rt_timer_s *rt_timer = (struct rt_timer_s *)timer;
 
@@ -1181,7 +1143,7 @@ int32_t esp_timer_stop(esp_timer_handle_t timer)
  *
  ****************************************************************************/
 
-int32_t esp_timer_delete(esp_timer_handle_t timer)
+int esp_timer_delete(esp_timer_handle_t timer)
 {
   struct rt_timer_s *rt_timer = (struct rt_timer_s *)timer;
 
@@ -1482,116 +1444,3 @@ int esp_wireless_deinit(void)
 
   return OK;
 }
-
-#ifdef CONFIG_ESPRESSIF_WIFI
-
-/****************************************************************************
- * Name: esp_wifi_init
- *
- * Description:
- *   Initialize Wi-Fi
- *
- * Input Parameters:
- *   config - Initialization config parameters
- *
- * Returned Value:
- *   0 if success or others if fail
- *
- ****************************************************************************/
-
-int32_t esp_wifi_init(const wifi_init_config_t *config)
-{
-  int32_t ret;
-
-#ifdef CONFIG_ARCH_CHIP_ESP32S3
-  uint32_t min_active_time_us =
-              CONFIG_ESP_WIFI_SLP_DEFAULT_MIN_ACTIVE_TIME * 1000;
-  uint32_t keep_alive_time_us =
-              CONFIG_ESP_WIFI_SLP_DEFAULT_MAX_ACTIVE_TIME * 1000 * 1000;
-  uint32_t wait_broadcast_data_time_us =
-              CONFIG_ESP_WIFI_SLP_DEFAULT_WAIT_BROADCAST_DATA_TIME * 1000;
-
-  esp_wifi_set_sleep_min_active_time(min_active_time_us);
-  esp_wifi_set_keep_alive_time(keep_alive_time_us);
-  esp_wifi_set_sleep_wait_broadcast_data_time(wait_broadcast_data_time_us);
-#endif
-
-#if defined(CONFIG_ESP32S3_WIFI_BT_COEXIST) || \
-    defined(CONFIG_ESP32_WIFI_BT_COEXIST)
-  ret = coex_init();
-  if (ret)
-    {
-      wlerr("ERROR: Failed to initialize coex error=%d\n", ret);
-      return ret;
-    }
-#endif
-
-  /* WARN: Verify if power domain should go on before or after BT coexist */
-
-  esp_wifi_power_domain_on();
-
-  esp_wifi_set_log_level();
-
-  ret = esp_wifi_init_internal(config);
-  if (ret)
-    {
-      wlerr("Failed to initialize Wi-Fi error=%d\n", ret);
-      return ret;
-    }
-
-#if defined(CONFIG_MAC_BB_P) && defined(CONFIG_ARCH_CHIP_ESP32)
-  esp_mac_bb_pd_mem_init();
-  esp_wifi_internal_set_mac_sleep(true);
-#endif
-  esp_phy_modem_init();
-
-#ifdef CONFIG_ARCH_CHIP_ESP32
-  g_wifi_mac_time_update_cb = esp_wifi_internal_update_mac_time;
-#endif
-
-  ret = esp_supplicant_init();
-  if (ret)
-    {
-      wlerr("Failed to initialize WPA supplicant error=%d\n", ret);
-      esp_wifi_deinit_internal();
-      return ret;
-    }
-
-  return 0;
-}
-
-/****************************************************************************
- * Name: esp_wifi_deinit
- *
- * Description:
- *   Deinitialize Wi-Fi and free resource
- *
- * Input Parameters:
- *   None
- *
- * Returned Value:
- *   0 if success or others if fail
- *
- ****************************************************************************/
-
-int32_t esp_wifi_deinit(void)
-{
-  int ret;
-
-  ret = esp_supplicant_deinit();
-  if (ret)
-    {
-      wlerr("Failed to deinitialize supplicant\n");
-      return ret;
-    }
-
-  ret = esp_wifi_deinit_internal();
-  if (ret != 0)
-    {
-      wlerr("Failed to deinitialize Wi-Fi\n");
-      return ret;
-    }
-
-  return ret;
-}
-#endif /* CONFIG_ESPRESSIF_WIFI */

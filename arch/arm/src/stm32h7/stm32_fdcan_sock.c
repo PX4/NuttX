@@ -1951,9 +1951,9 @@ static int fdcan_netdev_ioctl(struct net_driver_s *dev, int cmd,
         {
           struct can_ioctl_data_s *req =
               (struct can_ioctl_data_s *)((uintptr_t)arg);
-          req->arbi_bitrate = priv->arbi_timing.bitrate / 1000; /* kbit/s */
+          req->arbi_bitrate = priv->arbi_timing.bitrate;
 #ifdef CONFIG_NET_CAN_CANFD
-          req->data_bitrate = priv->data_timing.bitrate / 1000; /* kbit/s */
+          req->data_bitrate = priv->data_timing.bitrate;
 #else
           req->data_bitrate = 0;
 #endif
@@ -1966,19 +1966,13 @@ static int fdcan_netdev_ioctl(struct net_driver_s *dev, int cmd,
           struct can_ioctl_data_s *req =
               (struct can_ioctl_data_s *)((uintptr_t)arg);
 
-          priv->arbi_timing.bitrate = req->arbi_bitrate * 1000;
+          /* Apply the new timings (interface is guaranteed to be down) */
+
+          priv->arbi_timing.bitrate = req->arbi_bitrate;
 #ifdef CONFIG_NET_CAN_CANFD
-          priv->data_timing.bitrate = req->data_bitrate * 1000;
+          priv->data_timing.bitrate = req->data_bitrate;
 #endif
-
-          /* Reset CAN controller and start with new timings */
-
-          ret = fdcan_initialize(priv);
-
-          if (ret == OK)
-            {
-              ret = fdcan_ifup(dev);
-            }
+          ret = OK;
         }
         break;
 #endif /* CONFIG_NETDEV_CAN_BITRATE_IOCTL */
@@ -2617,15 +2611,16 @@ static void fdcan_error_work(void *arg)
   psr = getreg32(priv->base + STM32_FDCAN_PSR_OFFSET);
 
   pending = (ir);
+  ie |= FDCAN_ANYERR_INTS;
 
   /* Check for common errors */
 
   if ((pending & FDCAN_CMNERR_INTS) != 0)
     {
-      /* When a protocol error ocurrs, the problem is recorded in
+      /* When a protocol error occurs, the problem is recorded in
        * the LEC/DLEC fields of the PSR register. In lieu of
-       * seprate interrupt flags for each error, the hardware
-       * groups procotol errors under a single interrupt each for
+       * separate interrupt flags for each error, the hardware
+       * groups protocol errors under a single interrupt each for
        * arbitration and data phases.
        *
        * These errors have a tendency to flood the system with
@@ -2636,7 +2631,6 @@ static void fdcan_error_work(void *arg)
       if ((psr & FDCAN_PSR_LEC_MASK) != 0)
         {
           ie &= ~(FDCAN_IE_PEAE | FDCAN_IE_PEDE);
-          putreg32(ie, priv->base + STM32_FDCAN_IE_OFFSET);
         }
 
       /* Clear the error indications */
@@ -2678,7 +2672,6 @@ static void fdcan_error_work(void *arg)
        */
 
       ie &= ~(pending & FDCAN_RXERR_INTS);
-      putreg32(ie, priv->base + STM32_FDCAN_IE_OFFSET);
 
       /* Clear the error indications */
 
@@ -2693,7 +2686,7 @@ static void fdcan_error_work(void *arg)
 
   /* Re-enable ERROR interrupts */
 
-  fdcan_errint(priv, true);
+  putreg32(ie, priv->base + STM32_FDCAN_IE_OFFSET);
 }
 
 /****************************************************************************

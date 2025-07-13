@@ -20,9 +20,7 @@
 #
 ############################################################################
 
-ifeq ($(CONFIG_BUILD_KERNEL),y)
 STARTUP_OBJS = crt0$(OBJEXT)
-endif
 
 # Specify our general Assembly files
 CMN_ASRCS += riscv_vectors.S riscv_exception_common.S
@@ -104,7 +102,11 @@ CMN_ASRCS += riscv_vpu.S
 endif
 
 ifeq ($(CONFIG_ARCH_RV_HAVE_APLIC),y)
-CMN_CSRCS += riscv_aia.c
+CMN_CSRCS += riscv_aplic.c
+endif
+
+ifeq ($(CONFIG_ARCH_RV_HAVE_IMSIC),y)
+CMN_CSRCS += riscv_imsic.c
 endif
 
 ifeq ($(CONFIG_RISCV_SEMIHOSTING_HOSTFS),y)

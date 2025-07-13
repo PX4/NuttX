@@ -170,7 +170,7 @@ config ESPRESSIF_BOOTLOADER_MCUBOOT
 config ESPRESSIF_MCUBOOT_VERSION
 	string "MCUboot version"
 	depends on ESPRESSIF_BOOTLOADER_MCUBOOT
-	default "12906fdeff4d46752fe3c7f211a7a2fbbc8b7318"
+	default "20f98e0a975c24864872e0df5701eb1082e9c957"
 
 choice ESPRESSIF_ESPTOOL_TARGET_SLOT
 	prompt "Target slot for image flashing"
@@ -261,6 +261,10 @@ config ESPRESSIF_UART
 	bool
 	default n
 
+config ESPRESSIF_LP_UART
+	bool
+	default n
+
 config ESPRESSIF_UART0
 	bool "UART0"
 	default y
@@ -273,6 +277,15 @@ config ESPRESSIF_UART1
 	default n
 	select ESPRESSIF_UART
 	select UART1_SERIALDRIVER
+	select ARCH_HAVE_SERIAL_TERMIOS
+
+config ESPRESSIF_LP_UART0
+	bool "LP UART0"
+	default n
+	depends on ARCH_CHIP_ESP32C6
+	select ESPRESSIF_UART
+	select ESPRESSIF_LP_UART
+	select LPUART0_SERIALDRIVER
 	select ARCH_HAVE_SERIAL_TERMIOS
 
 config ESPRESSIF_TWAI
@@ -299,8 +312,19 @@ config ESPRESSIF_TWAI1
 config ESPRESSIF_USBSERIAL
 	bool "USB-Serial-JTAG Driver"
 	default n
+	select ESPRESSIF_ESPTOOLPY_NO_STUB if ARCH_CHIP_ESP32C3_GENERIC
 	select OTHER_UART_SERIALDRIVER
 	select ARCH_HAVE_SERIAL_TERMIOS
+
+config ESPRESSIF_DEDICATED_GPIO
+	bool "Dedicated GPIO"
+	default n
+	---help---
+		Enable dedicated GPIO support for faster response time.
+		Dedicated GPIO is suitable for faster response times required
+		applications like simulate serial/parallel interfaces in a bit-banging way.
+		It can work as pin grouping and you can use any pin up to 8 pins for
+		input and 8 pins for output for dedicated gpio in total.
 
 config ESPRESSIF_GPIO_IRQ
 	bool "GPIO pin interrupts"
@@ -321,6 +345,28 @@ config ESPRESSIF_LEDC
 	select PWM
 	select ARCH_HAVE_PWM_MULTICHAN
 
+config ESPRESSIF_SHA_ACCELERATOR
+	bool "SHA Accelerator"
+	default n
+	---help---
+		Enable SHA accelerator support.
+
+config ESPRESSIF_ADC
+	bool "Analog-to-digital converter (ADC)"
+	default n
+	select ANALOG
+	select ADC
+	---help---
+		Enable support for analog-to-digital converter (ADC) peripheral.
+
+if ESPRESSIF_ADC
+
+config ESPRESSIF_ADC_1
+	default y
+	bool "Enable SAR ADC 1"
+
+endif # ESPRESSIF_ADC
+
 config ESPRESSIF_I2S
 	bool
 	default n
@@ -338,9 +384,18 @@ config ESPRESSIF_I2C
 	bool
 	default n
 
-config ESPRESSIF_I2C_PERIPH
+config ESPRESSIF_LPI2C
 	bool
-	depends on (ESPRESSIF_I2C0 || ESPRESSIF_I2C1)
+	default n
+
+config ESPRESSIF_I2C_PERIPH_MASTER_MODE
+	bool
+	depends on (ESPRESSIF_I2C0_MASTER_MODE || ESPRESSIF_I2C1_MASTER_MODE)
+	default n
+
+config ESPRESSIF_I2C_PERIPH_SLAVE_MODE
+	bool
+	depends on (ESPRESSIF_I2C0_SLAVE_MODE || ESPRESSIF_I2C1_SLAVE_MODE)
 	default n
 
 config ESPRESSIF_I2C0
@@ -348,7 +403,6 @@ config ESPRESSIF_I2C0
 	default n
 	select ESPRESSIF_I2C
 	select I2C
-	select ESPRESSIF_I2C_PERIPH
 
 config ESPRESSIF_I2C1
 	bool "I2C 1"
@@ -356,7 +410,48 @@ config ESPRESSIF_I2C1
 	depends on ARCH_CHIP_ESP32H2
 	select ESPRESSIF_I2C
 	select I2C
-	select ESPRESSIF_I2C_PERIPH
+
+config ESPRESSIF_LP_I2C0
+	bool "LP I2C 0"
+	default n
+	depends on ARCH_CHIP_ESP32C6
+	select ESPRESSIF_I2C
+	select ESPRESSIF_LPI2C
+	select I2C
+
+choice ESPRESSIF_I2C0_MODE
+	prompt "I2C0 Mode"
+	depends on ESPRESSIF_I2C0
+	default ESPRESSIF_I2C0_MASTER_MODE
+
+config ESPRESSIF_I2C0_MASTER_MODE
+	bool "I2C0 Master Mode"
+	select ESPRESSIF_I2C_PERIPH_MASTER_MODE
+
+config ESPRESSIF_I2C0_SLAVE_MODE
+	bool "I2C0 Slave Mode"
+	select I2C_SLAVE
+	select I2C_SLAVE_DRIVER
+	select ESPRESSIF_I2C_PERIPH_SLAVE_MODE
+
+endchoice # ESPRESSIF_I2C0_MODE
+
+choice ESPRESSIF_I2C1_MODE
+	prompt "I2C1 Mode"
+	depends on ESPRESSIF_I2C1
+	default ESPRESSIF_I2C1_MASTER_MODE
+
+config ESPRESSIF_I2C1_MASTER_MODE
+	bool "I2C1 Master Mode"
+	select ESPRESSIF_I2C_PERIPH_MASTER_MODE
+
+config ESPRESSIF_I2C1_SLAVE_MODE
+	bool "I2C1 Slave Mode"
+	select I2C_SLAVE
+	select I2C_SLAVE_DRIVER
+	select ESPRESSIF_I2C_PERIPH_SLAVE_MODE
+
+endchoice # ESPRESSIF_I2C1_MODE
 
 config ESPRESSIF_I2C_BITBANG
 	bool "I2C Bitbang"
@@ -505,6 +600,12 @@ config ESP_RMT
 		format, RMT can be extended to a versatile and general-purpose
 		transceiver, transmitting or receiving many other types of signals.
 
+config ESP_SDM
+	bool "Sigma-Delta Modulation (SDM) Module"
+	default n
+	select ANALOG
+	select DAC
+
 config ESPRESSIF_TEMP
 	bool "Internal Temperature Sensor"
 	default n
@@ -584,6 +685,8 @@ config ESP_PCNT_TEST_MODE
 config ESP_PCNT_AS_QE
 	bool
 	default n
+	select SENSORS
+	select SENSORS_QENCODER
 
 config ESP_PCNT_U0
 	bool "Enable PCNT Unit 0"
@@ -603,15 +706,15 @@ config ESP_PCNT_U0_CH0_EDGE_PIN
 
 config ESP_PCNT_U0_CH0_LEVEL_PIN
 	int "PCNT_U0 CH0 Level/Control Pin Number"
-	default 4 if !ESP_PCNT_U0_QE
-	default -1 if ESP_PCNT_U0_QE
+	default 4
 	range -1 39
+	depends on !ESP_PCNT_U0_QE
 
 config ESP_PCNT_U0_CH1_EDGE_PIN
 	int "PCNT_U0 CH1 Edge/Pulse Pin Number"
-	default 0 if !ESP_PCNT_U0_QE
-	default -1 if ESP_PCNT_U0_QE
+	default 0
 	range -1 39
+	depends on !ESP_PCNT_U0_QE
 
 config ESP_PCNT_U0_CH1_LEVEL_PIN
 	int "PCNT_U0 CH1 Level/Control Pin Number"
@@ -792,6 +895,96 @@ endmenu # ESP_PCNT
 
 endmenu # Peripheral Support
 
+menu "ADC Configuration"
+	depends on ESPRESSIF_ADC
+
+if ESPRESSIF_ADC_1
+
+config ESPRESSIF_ADC_1_DEVNAME
+	string "ADC 1 Device Name"
+	default "/dev/adc0"
+
+choice ESPRESSIF_ADC_1_ATTENUATION
+	prompt "ADC 1 Input Attenuation"
+	default ESPRESSIF_ADC_1_ATTEN_12
+	---help---
+		Select input attenuation for the ADC unit.
+		Relates to maximum measurable input voltage.
+		See ESP32 Technical Reference Manual for details.
+
+config ESPRESSIF_ADC_1_ATTEN_0
+	bool "0 dB (1.1 V)"
+
+config ESPRESSIF_ADC_1_ATTEN_2_5
+	bool "2.5 dB (1.47 V)"
+
+config ESPRESSIF_ADC_1_ATTEN_6
+	bool "6 dB (2.2 V)"
+
+config ESPRESSIF_ADC_1_ATTEN_12
+	bool "12 dB (4.4 V)"
+
+endchoice  # ESPRESSIF_ADC_1_ATTENUATION
+
+config ESPRESSIF_ADC_1_ATTENUATION
+	int
+	default 0 if ESPRESSIF_ADC_1_ATTEN_0
+	default 1 if ESPRESSIF_ADC_1_ATTEN_2_5
+	default 2 if ESPRESSIF_ADC_1_ATTEN_6
+	default 3 if ESPRESSIF_ADC_1_ATTEN_12
+
+choice ESPRESSIF_ADC_1_MODE
+	prompt "ADC 1 Mode"
+	default ESPRESSIF_ADC_1_MODE_ONE_SHOT
+	---help---
+		Select operating mode for ADC 1.
+
+config ESPRESSIF_ADC_1_MODE_ONE_SHOT
+	bool "One-Shot Mode"
+
+config ESPRESSIF_ADC_1_MODE_CONTINUOUS
+	bool "Continuous Mode"
+
+endchoice  # ESPRESSIF_ADC_1_MODE
+
+menu "ADC 1 Channel Selection"
+
+config ESPRESSIF_ADC_1_CH0
+	bool "Channel 0"
+	default y
+
+config ESPRESSIF_ADC_1_CH1
+	bool "Channel 1"
+	default y
+
+config ESPRESSIF_ADC_1_CH2
+	bool "Channel 2"
+	default y
+
+config ESPRESSIF_ADC_1_CH3
+	bool "Channel 3"
+	default y
+
+config ESPRESSIF_ADC_1_CH4
+	bool "Channel 4"
+	default n
+
+config ESPRESSIF_ADC_1_CH5
+	bool "Channel 5"
+	depends on ESPRESSIF_ESP32C6
+	default n
+
+config ESPRESSIF_ADC_1_CH6
+	bool "Channel 6"
+	depends on ESPRESSIF_ESP32C6
+	default n
+
+endmenu # ADC 1 Channel Selection
+
+endif  # ESPRESSIF_ADC_1
+
+endmenu # ADC Configuration
+
 menu "Wi-Fi Configuration"
 	depends on ESPRESSIF_WIFI
 
@@ -855,6 +1048,12 @@ config ESPRESSIF_WIFI_ENABLE_SAE_PK
 	default y
 	---help---
 		Select this option to enable SAE-PK
+
+config ESPRESSIF_WIFI_ENABLE_SAE_H2E
+	bool "Enable SAE-H2E"
+	default y
+	---help---
+		Select this option to enable SAE-H2E
 
 config ESPRESSIF_WIFI_SOFTAP_SAE_SUPPORT
 	bool "Enable WPA3 Personal(SAE) SoftAP"
@@ -946,7 +1145,7 @@ config ESPRESSIF_WIFI_RX_BA_WIN
 		Set the size of WiFi Block Ack RX window. Generally a bigger value means higher throughput and better
 		compatibility but more memory. Most of time we should NOT change the default value unless special
 		reason, e.g. test the maximum UDP RX throughput with iperf etc. For iperf test in shieldbox, the
-		recommended value is 9~12. If PSRAM is used and WiFi memory is prefered to allocat in PSRAM first,
+		recommended value is 9~12. If PSRAM is used and WiFi memory is preferred to allocate in PSRAM first,
 		the default and minimum value should be 16 to achieve better throughput and compatibility with both
 		stations and APs.
 
@@ -1049,6 +1248,31 @@ menu "UART Configuration"
 
 if ESPRESSIF_UART0
 
+config ESPRESSIF_UART0_RS485
+	bool "RS-485 on UART0"
+	default n
+	---help---
+		Enable RS-485 interface on UART0. Your board config will have to
+		provide GPIO_UART0_RS485_DIR pin definition.
+
+config ESPRESSIF_UART0_RS485_DIR_PIN
+	int "UART0 RS-485 DIR pin"
+	default 10
+	range 0 46
+	depends on ESPRESSIF_UART0_RS485
+	---help---
+		DIR pin for RS-485 on UART0. This pin will control the RS485 enable
+		TX of the RS485 transceiver.
+
+config ESPRESSIF_UART0_RS485_DIR_POLARITY
+	int "UART0 RS-485 DIR pin polarity"
+	default 1
+	range 0 1
+	depends on ESPRESSIF_UART0_RS485
+	---help---
+		Polarity of DIR pin for RS-485 on UART0. Set to state on DIR pin which
+		enables TX (0 - low / nTXEN, 1 - high / TXEN).
+
 config ESPRESSIF_UART0_TXPIN
 	int "UART0 TX Pin"
 	default 21 if ESPRESSIF_ESP32C3
@@ -1090,6 +1314,31 @@ config ESPRESSIF_UART0_CTSPIN
 endif # ESPRESSIF_UART0
 
 if ESPRESSIF_UART1
+
+config ESPRESSIF_UART1_RS485
+	bool "RS-485 on UART1"
+	default n
+	---help---
+		Enable RS-485 interface on UART1. Your board config will have to
+		provide GPIO_UART1_RS485_DIR pin definition.
+
+config ESPRESSIF_UART1_RS485_DIR_PIN
+	int "UART1 RS-485 DIR pin"
+	default 4
+	range 0 46
+	depends on ESPRESSIF_UART1_RS485
+	---help---
+		DIR pin for RS-485 on UART1. This pin will control the RS485 enable
+		TX of the RS485 transceiver.
+
+config ESPRESSIF_UART1_RS485_DIR_POLARITY
+	int "UART1 RS-485 DIR pin polarity"
+	default 1
+	range 0 1
+	depends on ESPRESSIF_UART1_RS485
+	---help---
+		Polarity of DIR pin for RS-485 on UART1. Set to state on DIR pin which
+		enables TX (0 - low / nTXEN, 1 - high / TXEN).
 
 config ESPRESSIF_UART1_TXPIN
 	int "UART1 TX Pin"
@@ -1424,7 +1673,7 @@ endif # ESPRESSIF_SPIFLASH
 choice ESPRESSIF_FLASH_FREQ
 	prompt "SPI Flash frequency"
 	default ESPRESSIF_FLASH_FREQ_80M if ESPRESSIF_ESP32C3 || ESPRESSIF_ESP32C6
-	default ESPRESSIF_FLASH_FREQ_48M if ESPRESSIF_ESP32H2
+	default ESPRESSIF_FLASH_FREQ_64M if ESPRESSIF_ESP32H2
 	---help---
 		SPI Flash frequency.
 
@@ -1432,8 +1681,8 @@ config ESPRESSIF_FLASH_FREQ_80M
 	bool "80 MHz"
 	depends on ESPRESSIF_ESP32C3 || ESPRESSIF_ESP32C6
 
-config ESPRESSIF_FLASH_FREQ_48M
-	bool "48 MHz"
+config ESPRESSIF_FLASH_FREQ_64M
+	bool "64 MHz"
 	depends on ESPRESSIF_ESP32H2
 
 config ESPRESSIF_FLASH_FREQ_40M
@@ -1449,6 +1698,24 @@ config ESPRESSIF_FLASH_FREQ_20M
 	depends on ESPRESSIF_ESP32C3 || ESPRESSIF_ESP32C6
 
 endchoice # ESPRESSIF_FLASH_FREQ
+
+config ESPRESSIF_FLASH_FREQ
+	string
+	# On some of the ESP chips, max boot frequency would be equal to (or even lower than) 80m.
+	# We currently define this to `80m`.
+	default '80m' if ESPRESSIF_FLASH_FREQ_120M
+	default '80m' if ESPRESSIF_FLASH_FREQ_80M
+	default '60m' if ESPRESSIF_FLASH_FREQ_60M
+	default '48m' if ESPRESSIF_FLASH_FREQ_64M
+	default '48m' if ESPRESSIF_FLASH_FREQ_48M
+	default '24m' if ESPRESSIF_FLASH_FREQ_32M
+	default '30m' if ESPRESSIF_FLASH_FREQ_30M
+	default '24m' if ESPRESSIF_FLASH_FREQ_24M
+	default '40m' if ESPRESSIF_FLASH_FREQ_40M
+	default '26m' if ESPRESSIF_FLASH_FREQ_26M
+	default '20m' if ESPRESSIF_FLASH_FREQ_20M
+	default '12m' if ESPRESSIF_FLASH_FREQ_16M
+	default '20m' # if no clock can match in bin headers, go with minimal.
 
 config ESPRESSIF_SPI_FLASH_USE_ROM_CODE
 	bool "Use SPI flash driver in ROM"
@@ -1786,7 +2053,8 @@ if ESPRESSIF_I2C0
 
 config ESPRESSIF_I2C0_SCLPIN
 	int "I2C0 SCL Pin"
-	default 6
+	default 6 if !ESPRESSIF_LPI2C
+	default 23 if ESPRESSIF_LPI2C
 	range 0 21
 
 config ESPRESSIF_I2C0_SDAPIN
@@ -1826,12 +2094,12 @@ endif # ESPRESSIF_I2C_BITBANG
 
 config ESPRESSIF_I2CTIMEOSEC
 	int "Timeout seconds"
-	depends on ESPRESSIF_I2C_PERIPH
+	depends on ESPRESSIF_I2C_PERIPH_MASTER_MODE
 	default 0
 
 config ESPRESSIF_I2CTIMEOMS
 	int "Timeout milliseconds"
-	depends on ESPRESSIF_I2C_PERIPH
+	depends on ESPRESSIF_I2C_PERIPH_MASTER_MODE
 	default 500
 
 endmenu # I2C configuration

@@ -127,8 +127,8 @@ static void vnc_sem_debug(FAR struct vnc_session_s *session,
   nqueued      = sq_count(&session->updqueue);
   nfree        = sq_count(&session->updfree);
 
-  freesem      = session->freesem.semcount;
-  queuesem     = session->queuesem.semcount;
+  nxsem_get_value(&session->freesem, &freesem);
+  nxsem_get_value(&session->queuesem, &queuesem);
 
   freecount    = freesem  > 0 ? freesem   : 0;
   queuecount   = queuesem > 0 ? queuesem  : 0;
@@ -152,7 +152,7 @@ static void vnc_sem_debug(FAR struct vnc_session_s *session,
       syslog(LOG_INFO, "    semcount:     %d\n", freecount);
       syslog(LOG_INFO, "    queued nodes: %u\n", nfree);
       syslog(LOG_INFO, "    waiting:      %u\n", freewaiting);
-      syslog(LOG_INFO, "  Qeued Updates:\n");
+      syslog(LOG_INFO, "  Queued Updates:\n");
       syslog(LOG_INFO, "    semcount:     %d\n", queuecount);
       syslog(LOG_INFO, "    queued nodes: %u\n", nqueued);
       syslog(LOG_INFO, "    waiting:      %u\n", queuewaiting);
@@ -225,6 +225,7 @@ static void vnc_free_update(FAR struct vnc_session_s *session,
                             FAR struct vnc_fbupdate_s *update)
 {
   irqstate_t flags;
+  int sval;
 
   /* Reserve one element from the free list.  Lock the scheduler to assure
    * that the sq_addlast() and the nxsem_post() are atomic.
@@ -243,7 +244,9 @@ static void vnc_free_update(FAR struct vnc_session_s *session,
 
   leave_critical_section(flags);
   vnc_sem_debug(session, "After free", 0);
-  DEBUGASSERT(session->freesem.semcount <= CONFIG_VNCSERVER_NUPDATES);
+
+  DEBUGASSERT(nxsem_get_value(&session->freesem, &sval) == 0 &&
+              sval <= CONFIG_VNCSERVER_NUPDATES);
 }
 
 /****************************************************************************
@@ -322,6 +325,7 @@ static void vnc_add_queue(FAR struct vnc_session_s *session,
                           FAR struct vnc_fbupdate_s *rect)
 {
   irqstate_t flags;
+  int sval;
 
   /* Lock the scheduler to assure that the sq_addlast() and the nxsem_post()
    * are atomic.
@@ -342,7 +346,9 @@ static void vnc_add_queue(FAR struct vnc_session_s *session,
 
   leave_critical_section(flags);
   vnc_sem_debug(session, "After add", 0);
-  DEBUGASSERT(session->queuesem.semcount <= CONFIG_VNCSERVER_NUPDATES);
+
+  DEBUGASSERT(nxsem_get_value(&session->queuesem, &sval) == 0 &&
+              sval <= CONFIG_VNCSERVER_NUPDATES);
 }
 
 /****************************************************************************

@@ -31,6 +31,11 @@ SECTIONS
 #ifdef CONFIG_ESPRESSIF_BOOTLOADER_MCUBOOT
   .metadata :
   {
+    /* The following metadata refers to the to MCUboot's struct
+     * esp_image_load_header defined at the following commit:
+     * https://github.com/mcu-tools/mcuboot/blob/cd22b693da426826e0255f8ee5b18d7360d9bc8f/boot/espressif/hal/include/esp_mcuboot_image.h
+     */
+
     /* Magic for load header */
 
     LONG(0xace637d3)
@@ -58,6 +63,46 @@ SECTIONS
     LONG(ADDR(.dram0.data))
     LONG(LOADADDR(.dram0.data))
     LONG(SIZEOF(.dram0.data))
+
+    /* RTC_IRAM metadata:
+     * - Destination address (VMA) for RTC_IRAM region
+     * - Flash offset (LMA) for start of RTC_IRAM region
+     * - Size of RTC_IRAM region
+     */
+
+    LONG(ADDR(.rtc.text))
+    LONG(LOADADDR(.rtc.text))
+    LONG(SIZEOF(.rtc.text))
+
+    /* RTC_DRAM metadata:
+     * - Destination address (VMA) for RTC_DRAM region
+     * - Flash offset (LMA) for start of RTC_DRAM region
+     * - Size of RTC_DRAM region
+     */
+
+    LONG(ADDR(.rtc.data))
+    LONG(LOADADDR(.rtc.data))
+    LONG(SIZEOF(.rtc.data))
+
+    /* IROM metadata:
+     * - Destination address (VMA) for IROM region
+     * - Flash offset (LMA) for start of IROM region
+     * - Size of IROM region
+     */
+
+    LONG(ADDR(.flash.text))
+    LONG(LOADADDR(.flash.text))
+    LONG(SIZEOF(.flash.text))
+
+    /* DROM metadata:
+     * - Destination address (VMA) for DROM region
+     * - Flash offset (LMA) for start of DROM region
+     * - Size of DROM region
+     */
+
+    LONG(ADDR(.flash.rodata))
+    LONG(LOADADDR(.flash.rodata))
+    LONG(LOADADDR(.flash.rodata) + SIZEOF(.flash.rodata) - LOADADDR(.flash.rodata))
   } >metadata
 #endif
 
@@ -72,6 +117,8 @@ SECTIONS
 
     *(.iram1)
     *(.iram1.*)
+
+    *libcoexist.a:(.coexiram .coexiram.*)
 
     *libsched.a:irq_dispatch.*(.text .text.* .literal .literal.*)
     *libsched.a:sched_lock.*(.text .text.* .literal .literal.*)
@@ -116,6 +163,7 @@ SECTIONS
     *libarch.a:*bootloader_esp32h2.*(.text .text.* .literal .literal.*)
     *libarch.a:*bootloader_flash.*(.text .text.* .literal .literal.*)
     *libarch.a:*bootloader_flash_config_esp32h2.*(.text .text.* .literal .literal.*)
+    *libarch.a:*flash_qio_mode.*(.rodata .rodata.*)
     *libarch.a:*bootloader_clock_init.*(.text .text.* .literal .literal.*)
     *libarch.a:*bootloader_clock_loader.*(.text .text.* .literal .literal.*)
     *libarch.a:*bootloader_efuse.*(.text .text.* .literal .literal.*)
@@ -140,9 +188,17 @@ SECTIONS
     *libarch.a:*esp_efuse_api_key.*(.text .text.* .literal .literal.*)
     *libarch.a:*esp_efuse_utility.*(.text .text.* .literal .literal.*)
     *libarch.a:*efuse_hal.*(.text .text.* .literal .literal.*)
+    *libarch.a:*apm_hal.*(.text .text.* .literal .literal.*)
     *libarch.a:*log.*(.text .text.* .literal .literal.*)
-    *libarch.a:*log_noos.*(.text .text.* .literal .literal.*)
+    *libarch.a:*log_lock.*(.literal .literal.* .text .text.*)
+    *libarch.a:*log_print.*(.literal .literal.* .text .text.*)
+    *libarch.a:*log_timestamp.*(.literal.esp_log_early_timestamp .text.esp_log_early_timestamp)
+    *libarch.a:*log_timestamp.*(.literal.esp_log_timestamp .text.esp_log_timestamp)
+    *libarch.a:*log_timestamp_common.*(.literal .literal.* .text .text.*)
+    *libarch.a:*log_write.*(.literal.esp_log_write .text.esp_log_write)
+    *libarch.a:*log_write.*(.literal.esp_log_writev .text.esp_log_writev)
     *libarch.a:esp_spiflash.*(.literal .text .literal.* .text.*)
+    *libarch.a:*interrupt_plic.*(.literal .literal.* .text .text.*)
 
     *libc.a:sq_remlast.*(.literal .text .literal.* .text.*)
 
@@ -257,6 +313,7 @@ SECTIONS
     *libarch.a:*bootloader_esp32h2.*(.rodata .rodata.*)
     *libarch.a:*bootloader_flash.*(.rodata .rodata.*)
     *libarch.a:*bootloader_flash_config_esp32h2.*(.rodata .rodata.*)
+    *libarch.a:*flash_qio_mode.*(.text .text.* .literal .literal.*)
     *libarch.a:*bootloader_clock_init.*(.rodata .rodata.*)
     *libarch.a:*bootloader_clock_loader.*(.rodata .rodata.*)
     *libarch.a:*bootloader_efuse.*(.rodata .rodata.*)
@@ -281,8 +338,6 @@ SECTIONS
     *libarch.a:*esp_efuse_api_key.*(.rodata .rodata.*)
     *libarch.a:*esp_efuse_utility.*(.rodata .rodata.*)
     *libarch.a:*efuse_hal.*(.rodata .rodata.*)
-    *libarch.a:*log.*(.rodata .rodata.*)
-    *libarch.a:*log_noos.*(.rodata .rodata.*)
     *libarch.a:esp_spiflash.*(.rodata .rodata.*)
 
     esp_head.*(.rodata .rodata.*)
@@ -408,15 +463,6 @@ SECTIONS
      * .init_array section instead.
      */
 
-    _sinit = ABSOLUTE(.);
-    KEEP (*(EXCLUDE_FILE (*crtend.* *crtbegin.*) .init_array.*))
-    KEEP (*(EXCLUDE_FILE (*crtend.* *crtbegin.*) .init_array))
-    _einit = ABSOLUTE(.);
-    KEEP (*crtbegin.o(.dtors))
-    KEEP (*(EXCLUDE_FILE (*crtend.o) .dtors))
-    KEEP (*(SORT(.dtors.*)))
-    KEEP (*(.dtors))
-
     /* C++ exception handlers table: */
 
     __XT_EXCEPTION_DESCS_ = ABSOLUTE(.);
@@ -435,7 +481,35 @@ SECTIONS
     *(.lit4.*)
     *(.gnu.linkonce.lit4.*)
     _lit4_end = ABSOLUTE(.);
+
+    _sinit = ABSOLUTE(.);
+
     . = ALIGN(4);
+    __init_priority_array_start = ABSOLUTE(.);
+    KEEP (*(EXCLUDE_FILE (*crtend.* *crtbegin.*) .init_array.*))
+    __init_priority_array_end = ABSOLUTE(.);
+
+    . = ALIGN(4);
+    __init_array_start = ABSOLUTE(.);
+    KEEP (*(EXCLUDE_FILE (*crtend.* *crtbegin.*) .init_array))
+    __init_array_end = ABSOLUTE(.);
+
+    /* Addresses of memory regions reserved via SOC_RESERVE_MEMORY_REGION() */
+
+    . = ALIGN(4);
+    soc_reserved_memory_region_start = ABSOLUTE(.);
+    KEEP (*(.reserved_memory_address))
+    soc_reserved_memory_region_end = ABSOLUTE(.);
+
+    /* System init functions registered via ESP_SYSTEM_INIT_FN */
+
+    . = ALIGN(4);
+    _esp_system_init_fn_array_start = ABSOLUTE(.);
+    KEEP (*(SORT_BY_INIT_PRIORITY(.esp_system_init_fn.*)))
+    _esp_system_init_fn_array_end = ABSOLUTE(.);
+
+    _einit = ABSOLUTE(.);
+
   } >default_rodata_seg AT > ROM
 
   .flash.rodata_noload (NOLOAD) :

@@ -455,8 +455,8 @@ static void rmt_module_enable(void)
 
   if (g_rmtdev_common.rmt_module_enabled == false)
     {
-      periph_module_reset(rmt_periph_signals.groups[0].module);
-      periph_module_enable(rmt_periph_signals.groups[0].module);
+      periph_module_reset(PERIPH_RMT_MODULE);
+      periph_module_enable(PERIPH_RMT_MODULE);
       g_rmtdev_common.rmt_module_enabled = true;
     }
 
@@ -1025,7 +1025,7 @@ static int rmt_internal_config(rmt_dev_t *dev,
 
       spin_unlock_irqrestore(&g_rmtdev_common.rmt_spinlock, flags);
 
-      rmtinfo("Rmt Rx Channel %u|Gpio %u|Sclk_Hz %"PRIu32"|Div %u|Thresold "
+      rmtinfo("Rmt Rx Channel %u|Gpio %u|Sclk_Hz %"PRIu32"|Div %u|Threshold "
               "%u|Filter %u", channel, gpio_num, rmt_source_clk_hz, clk_div,
               threshold, filter_cnt);
     }
@@ -1437,7 +1437,7 @@ static int IRAM_ATTR rmt_driver_isr_default(int irq, void *context,
 
           rmt_ll_rx_reset_pointer(g_rmtdev_common.hal.regs, channel);
           rmtinfo("RMT RX channel %d error", channel);
-          rmtinfo("status: 0x%08x",
+          rmtinfo("status: 0x%08" PRIx32 "",
                   rmt_ll_rx_get_status_word(g_rmtdev_common.hal.regs,
                                             channel));
         }
@@ -1462,7 +1462,7 @@ static int IRAM_ATTR rmt_driver_isr_default(int irq, void *context,
 
           rmt_ll_tx_reset_pointer(g_rmtdev_common.hal.regs, channel);
           rmtinfo("RMT TX channel %d error", channel);
-          rmtinfo("status: 0x%08x",
+          rmtinfo("status: 0x%08" PRIx32 "",
                   rmt_ll_tx_get_status_word(g_rmtdev_common.hal.regs,
                                             channel));
         }

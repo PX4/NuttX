@@ -763,7 +763,7 @@ struct imxrt_uart_s
 
 #ifdef SERIAL_HAVE_TXDMA
   const unsigned int dma_txreqsrc;  /* DMAMUX source of TX DMA request */
-  DMACH_HANDLE       txdma;         /* currently-open trasnmit DMA stream */
+  DMACH_HANDLE       txdma;         /* currently-open transmit DMA stream */
 #endif
 
   /* RX DMA state */
@@ -884,6 +884,28 @@ static const struct uart_ops_s g_lpuart_singlewire_ops =
   .txready        = imxrt_txready,
   .txempty        = imxrt_txempty,
 };
+
+#ifdef SERIAL_HAVE_RXDMA
+static const struct uart_ops_s g_lpuart_singlewire_rxdma_ops =
+{
+  .setup          = imxrt_dma_setup,
+  .shutdown       = imxrt_dma_shutdown,
+  .attach         = imxrt_attach,
+  .detach         = imxrt_detach,
+  .ioctl          = imxrt_ioctl,
+  .receive        = imxrt_dma_receive,
+  .rxint          = imxrt_dma_rxint,
+  .rxavailable    = imxrt_dma_rxavailable,
+#ifdef CONFIG_SERIAL_IFLOWCONTROL
+  .rxflowcontrol  = imxrt_rxflowcontrol,
+#endif
+  .send           = imxrt_singlewire_send,
+  .txint          = imxrt_singlewire_txint,
+  .txready        = imxrt_txready,
+  .txempty        = imxrt_txempty,
+};
+#endif
+
 #endif
 
 #if !defined(SERIAL_HAVE_ONLY_TXDMA) && !defined(SERIAL_HAVE_ONLY_RXDMA)
@@ -1166,6 +1188,7 @@ static struct imxrt_uart_s g_lpuart1priv =
 #  endif
 #  ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
   .tx_gpio      = GPIO_LPUART1_TX,
+  .prev_ops     = 0,
 #  endif
 
 #  if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
@@ -1236,6 +1259,7 @@ static struct imxrt_uart_s g_lpuart2priv =
 #  endif
 #  ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
   .tx_gpio      = GPIO_LPUART2_TX,
+  .prev_ops     = 0,
 #  endif
 #  if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
     && defined(CONFIG_LPUART2_INVERTIFLOWCONTROL))
@@ -1303,6 +1327,7 @@ static struct imxrt_uart_s g_lpuart3priv =
 #  endif
 #  ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
   .tx_gpio      = GPIO_LPUART3_TX,
+  .prev_ops     = 0,
 #  endif
 #  if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
     && defined(CONFIG_LPUART3_INVERTIFLOWCONTROL))
@@ -1370,6 +1395,7 @@ static struct imxrt_uart_s g_lpuart4priv =
 #  endif
 #  ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
   .tx_gpio      = GPIO_LPUART4_TX,
+  .prev_ops     = 0,
 #  endif
 #  if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
     && defined(CONFIG_LPUART4_INVERTIFLOWCONTROL))
@@ -1437,6 +1463,7 @@ static struct imxrt_uart_s g_lpuart5priv =
 #  endif
 #  ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
   .tx_gpio      = GPIO_LPUART5_TX,
+  .prev_ops     = 0,
 #  endif
 #  if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
     && defined(CONFIG_LPUART5_INVERTIFLOWCONTROL))
@@ -1504,6 +1531,7 @@ static struct imxrt_uart_s g_lpuart6priv =
 #  endif
 #  ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
   .tx_gpio      = GPIO_LPUART6_TX,
+  .prev_ops     = 0,
 #  endif
 #  if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
     && defined(CONFIG_LPUART6_INVERTIFLOWCONTROL))
@@ -1571,6 +1599,7 @@ static struct imxrt_uart_s g_lpuart7priv =
 #  endif
 #  ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
   .tx_gpio      = GPIO_LPUART7_TX,
+  .prev_ops     = 0,
 #  endif
 #  if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
     && defined(CONFIG_LPUART7_INVERTIFLOWCONTROL))
@@ -1638,6 +1667,7 @@ static struct imxrt_uart_s g_lpuart8priv =
 #  endif
 #  ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
   .tx_gpio      = GPIO_LPUART8_TX,
+  .prev_ops     = 0,
 #  endif
 #  if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
     && defined(CONFIG_LPUART8_INVERTIFLOWCONTROL))
@@ -1705,6 +1735,7 @@ static struct imxrt_uart_s g_lpuart9priv =
 #endif
 #ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
   .tx_gpio      = GPIO_LPUART9_TX,
+  .prev_ops     = 0,
 #endif
 #if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
     && defined(CONFIG_LPUART9_INVERTIFLOWCONTROL))
@@ -1772,6 +1803,7 @@ static struct imxrt_uart_s g_lpuart10priv =
 #endif
 #ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
   .tx_gpio      = GPIO_LPUART10_TX,
+  .prev_ops     = 0,
 #endif
 #if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
     && defined(CONFIG_LPUART10_INVERTIFLOWCONTROL))
@@ -1839,6 +1871,7 @@ static struct imxrt_uart_s g_lpuart11priv =
 #endif
 #ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
   .tx_gpio      = GPIO_LPUART11_TX,
+  .prev_ops     = 0,
 #endif
 #if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
     && defined(CONFIG_LPUART11_INVERTIFLOWCONTROL))
@@ -1906,6 +1939,7 @@ static struct imxrt_uart_s g_lpuart12priv =
 #endif
 #ifdef CONFIG_IMXRT_LPUART_SINGLEWIRE
   .tx_gpio      = GPIO_LPUART12_TX,
+  .prev_ops     = 0,
 #endif
 #if (((defined(CONFIG_SERIAL_RS485CONTROL) || defined(CONFIG_SERIAL_IFLOWCONTROL))) \
     && defined(CONFIG_LPUART12_INVERTIFLOWCONTROL))
@@ -2133,7 +2167,7 @@ static int imxrt_dma_setup(struct uart_dev_s *dev)
       modifyreg32(priv->uartbase + IMXRT_LPUART_BAUD_OFFSET,
                   0, LPUART_BAUD_RDMAE);
 
-      /* Enable itnerrupt on Idel and erros */
+      /* Enable interrupt on Idle and errors */
 
       modifyreg32(priv->uartbase + IMXRT_LPUART_CTRL_OFFSET, 0,
                   LPUART_CTRL_PEIE       |
@@ -2687,7 +2721,16 @@ static int imxrt_ioctl(struct file *filep, int cmd, unsigned long arg)
                           ~(IOMUX_PULL_MASK | IOMUX_OPENDRAIN)) | gpio_val);
             regval |= LPUART_CTRL_LOOPS | LPUART_CTRL_RSRC;
             priv->prev_ops = priv->dev.ops;
-            priv->dev.ops = &g_lpuart_singlewire_ops;
+#ifdef SERIAL_HAVE_RXDMA
+            if (priv->dev.ops->receive == imxrt_dma_receive)
+              {
+                priv->dev.ops = &g_lpuart_singlewire_rxdma_ops;
+              }
+            else
+#endif
+              {
+                priv->dev.ops = &g_lpuart_singlewire_ops;
+              }
           }
         else
           {
@@ -2695,9 +2738,10 @@ static int imxrt_ioctl(struct file *filep, int cmd, unsigned long arg)
                                                  IOMUX_OPENDRAIN)) |
                                                  IOMUX_PULL_NONE);
             regval &= ~(LPUART_CTRL_LOOPS | LPUART_CTRL_RSRC);
-            if (priv->dev.ops == &g_lpuart_singlewire_ops)
+            if (priv->prev_ops)
               {
                 priv->dev.ops = priv->prev_ops;
+                priv->prev_ops = 0;
               }
           }
 
@@ -3505,25 +3549,25 @@ static void up_pm_notify(struct pm_callback_s *cb, int domain,
 {
   switch (pmstate)
     {
-      case(PM_NORMAL):
+      case (PM_NORMAL):
         {
           /* Logic for PM_NORMAL goes here */
         }
         break;
 
-      case(PM_IDLE):
+      case (PM_IDLE):
         {
           /* Logic for PM_IDLE goes here */
         }
         break;
 
-      case(PM_STANDBY):
+      case (PM_STANDBY):
         {
           /* Logic for PM_STANDBY goes here */
         }
         break;
 
-      case(PM_SLEEP):
+      case (PM_SLEEP):
         {
           /* Logic for PM_SLEEP goes here */
         }
@@ -3591,7 +3635,7 @@ static int up_pm_prepare(struct pm_callback_s *cb, int domain,
  *
  * Description:
  *   Performs the low level UART initialization early in debug so that the
- *   serial console will be available during bootup.  This must be called
+ *   serial console will be available during boot up.  This must be called
  *   before arm_serialinit.
  *
  ****************************************************************************/

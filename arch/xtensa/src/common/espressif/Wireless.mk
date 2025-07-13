@@ -20,41 +20,55 @@
 #
 ############################################################################
 
+ifeq ($(CONFIG_ARCH_CHIP_ESP32),y)
+INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)bt$(DELIM)include$(DELIM)$(CHIP_SERIES)$(DELIM)include
+endif
 ifeq ($(CONFIG_ARCH_CHIP_ESP32S3),y)
 INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)bt$(DELIM)include$(DELIM)esp32c3$(DELIM)include
-INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_coex$(DELIM)include
 endif
+INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_coex$(DELIM)include
 INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)soc$(DELIM)$(CHIP_SERIES)$(DELIM)include
 INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)nuttx$(DELIM)$(CHIP_SERIES)$(DELIM)include
 INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)nuttx$(DELIM)include$(DELIM)esp_wifi
 
+ifeq ($(CONFIG_ARCH_CHIP_ESP32),y)
+EXTRA_LIBPATHS += -L $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)bt$(DELIM)controller$(DELIM)lib_esp32$(DELIM)$(CHIP_SERIES)
+endif
 ifeq ($(CONFIG_ARCH_CHIP_ESP32S3),y)
 EXTRA_LIBPATHS += -L $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)bt$(DELIM)controller$(DELIM)lib_esp32c3_family$(DELIM)$(CHIP_SERIES)
-EXTRA_LIBPATHS += -L $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_coex$(DELIM)lib$(DELIM)$(CHIP_SERIES)
 endif
+EXTRA_LIBPATHS += -L $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_coex$(DELIM)lib$(DELIM)$(CHIP_SERIES)
 EXTRA_LIBPATHS += -L $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_phy$(DELIM)lib$(DELIM)$(CHIP_SERIES)
 EXTRA_LIBPATHS += -L $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_wifi$(DELIM)lib$(DELIM)$(CHIP_SERIES)
 
-ifeq ($(CONFIG_ARCH_CHIP_ESP32S3),y)
+ifeq ($(CONFIG_ARCH_CHIP_ESP32),y)
+EXTRA_LIBS += -lrtc
+endif
+
+ifneq ($(CONFIG_ARCH_CHIP_ESP32S2),y)
 EXTRA_LIBS += -lcoexist
 endif
+
 EXTRA_LIBS += -lphy
 
 ifeq ($(CONFIG_ESPRESSIF_WIFI),y)
-EXTRA_LIBS += -lcore -lnet80211 -lpp
+EXTRA_LIBS += -lcore -lnet80211 -lpp -lespnow
+endif
 
 ifeq ($(CONFIG_WPA_WAPI_PSK),y)
 EXTRA_LIBS += -lwapi
 endif
 
+ifeq ($(CONFIG_ESPRESSIF_WIFI),y)
+
 ## ESP-IDF's mbedTLS
+
 
 VPATH += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)mbedtls$(DELIM)mbedtls$(DELIM)library
 
 INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)mbedtls$(DELIM)mbedtls$(DELIM)include
 INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)mbedtls$(DELIM)mbedtls$(DELIM)library
 INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)mbedtls$(DELIM)port$(DELIM)include
-INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)nuttx$(DELIM)include$(DELIM)mbedtls
 
 ### Define Espressif's configs for mbedTLS
 
@@ -126,8 +140,12 @@ CFLAGS += $(DEFINE_PREFIX)CONFIG_SHA256
 CFLAGS += $(DEFINE_PREFIX)CONFIG_SAE
 CFLAGS += $(DEFINE_PREFIX)USE_WPS_TASK
 
-ifeq ($(CONFIG_ESP_WIFI_ENABLE_SAE_PK),y)
+ifeq ($(CONFIG_ESPRESSIF_WIFI_ENABLE_SAE_PK),y)
 CFLAGS += $(DEFINE_PREFIX)CONFIG_SAE_PK
+endif
+
+ifeq ($(CONFIG_ESPRESSIF_WIFI_ENABLE_SAE_H2E),y)
+CFLAGS += $(DEFINE_PREFIX)CONFIG_SAE_H2E
 endif
 
 ifeq ($(CONFIG_ESP_WIFI_ENABLE_WPA3_OWE_STA),y)
@@ -164,7 +182,9 @@ INCLUDES += $(INCDIR_PREFIX)$(ARCH_SRCDIR)$(DELIM)$(WIFI_WPA_SUPPLICANT)$(DELIM)
 CHIP_CSRCS += dragonfly.c
 CHIP_CSRCS += sae.c
 CHIP_CSRCS += wpa_common.c
+ifeq ($(CONFIG_ESPRESSIF_WIFI_ENABLE_SAE_PK),y)
 CHIP_CSRCS += sae_pk.c
+endif
 CHIP_CSRCS += bss.c
 CHIP_CSRCS += scan.c
 CHIP_CSRCS += ieee802_11_common.c
@@ -252,4 +272,13 @@ CHIP_CSRCS += crypto_mbedtls.c
 CHIP_CSRCS += tls_mbedtls.c
 CHIP_CSRCS += aes-siv.c
 
+CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_wifi$(DELIM)src$(DELIM)wifi_init.c
+CHIP_CSRCS += chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_wifi$(DELIM)regulatory$(DELIM)esp_wifi_regulatory.c
+
+endif
+
+# Linker scripts
+
+ifeq ($(CONFIG_ARCH_CHIP_ESP32S3),y)
+ARCHSCRIPT += $(ARCH_SRCDIR)$(DELIM)chip$(DELIM)$(ESP_HAL_3RDPARTY_REPO)$(DELIM)components$(DELIM)esp_rom$(DELIM)$(CHIP_SERIES)$(DELIM)ld$(DELIM)$(CHIP_SERIES).rom.bt_funcs.ld
 endif

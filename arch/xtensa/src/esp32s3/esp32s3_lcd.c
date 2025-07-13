@@ -312,8 +312,8 @@ static struct esp32s3_lcd_s g_lcd_priv;
 static const struct fb_videoinfo_s g_base_videoinfo =
 {
   .fmt      = ESP32S3_LCD_COLOR_FMT,
-  .xres     = CONFIG_ESP32S3_LCD_VRES,
-  .yres     = CONFIG_ESP32S3_LCD_HRES,
+  .xres     = CONFIG_ESP32S3_LCD_HRES,
+  .yres     = CONFIG_ESP32S3_LCD_VRES,
   .nplanes  = 1
 };
 
@@ -339,14 +339,14 @@ static struct fb_vtable_s g_base_vtable =
  * Name: max_common_divisor
  *
  * Description:
- *   Calculate maxium common divisor.
+ *   Calculate maximum common divisor.
  *
  * Input Parameters:
  *   a - Calculation parameter a
  *   b - Calculation parameter b
  *
  * Returned Value:
- *   Maxium common divisor.
+ *   Maximum common divisor.
  *
  ****************************************************************************/
 
@@ -377,7 +377,7 @@ static inline uint32_t max_common_divisor(uint32_t a, uint32_t b)
  *
  * Returned Value:
  *   true:  This is the first register access of this type.
- *   flase: This is the same as the preceding register access.
+ *   false: This is the same as the preceding register access.
  *
  ****************************************************************************/
 
@@ -429,10 +429,10 @@ static bool esp32s3_lcd_checkreg(bool wr,
  *  Read any 32-bit register using an absolute
  *
  * Input Parameters:
- *  address - Regster address
+ *  address - Register address
  *
  * Returned Value:
- *  Regster value.
+ *  Register value.
  *
  ****************************************************************************/
 
@@ -443,7 +443,7 @@ static uint32_t esp32s3_lcd_getreg(uintptr_t address)
 
   if (esp32s3_lcd_checkreg(false, regval, address))
     {
-      lcdinfo("%" PRIx32 " ->%" PRIx32 "\n", address, regval);
+      lcdinfo("%" PRIuPTR " ->%" PRIu32 "\n", address, regval);
     }
 
   return regval;
@@ -457,8 +457,8 @@ static uint32_t esp32s3_lcd_getreg(uintptr_t address)
  *  Write to any 32-bit register using an absolute address
  *
  * Input Parameters:
- *  address - Regster address
- *  regval  - Regster value
+ *  address - Register address
+ *  regval  - Register value
  *
  * Returned Value:
  *  None
@@ -470,7 +470,7 @@ static void esp32s3_lcd_putreg(uintptr_t address, uint32_t regval)
 {
   if (esp32s3_lcd_checkreg(true, regval, address))
     {
-      lcdinfo("%" PRIx32 " <-%" PRIx32 "\n", address, regval);
+      lcdinfo("%" PRIuPTR " <-%" PRIu32 "\n", address, regval);
     }
 
   putreg32(regval, address);
@@ -854,12 +854,12 @@ static void esp32s3_lcd_enableclk(void)
     clk_b = ESP32S3_LCD_CLK_RES / divisor;
     clk_a = CONFIG_ESP32S3_LCD_CLOCK_MHZ / divisor;
 
-    lcdinfo("divisor=%d\n", divisor);
+    lcdinfo("divisor= %" PRIu32 "\n", divisor);
 #else
     clk_b = clk_a = 0;
 #endif
 
-  lcdinfo("PCLK=%d/(%d + %d/%d)\n", ESP32S3_LCD_CLK_MHZ,
+  lcdinfo("PCLK=%d/(%d + %" PRIu32 "/%" PRIu32 ")\n", ESP32S3_LCD_CLK_MHZ,
           ESP32S3_LCD_CLK_N, clk_b, clk_a);
 
   periph_module_enable(PERIPH_LCD_CAM_MODULE);
@@ -900,8 +900,8 @@ static int esp32s3_lcd_config(void)
   regval |= LCD_CAM_LCD_VSYNC_INT_ENA_M;
   esp32s3_lcd_putreg(LCD_CAM_LC_DMA_INT_ENA_REG, regval);
 
-  /* Set LCD screem parameters:
-   *    1. RGB mode, ouput VSYNC/HSYNC/DE signal
+  /* Set LCD screen parameters:
+   *    1. RGB mode, output VSYNC/HSYNC/DE signal
    *    2. VT height
    *    3. VA height
    *    4. HB front

@@ -93,23 +93,22 @@
 #  define TCB_FLAG_TTYPE_TASK      (0 << TCB_FLAG_TTYPE_SHIFT)   /*   Normal user task */
 #  define TCB_FLAG_TTYPE_PTHREAD   (1 << TCB_FLAG_TTYPE_SHIFT)   /*   User pthread */
 #  define TCB_FLAG_TTYPE_KERNEL    (2 << TCB_FLAG_TTYPE_SHIFT)   /*   Kernel thread */
-#define TCB_FLAG_POLICY_SHIFT      (2)                           /* Bit 2-3: Scheduling policy */
+#define TCB_FLAG_POLICY_SHIFT      (3)                           /* Bit 3-4: Scheduling policy */
 #define TCB_FLAG_POLICY_MASK       (3 << TCB_FLAG_POLICY_SHIFT)
 #  define TCB_FLAG_SCHED_FIFO      (0 << TCB_FLAG_POLICY_SHIFT)  /* FIFO scheding policy */
 #  define TCB_FLAG_SCHED_RR        (1 << TCB_FLAG_POLICY_SHIFT)  /* Round robin scheding policy */
 #  define TCB_FLAG_SCHED_SPORADIC  (2 << TCB_FLAG_POLICY_SHIFT)  /* Sporadic scheding policy */
-#define TCB_FLAG_CPU_LOCKED        (1 << 4)                      /* Bit 4: Locked to this CPU */
-#define TCB_FLAG_SIGNAL_ACTION     (1 << 5)                      /* Bit 5: In a signal handler */
-#define TCB_FLAG_SYSCALL           (1 << 6)                      /* Bit 6: In a system call */
-#define TCB_FLAG_EXIT_PROCESSING   (1 << 7)                      /* Bit 7: Exitting */
-#define TCB_FLAG_FREE_STACK        (1 << 8)                      /* Bit 8: Free stack after exit */
-#define TCB_FLAG_HEAP_CHECK        (1 << 9)                      /* Bit 9: Heap check */
-#define TCB_FLAG_HEAP_DUMP         (1 << 10)                     /* Bit 10: Heap dump */
-#define TCB_FLAG_DETACHED          (1 << 11)                     /* Bit 11: Pthread detached */
-#define TCB_FLAG_FORCED_CANCEL     (1 << 12)                     /* Bit 12: Pthread cancel is forced */
-#define TCB_FLAG_JOIN_COMPLETED    (1 << 13)                     /* Bit 13: Pthread join completed */
-#define TCB_FLAG_FREE_TCB          (1 << 14)                     /* Bit 14: Free tcb after exit */
-#define TCB_FLAG_SIGDELIVER        (1 << 15)                     /* Bit 15: Deliver pending signals */
+#define TCB_FLAG_CPU_LOCKED        (1 << 5)                      /* Bit 5: Locked to this CPU */
+#define TCB_FLAG_SIGNAL_ACTION     (1 << 6)                      /* Bit 6: In a signal handler */
+#define TCB_FLAG_SYSCALL           (1 << 7)                      /* Bit 7: In a system call */
+#define TCB_FLAG_EXIT_PROCESSING   (1 << 8)                      /* Bit 8: Exiting */
+#define TCB_FLAG_FREE_STACK        (1 << 9)                      /* Bit 9: Free stack after exit */
+#define TCB_FLAG_HEAP_CHECK        (1 << 10)                     /* Bit 10: Heap check */
+#define TCB_FLAG_HEAP_DUMP         (1 << 11)                     /* Bit 11: Heap dump */
+#define TCB_FLAG_DETACHED          (1 << 12)                     /* Bit 12: Pthread detached */
+#define TCB_FLAG_FORCED_CANCEL     (1 << 13)                     /* Bit 13: Pthread cancel is forced */
+#define TCB_FLAG_JOIN_COMPLETED    (1 << 14)                     /* Bit 14: Pthread join completed */
+#define TCB_FLAG_FREE_TCB          (1 << 15)                     /* Bit 15: Free tcb after exit */
 #define TCB_FLAG_PREEMPT_SCHED     (1 << 16)                     /* Bit 16: tcb is PREEMPT_SCHED */
 
 /* Values for struct task_group tg_flags */
@@ -155,9 +154,6 @@
  */
 
 #if !defined(CONFIG_BUILD_FLAT) && defined(__KERNEL__)
-#  define _SCHED_GETTID()            nxsched_gettid()
-#  define _SCHED_GETPID()            nxsched_getpid()
-#  define _SCHED_GETPPID()           nxsched_getppid()
 #  define _SCHED_GETPARAM(t,p)       nxsched_get_param(t,p)
 #  define _SCHED_SETPARAM(t,p)       nxsched_set_param(t,p)
 #  define _SCHED_GETSCHEDULER(t)     nxsched_get_scheduler(t)
@@ -167,9 +163,6 @@
 #  define _SCHED_ERRNO(r)            (-(r))
 #  define _SCHED_ERRVAL(r)           (r)
 #else
-#  define _SCHED_GETTID()            gettid()
-#  define _SCHED_GETPID()            getpid()
-#  define _SCHED_GETPPID()           getppid()
 #  define _SCHED_GETPARAM(t,p)       sched_getparam(t,p)
 #  define _SCHED_SETPARAM(t,p)       sched_setparam(t,p)
 #  define _SCHED_GETSCHEDULER(t)     sched_getscheduler(t)
@@ -178,6 +171,16 @@
 #  define _SCHED_SETAFFINITY(t,c,m)  sched_setaffinity(t,c,m)
 #  define _SCHED_ERRNO(r)            errno
 #  define _SCHED_ERRVAL(r)           (-errno)
+#endif
+
+#if defined(CONFIG_BUILD_FLAT) || defined(__KERNEL__)
+#  define _SCHED_GETTID()            nxsched_gettid()
+#  define _SCHED_GETPID()            nxsched_getpid()
+#  define _SCHED_GETPPID()           nxsched_getppid()
+#else
+#  define _SCHED_GETTID()            gettid()
+#  define _SCHED_GETPID()            getpid()
+#  define _SCHED_GETPPID()           getppid()
 #endif
 
 #define TCB_PID_OFF                  offsetof(struct tcb_s, pid)
@@ -280,6 +283,7 @@ typedef enum tstate_e tstate_t;
 /* The following is the form of a thread start-up function */
 
 typedef CODE void (*start_t)(void);
+typedef CODE void (*sig_deliver_t)(FAR struct tcb_s *tcb);
 
 /* This is the entry point into the main thread of the task or into a created
  * pthread within the task.
@@ -292,12 +296,6 @@ union entry_u
 };
 
 typedef union entry_u entry_t;
-
-/* This is the type of the function called at task startup */
-
-#ifdef CONFIG_SCHED_STARTHOOK
-typedef CODE void (*starthook_t)(FAR void *arg);
-#endif
 
 /* struct sporadic_s ********************************************************/
 
@@ -541,7 +539,7 @@ struct task_group_s
 
   /* File descriptors *******************************************************/
 
-  struct filelist tg_filelist;      /* Maps file descriptor to file         */
+  struct fdlist tg_fdlist;          /* Maps file descriptor to file         */
 
   /* Virtual memory mapping info ********************************************/
 
@@ -699,6 +697,11 @@ struct tcb_s
 
   struct xcptcontext xcp;                /* Interrupt register save area    */
 
+  /* The following function pointer is non-zero if there are pending signals
+   * to be processed.
+   */
+
+  sig_deliver_t sigdeliver;
 #if CONFIG_TASK_NAME_SIZE > 0
   char name[CONFIG_TASK_NAME_SIZE + 1];  /* Task name (with NUL terminator) */
 #endif
@@ -740,13 +743,6 @@ struct task_tcb_s
   /* Task Group *************************************************************/
 
   struct task_group_s group;             /* Shared task group data          */
-
-  /* Task Management Fields *************************************************/
-
-#ifdef CONFIG_SCHED_STARTHOOK
-  starthook_t starthook;                 /* Task startup function           */
-  FAR void *starthookarg;                /* The argument passed to the hook */
-#endif
 };
 
 /* struct pthread_tcb_s *****************************************************/
@@ -923,7 +919,7 @@ FAR struct tcb_s *nxsched_get_tcb(pid_t pid);
  *
  * Description:
  *   When a task is destroyed, this function must be called to make its
- *   process ID available for re-use.
+ *   process ID available for reuse.
  *
  ****************************************************************************/
 
@@ -936,10 +932,10 @@ int nxsched_release_tcb(FAR struct tcb_s *tcb, uint8_t ttype);
  */
 
 /****************************************************************************
- * Name: nxsched_get_files_from_tcb
+ * Name: nxsched_get_fdlist_from_tcb
  *
  * Description:
- *   Return a pointer to the file list from task context
+ *   Return a pointer to the file descriptor list from task context.
  *
  * Input Parameters:
  *   tcb - Address of the new task's TCB
@@ -951,25 +947,25 @@ int nxsched_release_tcb(FAR struct tcb_s *tcb, uint8_t ttype);
  *
  ****************************************************************************/
 
-FAR struct filelist *nxsched_get_files_from_tcb(FAR struct tcb_s *tcb);
+FAR struct fdlist *nxsched_get_fdlist_from_tcb(FAR struct tcb_s *tcb);
 
 /****************************************************************************
- * Name: nxsched_get_files
+ * Name: nxsched_get_fdlist
  *
  * Description:
- *   Return a pointer to the file list for this thread
+ *   Return a pointer to the file descriptor list for this thread.
  *
  * Input Parameters:
  *   None
  *
  * Returned Value:
- *   A pointer to the errno.
+ *   A pointer to the file descriptor list.
  *
  * Assumptions:
  *
  ****************************************************************************/
 
-FAR struct filelist *nxsched_get_files(void);
+FAR struct fdlist *nxsched_get_fdlist(void);
 
 /****************************************************************************
  * Name: nxtask_init
@@ -1124,30 +1120,6 @@ int nxtask_delete(pid_t pid);
  ****************************************************************************/
 
 void nxtask_activate(FAR struct tcb_s *tcb);
-
-/****************************************************************************
- * Name: nxtask_starthook
- *
- * Description:
- *   Configure a start hook... a function that will be called on the thread
- *   of the new task before the new task's main entry point is called.
- *   The start hook is useful, for example, for setting up automatic
- *   configuration of C++ constructors.
- *
- * Input Parameters:
- *   tcb - The new, unstarted task task that needs the start hook
- *   starthook - The pointer to the start hook function
- *   arg - The argument to pass to the start hook function.
- *
- * Returned Value:
- *   None
- *
- ****************************************************************************/
-
-#ifdef CONFIG_SCHED_STARTHOOK
-void nxtask_starthook(FAR struct task_tcb_s *tcb, starthook_t starthook,
-                      FAR void *arg);
-#endif
 
 /****************************************************************************
  * Name: nxtask_startup

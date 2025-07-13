@@ -103,23 +103,10 @@ extern "C"
 
 static inline void rp23xx_gpio_put(uint32_t gpio, int set)
 {
-  // logic now matches pico-sdk:
-  // https://github.com/raspberrypi/pico-sdk/blob/9a4113fbbae65ee82d8cd6537963bc3d3b14bcca/src/rp2_common/hardware_gpio/include/hardware/gpio.h#L1139-L1170
-  #if RP23XX_GPIO_NUM > 32
-  uint32_t value = 1ul << (gpio & 0x1fu);
-  #else
-  uint32_t value = 1u << gpio;
-  #endif
-
-  uint32_t reg_set = RP23XX_SIO_GPIO_OUT_SET;
-  uint32_t reg_clr = RP23XX_SIO_GPIO_OUT_CLR;
-
-  if (gpio >= 32) {
-  	reg_set = RP23XX_SIO_GPIO_HI_OUT_SET;
-        reg_clr = RP23XX_SIO_GPIO_HI_OUT_CLR;
-  }
-
   DEBUGASSERT(gpio < RP23XX_GPIO_NUM);
+
+#if (RP23XX_GPIO_NUM <= 32)
+  uint32_t value = 1 << gpio;
 
   if (set)
     {
@@ -129,56 +116,94 @@ static inline void rp23xx_gpio_put(uint32_t gpio, int set)
     {
       putreg32(value, reg_clr);
     }
+#else
+  uint32_t mask = 1ul << (gpio & 0x1fu);
+  if (gpio < 32)
+    {
+      if (set)
+        {
+          putreg32(mask, RP23XX_SIO_GPIO_OUT_SET);
+        }
+      else
+        {
+          putreg32(mask, RP23XX_SIO_GPIO_OUT_CLR);
+        }
+    }
+  else
+    {
+        if (set)
+        {
+            putreg32(mask, RP23XX_SIO_GPIO_HI_OUT_SET);
+        }
+        else
+        {
+            putreg32(mask, RP23XX_SIO_GPIO_HI_OUT_CLR);
+        }
+    }
+#endif
 }
 
 static inline bool rp23xx_gpio_get(uint32_t gpio)
 {
-  uint32_t mask = 1u << gpio;
-  uint32_t reg_addr = RP23XX_SIO_GPIO_IN;
-
   DEBUGASSERT(gpio < RP23XX_GPIO_NUM);
 
-  // for RP3250B:
-  // https://github.com/raspberrypi/pico-sdk/blob/9a4113fbbae65ee82d8cd6537963bc3d3b14bcca/src/rp2_common/hardware_gpio/include/hardware/gpio.h#L859-L869
-  if (gpio >= 32) {
-  	reg_addr = RP23XX_SIO_GPIO_HI_IN;
-  	mask = (1u << (gpio - 32));
-  }
-  return (getreg32(reg_addr) & mask) != 0;
+#if (RP23XX_GPIO_NUM <= 32)
+  uint32_t value = 1 << gpio;
+  return (getreg32(RP23XX_SIO_GPIO_IN) & value) != 0;
+#else
+  if (gpio < 32)
+    {
+        uint32_t value = 1 << gpio;
+        return (getreg32(RP23XX_SIO_GPIO_IN) & value) != 0;
+    }
+  else
+    {
+        uint32_t value = 1 << (gpio -32);
+        return (getreg32(RP23XX_SIO_GPIO_HI_IN) & value) != 0;
+    }
+#endif
 }
 
 static inline void rp23xx_gpio_setdir(uint32_t gpio, int out)
 {
-  // logic now matches pico-sdk:
-  // https://github.com/raspberrypi/pico-sdk/blob/9a4113fbbae65ee82d8cd6537963bc3d3b14bcca/src/rp2_common/hardware_gpio/include/hardware/gpio.h#L1334-L1365
-  #if RP23XX_GPIO_NUM > 32
-  uint32_t value = 1ul << (gpio & 0x1fu);
-  #else
-  uint32_t value = 1u << gpio;
-  #endif
-
   DEBUGASSERT(gpio < RP23XX_GPIO_NUM);
 
-  if (gpio < 32){
-	  if (out)
-	    {
-	      putreg32(value, RP23XX_SIO_GPIO_OE_SET);
-	    }
-	  else
-	    {
-	      putreg32(value, RP23XX_SIO_GPIO_OE_CLR);
-	    }
-  } else {
-  	  value = 1u << (gpio & 0x1fu);
-  	  if (out)
-  	    {
-  	      putreg32(value, RP23XX_SIO_GPIO_HI_OE_SET);
-  	    }
-  	  else
-  	    {
-  	      putreg32(value, RP23XX_SIO_GPIO_HI_OE_CLR);
-  	    }
-  }
+#if (RP23XX_GPIO_NUM <= 32)
+  uint32_t value = 1 << gpio;
+
+  if (out)
+    {
+      putreg32(value, RP23XX_SIO_GPIO_OE_SET);
+    }
+  else
+    {
+      putreg32(value, RP23XX_SIO_GPIO_OE_CLR);
+    }
+#else
+  uint32_t mask = 1ul << (gpio & 0x1fu);
+  if (gpio < 32)
+    {
+        if (out)
+        {
+            putreg32(mask, RP23XX_SIO_GPIO_OE_SET);
+        }
+        else
+        {
+            putreg32(mask, RP23XX_SIO_GPIO_OE_CLR);
+        }
+    }
+    else
+    {
+        if (out)
+        {
+            putreg32(mask, RP23XX_SIO_GPIO_HI_OE_SET);
+        }
+        else
+        {
+            putreg32(mask, RP23XX_SIO_GPIO_HI_OE_CLR);
+        }
+    }
+#endif
 }
 
 /****************************************************************************

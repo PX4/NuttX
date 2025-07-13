@@ -77,24 +77,13 @@
 
 #define dc_ops(op, val)                                          \
   ({                                                             \
-    __asm__ volatile ("dc " op ", %0" : : "r" (val) : "memory"); \
+    __asm__ volatile ("dc " op ", %x0" : : "r" (val) : "memory"); \
   })
 
 #define ic_ops(op, val)                                          \
   ({                                                             \
     __asm__ volatile ("ic " op ", %0" : : "r" (val) : "memory"); \
   })
-
-/* IC IALLUIS, Instruction Cache Invalidate All to PoU, Inner Shareable
- * Purpose
- * Invalidate all instruction caches in the Inner Shareable domain of
- * the PE executing the instruction to the Point of Unification.
- */
-
-static inline void __ic_iallu(void)
-{
-  __asm__ volatile ("ic  iallu" : : : "memory");
-}
 
 /* IC IALLU, Instruction Cache Invalidate All to PoU
  * Purpose
@@ -501,7 +490,7 @@ void up_disable_icache(void)
  * Assumptions:
  *   This operation is not atomic.  This function assumes that the caller
  *   has exclusive access to the address range so that no harm is done if
- *   the operation is pre-empted.
+ *   the operation is preempted.
  *
  ****************************************************************************/
 
@@ -601,7 +590,7 @@ size_t up_get_dcache_size(void)
  * Assumptions:
  *   This operation is not atomic.  This function assumes that the caller
  *   has exclusive access to the address range so that no harm is done if
- *   the operation is pre-empted.
+ *   the operation is preempted.
  *
  ****************************************************************************/
 
@@ -629,7 +618,7 @@ void up_clean_dcache(uintptr_t start, uintptr_t end)
  * Assumptions:
  *   This operation is not atomic.  This function assumes that the caller
  *   has exclusive access to the address range so that no harm is done if
- *   the operation is pre-empted.
+ *   the operation is preempted.
  *
  ****************************************************************************/
 
@@ -708,7 +697,7 @@ void up_disable_dcache(void)
  * Assumptions:
  *   This operation is not atomic.  This function assumes that the caller
  *   has exclusive access to the address range so that no harm is done if
- *   the operation is pre-empted.
+ *   the operation is preempted.
  *
  ****************************************************************************/
 
@@ -735,7 +724,7 @@ void up_flush_dcache(uintptr_t start, uintptr_t end)
  * Assumptions:
  *   This operation is not atomic.  This function assumes that the caller
  *   has exclusive access to the address range so that no harm is done if
- *   the operation is pre-empted.
+ *   the operation is preempted.
  *
  ****************************************************************************/
 

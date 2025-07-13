@@ -315,6 +315,11 @@ static void st7789_select(FAR struct spi_dev_s *spi, int bits)
   SPI_SETMODE(spi, CONFIG_LCD_ST7789_SPIMODE);
   SPI_SETBITS(spi, bits);
   SPI_SETFREQUENCY(spi, CONFIG_LCD_ST7789_FREQUENCY);
+#ifdef CONFIG_SPI_DELAY_CONTROL
+  SPI_SETDELAY(spi, CONFIG_LCD_ST7789_START_DELAY,
+               CONFIG_LCD_ST7789_STOP_DELAY, CONFIG_LCD_ST7789_CS_DELAY,
+               CONFIG_LCD_ST7789_IFDELAY);
+#endif
 }
 
 /****************************************************************************
@@ -354,7 +359,7 @@ static inline void st7789_sendcmd(FAR struct st7789_dev_s *dev, uint8_t cmd)
 #ifdef CONFIG_LCD_ST7789_3WIRE
   uint16_t txbuf;
 
-  /* Add command prefix (9th bit shoudl be 0 ) */
+  /* Add command prefix (9th bit should be 0 ) */
 
   txbuf = LCD_ST7789_CMD_PREFIX | cmd;
 
@@ -472,7 +477,11 @@ static void st7789_setorientation(FAR struct st7789_dev_s *dev)
 
 #endif
 
-  /* Mirror X/Y for current setting */
+  /* Mirror X/Y/V for current setting */
+
+#ifdef CONFIG_LCD_ST7789_MIRRORV
+  madctl ^= 0x20;
+#endif
 
 #ifdef CONFIG_LCD_ST7789_MIRRORX
   madctl ^= 0x40;
@@ -488,6 +497,39 @@ static void st7789_setorientation(FAR struct st7789_dev_s *dev)
 
   SPI_SEND(dev->spi, LCD_ST7789_DATA_PREFIX | madctl);
 
+  st7789_deselect(dev->spi);
+}
+#endif
+
+#ifdef CONFIG_LCD_ST7789_DATA_ENDIAN_LITTLE
+static void st7789_ramctl(FAR struct st7789_dev_s *dev)
+{
+  /* ============ ==== ==== ====== ====== ======== ===== ====== ======
+   *  Parameters   D7   D6   D5     D4     D3       D2    D1     D0
+   * ============ ==== ==== ====== ====== ======== ===== ====== ======
+   *  1st (LSB)    0    0    0      RM     0        0     DM1    DM0
+   *  2nd (MSB)    1    1    EPF1   EPF0   ENDIAN   RIM   MDT1   MDT0
+   * ============ ==== ==== ====== ====== ======== ===== ====== ======
+   */
+
+  uint16_t ramctl = 0x0;
+
+  st7789_sendcmd(dev, ST7789_RAMCTRL);
+  st7789_select(dev->spi, LCD_ST7789_SPI_BITS * 2);
+
+  /* Fill the reserved bits */
+
+  ramctl |= 0xc000;
+
+  /* Set EPF */
+
+  ramctl |= 0x3000;
+
+  /* Set RGB data endian */
+
+  ramctl |= 0x800;
+
+  SPI_SEND(dev->spi, LCD_ST7789_DATA_PREFIX | ramctl);
   st7789_deselect(dev->spi);
 }
 #endif
@@ -584,19 +626,22 @@ static void st7789_wrram(FAR struct st7789_dev_s *dev,
   size_t i;
 #ifdef CONFIG_LCD_ST7789_3WIRE
   size_t j;
+  size_t rowsiz;
 #endif
 
   st7789_sendcmd(dev, ST7789_RAMWR);
 
 #ifdef CONFIG_LCD_ST7789_3WIRE
-  if (count == 1)
+  rowsiz = ST7789_XRES * ST7789_BYTESPP;
+
+  if (count == 1 && size > rowsiz)
     {
       /* We cannot send the entire buffer at once, split it to
        * separate rows.
        */
 
-      count = ST7789_YRES;
-      size = ST7789_XRES * ST7789_BYTESPP;
+      count = size / rowsiz;
+      size = rowsiz;
     }
 
   st7789_select(dev->spi, LCD_ST7789_SPI_BITS);
@@ -607,7 +652,7 @@ static void st7789_wrram(FAR struct st7789_dev_s *dev,
     {
       /* Copy data to rowbuff and add 9th bit */
 
-      for (j = 0; j < ST7789_XRES * ST7789_BYTESPP; j += 2)
+      for (j = 0; j < size; j += 2)
         {
           /* Take care of correct byte order. */
 
@@ -732,7 +777,7 @@ static int st7789_putrun(FAR struct lcd_dev_s *dev,
  *   buffer    - The buffer containing the area to be written to the LCD
  *   stride    - Length of a line in bytes. This parameter may be necessary
  *               to allow the LCD driver to calculate the offset for partial
- *               writes when the buffer needs to be splited for row-by-row
+ *               writes when the buffer needs to be split for row-by-row
  *               writing.
  *
  ****************************************************************************/
@@ -990,6 +1035,9 @@ FAR struct lcd_dev_s *st7789_lcdinitialize(FAR struct spi_dev_s *spi)
   st7789_setorientation(priv, orientation);
 #else
   st7789_setorientation(priv);
+#endif
+#ifdef CONFIG_LCD_ST7789_DATA_ENDIAN_LITTLE
+  st7789_ramctl(priv);
 #endif
   st7789_display(priv, true);
   st7789_fill(priv, CONFIG_LCD_ST7789_DEFAULT_COLOR);

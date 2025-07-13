@@ -14,6 +14,7 @@ config ARCH_CHIP_ESP32
 	select ARCH_FAMILY_LX6
 	select XTENSA_HAVE_INTERRUPTS
 	select ARCH_HAVE_BOOTLOADER
+	select ARCH_HAVE_DEBUG
 	select ARCH_HAVE_FPU
 	select ARCH_HAVE_MPU
 	select ARCH_HAVE_MULTICPU
@@ -51,6 +52,7 @@ config ARCH_CHIP_ESP32S2
 	select ARCH_FAMILY_LX7
 	select XTENSA_HAVE_INTERRUPTS
 	select ARCH_HAVE_BOOTLOADER
+	select ARCH_HAVE_DEBUG
 	select ARCH_HAVE_RESET
 	select ARCH_HAVE_TEXT_HEAP
 	select ARCH_VECNOTIRQ
@@ -78,6 +80,7 @@ config ARCH_CHIP_ESP32S3
 	select XTENSA_HAVE_INTERRUPTS
 	select ARCH_HAVE_BOOTLOADER if !ESPRESSIF_SIMPLE_BOOT
 	select ARCH_HAVE_COPY_SECTION
+	select ARCH_HAVE_DEBUG
 	select ARCH_HAVE_FPU
 	select ARCH_HAVE_MPU
 	select ARCH_HAVE_MULTICPU
@@ -283,7 +286,7 @@ config XTENSA_TARGET_ISS
 	default n
 	---help---
 		This setting determines whether the target is Cadence Instruction
-		Set Simulator, which might have some sepecial characteristics such
+		Set Simulator, which might have some special characteristics such
 		as how to open a file nonblock.
 
 if XTENSA_SEMIHOSTING_HOSTFS
@@ -292,7 +295,7 @@ config XTENSA_SEMIHOSTING_HOSTFS_CACHE_COHERENCE
 	bool "Cache coherence in semihosting hostfs"
 	depends on ARCH_DCACHE
 	---help---
-		Flush & Invalidte cache before & after sim call.
+		Flush & Invalidate cache before & after sim call.
 
 endif
 

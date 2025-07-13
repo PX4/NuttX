@@ -161,7 +161,9 @@ void arm64_chip_boot(void)
 
   arm64_mmu_init(true);
 
-  arm64_enable_mte();
+#ifdef CONFIG_ARM64_MTE
+  arm64_mte_init();
+#endif
 
 #ifdef CONFIG_DEVICE_TREE
   fdt_register((const char *)0x40000000);
@@ -189,5 +191,9 @@ void arm64_chip_boot(void)
 
 #ifdef CONFIG_SYSLOG_RPMSG
   syslog_rpmsg_init_early(g_syslog_rpmsg_buf, sizeof(g_syslog_rpmsg_buf));
+#endif
+
+#ifdef CONFIG_ARCH_PERF_EVENTS
+  up_perf_init((void *)CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC);
 #endif
 }

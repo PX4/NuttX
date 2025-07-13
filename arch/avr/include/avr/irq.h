@@ -72,16 +72,24 @@
 #define REG_R2           29
 #define REG_R1           30 /* r1 - the "zero" register */
 #define REG_R0           31 /* r0 */
-#define REG_SREG         32 /* Status register */
-#define REG_R25          33 /* r24-r25 */
-#define REG_R24          34
+
+#if defined(AVR_HAS_RAMPZ)
+#  define REG_RAMPZ      32 /* RAMPZ register for ELPM instruction */
+#  define REG_OFFSET_RAMPZ  1
+#else
+#  define REG_OFFSET_RAMPZ  0 /* MCU does not have RAMPZ */
+#endif
+
+#define REG_SREG         (32 + REG_OFFSET_RAMPZ) /* Status register */
+#define REG_R25          (33 + REG_OFFSET_RAMPZ) /* r24-r25 */
+#define REG_R24          (34 + REG_OFFSET_RAMPZ)
 
 /* The program counter is automatically pushed when the interrupt occurs */
 
-#define REG_PC0          35 /* PC */
-#define REG_PC1          36
+#define REG_PC0          (35 + REG_OFFSET_RAMPZ) /* PC */
+#define REG_PC1          (36 + REG_OFFSET_RAMPZ)
 #if AVR_PC_SIZE > 16
-#  define REG_PC2        37
+#  define REG_PC2        (37 + REG_OFFSET_RAMPZ)
 #endif
 
 #define XCPTCONTEXT_SIZE XCPTCONTEXT_REGS
@@ -107,6 +115,9 @@ struct xcptcontext
   uint8_t saved_pc0;
 #if defined(REG_PC2)
   uint8_t saved_pc2;
+#endif
+#if defined(REG_RAMPZ)
+  uint8_t saved_rampz;
 #endif
   uint8_t saved_sreg;
 
@@ -140,11 +151,6 @@ static inline_function irqstate_t getsreg(void)
   return sreg;
 }
 
-static inline_function void putsreg(irqstate_t sreg)
-{
-  asm volatile ("out __SREG__, %s" : : "r" (sreg) :);
-}
-
 /* Return the current value of the stack pointer */
 
 static inline_function uint16_t up_getsp(void)
@@ -167,12 +173,7 @@ static inline_function uint16_t up_getsp(void)
 
 static inline_function void up_irq_enable()
 {
-  asm volatile ("sei" ::);
-}
-
-static inline_function void up_irq_disabled()
-{
-  asm volatile ("cli" ::);
+  asm volatile ("sei" ::: "memory");
 }
 
 /* Save the current interrupt enable state & disable all interrupts */
@@ -184,7 +185,7 @@ static inline_function irqstate_t up_irq_save(void)
     (
       "\tin %0, __SREG__\n"
       "\tcli\n"
-      : "=&r" (sreg) ::
+      : "=&r" (sreg) :: "memory"
     );
   return sreg;
 }
@@ -193,7 +194,7 @@ static inline_function irqstate_t up_irq_save(void)
 
 static inline_function void up_irq_restore(irqstate_t flags)
 {
-  asm volatile ("out __SREG__, %0" : : "r" (flags) :);
+  asm volatile ("out __SREG__, %0" : : "r" (flags) : "memory");
 }
 #endif /* __ASSEMBLY__ */
 

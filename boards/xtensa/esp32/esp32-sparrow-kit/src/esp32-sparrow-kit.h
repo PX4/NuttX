@@ -90,16 +90,6 @@
 int esp32_bringup(void);
 
 /****************************************************************************
- * Name: esp32_mmcsd_initialize
- *
- * Description:
- *   Initialize SPI-based SD card and card detect thread.
- *
- ****************************************************************************/
-
-int esp32_mmcsd_initialize(int minor);
-
-/****************************************************************************
  * Name: esp32_spiflash_init
  *
  * Description:
@@ -126,7 +116,7 @@ int esp32_spiflash_init(void);
  *
  ****************************************************************************/
 
-#if defined CONFIG_ESP32_I2S0 || defined CONFIG_ESP32_I2S1
+#if defined CONFIG_ESPRESSIF_I2S0 || defined CONFIG_ESPRESSIF_I2S1
 int board_i2sdev_initialize(int port);
 #endif
 

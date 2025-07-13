@@ -27,6 +27,10 @@ if(CONFIG_USBHOST)
   set(SRCS usbhost_registry.c usbhost_registerclass.c usbhost_findclass.c
            usbhost_enumerate.c usbhost_devaddr.c)
 
+  if(CONFIG_USBHOST_WAITER)
+    list(APPEND SRCS usbhost_waiter.c usbhost_drivers.c)
+  endif()
+
   if(CONFIG_USBHOST_HUB)
     list(APPEND SRCS usbhost_hub.c)
   endif()
@@ -69,6 +73,10 @@ if(CONFIG_USBHOST)
 
   if(CONFIG_USBHOST_FT232R)
     list(APPEND SRCS usbhost_ft232r.c)
+  endif()
+
+  if(CONFIG_USBHOST_XHCI_PCI)
+    list(APPEND SRCS usbhost_xhci_pci.c usbhost_xhci_trace.c)
   endif()
 
   # HCD debug/trace logic

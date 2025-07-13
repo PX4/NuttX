@@ -43,7 +43,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Private Type Declarations
+ * Private Types
  ****************************************************************************/
 
 typedef int (*holderhandler_t)(FAR struct semholder_s *pholder,
@@ -240,9 +240,11 @@ static int nxsem_freecount0holder(FAR struct semholder_s *pholder,
 {
   /* When no more counts are held, remove the holder from the list.  The
    * count was decremented in nxsem_release_holder.
+   *
+   * Mutex is held only by one thread, so the holder is always freed.
    */
 
-  if (pholder->counts <= 0)
+  if (pholder->counts <= 0 || NXSEM_IS_MUTEX(sem))
     {
       nxsem_freeholder(sem, pholder);
       return 1;
@@ -442,9 +444,11 @@ static int nxsem_restoreholderprio(FAR struct semholder_s *pholder,
 
   /* Release the holder if all counts have been given up
    * before reprioritizing causes a context switch.
+   *
+   * Mutex is held only by one thread, so the holder is always freed.
    */
 
-  if (pholder->counts <= 0)
+  if (pholder->counts <= 0 || NXSEM_IS_MUTEX(sem))
     {
       nxsem_freeholder(sem, pholder);
     }
@@ -876,7 +880,9 @@ void nxsem_canceled(FAR struct tcb_s *stcb, FAR sem_t *sem)
 {
   /* Check our assumptions */
 
-  DEBUGASSERT(atomic_read(NXSEM_COUNT(sem)) <= 0);
+  DEBUGASSERT(NXSEM_IS_MUTEX(sem) || atomic_read(NXSEM_COUNT(sem)) <= 0);
+  DEBUGASSERT(!NXSEM_IS_MUTEX(sem) ||
+              NXSEM_MACQUIRED(atomic_read(NXSEM_MHOLDER(sem))));
 
   /* Adjust the priority of every holder as necessary */
 
@@ -970,11 +976,14 @@ void nxsem_release_all(FAR struct tcb_s *htcb)
 
       nxsem_freeholder(sem, pholder);
 
-      /* Increment the count on the semaphore, to releases the count
-       * that was taken by sem_wait() or sem_post().
-       */
+      if (!NXSEM_IS_MUTEX(sem))
+        {
+          /* Increment the count on the semaphore, to releases the count
+           * that was taken by sem_wait() or sem_post().
+           */
 
-      atomic_fetch_add(NXSEM_COUNT(sem), 1);
+          atomic_fetch_add(NXSEM_COUNT(sem), 1);
+        }
     }
 }
 

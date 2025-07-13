@@ -13,9 +13,9 @@ Currently in NuttX we have 3 different approaches to sensor interfaces:
 
 The preferred way for implementing new sensors is
 the :ref:`New sensor framework <new_sensor_framework>`, which provides the most
-general interafce.
+general interface.
 
-.. attach files to avoid warinigs, but don't show them here !
+.. attach files to avoid warnings, but don't show them here !
 
 .. toctree::
     :hidden:
@@ -29,6 +29,8 @@ general interafce.
     sensors/lsm330.rst
     sensors/mcp9600.rst
     sensors/mpl115a.rst
+    sensors/nau7802.rst
     sensors/sht4x.rst
     sensors/lsm6dso32.rst
     sensors/lis2mdl.rst
+    sensors/l86xxx.rst

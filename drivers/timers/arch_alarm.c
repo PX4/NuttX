@@ -110,7 +110,7 @@ static void oneshot_callback(FAR struct oneshot_lowerhalf_s *lower,
 #else
   /* Start the next tick first, in order to minimize latency. Ideally
    * the ONESHOT_TICK_START would also return the current tick so that
-   * the retriving the current tick and starting the new one could be done
+   * the retrieving the current tick and starting the new one could be done
    * atomically w. respect to a HW timer
    */
 
@@ -351,7 +351,7 @@ int weak_function up_alarm_tick_start(clock_t ticks)
  *   units.
  ****************************************************************************/
 
-#ifndef CONFIG_ARCH_PERF_EVENTS
+#ifndef CONFIG_ARCH_HAVE_PERF_EVENTS
 void up_perf_init(FAR void *arg)
 {
   UNUSED(arg);

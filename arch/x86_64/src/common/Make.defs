@@ -20,12 +20,7 @@
 #
 ############################################################################
 
-ifeq ($(CONFIG_BUILD_KERNEL),y)
-crt0$(OBJEXT): crt0.c
-	$(CC) $(CFLAGS) -c common$(DELIM)crt0.c -o crt0$(OBJEXT)
-
 STARTUP_OBJS = crt0$(OBJEXT)
-endif
 
 # Common x86_64 files
 
@@ -76,4 +71,8 @@ endif
 
 ifndef CONFIG_ALARM_ARCH
 CMN_CSRCS += x86_64_udelay.c x86_64_mdelay.c
+endif
+
+ifeq ($(CONFIG_ARCH_HAVE_DEBUG),y)
+CMN_CSRCS += x86_64_hwdebug.c
 endif

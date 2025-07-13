@@ -396,7 +396,8 @@ static int rp23xx_i2c_interrupt(int irq, void *context, void *arg)
  *   if the interrupt occurs when the writing request.
  *   Actual receiving data is in RX_FULL interrupt handler.
  *
- * TODO : The argument "last" is not used.
+ *   TODO : The argument "last" is not used.
+ *
  ****************************************************************************/
 
 static int rp23xx_i2c_receive(struct rp23xx_i2cdev_s *priv, int last)
@@ -590,6 +591,7 @@ static int rp23xx_i2c_transfer(struct i2c_master_s *dev,
       if (priv->error != OK)
         {
           ret = priv->error;
+          wostop = 0;
           break;
         }
 
@@ -756,7 +758,7 @@ out:
 
 out_without_reinit:
 
-  /* Release the port for re-use by other clients */
+  /* Release the port for reuse by other clients */
 
   nxmutex_unlock(&priv->lock);
   return ret;
@@ -829,7 +831,8 @@ static void rp23xx_i2c_init(struct rp23xx_i2cdev_s *priv)
   i2c_reg_write(priv, RP23XX_I2C_IC_SDA_HOLD_OFFSET, 1);
 
   i2c_reg_write(priv, RP23XX_I2C_IC_CON_OFFSET,
-                (RP23XX_I2C_IC_CON_IC_SLAVE_DISABLE |
+                (RP23XX_I2C_IC_CON_IC_RESTART_EN |
+                 RP23XX_I2C_IC_CON_IC_SLAVE_DISABLE |
                  RP23XX_I2C_IC_CON_MASTER_MODE |
                  RP23XX_I2C_IC_CON_TX_EMPTY_CTRL));
 }

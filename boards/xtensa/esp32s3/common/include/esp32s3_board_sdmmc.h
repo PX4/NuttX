@@ -54,7 +54,7 @@ extern "C"
  * Name: board_sdmmc_initialize
  *
  * Description:
- *   Configure the sdmmc subsystem.
+ *   Configure the SDMMC peripheral to communicate with SDIO or MMC card.
  *
  * Returned Value:
  *   Zero (OK) is returned on success; A negated errno value is returned
@@ -65,6 +65,24 @@ extern "C"
 int board_sdmmc_initialize(void);
 
 #endif /* CONFIG_ESP32S3_SDMMC */
+
+/****************************************************************************
+ * Name: board_sdmmc_spi_initialize
+ *
+ * Description:
+ *   Initialize SPI-based SD card.
+ *
+ * Input Parameters:
+ *   None.
+ *
+ * Returned Value:
+ *   Zero (OK) is returned on success; A negated errno value is returned
+ *   to indicate the nature of any failure.
+ *
+ ****************************************************************************/
+#ifdef CONFIG_MMCSD_SPI
+int board_sdmmc_spi_initialize(void);
+#endif /* CONFIG_MMCSD_SPI */
 
 #undef EXTERN
 #if defined(__cplusplus)

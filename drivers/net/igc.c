@@ -48,12 +48,12 @@
  * Pre-processor Definitions
  *****************************************************************************/
 
-#if CONFIG_NET_IGC_TXDESC % 2 != 0
-#  error CONFIG_NET_IGC_TXDESC must be multiple of 2
+#if CONFIG_NET_IGC_TXDESC % 8 != 0
+#  error CONFIG_NET_IGC_TXDESC must be multiple of 8
 #endif
 
-#if CONFIG_NET_IGC_RXDESC % 2 != 0
-#  error CONFIG_NET_IGC_RXDESC must be multiple of 2
+#if CONFIG_NET_IGC_RXDESC % 8 != 0
+#  error CONFIG_NET_IGC_RXDESC must be multiple of 8
 #endif
 
 /* Packet buffer size */
@@ -69,7 +69,7 @@
 /* After RX packet is done, we provide free netpkt to the RX descriptor ring.
  * The upper-half network logic is responsible for freeing the RX packets
  * so we need some additional spare netpkt buffers to assure that it's
- * allways possible to allocate the new RX packet in the recevier logic.
+ * always possible to allocate the new RX packet in the receiver logic.
  * It's hard to tell how many spare buffers is needed, for now it's set to 8.
  */
 
@@ -124,10 +124,6 @@ struct igc_driver_s
 
   struct netdev_lowerhalf_s dev;
   struct work_s work;
-
-  /* Driver state */
-
-  bool bifup;
 
   /* Packets list */
 
@@ -434,13 +430,16 @@ static void igc_dump_mem(FAR struct igc_driver_s *priv, FAR const char *msg)
  * Name: igc_txclean
  *
  * Description:
- *   Clean transmition ring
+ *   Clean transmission ring
  *
  * Input Parameters:
  *   priv - Reference to the driver state structure
  *
  * Returned Value:
  *   None
+ *
+ * Assumption:
+ *   This function can be called only after card reset and when TX is disabled
  *
  *****************************************************************************/
 
@@ -482,6 +481,9 @@ static void igc_txclean(FAR struct igc_driver_s *priv)
  * Returned Value:
  *   None
  *
+ * Assumption:
+ *   This function can be called only after card reset and when RX is disabled
+ *
  *****************************************************************************/
 
 static void igc_rxclean(FAR struct igc_driver_s *priv)
@@ -489,7 +491,7 @@ static void igc_rxclean(FAR struct igc_driver_s *priv)
   priv->rx_now = 0;
 
   igc_putreg_mem(priv, IGC_RDH0, 0);
-  igc_putreg_mem(priv, IGC_RDT0, 0);
+  igc_putreg_mem(priv, IGC_RDT0, IGC_RX_DESC - 1);
 }
 
 /*****************************************************************************
@@ -513,10 +515,11 @@ static void igc_rxclean(FAR struct igc_driver_s *priv)
 static int igc_transmit(FAR struct netdev_lowerhalf_s *dev,
                           FAR netpkt_t *pkt)
 {
-  FAR struct igc_driver_s *priv = (FAR struct igc_driver_s *)dev;
-  uint64_t                 pa   = 0;
-  int                      desc = priv->tx_now;
-  size_t                   len  = netpkt_getdatalen(dev, pkt);
+  FAR struct igc_driver_s *priv    = (FAR struct igc_driver_s *)dev;
+  uint64_t                 pa      = 0;
+  int                      desc    = priv->tx_now;
+  size_t                   len     = netpkt_getdatalen(dev, pkt);
+  size_t                   tx_next = (priv->tx_now + 1) % IGC_TX_DESC;
 
   ninfo("transmit\n");
 
@@ -533,13 +536,20 @@ static int igc_transmit(FAR struct netdev_lowerhalf_s *dev,
       return -ENETDOWN;
     }
 
+  /* Drop packet if ring full */
+
+  if (tx_next == priv->tx_done)
+    {
+      return -ENOMEM;
+    }
+
   /* Store TX packet reference */
 
   priv->tx_pkt[priv->tx_now] = pkt;
 
   /* Prepare next TX descriptor */
 
-  priv->tx_now = (priv->tx_now + 1) % IGC_TX_DESC;
+  priv->tx_now = tx_next;
 
   /* Setup TX descriptor */
 
@@ -580,7 +590,7 @@ static int igc_transmit(FAR struct netdev_lowerhalf_s *dev,
  *
  *****************************************************************************/
 
-static FAR netpkt_t * igc_receive(FAR struct netdev_lowerhalf_s *dev)
+static FAR netpkt_t *igc_receive(FAR struct netdev_lowerhalf_s *dev)
 {
   FAR struct igc_driver_s *priv = (FAR struct igc_driver_s *)dev;
   FAR netpkt_t            *pkt  = NULL;
@@ -629,7 +639,7 @@ static FAR netpkt_t * igc_receive(FAR struct netdev_lowerhalf_s *dev)
 
   igc_putreg_mem(priv, IGC_RDT0, desc);
 
-  /* Handle errros */
+  /* Handle errors */
 
   if (rx->errors)
     {
@@ -711,16 +721,13 @@ static void igc_link_work(FAR void *arg)
   if (tmp & IGC_STATUS_LU)
     {
       ninfo("Link up, status = 0x%x\n", tmp);
+
       netdev_lower_carrier_on(&priv->dev);
-
-      /* Clear Tx and RX rings */
-
-      igc_txclean(priv);
-      igc_rxclean(priv);
     }
   else
     {
       ninfo("Link down\n");
+
       netdev_lower_carrier_off(&priv->dev);
     }
 }
@@ -869,12 +876,16 @@ static int igc_ifup(FAR struct netdev_lowerhalf_s *dev)
         dev->netdev.d_ipv6addr[6], dev->netdev.d_ipv6addr[7]);
 #endif
 
+  flags = enter_critical_section();
+
   /* Enable the Ethernet */
 
-  flags = enter_critical_section();
   igc_enable(priv);
-  priv->bifup = true;
   leave_critical_section(flags);
+
+  /* Update link status in case link status interrupt is missing */
+
+  igc_link_work(priv);
 
   return OK;
 }
@@ -912,7 +923,6 @@ static int igc_ifdown(FAR struct netdev_lowerhalf_s *dev)
 
   /* Mark the device "down" */
 
-  priv->bifup = false;
   leave_critical_section(flags);
   return OK;
 }
@@ -1046,7 +1056,30 @@ static int igc_rmmac(FAR struct netdev_lowerhalf_s *dev,
 
 static void igc_disable(FAR struct igc_driver_s *priv)
 {
-  int i = 0;
+  uint32_t regval;
+  int      i = 0;
+
+  /* Disable interrupts */
+
+  igc_putreg_mem(priv, IGC_EIMC, IGC_MSIX_EIMS);
+  igc_putreg_mem(priv, IGC_IMC, IGC_MSIX_IMS);
+  up_disable_irq(priv->irq);
+
+  /* Disable Transmitter */
+
+  regval = igc_getreg_mem(priv, IGC_TCTL);
+  regval &= ~IGC_TCTL_EN;
+  igc_putreg_mem(priv, IGC_TCTL, regval);
+
+  /* Disable Receiver */
+
+  igc_putreg_mem(priv, IGC_RCTL, 0);
+
+  /* We have to reset device, otherwise writing to RDH and THD corrupts
+   * the device state.
+   */
+
+  igc_putreg_mem(priv, IGC_CTRL, IGC_CTRL_DEVRST);
 
   /* Reset Tx tail */
 
@@ -1055,20 +1088,6 @@ static void igc_disable(FAR struct igc_driver_s *priv)
   /* Reset Rx tail */
 
   igc_rxclean(priv);
-
-  /* Disable interrupts */
-
-  igc_putreg_mem(priv, IGC_EIMC, IGC_MSIX_EIMS);
-  igc_putreg_mem(priv, IGC_IMC, IGC_MSIX_IMS);
-  up_disable_irq(priv->irq);
-
-  /* Disable Transmiter */
-
-  igc_putreg_mem(priv, IGC_TCTL, 0);
-
-  /* Disable Receiver */
-
-  igc_putreg_mem(priv, IGC_RCTL, 0);
 
   /* Free RX packets */
 
@@ -1184,7 +1203,7 @@ static void igc_enable(FAR struct igc_driver_s *priv)
 
   igc_putreg_mem(priv, IGC_CTRL, IGC_CTRL_SLU);
 
-  /* Setup and enable Transmiter */
+  /* Setup and enable Transmitter */
 
   regval = igc_getreg_mem(priv, IGC_TCTL);
   regval |= IGC_TCTL_EN | IGC_TCTL_PSP;
@@ -1214,10 +1233,6 @@ static void igc_enable(FAR struct igc_driver_s *priv)
   /* Reset RX tail - after queue is enabled */
 
   igc_rxclean(priv);
-
-  /* All RX descriptors availalbe */
-
-  igc_putreg_mem(priv, IGC_RDT0, IGC_RX_DESC);
 
 #ifdef CONFIG_DEBUG_NET_INFO
   /* Dump memory */
@@ -1298,7 +1313,7 @@ static int igc_initialize(FAR struct igc_driver_s *priv)
     }
   else
     {
-      nwarn("Receive Address not vaild!\n");
+      nwarn("Receive Address not valid!\n");
     }
 
   return OK;

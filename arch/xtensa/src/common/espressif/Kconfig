@@ -21,6 +21,26 @@ config ESP_PCNT
 	default n
 	select CAPTURE
 
+config ESPRESSIF_ADC
+	bool "Analog-to-digital converter (ADC)"
+	default n
+	select ANALOG
+	select ADC
+	---help---
+		Enable support for analog-to-digital converter (ADC) peripheral.
+
+if ESPRESSIF_ADC
+
+config ESPRESSIF_ADC_1
+	default y
+	bool "Enable SAR ADC 1"
+
+config ESPRESSIF_ADC_2
+	default n
+	bool "Enable SAR ADC 2"
+
+endif # ESPRESSIF_ADC
+
 config ESPRESSIF_TEMP
 	bool "Internal Temperature Sensor"
 	default n
@@ -28,9 +48,72 @@ config ESPRESSIF_TEMP
 	---help---
 		A built-in sensor used to measure the chip's internal temperature.
 
-config ESPRESSIF_I2C_PERIPH
+config ESP_SDM
+	bool "Sigma-Delta Modulation (SDM) Module"
+	default n
+	select ANALOG
+	select DAC
+
+config ESPRESSIF_LEDC
+	bool "LEDC (PWM)"
+	default n
+	depends on ARCH_CHIP_ESP32S2 || ARCH_CHIP_ESP32S3
+	select PWM
+	select ARCH_HAVE_PWM_MULTICHAN
+
+config ESPRESSIF_SHA_ACCELERATOR
+	bool "SHA Accelerator"
+	depends on !ARCH_CHIP_ESP32
+	default n
+	---help---
+		Enable SHA accelerator support.
+
+config ESPRESSIF_I2S
 	bool
-	depends on (ESP32S3_I2C0 || ESP32S3_I2C1) || (ESP32_I2C0 || ESP32_I2C1) || (ESP32S2_I2C0 || ESP32S2_I2C1)
+	default n
+
+config ESPRESSIF_I2S0
+	bool "I2S 0"
+	default n
+	select ESPRESSIF_I2S
+	select I2S
+	select ESP32S3_DMA if ARCH_CHIP_ESP32S3
+	select ESP32S3_GPIO_IRQ if ARCH_CHIP_ESP32S3
+	select ESP32S2_GPIO_IRQ if ARCH_CHIP_ESP32S2
+	select ESP32_GPIO_IRQ if ARCH_CHIP_ESP32
+	select SCHED_HPWORK
+	select ARCH_DMA
+
+config ESPRESSIF_I2S1
+	bool "I2S 1"
+	depends on !ARCH_CHIP_ESP32S2
+	default n
+	select ESPRESSIF_I2S
+	select I2S
+	select ESP32S3_DMA if ARCH_CHIP_ESP32S3
+	select ESP32S3_GPIO_IRQ if ARCH_CHIP_ESP32S3
+	select ESP32_GPIO_IRQ if ARCH_CHIP_ESP32
+	select SCHED_HPWORK
+	select ARCH_DMA
+
+config ESPRESSIF_I2C_PERIPH_MASTER_MODE
+	bool
+	depends on (ESP32S3_I2C_PERIPH_MASTER_MODE || ESP32S2_I2C_PERIPH_MASTER_MODE || ESP32_I2C_PERIPH_MASTER_MODE)
+	default n
+
+config ESPRESSIF_I2C_PERIPH_SLAVE_MODE
+	bool
+	depends on (ESP32S3_I2C_PERIPH_SLAVE_MODE || ESP32S2_I2C_PERIPH_SLAVE_MODE || ESP32_I2C_PERIPH_SLAVE_MODE)
+	default n
+
+config ESPRESSIF_I2C0_SLAVE
+	bool
+	depends on (ESP32S3_I2C0_SLAVE_MODE || ESP32S2_I2C0_SLAVE_MODE || ESP32_I2C0_SLAVE_MODE)
+	default n
+
+config ESPRESSIF_I2C1_SLAVE
+	bool
+	depends on (ESP32S3_I2C1_SLAVE_MODE || ESP32S2_I2C1_SLAVE_MODE || ESP32_I2C1_SLAVE_MODE)
 	default n
 
 config ESPRESSIF_I2C_BITBANG
@@ -66,6 +149,194 @@ config ESPRESSIF_SPIFLASH
 	depends on ARCH_CHIP_ESP32S2
 	default n
 
+config ESPRESSIF_DEDICATED_GPIO
+	bool "Dedicated GPIO"
+	depends on !ARCH_CHIP_ESP32
+	default n
+	---help---
+		Enable dedicated GPIO support for faster response time.
+		Dedicated GPIO is suitable for faster response times required
+		applications like simulate serial/parallel interfaces in a bit-banging way.
+		It can work as pin grouping and you can use any pin up to 8 pins for
+		input and 8 pins for output for dedicated gpio in total.
+
+config ESPRESSIF_DEDICATED_GPIO_IRQ
+	bool "Dedicated GPIO IRQ"
+	depends on ESPRESSIF_DEDICATED_GPIO && ARCH_CHIP_ESP32S2
+	default n
+	---help---
+		Enable dedicated GPIO IRQ support
+
+menu "LEDC configuration"
+	depends on ESPRESSIF_LEDC
+
+config ESPRESSIF_LEDC_HPOINT
+	hex "LEDC hpoint value"
+	default 0x0000
+	range 0x0 1048575
+	---help---
+		This value sets the start point of the pulse within each timer period,
+		measured in timer ticks. It allows adjusting the phase of the signal.
+
+menuconfig ESPRESSIF_LEDC_TIMER0
+	bool "Timer 0"
+	default n
+
+if ESPRESSIF_LEDC_TIMER0
+
+config ESPRESSIF_LEDC_TIMER0_CHANNELS
+	int "Number of Timer 0 channels"
+	default 2 if PWM_MULTICHAN && PWM_NCHANNELS > 1
+	default 1 if !PWM_MULTICHAN || PWM_NCHANNELS = 1
+	range 0 6
+
+config ESPRESSIF_LEDC_TIMER0_RESOLUTION
+	int "Timer 0 resolution"
+	default 12
+	range 1 14
+	---help---
+		Timer resolution in bits. The resolution is the number of bits used to by the timer
+		counter to generate the PWM signal. The duty cycle provided by the upper layers
+		will be scaled to fit the resolution.
+
+endif # ESPRESSIF_LEDC_TIMER0
+
+menuconfig ESPRESSIF_LEDC_TIMER1
+	bool "Timer 1"
+	default n
+
+if ESPRESSIF_LEDC_TIMER1
+
+config ESPRESSIF_LEDC_TIMER1_CHANNELS
+	int "Number of Timer 1 channels"
+	default 2 if PWM_MULTICHAN && PWM_NCHANNELS > 1
+	default 1 if !PWM_MULTICHAN || PWM_NCHANNELS = 1
+	range 0 6
+
+config ESPRESSIF_LEDC_TIMER1_RESOLUTION
+	int "Timer 1 resolution"
+	default 12
+	range 1 14
+	---help---
+		Timer resolution in bits. The resolution is the number of bits used to by the timer
+		counter to generate the PWM signal. The duty cycle provided by the upper layers
+		will be scaled to fit the resolution.
+
+endif # ESPRESSIF_LEDC_TIMER1
+
+menuconfig ESPRESSIF_LEDC_TIMER2
+	bool "Timer 2"
+	default n
+
+if ESPRESSIF_LEDC_TIMER2
+
+config ESPRESSIF_LEDC_TIMER2_CHANNELS
+	int "Number of Timer 2 channels"
+	default 2 if PWM_MULTICHAN && PWM_NCHANNELS > 1
+	default 1 if !PWM_MULTICHAN || PWM_NCHANNELS = 1
+	range 0 6
+
+config ESPRESSIF_LEDC_TIMER2_RESOLUTION
+	int "Timer 2 resolution"
+	default 12
+	range 1 14
+	---help---
+		Timer resolution in bits. The resolution is the number of bits used to by the timer
+		counter to generate the PWM signal. The duty cycle provided by the upper layers
+		will be scaled to fit the resolution.
+
+endif # ESPRESSIF_LEDC_TIMER2
+
+menuconfig ESPRESSIF_LEDC_TIMER3
+	bool "Timer 3"
+	default n
+
+if ESPRESSIF_LEDC_TIMER3
+
+config ESPRESSIF_LEDC_TIMER3_CHANNELS
+	int "Number of Timer 3 channels"
+	default 2 if PWM_MULTICHAN && PWM_NCHANNELS > 1
+	default 1 if !PWM_MULTICHAN || PWM_NCHANNELS = 1
+	range 0 6
+
+config ESPRESSIF_LEDC_TIMER3_RESOLUTION
+	int "Timer 3 resolution"
+	default 12
+	range 1 14
+	---help---
+		Timer resolution in bits. The resolution is the number of bits used to by the timer
+		counter to generate the PWM signal. The duty cycle provided by the upper layers
+		will be scaled to fit the resolution.
+
+endif # ESPRESSIF_LEDC_TIMER3
+
+if !ESP32S2_LEDC && !ESP32S3_LEDC
+
+config ESPRESSIF_LEDC_CHANNEL0_PIN
+	int "Channel 0 pin"
+	default 2
+	range 0 48 if ARCH_CHIP_ESP32S3
+	range 0 46 if ARCH_CHIP_ESP32S2
+
+config ESPRESSIF_LEDC_CHANNEL1_PIN
+	int "Channel 1 pin"
+	default 3
+	range 0 48 if ARCH_CHIP_ESP32S3
+	range 0 46 if ARCH_CHIP_ESP32S2
+
+config ESPRESSIF_LEDC_CHANNEL2_PIN
+	int "Channel 2 pin"
+	default 4
+	range 0 48 if ARCH_CHIP_ESP32S3
+	range 0 46 if ARCH_CHIP_ESP32S2
+
+config ESPRESSIF_LEDC_CHANNEL3_PIN
+	int "Channel 3 pin"
+	default 5
+	range 0 48 if ARCH_CHIP_ESP32S3
+	range 0 46 if ARCH_CHIP_ESP32S2
+
+if PWM_MULTICHAN && PWM_NCHANNELS > 1
+
+config ESPRESSIF_LEDC_CHANNEL4_PIN
+	int "Channel 4 pin"
+	default 6
+	range 0 48 if ARCH_CHIP_ESP32S3
+	range 0 46 if ARCH_CHIP_ESP32S2
+
+config ESPRESSIF_LEDC_CHANNEL5_PIN
+	int "Channel 5 pin"
+	default 7
+	range 0 48 if ARCH_CHIP_ESP32S3
+	range 0 46 if ARCH_CHIP_ESP32S2
+
+config ESPRESSIF_LEDC_CHANNEL6_PIN
+	int "Channel 6 pin"
+	default 8
+	range 0 48 if ARCH_CHIP_ESP32S3
+	range 0 46 if ARCH_CHIP_ESP32S2
+
+config ESPRESSIF_LEDC_CHANNEL7_PIN
+	int "Channel 7 pin"
+	default 9
+	range 0 48 if ARCH_CHIP_ESP32S3
+	range 0 46 if ARCH_CHIP_ESP32S2
+
+endif # PWM_MULTICHAN && PWM_NCHANNELS > 1
+
+endif # !ESP32_LEDC && !ESP32S2_LEDC && !ESP32S3_LEDC
+
+endmenu # LEDC configuration
+
+menu "Bootloader and Image Configuration"
+
+config ESPRESSIF_BOOTLOADER_MCUBOOT
+	bool
+	---help---
+		Enables the Espressif port of MCUboot to be used as 2nd stage bootloader.
+
+endmenu # Bootloader and Image Configuration
+
 menu "Pulse Counter (PCNT) Configuration"
 	depends on ESP_PCNT
 
@@ -80,6 +351,8 @@ config ESP_PCNT_TEST_MODE
 config ESP_PCNT_AS_QE
 	bool
 	default n
+	select SENSORS
+	select SENSORS_QENCODER
 
 config ESP_PCNT_U0
 	bool "Enable PCNT Unit 0"
@@ -99,15 +372,15 @@ config ESP_PCNT_U0_CH0_EDGE_PIN
 
 config ESP_PCNT_U0_CH0_LEVEL_PIN
 	int "PCNT_U0 CH0 Level/Control Pin Number"
-	default 4 if !ESP_PCNT_U0_QE
-	default -1 if ESP_PCNT_U0_QE
+	default 4
 	range -1 39
+	depends on !ESP_PCNT_U0_QE
 
 config ESP_PCNT_U0_CH1_EDGE_PIN
 	int "PCNT_U0 CH1 Edge/Pulse Pin Number"
-	default 0 if !ESP_PCNT_U0_QE
-	default -1 if ESP_PCNT_U0_QE
+	default 0
 	range -1 39
+	depends on !ESP_PCNT_U0_QE
 
 config ESP_PCNT_U0_CH1_LEVEL_PIN
 	int "PCNT_U0 CH1 Level/Control Pin Number"
@@ -330,6 +603,305 @@ config ESPRESSIF_TEMP_THREAD_STACKSIZE
 
 endmenu # ESPRESSIF_TEMP
 
+menu "I2S Configuration"
+	depends on ESPRESSIF_I2S
+
+config ESPRESSIF_I2S_MAXINFLIGHT
+	int "I2S queue size"
+	default ESP32S3_I2S_MAXINFLIGHT if ESP32S3_I2S
+	default 4
+	---help---
+		This is the total number of transfers, both RX and TX, that can be
+		enqueued before the caller is required to wait.  This setting
+		determines the number certain queue data structures that will be
+		pre-allocated.
+
+if ESPRESSIF_I2S0
+
+config ESPRESSIF_I2S0_RX
+	bool "Enable I2S receiver"
+	default ESP32_I2S0_RX if ESP32_I2S0
+	default ESP32S2_I2S_RX if ESP32S2_I2S
+	default ESP32S3_I2S0_RX if ESP32S3_I2S0
+	default y
+	---help---
+		Enable I2S receiver (port 0)
+
+config ESPRESSIF_I2S0_TX
+	bool "Enable I2S transmitter"
+	default ESP32_I2S0_TX if ESP32_I2S0
+	default ESP32S2_I2S_TX if ESP32S2_I2S
+	default ESP32S3_I2S0_TX if ESP32S3_I2S0
+	default y
+	---help---
+		Enable I2S transmitter (port 0)
+
+choice ESPRESSIF_I2S0_ROLE
+	prompt "I2S0 role"
+	default ESPRESSIF_I2S0_ROLE_MASTER if (ESP32_I2S0_ROLE_MASTER || ESP32S2_I2S_ROLE_MASTER || ESP32S3_I2S0_ROLE_MASTER)
+	default ESPRESSIF_I2S0_ROLE_SLAVE if (ESP32_I2S0_ROLE_SLAVE || ESP32S2_I2S_ROLE_SLAVE || ESP32S3_I2S0_ROLE_SLAVE)
+	default ESPRESSIF_I2S0_ROLE_MASTER
+	---help---
+		Selects the operation role of the I2S0.
+
+config ESPRESSIF_I2S0_ROLE_MASTER
+	bool "Master"
+
+config ESPRESSIF_I2S0_ROLE_SLAVE
+	bool "Slave"
+
+endchoice # I2S0 role
+
+choice ESPRESSIF_I2S0_DATA_BIT_WIDTH
+	prompt "Bit width"
+	default ESPRESSIF_I2S0_DATA_BIT_WIDTH_8BIT if (ESP32_I2S0_DATA_BIT_WIDTH_8BIT || ESP32S2_I2S_DATA_BIT_WIDTH_8BIT || ESP32S3_I2S0_DATA_BIT_WIDTH_8BIT)
+	default ESPRESSIF_I2S0_DATA_BIT_WIDTH_16BIT if (ESP32_I2S0_DATA_BIT_WIDTH_16BIT || ESP32S2_I2S_DATA_BIT_WIDTH_16BIT || ESP32S3_I2S0_DATA_BIT_WIDTH_16BIT)
+	default ESPRESSIF_I2S0_DATA_BIT_WIDTH_24BIT if (ESP32_I2S0_DATA_BIT_WIDTH_24BIT || ESP32S2_I2S_DATA_BIT_WIDTH_24BIT || ESP32S3_I2S0_DATA_BIT_WIDTH_24BIT)
+	default ESPRESSIF_I2S0_DATA_BIT_WIDTH_32BIT if (ESP32_I2S0_DATA_BIT_WIDTH_32BIT || ESP32S2_I2S_DATA_BIT_WIDTH_32BIT || ESP32S3_I2S0_DATA_BIT_WIDTH_32BIT)
+	default ESPRESSIF_I2S0_DATA_BIT_WIDTH_16BIT
+	---help---
+		Selects the valid data bits per sample.
+		Note that this option may be overwritten by the audio
+		according to the bit width of the file being played
+
+config ESPRESSIF_I2S0_DATA_BIT_WIDTH_8BIT
+	bool "8 bits"
+
+config ESPRESSIF_I2S0_DATA_BIT_WIDTH_16BIT
+	bool "16 bits"
+
+config ESPRESSIF_I2S0_DATA_BIT_WIDTH_24BIT
+	bool "24 bits"
+
+config ESPRESSIF_I2S0_DATA_BIT_WIDTH_32BIT
+	bool "32 bits"
+
+endchoice # Bit width
+
+config ESPRESSIF_I2S0_SAMPLE_RATE
+	int "I2S0 sample rate"
+	default ESP32_I2S0_SAMPLE_RATE if ESP32_I2S
+	default ESP32S2_I2S_SAMPLE_RATE if ESP32S2_I2S
+	default ESP32S3_I2S0_SAMPLE_RATE if ESP32S3_I2S
+	default 44100
+	range 8000 48000
+	---help---
+		Selects the sample rate.
+		Note that this option may be overwritten by the audio
+		according to the bit width of the file being played
+
+config ESPRESSIF_I2S0_BCLKPIN
+	int "I2S0 BCLK pin"
+	default ESP32_I2S0_BCLKPIN if ESP32_I2S
+	default ESP32S2_I2S_BCLKPIN if ESP32S2_I2S
+	default ESP32S3_I2S0_BCLKPIN if ESP32S3_I2S
+	default 4 if ARCH_CHIP_ESP32S3 || ARCH_CHIP_ESP32
+	default 35 if ARCH_CHIP_ESP32S2
+	range 0 45 if (ARCH_CHIP_ESP32S2 && ESPRESSIF_I2S0_ROLE_MASTER)
+	range 0 46 if (ARCH_CHIP_ESP32S2 && ESPRESSIF_I2S0_ROLE_SLAVE)
+	range 0 33 if (ARCH_CHIP_ESP32 && ESPRESSIF_I2S0_ROLE_MASTER)
+	range 0 39 if (ARCH_CHIP_ESP32 && ESPRESSIF_I2S0_ROLE_SLAVE)
+	range 0 48 if ARCH_CHIP_ESP32S3
+
+config ESPRESSIF_I2S0_WSPIN
+	int "I2S0 WS pin"
+	default ESP32_I2S0_WSPIN if ESP32_I2S
+	default ESP32S2_I2S_WSPIN if ESP32S2_I2S
+	default ESP32S3_I2S0_WSPIN if ESP32S3_I2S
+	default 5 if ARCH_CHIP_ESP32S3 || ARCH_CHIP_ESP32
+	default 34 if ARCH_CHIP_ESP32S2
+	range 0 45 if (ARCH_CHIP_ESP32S2 && ESPRESSIF_I2S0_ROLE_MASTER)
+	range 0 46 if (ARCH_CHIP_ESP32S2 && ESPRESSIF_I2S0_ROLE_SLAVE)
+	range 0 33 if (ARCH_CHIP_ESP32 && ESPRESSIF_I2S0_ROLE_MASTER)
+	range 0 39 if (ARCH_CHIP_ESP32 && ESPRESSIF_I2S0_ROLE_SLAVE)
+	range 0 48 if ARCH_CHIP_ESP32S3
+
+config ESPRESSIF_I2S0_DINPIN
+	int "I2S0 DIN pin"
+	depends on ESPRESSIF_I2S0_RX
+	default ESP32_I2S0_DINPIN if ESP32_I2S0_RX
+	default ESP32S2_I2S_DINPIN if ESP32S2_I2S_RX
+	default ESP32S3_I2S0_DINPIN if ESP32S3_I2S0_RX
+	default 37 if ARCH_CHIP_ESP32S2
+	default 19 if ARCH_CHIP_ESP32S3 || ARCH_CHIP_ESP32
+	range 0 46 if ARCH_CHIP_ESP32S2
+	range 0 48 if ARCH_CHIP_ESP32S3
+	range 0 39 if ARCH_CHIP_ESP32
+
+config ESPRESSIF_I2S0_DOUTPIN
+	int "I2S0 DOUT pin"
+	depends on ESPRESSIF_I2S0_TX
+	default ESP32_I2S0_DOUTPIN if ESP32_I2S0_TX
+	default ESP32S2_I2S_DOUTPIN if ESP32S2_I2S_TX
+	default ESP32S3_I2S0_DOUTPIN if ESP32S3_I2S0_TX
+	default 18 if ARCH_CHIP_ESP32S3 || ARCH_CHIP_ESP32
+	default 36 if ARCH_CHIP_ESP32S2
+	range 0 46 if ARCH_CHIP_ESP32S2
+	range 0 48 if ARCH_CHIP_ESP32S3
+	range 0 33 if ARCH_CHIP_ESP32
+
+config ESPRESSIF_I2S0_MCLK
+	bool "Enable I2S Master Clock"
+	depends on ESPRESSIF_I2S0_ROLE_MASTER
+	default ESP32_I2S0_MCLK if ESP32_I2S0
+	default ESP32S2_I2S_MCLK if ESP32S2_I2S
+	default ESP32S3_I2S0_MCLK if ESP32S3_I2S0
+	default n
+	---help---
+		Enable I2S master clock
+
+config ESPRESSIF_I2S0_MCLKPIN
+	int "I2S MCLK pin"
+	depends on ESPRESSIF_I2S0_MCLK
+	default ESP32_I2S0_MCLKPIN if ESP32_I2S0_MCLK
+	default ESP32S2_I2S_MCLKPIN if ESP32S2_I2S_MCLK
+	default ESP32S3_I2S0_MCLKPIN if ESP32S3_I2S0_MCLK
+	default 0 if ARCH_CHIP_ESP32S3 || ARCH_CHIP_ESP32
+	default 33 if ARCH_CHIP_ESP32S2
+	range 0 45 if ARCH_CHIP_ESP32S2
+	range 0 48 if ARCH_CHIP_ESP32S3
+	range 0 3 if ARCH_CHIP_ESP32
+
+endif # ESPRESSIF_I2S0
+
+if ESPRESSIF_I2S1
+
+config ESPRESSIF_I2S1_RX
+	bool "Enable I2S receiver"
+	default ESP32_I2S1_RX if ESP32_I2S1
+	default ESP32S3_I2S1_RX if ESP32S3_I2S1
+	default y
+	---help---
+		Enable I2S receiver (port 1)
+
+config ESPRESSIF_I2S1_TX
+	bool "Enable I2S transmitter"
+	default ESP32_I2S1_TX if ESP32_I2S1
+	default ESP32S3_I2S1_TX if ESP32S3_I2S1
+	default y
+	---help---
+		Enable I2S transmitter (port 1)
+
+choice ESPRESSIF_I2S1_ROLE
+	prompt "I2S1 role"
+	default ESPRESSIF_I2S1_ROLE_MASTER if (ESP32_I2S1_ROLE_MASTER || ESP32S3_I2S1_ROLE_MASTER)
+	default ESPRESSIF_I2S1_ROLE_SLAVE if (ESP32_I2S1_ROLE_SLAVE || ESP32S3_I2S1_ROLE_SLAVE)
+	default ESPRESSIF_I2S1_ROLE_MASTER
+	---help---
+		Selects the operation role of the I2S0.
+
+config ESPRESSIF_I2S1_ROLE_MASTER
+	bool "Master"
+
+config ESPRESSIF_I2S1_ROLE_SLAVE
+	bool "Slave"
+
+endchoice # I2S1 role
+
+choice ESPRESSIF_I2S1_DATA_BIT_WIDTH
+	prompt "Bit width"
+	default ESPRESSIF_I2S1_DATA_BIT_WIDTH_8BIT if (ESP32_I2S1_DATA_BIT_WIDTH_8BIT || ESP32S3_I2S1_DATA_BIT_WIDTH_8BIT)
+	default ESPRESSIF_I2S1_DATA_BIT_WIDTH_16BIT if (ESP32_I2S1_DATA_BIT_WIDTH_16BIT || ESP32S3_I2S1_DATA_BIT_WIDTH_16BIT)
+	default ESPRESSIF_I2S1_DATA_BIT_WIDTH_24BIT if (ESP32_I2S1_DATA_BIT_WIDTH_24BIT || ESP32S3_I2S1_DATA_BIT_WIDTH_24BIT)
+	default ESPRESSIF_I2S1_DATA_BIT_WIDTH_32BIT if (ESP32_I2S1_DATA_BIT_WIDTH_32BIT || ESP32S3_I2S1_DATA_BIT_WIDTH_32BIT)
+	default ESPRESSIF_I2S1_DATA_BIT_WIDTH_16BIT
+	---help---
+		Selects the valid data bits per sample.
+		Note that this option may be overwritten by the audio
+		according to the bit width of the file being played
+
+config ESPRESSIF_I2S1_DATA_BIT_WIDTH_8BIT
+	bool "8 bits"
+
+config ESPRESSIF_I2S1_DATA_BIT_WIDTH_16BIT
+	bool "16 bits"
+
+config ESPRESSIF_I2S1_DATA_BIT_WIDTH_24BIT
+	bool "24 bits"
+
+config ESPRESSIF_I2S1_DATA_BIT_WIDTH_32BIT
+	bool "32 bits"
+
+endchoice # Bit width
+
+config ESPRESSIF_I2S1_SAMPLE_RATE
+	int "I2S1 sample rate"
+	default ESP32_I2S1_SAMPLE_RATE if ESP32_I2S
+	default ESP32S3_I2S1_SAMPLE_RATE if ESP32S3_I2S
+	default 44100
+	range 8000 48000
+	---help---
+		Selects the sample rate.
+		Note that this option may be overwritten by the audio
+		according to the bit width of the file being played
+
+config ESPRESSIF_I2S1_BCLKPIN
+	int "I2S1 BCLK pin"
+	default ESP32_I2S1_BCLKPIN if ESP32_I2S
+	default ESP32S3_I2S1_BCLKPIN if ESP32S3_I2S
+	default 22
+	range 0 33 if (ARCH_CHIP_ESP32 && ESPRESSIF_I2S0_ROLE_MASTER)
+	range 0 39 if (ARCH_CHIP_ESP32 && ESPRESSIF_I2S0_ROLE_SLAVE)
+	range 0 48 if ARCH_CHIP_ESP32S3
+
+config ESPRESSIF_I2S1_WSPIN
+	int "I2S1 WS pin"
+	default ESP32_I2S1_WSPIN if ESP32_I2S
+	default ESP32S3_I2S1_WSPIN if ESP32S3_I2S
+	default 23
+	range 0 33 if (ARCH_CHIP_ESP32 && ESPRESSIF_I2S0_ROLE_MASTER)
+	range 0 39 if (ARCH_CHIP_ESP32 && ESPRESSIF_I2S0_ROLE_SLAVE)
+	range 0 48 if ARCH_CHIP_ESP32S3
+
+config ESPRESSIF_I2S1_DINPIN
+	int "I2S1 DIN pin"
+	depends on ESPRESSIF_I2S1_RX
+	default ESP32_I2S1_DINPIN if ESP32_I2S1_RX
+	default ESP32S3_I2S1_DINPIN if ESP32S3_I2S1_RX
+	default 26
+	default ESP32_I2S1_DINPIN if ESP32_I2S1_RX
+	range 0 39 if ARCH_CHIP_ESP32
+	range 0 48 if ARCH_CHIP_ESP32S3
+
+config ESPRESSIF_I2S1_DOUTPIN
+	int "I2S1 DOUT pin"
+	depends on ESPRESSIF_I2S1_TX
+	default ESP32_I2S1_DOUTPIN if ESP32_I2S1_TX
+	default ESP32S3_I2S1_DOUTPIN if ESP32S3_I2S1_TX
+	default 25
+	range 0 39 if ARCH_CHIP_ESP32
+	range 0 48 if ARCH_CHIP_ESP32S3
+
+config ESPRESSIF_I2S1_MCLK
+	bool "Enable I2S Master Clock"
+	depends on ESPRESSIF_I2S1_ROLE_MASTER
+	default ESP32_I2S1_MCLK if ESP32_I2S1
+	default ESP32S3_I2S1_MCLK if ESP32S3_I2S1
+	default n
+	---help---
+		Enable I2S master clock
+
+config ESPRESSIF_I2S1_MCLKPIN
+	int "I2S1 MCLK pin"
+	depends on ESPRESSIF_I2S1_MCLK
+	default ESP32_I2S1_MCLKPIN if ESP32_I2S1_MCLK
+	default ESP32S3_I2S1_MCLKPIN if ESP32S3_I2S1_MCLK
+	default 1 if ARCH_CHIP_ESP32S3
+	default 0 if ARCH_CHIP_ESP32
+	range 0 48 if ARCH_CHIP_ESP32S3
+	range 0 3 if ARCH_CHIP_ESP32
+
+endif # ESPRESSIF_I2S1
+
+config I2S_DMADESC_NUM
+	int "I2S DMA maximum number of descriptors"
+	default 2
+	---help---
+		Configure the maximum number of out-link/in-link descriptors to
+		be chained for a I2S DMA transfer.
+
+endmenu # I2S configuration
+
 menu "I2C bitbang configuration"
 	depends on ESPRESSIF_I2C_BITBANG
 
@@ -418,23 +990,54 @@ endchoice # ESPRESSIF_FLASH_MODE
 
 choice ESPRESSIF_FLASH_FREQ
 	prompt "SPI Flash frequency"
-	default ESPRESSIF_FLASH_FREQ_40M
+	default ESPRESSIF_FLASH_FREQ_120M if ESP32S3_FLASH_FREQ_120M
+	default ESPRESSIF_FLASH_FREQ_80M if ESP32_FLASH_FREQ_80M || ARCH_CHIP_ESP32S2 || ESP32S3_FLASH_FREQ_80M
+	default ESPRESSIF_FLASH_FREQ_40M if ESP32_FLASH_FREQ_40M || ESP32S3_FLASH_FREQ_40M
+	default ESPRESSIF_FLASH_FREQ_26M if ESP32_FLASH_FREQ_26M
+	default ESPRESSIF_FLASH_FREQ_20M if ESP32_FLASH_FREQ_20M || ESP32S3_FLASH_FREQ_20M
+	default ESPRESSIF_FLASH_FREQ_20M
 	---help---
 		SPI Flash frequency.
 
+config ESPRESSIF_FLASH_FREQ_120M
+	bool "120 MHz"
+	depends on ESP32S3_FLASH_FREQ_120M
+
 config ESPRESSIF_FLASH_FREQ_80M
 	bool "80 MHz"
+	depends on ESP32_FLASH_FREQ_80M || ARCH_CHIP_ESP32S2 || ESP32S3_FLASH_FREQ_80M
 
 config ESPRESSIF_FLASH_FREQ_40M
 	bool "40 MHz"
+	depends on ESP32_FLASH_FREQ_40M || ARCH_CHIP_ESP32S2 || ESP32S3_FLASH_FREQ_40M
 
 config ESPRESSIF_FLASH_FREQ_26M
 	bool "26 MHz"
+	depends on ESP32_FLASH_FREQ_26M || ARCH_CHIP_ESP32S2
 
 config ESPRESSIF_FLASH_FREQ_20M
 	bool "20 MHz"
+	depends on ESP32_FLASH_FREQ_20M || ARCH_CHIP_ESP32S2 || ESP32S3_FLASH_FREQ_20M
 
 endchoice # ESPRESSIF_FLASH_FREQ
+
+config ESPRESSIF_FLASH_FREQ
+	string
+	# On some of the ESP chips, max boot frequency would be equal to (or even lower than) 80m.
+	# We currently define this to `80m`.
+	default '80m' if ESPRESSIF_FLASH_FREQ_120M
+	default '80m' if ESPRESSIF_FLASH_FREQ_80M
+	default '60m' if ESPRESSIF_FLASH_FREQ_60M
+	default '48m' if ESPRESSIF_FLASH_FREQ_64M
+	default '48m' if ESPRESSIF_FLASH_FREQ_48M
+	default '24m' if ESPRESSIF_FLASH_FREQ_32M
+	default '30m' if ESPRESSIF_FLASH_FREQ_30M
+	default '24m' if ESPRESSIF_FLASH_FREQ_24M
+	default '40m' if ESPRESSIF_FLASH_FREQ_40M
+	default '26m' if ESPRESSIF_FLASH_FREQ_26M
+	default '20m' if ESPRESSIF_FLASH_FREQ_20M
+	default '12m' if ESPRESSIF_FLASH_FREQ_16M
+	default '20m' # if no clock can match in bin headers, go with minimal.
 
 if ESPRESSIF_HAVE_OTA_PARTITION
 
@@ -516,7 +1119,9 @@ config ESPRESSIF_WIRELESS
 	select ESP32S3_RNG if ARCH_CHIP_ESP32S3
 	select ESP32S3_RT_TIMER if ARCH_CHIP_ESP32S3
 	select ESP32S3_TIMER0 if ARCH_CHIP_ESP32S3
-	depends on ARCH_CHIP_ESP32S2 || ARCH_CHIP_ESP32S3
+	select ESP32_RNG if ARCH_CHIP_ESP32
+	select ESP32_RT_TIMER if ARCH_CHIP_ESP32
+	select ESP32_TIMER0 if ARCH_CHIP_ESP32
 	---help---
 		Enable Wireless support
 
@@ -529,9 +1134,11 @@ config ESPRESSIF_WIFI
 
 config ESPRESSIF_BLE
 	bool "BLE"
-	depends on ARCH_CHIP_ESP32S3
+	depends on ARCH_CHIP_ESP32S3 || ARCH_CHIP_ESP32
 	default n
 	select ESPRESSIF_WIRELESS
+	select BLUETOOTH_TXCMD_PINNED_TO_CORE if SMP && ARCH_CHIP_ESP32
+	select BLUETOOTH_CNTRL_HOST_FLOW_DISABLE if ARCH_CHIP_ESP32
 	---help---
 		Enable BLE support.
 
@@ -555,6 +1162,12 @@ menuconfig ESPRESSIF_WIFI_BT_COEXIST
 
 menu "Wi-Fi Configuration"
 	depends on ESPRESSIF_WIFI
+
+config ESPRESSIF_WLAN
+	bool "WLAN"
+	default y
+	---help---
+		Enable WLAN support
 
 menu "ESP WPA-Supplicant"
 
@@ -602,11 +1215,18 @@ config ESPRESSIF_WIFI_STATION_SOFTAP
 
 endchoice # ESP Wi-Fi mode
 
-config ESP_WIFI_ENABLE_SAE_PK
+config ESPRESSIF_WIFI_ENABLE_SAE_PK
 	bool "Enable SAE-PK"
 	default y
+	depends on ESP_WIFI_ENABLE_SAE_H2E
 	---help---
 		Select this option to enable SAE-PK
+
+config ESPRESSIF_WIFI_ENABLE_SAE_H2E
+	bool "Enable SAE-H2E"
+	default y
+	---help---
+		Select this option to enable SAE-H2E
 
 config ESP_WIFI_ENABLE_WPA3_OWE_STA
 	bool "Enable OWE STA"
@@ -720,7 +1340,61 @@ config ESPRESSIF_WIFI_LISTEN_INTERVAL
 		For example, if beacon interval is 100 ms and listen interval is 3, the interval for station to listen
 		to beacon is 300 ms.
 
+config ESPRESSIF_WIFI_WLAN_BUFFER_OPTIMIZATION
+	bool "Enable optimization of WLAN driver buffer"
+	default n
+	depends on ARCH_CHIP_ESP32
+	---help---
+		Enable optimization of WLAN memory
+
 endmenu # ESPRESSIF_WIFI
+
+config ESPRESSIF_ESPNOW_PKTRADIO
+	bool "ESPNOW pktradio support"
+	depends on ESPRESSIF_WLAN
+	depends on WIRELESS_PKTRADIO
+	default n
+	---help---
+		Enable using espnow for pktradio, the addressing of nodes is
+		based on a PANID and PANADDRESS. Node communication is limited
+		to nodes with the same PANID. There is a direct relation
+		between the PANADDRESS and the ipv6 address of a node:
+		  PANADDRESS: 0xaabb
+		  ipv6 address: AAAA 0000 0000 0000 0000 00ff fe00 bbaa
+		For local link AAAA is fe80.
+
+if ESPRESSIF_ESPNOW_PKTRADIO
+
+config ESPRESSIF_ESPNOW_PKTRADIO_FRAMELEN
+	int "ESPNOW pktradio frame length"
+	range 127 250
+	default 196
+	---help---
+		Frame size used for espnow transmissions. Ensure that this is
+		set equal for all nodes.
+
+config ESPRESSIF_ESPNOW_PKTRADIO_PANID
+	hex "ESPNOW pktradio node panid"
+	range 0x0 0xffff
+	default 0x0
+	---help---
+		PANID for espnow pktradio.
+
+config ESPRESSIF_ESPNOW_PKTRADIO_PANADDR
+	hex "ESPNOW pktradio node address"
+	range 0x0 0xffff
+	default 0xfffe
+	---help---
+		PANADDRESS for espnow pktradio.
+
+endif #ESPRESSIF_ESPNOW_PKTRADIO
+
+config ESP_PHY_IRQSTATE_FLAGS_NUMBER
+	int "Number of IRQ status lists for PHY initialization"
+	default 3
+	---help---
+		The number of IRQ status lists to be saved when PHY enter a critical state multiple times
+		at the same time during initialization.
 
 menu "BLE Configuration"
 	depends on ESPRESSIF_BLE

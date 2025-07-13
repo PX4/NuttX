@@ -67,4 +67,24 @@ void stm32_clockconfig(void);
 
 void stm32_rcc_enablelse(void);
 
+/****************************************************************************
+ * Name: stm32_rcc_enablelsi
+ *
+ * Description:
+ *   Enable the Internal Low-Speed (LSI) RC Oscillator.
+ *
+ ****************************************************************************/
+
+void stm32_rcc_enablelsi(void);
+
+/****************************************************************************
+ * Name: stm32_rcc_disablelsi
+ *
+ * Description:
+ *   Disable the Internal Low-Speed (LSI) RC Oscillator.
+ *
+ ****************************************************************************/
+
+void stm32_rcc_disablelsi(void);
+
 #endif /* __ARCH_ARM_SRC_STM32F0L0G0_STM32_RCC_H */

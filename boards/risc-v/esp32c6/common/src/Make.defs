@@ -22,6 +22,10 @@
 
 ifeq ($(CONFIG_ARCH_BOARD_COMMON),y)
 
+ifeq ($(CONFIG_ESPRESSIF_ADC),y)
+  CSRCS += esp_board_adc.c
+endif
+
 ifeq ($(CONFIG_ESPRESSIF_LEDC),y)
   CSRCS += esp_board_ledc.c
 endif
@@ -34,15 +38,15 @@ ifeq ($(CONFIG_ESPRESSIF_SPI),y)
   CSRCS += esp_board_spi.c
 endif
 
-ifeq ($(CONFIG_SPI_DRIVER),y)
+ifeq ($(CONFIG_SPI),y)
   CSRCS += esp_board_spidev.c
 endif
 
-ifeq ($(CONFIG_SPI_SLAVE_DRIVER),y)
+ifeq ($(CONFIG_SPI_SLAVE),y)
   CSRCS += esp_board_spislavedev.c
 endif
 
-ifeq ($(CONFIG_I2C_DRIVER),y)
+ifeq ($(CONFIG_I2C),y)
   CSRCS += esp_board_i2c.c
 endif
 
@@ -76,6 +80,14 @@ endif
 
 ifeq ($(CONFIG_ESP_PCNT),y)
   CSRCS += esp_board_pcnt.c
+endif
+
+ifeq ($(CONFIG_SENSORS_MPU60X0),y)
+  CSRCS += esp_board_mpu60x0.c
+endif
+
+ifeq ($(CONFIG_NCV7410),y)
+  CSRCS += esp_board_ncv7410.c
 endif
 
 DEPPATH += --dep-path src

@@ -29,7 +29,6 @@
 SYSCALL_LOOKUP1(_exit,                     1)
 SYSCALL_LOOKUP(_assert,                    4)
 SYSCALL_LOOKUP(getpid,                     0)
-SYSCALL_LOOKUP(gettid,                     0)
 SYSCALL_LOOKUP(prctl,                      2)
 
 #ifdef CONFIG_SCHED_HAVE_PARENT
@@ -78,11 +77,12 @@ SYSCALL_LOOKUP(sethostname,                2)
 /* Semaphores */
 
 SYSCALL_LOOKUP(nxsem_destroy,              1)
-SYSCALL_LOOKUP(nxsem_post,                 1)
+SYSCALL_LOOKUP(nxsem_post_slow,            1)
+SYSCALL_LOOKUP(nxsem_tickwait,             2)
 SYSCALL_LOOKUP(nxsem_clockwait,            3)
 SYSCALL_LOOKUP(nxsem_timedwait,            2)
-SYSCALL_LOOKUP(nxsem_trywait,              1)
-SYSCALL_LOOKUP(nxsem_wait,                 1)
+SYSCALL_LOOKUP(nxsem_trywait_slow,         1)
+SYSCALL_LOOKUP(nxsem_wait_slow,            1)
 
 #ifdef CONFIG_PRIORITY_INHERITANCE
   SYSCALL_LOOKUP(nxsem_set_protocol,       2)

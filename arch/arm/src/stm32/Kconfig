@@ -3024,6 +3024,24 @@ config STM32_I2C3
 	depends on STM32_HAVE_I2C3
 	select STM32_I2C
 
+config STM32_I2C1_SLAVE
+	bool "I2C1 Slave"
+	default n
+	depends on !STM32_I2C1 && I2C_SLAVE
+	select STM32_I2C_SLAVE
+
+config STM32_I2C2_SLAVE
+	bool "I2C2 Slave"
+	default n
+	depends on STM32_HAVE_I2C2 && !STM32_I2C2 && I2C_SLAVE
+	select STM32_I2C_SLAVE
+
+config STM32_I2C3_SLAVE
+	bool "I2C3 Slave"
+	default n
+	depends on STM32_HAVE_I2C3 && !STM32_I2C3 && I2C_SLAVE
+	select STM32_I2C_SLAVE
+
 config STM32_LPTIM1
 	bool "LPTIM1"
 	default n
@@ -3418,6 +3436,10 @@ config STM32_I2S
 	select STM32_SPI_DMA
 
 config STM32_I2C
+	bool
+	default n
+
+config STM32_I2C_SLAVE
 	bool
 	default n
 
@@ -6320,10 +6342,10 @@ config STM32_ADC1_SAMPLE_FREQUENCY
 config STM32_ADC1_TIMTRIG
 	int "ADC1 Timer Trigger"
 	default 0
-	range 0 4
+	range 0 5
 	depends on STM32_HAVE_ADC1_TIMER
 	---help---
-		Values 0:CC1 1:CC2 2:CC3 3:CC4 4:TRGO
+		Values 0:CC1 1:CC2 2:CC3 3:CC4 4:TRGO 5:TRGO2
 
 config STM32_ADC2_SAMPLE_FREQUENCY
 	int "ADC2 Sampling Frequency"
@@ -6335,10 +6357,10 @@ config STM32_ADC2_SAMPLE_FREQUENCY
 config STM32_ADC2_TIMTRIG
 	int "ADC2 Timer Trigger"
 	default 0
-	range 0 4
+	range 0 5
 	depends on STM32_HAVE_ADC2_TIMER
 	---help---
-		Values 0:CC1 1:CC2 2:CC3 3:CC4 4:TRGO
+		Values 0:CC1 1:CC2 2:CC3 3:CC4 4:TRGO 5:TRGO2
 
 config STM32_ADC3_SAMPLE_FREQUENCY
 	int "ADC3 Sampling Frequency"
@@ -6350,10 +6372,10 @@ config STM32_ADC3_SAMPLE_FREQUENCY
 config STM32_ADC3_TIMTRIG
 	int "ADC3 Timer Trigger"
 	default 0
-	range 0 4
+	range 0 5
 	depends on STM32_HAVE_ADC3_TIMER
 	---help---
-		Values 0:CC1 1:CC2 2:CC3 3:CC4 4:TRGO
+		Values 0:CC1 1:CC2 2:CC3 3:CC4 4:TRGO 5:TRGO2
 
 config STM32_TIM1_DAC
 	bool "TIM1 DAC"
@@ -6811,10 +6833,10 @@ config STM32_TIM1_CHANNEL
 		channel {1,..,4}
 
 config STM32_TIM1_CLOCK
-	int "TIM1 work frequence for capture"
+	int "TIM1 work frequency for capture"
 	default 1000000
 	---help---
-		This clock frequence limiting the count rate at the expense of resolution.
+		This clock frequency limiting the count rate at the expense of resolution.
 
 endif # STM32_TIM1_CAP
 
@@ -6840,10 +6862,10 @@ config STM32_TIM2_CHANNEL
 		channel {1,..,4}
 
 config STM32_TIM2_CLOCK
-	int "TIM2 work frequence for capture"
+	int "TIM2 work frequency for capture"
 	default 1000000
 	---help---
-		This clock frequence limiting the count rate at the expense of resolution.
+		This clock frequency limiting the count rate at the expense of resolution.
 
 endif # STM32_TIM2_CAP
 
@@ -6869,10 +6891,10 @@ config STM32_TIM3_CHANNEL
 		channel {1,..,4}
 
 config STM32_TIM3_CLOCK
-	int "TIM3 work frequence for capture"
+	int "TIM3 work frequency for capture"
 	default 1000000
 	---help---
-		This clock frequence limiting the count rate at the expense of resolution.
+		This clock frequency limiting the count rate at the expense of resolution.
 
 endif # STM32_TIM3_CAP
 
@@ -6898,10 +6920,10 @@ config STM32_TIM4_CHANNEL
 		channel {1,..,4}
 
 config STM32_TIM4_CLOCK
-	int "TIM4 work frequence for capture"
+	int "TIM4 work frequency for capture"
 	default 1000000
 	---help---
-		This clock frequence limiting the count rate at the expense of resolution.
+		This clock frequency limiting the count rate at the expense of resolution.
 
 endif # STM32_TIM4_CAP
 
@@ -6927,10 +6949,10 @@ config STM32_TIM5_CHANNEL
 		channel {1,..,4}
 
 config STM32_TIM5_CLOCK
-	int "TIM5 work frequence for capture"
+	int "TIM5 work frequency for capture"
 	default 1000000
 	---help---
-		This clock frequence limiting the count rate at the expense of resolution.
+		This clock frequency limiting the count rate at the expense of resolution.
 
 endif # STM32_TIM5_CAP
 
@@ -6956,10 +6978,10 @@ config STM32_TIM8_CHANNEL
 		channel {1,..,4}
 
 config STM32_TIM8_CLOCK
-	int "TIM8 work frequence for capture"
+	int "TIM8 work frequency for capture"
 	default 1000000
 	---help---
-		This clock frequence limiting the count rate at the expense of resolution.
+		This clock frequency limiting the count rate at the expense of resolution.
 
 endif # STM32_TIM8_CAP
 
@@ -6985,10 +7007,10 @@ config STM32_TIM9_CHANNEL
 		channel {1,..,4}
 
 config STM32_TIM9_CLOCK
-	int "TIM9 work frequence for capture"
+	int "TIM9 work frequency for capture"
 	default 1000000
 	---help---
-		This clock frequence limiting the count rate at the expense of resolution.
+		This clock frequency limiting the count rate at the expense of resolution.
 
 endif # STM32_TIM9_CAP
 
@@ -7014,10 +7036,10 @@ config STM32_TIM10_CHANNEL
 		channel {1,..,4}
 
 config STM32_TIM10_CLOCK
-	int "TIM10 work frequence for capture"
+	int "TIM10 work frequency for capture"
 	default 1000000
 	---help---
-		This clock frequence limiting the count rate at the expense of resolution.
+		This clock frequency limiting the count rate at the expense of resolution.
 
 endif # STM32_TIM10_CAP
 
@@ -7043,10 +7065,10 @@ config STM32_TIM11_CHANNEL
 		channel {1,..,4}
 
 config STM32_TIM11_CLOCK
-	int "TIM11 work frequence for capture"
+	int "TIM11 work frequency for capture"
 	default 1000000
 	---help---
-		This clock frequence limiting the count rate at the expense of resolution.
+		This clock frequency limiting the count rate at the expense of resolution.
 
 endif # STM32_TIM11_CAP
 
@@ -7072,10 +7094,10 @@ config STM32_TIM12_CHANNEL
 		channel {1,..,4}
 
 config STM32_TIM12_CLOCK
-	int "TIM12 work frequence for capture"
+	int "TIM12 work frequency for capture"
 	default 1000000
 	---help---
-		This clock frequence limiting the count rate at the expense of resolution.
+		This clock frequency limiting the count rate at the expense of resolution.
 
 endif # STM32_TIM12_CAP
 
@@ -7101,10 +7123,10 @@ config STM32_TIM13_CHANNEL
 		channel {1,..,4}
 
 config STM32_TIM13_CLOCK
-	int "TIM13 work frequence for capture"
+	int "TIM13 work frequency for capture"
 	default 1000000
 	---help---
-		This clock frequence limiting the count rate at the expense of resolution.
+		This clock frequency limiting the count rate at the expense of resolution.
 
 endif # STM32_TIM13_CAP
 
@@ -7130,10 +7152,10 @@ config STM32_TIM14_CHANNEL
 		channel {1,..,4}
 
 config STM32_TIM14_CLOCK
-	int "TIM14 work frequence for capture"
+	int "TIM14 work frequency for capture"
 	default 1000000
 	---help---
-		This clock frequence limiting the count rate at the expense of resolution.
+		This clock frequency limiting the count rate at the expense of resolution.
 
 endif # STM32_TIM14_CAP
 
@@ -8594,6 +8616,16 @@ config STM32_ADC1_DMA_CFG
 	---help---
 		0 - ADC1 DMA in One Shot Mode, 1 - ADC1 DMA in Circular Mode
 
+config STM32_ADC1_DMA_BATCH
+	int "ADC1 DMA number of conversions"
+	depends on STM32_ADC1 && STM32_ADC1_DMA
+	default 1
+	---help---
+		This option allows you to select the number of regular group conversions
+		that will trigger a DMA callback transerring data to the upper-half driver.
+		By default, this value is 1, which means that data is transferred after
+		each group conversion.
+
 config STM32_ADC1_ANIOC_TRIGGER
 	int "ADC1 software trigger (ANIOC_TRIGGER) configuration"
 	depends on STM32_ADC1
@@ -8626,6 +8658,16 @@ config STM32_ADC2_DMA_CFG
 	default 0
 	---help---
 		0 - ADC2 DMA in One Shot Mode, 1 - ADC2 DMA in Circular Mode
+
+config STM32_ADC2_DMA_BATCH
+	int "ADC2 DMA number of conversions"
+	depends on STM32_ADC2 && STM32_ADC2_DMA
+	default 1
+	---help---
+		This option allows you to select the number of regular group conversions
+		that will trigger a DMA callback transerring data to the upper-half driver.
+		By default, this value is 1, which means that data is transferred after
+		each group conversion.
 
 config STM32_ADC2_ANIOC_TRIGGER
 	int "ADC2 software trigger (ANIOC_TRIGGER) configuration"
@@ -8660,6 +8702,16 @@ config STM32_ADC3_DMA_CFG
 	---help---
 		0 - ADC3 DMA in One Shot Mode, 1 - ADC3 DMA in Circular Mode
 
+config STM32_ADC3_DMA_BATCH
+	int "ADC3 DMA number of conversions"
+	depends on STM32_ADC3 && STM32_ADC3_DMA
+	default 1
+	---help---
+		This option allows you to select the number of regular group conversions
+		that will trigger a DMA callback transerring data to the upper-half driver.
+		By default, this value is 1, which means that data is transferred after
+		each group conversion.
+
 config STM32_ADC3_ANIOC_TRIGGER
 	int "ADC3 software trigger (ANIOC_TRIGGER) configuration"
 	depends on STM32_ADC3
@@ -8687,6 +8739,16 @@ config STM32_ADC4_DMA_CFG
 	---help---
 		0 - ADC4 DMA in One Shot Mode, 1 - ADC4 DMA in Circular Mode
 
+config STM32_ADC4_DMA_BATCH
+	int "ADC4 DMA number of conversions"
+	depends on STM32_ADC4 && STM32_ADC4_DMA
+	default 1
+	---help---
+		This option allows you to select the number of regular group conversions
+		that will trigger a DMA callback transerring data to the upper-half driver.
+		By default, this value is 1, which means that data is transferred after
+		each group conversion.
+
 config STM32_ADC4_ANIOC_TRIGGER
 	int "ADC4 software trigger (ANIOC_TRIGGER) configuration"
 	depends on STM32_ADC4
@@ -8713,6 +8775,16 @@ config STM32_ADC5_DMA_CFG
 	default 0
 	---help---
 		0 - ADC5 DMA in One Shot Mode, 1 - ADC5 DMA in Circular Mode
+
+config STM32_ADC5_DMA_BATCH
+	int "ADC5 DMA number of conversions"
+	depends on STM32_ADC5 && STM32_ADC5_DMA
+	default 1
+	---help---
+		This option allows you to select the number of regular group conversions
+		that will trigger a DMA callback transerring data to the upper-half driver.
+		By default, this value is 1, which means that data is transferred after
+		each group conversion.
 
 config STM32_ADC1_INJECTED_CHAN
 	int "ADC1 injected channels"
@@ -10670,6 +10742,31 @@ config STM32_I2C_DMA
 
 endmenu
 
+menu "I2C Slave Configuration"
+	depends on STM32_I2C_SLAVE
+
+config STM32_I2C_SLAVE_DEFAULT_TX
+	hex "Default TX byte to be sent when the TX buffer is empty"
+	default 0xFF
+
+config STM32_I2C_SLAVE_USEWQ
+	bool "Use work queue to delegate the isr completion status"
+	default n
+	---help---
+		With the current upperhalf I2C slave driver implementation, the user
+		should delegate the callback completion status using a work queue.
+		However, work queues introduce a delay, so in certain scenarios
+		it is better to use a custom driver without using a work queue.
+
+config STM32_I2C_SLAVE_RETRANSFER
+	bool "The frame is retransferred when stop is issued beforehand"
+	default n
+	---help---
+		If stop is issued before the whole frame is transferred,
+		the tx pointer is reset to 0.
+
+endmenu
+
 menu "SDIO Configuration"
 	depends on STM32_SDIO
 
@@ -11299,7 +11396,7 @@ choice
 config STM32_FDCAN1_CLASSIC
 	bool "Classic CAN"
 	---help---
-		Enable Clasic CAN mode
+		Enable Classic CAN mode
 
 config STM32_FDCAN1_FD
 	bool "CAN FD"
@@ -11413,7 +11510,7 @@ choice
 config STM32_FDCAN2_CLASSIC
 	bool "Classic CAN"
 	---help---
-		Enable Clasic CAN mode
+		Enable Classic CAN mode
 
 config STM32_FDCAN2_FD
 	bool "CAN FD"
@@ -11527,7 +11624,7 @@ choice
 config STM32_FDCAN3_CLASSIC
 	bool "Classic CAN"
 	---help---
-		Enable Clasic CAN mode
+		Enable Classic CAN mode
 
 config STM32_FDCAN3_FD
 	bool "CAN FD"

@@ -27,7 +27,7 @@ formatted onto it. Do note this includes cases where mnemofs is formatted to
 the device, but it's been mutilated to the point of being unrecognizable.
 
 After this, use it like a regular file system. That's the job of a file
-system after all...to hide the storage device's pecularities behind an
+system after all...to hide the storage device's peculiarities behind an
 abstraction. A file system is considered good if you don't have to think
 about its existence during regular usage.
 
@@ -113,7 +113,7 @@ entries (direntries) for each FS Object (file or directory) grouped into it.
 
 This layer abstracts away the complex division of flash space that's present
 in CTZ skip lists, and allows users of this layer to not worry about the
-complexities of a CTZ skip list, and infact, to feel that the data is like a
+complexities of a CTZ skip list, and in fact, to feel that the data is like a
 contiguous space.
 
 This layer allows the user to specify a data offset, which refers to the
@@ -148,7 +148,7 @@ of it was written properly. This helps in making it power loss resilient.
 
 The journal, when combined with CoW, plays another important role. In pure
 CoW, any update to a CTZ file will result in it having a new location. This
-new location wil need to be updated in the parent, which itself will have a
+new location will need to be updated in the parent, which itself will have a
 new location after the update, and so on till it reaches the root. The
 journal stops this propagation immediately. When the journal is full above
 a certain limit, it will flush, and apply all of these changes to the FS

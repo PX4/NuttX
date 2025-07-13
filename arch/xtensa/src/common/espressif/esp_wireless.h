@@ -44,6 +44,9 @@
 #include "esp32s3_rt_timer.h"
 #endif
 
+#ifdef CONFIG_ESPRESSIF_WIFI
+#  include "os.h"
+#endif
 #include "esp_log.h"
 #include "esp_mac.h"
 #include "esp_private/phy.h"
@@ -195,8 +198,8 @@ int phy_printf(const char *format, ...) printf_like(1, 2);
  *
  ****************************************************************************/
 
-int32_t esp_timer_create(const esp_timer_create_args_t *create_args,
-                         esp_timer_handle_t *out_handle);
+int esp_timer_create(const esp_timer_create_args_t *create_args,
+                     esp_timer_handle_t *out_handle);
 
 /****************************************************************************
  * Name: esp_timer_start_once
@@ -213,7 +216,7 @@ int32_t esp_timer_create(const esp_timer_create_args_t *create_args,
  *
  ****************************************************************************/
 
-int32_t esp_timer_start_once(esp_timer_handle_t timer, uint64_t timeout_us);
+int esp_timer_start_once(esp_timer_handle_t timer, uint64_t timeout_us);
 
 /****************************************************************************
  * Name: esp_timer_start_periodic
@@ -230,7 +233,7 @@ int32_t esp_timer_start_once(esp_timer_handle_t timer, uint64_t timeout_us);
  *
  ****************************************************************************/
 
-int32_t esp_timer_start_periodic(esp_timer_handle_t timer, uint64_t period);
+int esp_timer_start_periodic(esp_timer_handle_t timer, uint64_t period);
 
 /****************************************************************************
  * Name: esp_timer_stop
@@ -246,7 +249,7 @@ int32_t esp_timer_start_periodic(esp_timer_handle_t timer, uint64_t period);
  *
  ****************************************************************************/
 
-int32_t esp_timer_stop(esp_timer_handle_t timer);
+int esp_timer_stop(esp_timer_handle_t timer);
 
 /****************************************************************************
  * Name: esp_timer_delete
@@ -262,7 +265,7 @@ int32_t esp_timer_stop(esp_timer_handle_t timer);
  *
  ****************************************************************************/
 
-int32_t esp_timer_delete(esp_timer_handle_t timer);
+int esp_timer_delete(esp_timer_handle_t timer);
 
 /****************************************************************************
  * Name: esp_phy_update_country_info

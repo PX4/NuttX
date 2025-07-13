@@ -52,7 +52,7 @@
  */
 
 #ifdef CONFIG_STM32F0L0G0_HAVE_DMAMUX
-#  error DMAMUX not supported yet
+#  error DMAMUX not supported here. Look at stm32_dma_v1mux.c
 #endif
 
 /****************************************************************************
@@ -532,7 +532,7 @@ void stm32_dmastart(DMA_HANDLE handle, dma_callback_t callback,
 
   DEBUGASSERT(handle != NULL);
 
-  /* Save the callback info.  This will be invoked whent the DMA completes */
+  /* Save the callback info.  This will be invoked when the DMA completes. */
 
   dmach->callback = callback;
   dmach->arg      = arg;

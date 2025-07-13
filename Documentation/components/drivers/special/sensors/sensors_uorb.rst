@@ -55,7 +55,7 @@ to use on platforms without FPU support.
 
   nuttx/driver/sensor/sensor.c               sensor upperhalf implementation
   nuttx/driver/sensor/sensor_rpmsg.c         sensor rpmsg lowerhalf implementation
-  nuttx/driver/sensor/usensor.c              userpace sensor register implementation
+  nuttx/driver/sensor/usensor.c              userspace sensor register implementation
   nuttx/include/nuttx/sensors/sensor.h       sensor unify structure header file
   nuttx/include/nuttx/sensors/ioctl.h        sensor ioctl cmd header file
 
@@ -489,6 +489,7 @@ Implemented Drivers
 - ltr308
 - mpu9250
 - ms56xx
+- :doc:`nau7802`
 - :doc:`sht4x`
 - :doc:`lsm6dso32`
 - wtgahrs2

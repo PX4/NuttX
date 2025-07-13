@@ -38,7 +38,6 @@
 #include <arch/board/board.h>
 
 #include "sched/sched.h"
-#include "signal/signal.h"
 #include "sparc_internal.h"
 
 /****************************************************************************
@@ -79,9 +78,9 @@ void sparc_sigdeliver(void)
 
   board_autoled_on(LED_SIGNAL);
 
-  sinfo("rtcb=%p sigpendactionq.head=%p\n",
-        rtcb, rtcb->sigpendactionq.head);
-  DEBUGASSERT((rtcb->flags & TCB_FLAG_SIGDELIVER) != 0);
+  sinfo("rtcb=%p sigdeliver=%p sigpendactionq.head=%p\n",
+        rtcb, rtcb->sigdeliver, rtcb->sigpendactionq.head);
+  DEBUGASSERT(rtcb->sigdeliver != NULL);
 
   /* Save the return state on the stack. */
 
@@ -117,7 +116,7 @@ retry:
 
   /* Deliver the signal */
 
-  nxsig_deliver(rtcb);
+  (rtcb->sigdeliver)(rtcb);
 
   /* Output any debug messages BEFORE restoring errno (because they may
    * alter errno), then disable interrupts again and restore the original
@@ -169,7 +168,7 @@ retry:
   regs[REG_PC]     = rtcb->xcp.saved_pc;
   regs[REG_NPC]    = rtcb->xcp.saved_npc;
   regs[REG_PSR]    = rtcb->xcp.saved_status;
-  rtcb->flags &= ~TCB_FLAG_SIGDELIVER;
+  rtcb->sigdeliver = NULL;  /* Allows next handler to be scheduled */
 
 #ifdef CONFIG_SMP
   /* Restore the saved 'irqcount' and recover the critical section
@@ -189,7 +188,7 @@ retry:
 
   /* Then restore the correct state for this thread of execution. This is an
    * unusual case that must be handled by up_fullcontextresore. This case is
-   * unusal in two ways:
+   * unusual in two ways:
    *
    *   1. It is not a context switch between threads.  Rather,
    *      sparc_fullcontextrestore must behave more it more like a longjmp

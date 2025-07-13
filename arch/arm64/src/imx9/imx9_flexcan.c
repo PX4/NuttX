@@ -1070,7 +1070,7 @@ static void imx9_txdone(struct imx9_driver_s *priv, uint32_t flags)
             {
               /* Received something in this buffer?
                * This should only happen if we sent RTR and then did
-               * run out of RX MBs (which are at lower indecies).
+               * run out of RX MBs (which are at lower indices).
                * Or perhaps this shouldn't happen at all when AEN=1. This
                * is unclear in the RM.
                */
@@ -1081,7 +1081,7 @@ static void imx9_txdone(struct imx9_driver_s *priv, uint32_t flags)
 
           /* Only possible TX codes after transmission are ABORT or
            * INACTIVE. If it transitioned to RX MB after RTR sent,
-           * inactivate it.
+           * deactivate it.
            */
 
           if (code != CAN_TXMB_ABORT && code != CAN_TXMB_INACTIVE)
@@ -1597,11 +1597,11 @@ static int imx9_ioctl(struct net_driver_s *dev, int cmd,
           struct imx9_driver_s *priv = (struct imx9_driver_s *)dev;
           struct can_ioctl_data_s *req =
               (struct can_ioctl_data_s *)((uintptr_t)arg);
-          req->arbi_bitrate = priv->arbi_timing.bitrate / 1000; /* kbit/s */
+          req->arbi_bitrate = priv->arbi_timing.bitrate;
           req->arbi_samplep = priv->arbi_timing.samplep;
           if (priv->canfd_capable)
             {
-              req->data_bitrate = priv->data_timing.bitrate / 1000; /* kbit/s */
+              req->data_bitrate = priv->data_timing.bitrate;
               req->data_samplep = priv->data_timing.samplep;
             }
           else
@@ -1622,27 +1622,25 @@ static int imx9_ioctl(struct net_driver_s *dev, int cmd,
           struct flexcan_timeseg arbi_timing;
           struct flexcan_timeseg data_timing;
 
-          arbi_timing.bitrate = req->arbi_bitrate * 1000;
+          arbi_timing.bitrate = req->arbi_bitrate;
           arbi_timing.samplep = req->arbi_samplep;
           ret = imx9_bitratetotimeseg(priv, &arbi_timing, false);
           if (ret == OK && priv->canfd_capable)
             {
-              data_timing.bitrate = req->data_bitrate * 1000;
+              data_timing.bitrate = req->data_bitrate;
               data_timing.samplep = req->data_samplep;
               ret = imx9_bitratetotimeseg(priv, &data_timing, true);
             }
 
           if (ret == OK)
             {
-              /* Reset CAN controller and start with new timings */
+              /* Apply the new timings (interface is guaranteed to be down) */
 
               priv->arbi_timing = arbi_timing;
               if (priv->canfd_capable)
               {
                 priv->data_timing = data_timing;
               }
-
-              imx9_ifup(dev);
             }
         }
         break;

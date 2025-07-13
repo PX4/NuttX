@@ -27,6 +27,14 @@ config ARCH_BOARD_ARDUINO_MEGA2560
 		This option selects the Arduino Mega 2560 board featuring the Atmel
 		Atmega2560 MCU running at 16 MHz.
 
+config ARCH_BOARD_ELEGOO_MEGA2560R3
+	bool "Elegoo Mega 2560r3"
+	depends on ARCH_CHIP_ATMEGA2560
+	select ARCH_HAVE_LEDS
+	---help---
+		This option selects the Elegoo Mega 2560 board featuring the Atmel
+		Atmega2560 MCU running at 16 MHz.
+
 config ARCH_BOARD_ARDUINO_DUE
 	bool "Arduino Due"
 	depends on ARCH_CHIP_ATSAM3X8E
@@ -34,6 +42,22 @@ config ARCH_BOARD_ARDUINO_DUE
 	---help---
 		This options selects the Arduino DUE board featuring the Atmel
 		ATSAM3X8E MCU running at 84 MHz.
+
+config ARCH_BOARD_ARDUINO_R4_MINIMA
+	bool "Arduino R4 Minima"
+	depends on ARCH_CHIP_RA4
+	select ARCH_HAVE_LEDS
+	---help---
+		This options selects the Arduino R4 Minima board featuring the Renesas
+		R7FA4M1 MCU running at 48 MHz.
+
+config ARCH_BOARD_XIAO_RA4M1
+	bool "Seeed Studio XIAO RA4M1"
+	depends on ARCH_CHIP_RA4
+	select ARCH_HAVE_LEDS
+	---help---
+		This options selects the Seeed Studio XIAO RA4M1 board featuring the Renesas
+		R7FA4M1 MCU running at 48 MHz.
 
 config ARCH_BOARD_ARDUINO_M0
 	bool "Arduino M0"
@@ -63,6 +87,17 @@ config ARCH_BOARD_AVR32DEV1
 		AVR32 family.  That patched GNU toolchain is available only from the
 		Atmel website.  STATUS: This port is functional but very basic.  There
 		are configurations for NSH and the OS test.
+
+config ARCH_BOARD_AVRDX_BREADXAVR
+	bool "AVR Dx chip on breadboard"
+	depends on ARCH_CHIP_AVRDX
+	select ARCH_HAVE_LEDS
+	select ARCH_HAVE_BUTTONS
+	select ARCH_HAVE_IRQBUTTONS
+	select AVR_HAVE_BOARD_FLMAP
+	---help---
+		This is a board used to make something use an AVRnDx core
+		so it can be developed and tested.
 
 config ARCH_BOARD_AXOLOTI
 	bool "Axoloti board"
@@ -394,6 +429,15 @@ config ARCH_BOARD_ESP32C3_GENERIC
 		The ESP32-C3-DevKitM-1 version contains the ESP32-C3-MINI-1 module and the
 		ESP32-C3-DevKitC-02 version the ESP32-C3-WROOM-02.
 
+config ARCH_BOARD_ESP32C3_XIAO
+	bool "Seeed Studio XIAO ESP32-C3"
+	depends on ESPRESSIF_ESP32C3
+	select ARCH_HAVE_BUTTONS
+	select ARCH_HAVE_IRQBUTTONS
+	---help---
+		The XIAO-ESP32C3 from Seeed Studio features the ESP32-C3 CPU with a RISC-V core,
+		supporting IEEE 802.11 b/g/n WiFi, and Bluetooth 5 (BLE) protocols.
+
 config ARCH_BOARD_ESP32S2_KALUGA_1
 	bool "Espressif ESP32-S2-Kaluga-1 V1.3"
 	depends on ARCH_CHIP_ESP32S2WROVER
@@ -423,7 +467,7 @@ config ARCH_BOARD_FRANZININHO_WIFI
 
 config ARCH_BOARD_ESP32S3_DEVKIT
 	bool "Espressif ESP32-S3 DevKit"
-	depends on ARCH_CHIP_ESP32S3WROOM1N4 || ARCH_CHIP_ESP32S3MINI1N8 || ARCH_CHIP_ESP32S3WROOM1N16R8 || ARCH_CHIP_ESP32S3WROOM2N16R8V || ARCH_CHIP_ESP32S3WROOM2N32R8V || ARCH_CHIP_ESP32S3CUSTOM || ARCH_CHIP_ESP32S3WROOM1N8R8
+	depends on ARCH_CHIP_ESP32S3WROOM1N4 || ARCH_CHIP_ESP32S3MINI1N8 || ARCH_CHIP_ESP32S3WROOM1N8R2 || ARCH_CHIP_ESP32S3WROOM1N16R8 || ARCH_CHIP_ESP32S3WROOM2N16R8V || ARCH_CHIP_ESP32S3WROOM2N32R8V || ARCH_CHIP_ESP32S3CUSTOM || ARCH_CHIP_ESP32S3WROOM1N8R8
 	select ARCH_HAVE_LEDS
 	select ARCH_HAVE_BUTTONS
 	select ARCH_HAVE_IRQBUTTONS if ESP32S3_GPIO_IRQ
@@ -433,6 +477,14 @@ config ARCH_BOARD_ESP32S3_DEVKIT
 		The ESP32-S3-DevKitM-1 version contains the ESP32-S3-MINI-1/1U module and the
 		ESP32-S3-DevKitC-1 version may be based either on ESP32-S3-WROOM-1/1U or
 		ESP32-S3-WROOM-2/2U.
+
+config ARCH_BOARD_ESP32S3_8048S043
+	bool "ESP32-S3 8048S043"
+	depends on ARCH_CHIP_ESP32S3WROOM1N4 || ARCH_CHIP_ESP32S3MINI1N8 || ARCH_CHIP_ESP32S3WROOM1N8R2 || ARCH_CHIP_ESP32S3WROOM1N16R8 || ARCH_CHIP_ESP32S3WROOM2N16R8V || ARCH_CHIP_ESP32S3WROOM2N32R8V || ARCH_CHIP_ESP32S3CUSTOM || ARCH_CHIP_ESP32S3WROOM1N8R8
+	select ARCH_HAVE_BUTTONS
+	select ARCH_HAVE_IRQBUTTONS if ESP32S3_GPIO_IRQ
+	---help---
+		The ESP32-S3 8048S043 features the ESP32-S3 CPU with dual Xtensa LX7 cores.
 
 config ARCH_BOARD_ESP32S3_EYE
 	bool "Espressif ESP32-S3-EYE Board"
@@ -447,7 +499,7 @@ config ARCH_BOARD_ESP32S3_EYE
 
 config ARCH_BOARD_ESP32S3_LCD_EV
 	bool "Espressif ESP32-S3-LCD-EV Board"
-	depends on ARCH_CHIP_ESP32S3WROOM2N16R8V || ARCH_CHIP_ESP32S3WROOM2N32R8V || ARCH_CHIP_ESP32S3CUSTOM
+	depends on ARCH_CHIP_ESP32S3WROOM2N16R8V || ARCH_CHIP_ESP32S3WROOM2N32R8V || ARCH_CHIP_ESP32S3WROOM1N16R16V || ARCH_CHIP_ESP32S3CUSTOM
 	select ARCH_HAVE_LEDS
 	select ARCH_HAVE_BUTTONS
 	select ARCH_HAVE_IRQBUTTONS if ESP32S3_GPIO_IRQ
@@ -470,6 +522,16 @@ config ARCH_BOARD_ESP32S3_LHCBIT
 	select ARCH_HAVE_IRQBUTTONS if ESP32S3_GPIO_IRQ
 	---help---
 		The ESP32-S3 LHCBit features the ESP32-S3 CPU with dual Xtensa LX7 cores.
+
+config ARCH_BOARD_ESP32S3_XIAO
+	bool "Seeed Studio XIAO ESP32-S3"
+	depends on ARCH_CHIP_ESP32S3WROOM1N16R8 || ARCH_CHIP_ESP32S3WROOM1N8R8
+	select ARCH_HAVE_LEDS
+	select ARCH_HAVE_BUTTONS
+	select ARCH_HAVE_IRQBUTTONS if ESP32S3_GPIO_IRQ
+	---help---
+		The XIAO-ESP32S3 from Seeed Studio features the ESP32-S3 CPU with dual Xtensa LX7 cores,
+		with 8MiB Octal SPI PSRAM and 8MiB or 16MiB flash.
 
 config ARCH_BOARD_ESP32S3_BOX
 	bool "Espressif ESP32-S3-BOX"
@@ -510,6 +572,13 @@ config ARCH_BOARD_ESP32S3_MEADOW
 		The ESP32-S3-Meadow is a small-sized board produced by WildernessLabs
 		featuring the ESP32-S3 CPU with 32MiB Octal SPI PSRAM and 64 MiB flash.
 
+config ARCH_BOARD_ESP32S3_LCKFB_SZPI
+	bool "LCKFB SZPI ESP32-S3"
+	depends on ARCH_CHIP_ESP32S3WROOM1N16R8
+	select ARCH_HAVE_LEDS
+	select ARCH_HAVE_BUTTONS
+	select ARCH_HAVE_IRQBUTTONS if ESP32S3_GPIO_IRQ
+
 config ARCH_BOARD_ESP32C6_DEVKITC
 	bool "Espressif ESP32-C6-DevKitC-1"
 	depends on ARCH_CHIP_ESP32C6WROOM1
@@ -525,6 +594,13 @@ config ARCH_BOARD_ESP32C6_DEVKITM
 	select ARCH_HAVE_IRQBUTTONS
 	---help---
 		The ESP32-C6 DevKitM-1 features the ESP32-C6 CPU with a RISC-V core.
+
+config ARCH_BOARD_ESP32C6_XIAO
+		bool "Seeed Studio XIAO ESP32C6"
+		depends on ARCH_CHIP_ESP32C6WROOM1
+		---help---
+		The XIAO-ESP32C6 from Seeed Studio features the ESP32-C6 CPU with two RISC-V cores,
+		supporting IEEE 802.11 b/g/n/ax WiFi, and Bluetooth 5 (BLE) protocols.
 
 config ARCH_BOARD_ESP32H2_DEVKIT
 	bool "Espressif ESP32-H2 Generic DevKit"
@@ -1764,6 +1840,16 @@ config ARCH_BOARD_NUCLEO_G071RB
 		This is a minimal configuration that supports low-level test of the
 		Nucleo G071RB in the NuttX source tree.
 
+config ARCH_BOARD_NUCLEO_G0B1RE
+	bool "STM32G0B1 Nucleo G0B1RE"
+	depends on ARCH_CHIP_STM32G0B1RE
+	select ARCH_HAVE_LEDS
+	select ARCH_HAVE_BUTTONS
+	select ARCH_HAVE_IRQBUTTONS
+	---help---
+		This is a minimal configuration that supports low-level test of the
+		Nucleo G0B1RE in the NuttX source tree.
+
 config ARCH_BOARD_WEACT_STM32H743
 	bool "WeAct Studio STM32H743"
 	depends on ARCH_CHIP_STM32H743VI
@@ -1807,6 +1893,12 @@ config ARCH_BOARD_STM32H745I_DISCO
 	---help---
 		STMicro STM32H745I-DISCO board based on the STMicro
 		STM32H745XI MCU.
+
+config ARCH_BOARD_STM32H750B_DK
+	bool "STM32H750B-DK board"
+	depends on ARCH_CHIP_STM32H750B
+	---help---
+		STMicro STM32H750B-DK board based on the STMicro STM32H750B MCU.
 
 config ARCH_BOARD_LINUM_STM32H753BI
 	bool "Linum (STM32H753BI) board"
@@ -1980,6 +2072,13 @@ config ARCH_BOARD_RASPBERRYPI_PICO_2
 	---help---
 		This is a port to the Raspberry Pi Pico 2 board.
 
+config ARCH_BOARD_XIAO_RP2350
+	bool "Seeed Xiao RP2350"
+	depends on ARCH_CHIP_RP23XX
+	select ARCH_HAVE_LEDS
+	---help---
+		This is a port to the Seeed Xiao RP2350 board.
+
 config ARCH_BOARD_PIMORONI_PICO_2_PLUS
 	bool "Pimoroni Pico 2 Plus"
 	depends on ARCH_CHIP_RP23XX
@@ -2094,6 +2193,13 @@ config ARCH_BOARD_SG2000_MILKV_DUOS
 	---help---
 		This options selects support for NuttX on Milk-V Duo S based
 		on SOPHGO SG2000 SoC.
+
+config ARCH_BOARD_EIC7700X_STARPRO64
+	bool "PINE64 StarPro64"
+	depends on ARCH_CHIP_EIC7700X
+	---help---
+		This options selects support for NuttX on PINE64 StarPro64 based
+		on ESWIN EIC7700X SoC.
 
 config ARCH_BOARD_S32K118EVB
 	bool "NXP S32K118EVB"
@@ -2296,6 +2402,14 @@ config ARCH_BOARD_IMX93_EVK
 	---help---
 		This options selects support for NuttX on the NXP i.MX93 CPUs EVK
 		board with ARM Cortex-A55.
+
+config ARCH_BOARD_AVAOTA_A1
+	bool "PINE64 Yuzuki Avaota-A1"
+	depends on ARCH_CHIP_SUNXI_A527
+	select ARCH_HAVE_IRQBUTTONS
+	---help---
+		This option selects support for NuttX on PINE64 Yuzuki Avaota-A1
+		based on Allwinner A527 SoC with ARM Cortex-A55.
 
 config ARCH_BOARD_ZCU111
 	bool "XilinX ZCU111 development board"
@@ -2631,6 +2745,24 @@ config ARCH_BOARD_STM32F072_DISCOVERY
 	select ARCH_HAVE_IRQBUTTONS
 	---help---
 		STMicro STM32F072-Discovery board based on the STMicro STM32F072RB MCU.
+
+config ARCH_BOARD_NUCLEO_C071RB
+	bool "STMicro Nucleo C071RB board"
+	depends on ARCH_CHIP_STM32C071RB
+	select ARCH_HAVE_LEDS
+	select ARCH_HAVE_BUTTONS
+	select ARCH_HAVE_IRQBUTTONS
+	---help---
+		STMicro NUCLEO C071RB board based on the STMicro STM32C071RB MCU.
+
+config ARCH_BOARD_NUCLEO_C092RC
+	bool "STMicro Nucleo C092RC board"
+	depends on ARCH_CHIP_STM32C092RC
+	select ARCH_HAVE_LEDS
+	select ARCH_HAVE_BUTTONS
+	select ARCH_HAVE_IRQBUTTONS
+	---help---
+		STMicro NUCLEO C092RC board based on the STMicro STM32C092RC MCU.
 
 config ARCH_BOARD_STM32F3_DISCOVERY
 	bool "STMicro STM32F3-Discovery board"
@@ -3234,6 +3366,14 @@ config ARCH_BOARD_AT32F437_MINI
 	---help---
 		AT32F437-MINI board based on the Artery AT32F437VMT7 MCU.
 
+config ARCH_BOARD_FRDM_MCXN236
+	bool "NXP MCXN236 CPU EVK board"
+	depends on ARCH_CHIP_N236
+	select ARCH_HAVE_IRQBUTTONS
+	---help---
+		This options selects support for NuttX on the NXP MCXN236 CPU EVK
+		board with ARM Cortex-M33.
+
 config ARCH_BOARD_CUSTOM
 	bool "Custom development board"
 	---help---
@@ -3305,11 +3445,13 @@ config ARCH_BOARD
 	default "amber"                     if ARCH_BOARD_AMBER
 	default "arduino-mega2560"          if ARCH_BOARD_ARDUINO_MEGA2560
 	default "arduino-due"               if ARCH_BOARD_ARDUINO_DUE
+	default "arduino-r4-minima"         if ARCH_BOARD_ARDUINO_R4_MINIMA
 	default "arduino-m0"                if ARCH_BOARD_ARDUINO_M0
 	default "arduino-nano-33ble"        if ARCH_BOARD_ARDUINO_NANO_33BLE
 	default "arduino-nano-33ble-rev2"   if ARCH_BOARD_ARDUINO_NANO_33BLE_REV2
 	default "arty_a7"                   if ARCH_BOARD_ARTY_A7
 	default "avr32dev1"                 if ARCH_BOARD_AVR32DEV1
+	default "breadxavr"                 if ARCH_BOARD_AVRDX_BREADXAVR
 	default "axoloti"                   if ARCH_BOARD_AXOLOTI
 	default "bambino-200e"              if ARCH_BOARD_BAMBINO_200E
 	default "bl602evb"                  if ARCH_BOARD_BL602EVB
@@ -3325,6 +3467,7 @@ config ARCH_BOARD
 	default "efm32-g8xx-stk"            if ARCH_BOARD_EFM32G8XXSTK
 	default "efm32gg-stk3700"           if ARCH_BOARD_EFM32GG_STK3700
 	default "ekk-lm3s9b96"              if ARCH_BOARD_EKKLM3S9B96
+	default "elegoo-mega2560r3"         if ARCH_BOARD_ELEGOO_MEGA2560R3
 	default "emw3162"                   if ARCH_BOARD_EMW3162
 	default "quickfeather"              if ARCH_BOARD_QUICKFEATHER
 	default "esp32-audio-kit"           if ARCH_BOARD_ESP32_AUDIO_KIT
@@ -3339,18 +3482,23 @@ config ARCH_BOARD
 	default "esp32c3-devkit"            if ARCH_BOARD_ESP32C3_DEVKIT
 	default "esp32c3-devkit-rust-1"     if ARCH_BOARD_ESP32C3_DEVKIT_RUST1
 	default "esp32c3-generic"           if ARCH_BOARD_ESP32C3_GENERIC
+	default "esp32c3-xiao"              if ARCH_BOARD_ESP32C3_XIAO
 	default "esp32s2-kaluga-1"          if ARCH_BOARD_ESP32S2_KALUGA_1
 	default "esp32s2-saola-1"           if ARCH_BOARD_ESP32S2_SAOLA_1
 	default "franzininho-wifi"          if ARCH_BOARD_FRANZININHO_WIFI
 	default "esp32s3-devkit"            if ARCH_BOARD_ESP32S3_DEVKIT
+	default "esp32s3-8048S043"          if ARCH_BOARD_ESP32S3_8048S043
 	default "esp32s3-eye"               if ARCH_BOARD_ESP32S3_EYE
 	default "esp32s3-meadow"            if ARCH_BOARD_ESP32S3_MEADOW
 	default "esp32s3-lcd-ev"            if ARCH_BOARD_ESP32S3_LCD_EV
 	default "esp32s3-lhcbit"            if ARCH_BOARD_ESP32S3_LHCBIT
+	default "esp32s3-xiao"              if ARCH_BOARD_ESP32S3_XIAO
 	default "esp32s3-box"               if ARCH_BOARD_ESP32S3_BOX
 	default "esp32s3-korvo-2"           if ARCH_BOARD_ESP32S3_KORVO_2
+	default "lckfb-szpi-esp32s3"        if ARCH_BOARD_ESP32S3_LCKFB_SZPI
 	default "esp32c6-devkitc"           if ARCH_BOARD_ESP32C6_DEVKITC
 	default "esp32c6-devkitm"           if ARCH_BOARD_ESP32C6_DEVKITM
+	default "esp32c6-xiao"              if ARCH_BOARD_ESP32C6_XIAO
 	default "esp32h2-devkit"            if ARCH_BOARD_ESP32H2_DEVKIT
 	default "et-stm32-stamp"            if ARCH_BOARD_ET_STM32_STAMP
 	default "tlsr8278adk80d"            if ARCH_BOARD_TLSR8278ADK80D
@@ -3452,11 +3600,13 @@ config ARCH_BOARD
 	default "stm32g071b-disco"          if ARCH_BOARD_STM32G071B_DISCO
 	default "nucleo-g070rb"             if ARCH_BOARD_NUCLEO_G070RB
 	default "nucleo-g071rb"             if ARCH_BOARD_NUCLEO_G071RB
+	default "nucleo-g0b1re"             if ARCH_BOARD_NUCLEO_G0B1RE
 	default "weact-stm32h743"           if ARCH_BOARD_WEACT_STM32H743
 	default "nucleo-h743zi"             if ARCH_BOARD_NUCLEO_H743ZI
 	default "nucleo-h743zi2"            if ARCH_BOARD_NUCLEO_H743ZI2
 	default "nucleo-h745zi"             if ARCH_BOARD_NUCLEO_H745ZI
 	default "stm32h745i-disco"          if ARCH_BOARD_STM32H745I_DISCO
+	default "stm32h750b-dk"             if ARCH_BOARD_STM32H750B_DK
 	default "linum-stm32h753bi"         if ARCH_BOARD_LINUM_STM32H753BI
 	default "openh743i"                 if ARCH_BOARD_OPENH743I
 	default "nucleo-l073rz"             if ARCH_BOARD_NUCLEO_L073RZ
@@ -3495,6 +3645,7 @@ config ARCH_BOARD
 	default "pic32mz-starterkit"        if ARCH_BOARD_PIC32MZ_STARTERKIT
 	default "qemu-i486"                 if ARCH_BOARD_QEMU_I486
 	default "qemu-intel64"              if ARCH_BOARD_INTEL64_QEMU
+	default "xiao-ra4m1"                if ARCH_BOARD_XIAO_RA4M1
 	default "raspberrypi-pico"          if ARCH_BOARD_RASPBERRYPI_PICO
 	default "raspberrypi-4b"            if ARCH_BOARD_RASPBERRYPI_4B
 	default "raspberrypi-pico-w"        if ARCH_BOARD_RASPBERRYPI_PICO_W
@@ -3505,6 +3656,7 @@ config ARCH_BOARD
 	default "adafruit-qt-py-rp2040"     if ARCH_BOARD_ADAFRUIT_QT_PY_RP2040
 	default "waveshare-rp2040-lcd-1.28" if ARCH_BOARD_WAVESHARE_RP2040_LCD_1_28
 	default "raspberrypi-pico-2"        if ARCH_BOARD_RASPBERRYPI_PICO_2
+	default "xiao-rp2350"               if ARCH_BOARD_XIAO_RP2350
 	default "pimoroni-pico-2-plus"      if ARCH_BOARD_PIMORONI_PICO_2_PLUS
 	default "w5500-evb-pico"            if ARCH_BOARD_W5500_EVB_PICO
 	default "waveshare-rp2040-zero"     if ARCH_BOARD_WAVESHARE_RP2040_ZERO
@@ -3529,6 +3681,7 @@ config ARCH_BOARD
 	default "canmv230"                  if ARCH_BOARD_K230_CANMV
 	default "ox64"                      if ARCH_BOARD_BL808_OX64
 	default "milkv_duos"                if ARCH_BOARD_SG2000_MILKV_DUOS
+	default "starpro64"                 if ARCH_BOARD_EIC7700X_STARPRO64
 	default "sabre-6quad"               if ARCH_BOARD_SABRE_6QUAD
 	default "tc397"                     if ARCH_BOARD_TC397
 	default "qemu-armv7a"               if ARCH_BOARD_QEMU_ARMV7A
@@ -3541,6 +3694,7 @@ config ARCH_BOARD
 	default "fvp-armv8r-aarch32"        if ARCH_BOARD_FVP_ARMV8R_AARCH32
 	default "imx8qm-mek"                if ARCH_BOARD_IMX8QM_MEK
 	default "imx93-evk"                 if ARCH_BOARD_IMX93_EVK
+	default "avaota-a1"                 if ARCH_BOARD_AVAOTA_A1
 	default "zcu111"                    if ARCH_BOARD_ZCU111
 	default "sama5d2-xult"              if ARCH_BOARD_SAMA5D2_XULT
 	default "giant-board"               if ARCH_BOARD_GIANT_BOARD
@@ -3571,6 +3725,8 @@ config ARCH_BOARD
 	default "stm32l0538-disco"          if ARCH_BOARD_STM32L0538_DISCO
 	default "stm32f051-discovery"       if ARCH_BOARD_STM32F051_DISCOVERY
 	default "stm32f072-discovery"       if ARCH_BOARD_STM32F072_DISCOVERY
+	default "nucleo-c071rb"             if ARCH_BOARD_NUCLEO_C071RB
+	default "nucleo-c092rc"             if ARCH_BOARD_NUCLEO_C092RC
 	default "stm32f103-minimum"         if ARCH_BOARD_STM32F103_MINIMUM
 	default "stm32f411-minimum"         if ARCH_BOARD_STM32F411_MINIMUM
 	default "stm3210e-eval"             if ARCH_BOARD_STM3210E_EVAL
@@ -3644,6 +3800,7 @@ config ARCH_BOARD
 	default "hpm6750evk2"               if ARCH_BOARD_HPM6750EVK2
 	default "at32f437-mini"             if ARCH_BOARD_AT32F437_MINI
 	default "csk6011a-nano"             if ARCH_BOARD_CSK6011A_NANO
+	default "frdm-mcxn236"              if ARCH_BOARD_FRDM_MCXN236
 
 comment "Common Board Options"
 
@@ -3774,6 +3931,9 @@ source "boards/arm64/imx8/imx8qm-mek/Kconfig"
 endif
 if ARCH_BOARD_IMX93_EVK
 source "boards/arm64/imx9/imx93-evk/Kconfig"
+endif
+if ARCH_BOARD_AVAOTA_A1
+source "boards/arm64/a527/avaota-a1/Kconfig"
 endif
 if ARCH_BOARD_ZCU111
 source "boards/arm64/zynq-mpsoc/zcu111/Kconfig"
@@ -3985,11 +4145,20 @@ endif
 if ARCH_BOARD_RASPBERRYPI_PICO_2
 source "boards/arm/rp23xx/raspberrypi-pico-2/Kconfig"
 endif
+if ARCH_BOARD_XIAO_RP2350
+source "boards/arm/rp23xx/xiao-rp2350/Kconfig"
+endif
 if ARCH_BOARD_PIMORONI_PICO_2_PLUS
 source "boards/arm/rp23xx/pimoroni-pico-2-plus/Kconfig"
 endif
 if ARCH_BOARD_ARDUINO_DUE
 source "boards/arm/sam34/arduino-due/Kconfig"
+endif
+if ARCH_BOARD_ARDUINO_R4_MINIMA
+source "boards/arm/ra4/arduino-r4-minima/Kconfig"
+endif
+if ARCH_BOARD_XIAO_RA4M1
+source "boards/arm/ra4/xiao-ra4m1/Kconfig"
 endif
 if ARCH_BOARD_ARDUINO_M0
 source "boards/arm/samd2l2/arduino-m0/Kconfig"
@@ -4096,6 +4265,9 @@ endif
 if ARCH_BOARD_NUCLEO_G071RB
 source "boards/arm/stm32f0l0g0/nucleo-g071rb/Kconfig"
 endif
+if ARCH_BOARD_NUCLEO_G0B1RE
+source "boards/arm/stm32f0l0g0/nucleo-g0b1re/Kconfig"
+endif
 if ARCH_BOARD_NUCLEO_L073RZ
 source "boards/arm/stm32f0l0g0/nucleo-l073rz/Kconfig"
 endif
@@ -4107,6 +4279,12 @@ source "boards/arm/stm32f0l0g0/stm32l0538-disco/Kconfig"
 endif
 if ARCH_BOARD_STM32F072_DISCOVERY
 source "boards/arm/stm32f0l0g0/stm32f072-discovery/Kconfig"
+endif
+if ARCH_BOARD_NUCLEO_C071RB
+source "boards/arm/stm32f0l0g0/nucleo-c071rb/Kconfig"
+endif
+if ARCH_BOARD_NUCLEO_C092RC
+source "boards/arm/stm32f0l0g0/nucleo-c092rc/Kconfig"
 endif
 if ARCH_BOARD_NUCLEO_F722ZE
 source "boards/arm/stm32f7/nucleo-f722ze/Kconfig"
@@ -4149,6 +4327,9 @@ source "boards/arm/stm32h7/nucleo-h745zi/Kconfig"
 endif
 if ARCH_BOARD_STM32H745I_DISCO
 source "boards/arm/stm32h7/stm32h745i-disco/Kconfig"
+endif
+if ARCH_BOARD_STM32H750B_DK
+source "boards/arm/stm32h7/stm32h750b-dk/Kconfig"
 endif
 if ARCH_BOARD_LINUM_STM32H753BI
 source "boards/arm/stm32h7/linum-stm32h753bi/Kconfig"
@@ -4414,6 +4595,9 @@ endif
 if ARCH_BOARD_AVR32DEV1
 source "boards/avr/at32uc3/avr32dev1/Kconfig"
 endif
+if ARCH_BOARD_AVRDX_BREADXAVR
+source "boards/avr/avrdx/breadxavr/Kconfig"
+endif
 if ARCH_BOARD_MIZAR32A
 source "boards/avr/at32uc3/mizar32a/Kconfig"
 endif
@@ -4431,6 +4615,9 @@ source "boards/avr/atmega/amber/Kconfig"
 endif
 if ARCH_BOARD_ARDUINO_MEGA2560
 source "boards/avr/atmega/arduino-mega2560/Kconfig"
+endif
+if ARCH_BOARD_ELEGOO_MEGA2560R3
+source "boards/avr/atmega/elegoo-mega2560r3/Kconfig"
 endif
 if ARCH_BOARD_MOTEINO_MEGA
 source "boards/avr/atmega/moteino-mega/Kconfig"
@@ -4516,6 +4703,9 @@ endif
 if ARCH_BOARD_SG2000_MILKV_DUOS
 source "boards/risc-v/sg2000/milkv_duos/Kconfig"
 endif
+if ARCH_BOARD_EIC7700X_STARPRO64
+source "boards/risc-v/eic7700x/starpro64/Kconfig"
+endif
 if ARCH_BOARD_ESP32C3_DEVKIT
 source "boards/risc-v/esp32c3-legacy/esp32c3-devkit/Kconfig"
 endif
@@ -4524,6 +4714,9 @@ source "boards/risc-v/esp32c3-legacy/esp32c3-devkit-rust-1/Kconfig"
 endif
 if ARCH_BOARD_ESP32C3_GENERIC
 source "boards/risc-v/esp32c3/esp32c3-generic/Kconfig"
+endif
+if ARCH_BOARD_ESP32C3_XIAO
+source "boards/risc-v/esp32c3/esp32c3-xiao/Kconfig"
 endif
 if ARCH_BOARD_ESP32S2_KALUGA_1
 source "boards/xtensa/esp32s2/esp32s2-kaluga-1/Kconfig"
@@ -4537,6 +4730,9 @@ endif
 if ARCH_BOARD_ESP32S3_DEVKIT
 source "boards/xtensa/esp32s3/esp32s3-devkit/Kconfig"
 endif
+if ARCH_BOARD_ESP32S3_8048S043
+source "boards/xtensa/esp32s3/esp32s3-8048S043/Kconfig"
+endif
 if ARCH_BOARD_ESP32S3_EYE
 source "boards/xtensa/esp32s3/esp32s3-eye/Kconfig"
 endif
@@ -4549,17 +4745,26 @@ endif
 if ARCH_BOARD_ESP32S3_LHCBIT
 source "boards/xtensa/esp32s3/esp32s3-lhcbit/Kconfig"
 endif
+if ARCH_BOARD_ESP32S3_XIAO
+source "boards/xtensa/esp32s3/esp32s3-xiao/Kconfig"
+endif
 if ARCH_BOARD_ESP32S3_BOX
 source "boards/xtensa/esp32s3/esp32s3-box/Kconfig"
 endif
 if ARCH_BOARD_ESP32S3_KORVO_2
 source "boards/xtensa/esp32s3/esp32s3-korvo-2/Kconfig"
 endif
+if ARCH_BOARD_ESP32S3_LCKFB_SZPI
+source "boards/xtensa/esp32s3/lckfb-szpi-esp32s3/Kconfig"
+endif
 #if ARCH_BOARD_ESP32C6_DEVKITC
 #source "boards/risc-v/esp32c6/esp32c6-devkitc/Kconfig"
 #endif
 #if ARCH_BOARD_ESP32C6_DEVKITM
 #source "boards/risc-v/esp32c6/esp32c6-devkitm/Kconfig"
+#endif
+#if ARCH_BOARD_ESP32C6_XIAO
+#source "boards/risc-v/esp32c6/esp32c6-xiao/Kconfig"
 #endif
 if ARCH_BOARD_ESP32H2_DEVKIT
 source "boards/risc-v/esp32h2/esp32h2-devkit/Kconfig"
@@ -4677,6 +4882,9 @@ source "boards/arm/at32/at32f437-mini/Kconfig"
 endif
 if ARCH_BOARD_CSK6011A_NANO
 source "boards/arm/csk6/csk6011a-nano/Kconfig"
+endif
+if ARCH_BOARD_FRDM_MCXN236
+source "boards/arm/mcx-nxxx/frdm-mcxn236/Kconfig"
 endif
 
 comment "Board-Common Options"
@@ -4799,9 +5007,8 @@ config BOARD_COREDUMP_FULL
 
 config BOARD_COREDUMP_COMPRESSION
 	bool "Enable Core Dump compression"
-	default y
-	select LIBC_LZF
-	depends on !BOARD_CRASHDUMP_NONE
+	default BOARD_COREDUMP_SYSLOG
+	depends on LIBC_LZF && !BOARD_CRASHDUMP_NONE
 	---help---
 		Enable LZF compression algorithm for core dump content
 
@@ -4968,6 +5175,7 @@ config BOARDCTL_ROMDISK
 config BOARDCTL_APP_SYMTAB
 	bool "Enable application symbol table interfaces"
 	default n
+	depends on LIBC_EXECFUNCS
 	---help---
 		Enables support for the BOARDIOC_APP_SYMTAB boardctl() command.
 

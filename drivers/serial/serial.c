@@ -233,21 +233,21 @@ static int uart_putxmitchar(FAR uart_dev_t *dev, int ch, bool oktoblock)
   int nexthead;
   int ret;
 
-  /* Increment to see what the next head pointer will be.
-   * We need to use the "next" head pointer to determine when the circular
-   *  buffer would overrun
-   */
-
-  nexthead = dev->xmit.head + 1;
-  if (nexthead >= dev->xmit.size)
-    {
-      nexthead = 0;
-    }
-
   /* Loop until we are able to add the character to the TX buffer. */
 
   for (; ; )
     {
+      /* Increment to see what the next head pointer will be.
+       * We need to use the "next" head pointer to determine when the
+       * circular buffer would overrun
+       */
+
+      nexthead = dev->xmit.head + 1;
+      if (nexthead >= dev->xmit.size)
+        {
+          nexthead = 0;
+        }
+
       /* Check if the TX buffer is full */
 
       if (nexthead != dev->xmit.tail)
@@ -513,7 +513,7 @@ static int uart_tcdrain(FAR uart_dev_t *dev,
 #endif
     }
 
-  /* Get exclusive access to the to dev->tmit.  We cannot permit new data to
+  /* Get exclusive access to the to dev->xmit.  We cannot permit new data to
    * be written while we are trying to flush the old data.
    *
    * A signal received while waiting for access to the xmit.head will abort
@@ -901,12 +901,13 @@ static ssize_t uart_readv(FAR struct file *filep, FAR struct uio *uio)
 #ifdef CONFIG_SERIAL_IFLOWCONTROL_WATERMARKS
   unsigned int nbuffered;
   unsigned int watermark;
+  sbuf_size_t head;
 #endif
   irqstate_t flags;
   ssize_t recvd = 0;
   ssize_t buflen;
   bool echoed = false;
-  int16_t tail;
+  sbuf_size_t tail;
   char ch;
   int ret;
 
@@ -953,9 +954,13 @@ static ssize_t uart_readv(FAR struct file *filep, FAR struct uio *uio)
        * index is only modified in this function.  Therefore, no
        * special handshaking is required here.
        *
-       * The head and tail pointers are 16-bit values.  The only time that
-       * the following could be unsafe is if the CPU made two non-atomic
-       * 8-bit accesses to obtain the 16-bit head index.
+       * The head and tail pointers values are sized based
+       * on the architecture. If the architecture reads 16-bit values
+       * atomically by nature, they are 16-bit values. On architectures
+       * where 16-bit access is split into two non-atomic 8-bit accesses,
+       * the pointers are 8-bit.
+       *
+       * The following code is therefore safe even with interrupts enabled.
        */
 
       tail = rxbuf->tail;
@@ -1099,63 +1104,6 @@ static ssize_t uart_readv(FAR struct file *filep, FAR struct uio *uio)
             }
         }
 
-#ifdef CONFIG_DEV_SERIAL_FULLBLOCKS
-      /* No... then we would have to wait to get receive more data.
-       * If the user has specified the O_NONBLOCK option, then just
-       * return what we have.
-       */
-
-      else if ((filep->f_oflags & O_NONBLOCK) != 0)
-        {
-          /* If nothing was transferred, then return the -EAGAIN
-           * error (not zero which means end of file).
-           */
-
-          if (recvd < 1)
-            {
-              recvd = -EAGAIN;
-            }
-
-          break;
-        }
-#else
-      /* No... the circular buffer is empty.  Have we returned anything
-       * to the caller?
-       */
-
-      else if (recvd > 0 && !(dev->tc_lflag & ICANON))
-        {
-          /* Yes.. break out of the loop and return the number of bytes
-           * received up to the wait condition.
-           */
-
-          break;
-        }
-
-      else if (filep->f_inode == 0)
-        {
-          /* File has been closed.
-           * Descriptor is not valid.
-           */
-
-          recvd = -EBADFD;
-          break;
-        }
-
-      /* No... then we would have to wait to get receive some data.
-       * If the user has specified the O_NONBLOCK option, then do not
-       * wait.
-       */
-
-      else if ((filep->f_oflags & O_NONBLOCK) != 0)
-        {
-          /* Break out of the loop returning -EAGAIN */
-
-          recvd = -EAGAIN;
-          break;
-        }
-#endif
-
       /* Otherwise we are going to have to wait for data to arrive */
 
       else
@@ -1206,6 +1154,67 @@ static ssize_t uart_readv(FAR struct file *filep, FAR struct uio *uio)
                   leave_critical_section(flags);
                   continue;
                 }
+
+#ifdef CONFIG_DEV_SERIAL_FULLBLOCKS
+              /* No... then we would have to wait to get receive more data.
+               * If the user has specified the O_NONBLOCK option, then just
+               * return what we have.
+               */
+
+              else if ((filep->f_oflags & O_NONBLOCK) != 0)
+                {
+                  /* If nothing was transferred, then return the -EAGAIN
+                   * error (not zero which means end of file).
+                   */
+
+                  if (recvd < 1)
+                    {
+                      recvd = -EAGAIN;
+                    }
+
+                  leave_critical_section(flags);
+                  break;
+                }
+#else
+              /* No... the circular buffer is empty.  Have we returned
+               * anything to the caller?
+               */
+
+              else if (recvd > 0 && !(dev->tc_lflag & ICANON))
+                {
+                  /* Yes.. break out of the loop and return the number
+                   * of bytes received up to the wait condition.
+                   */
+
+                  leave_critical_section(flags);
+                  break;
+                }
+
+              else if (filep->f_inode == 0)
+                {
+                  /* File has been closed.
+                   * Descriptor is not valid.
+                   */
+
+                  recvd = -EBADFD;
+                  leave_critical_section(flags);
+                  break;
+                }
+
+              /* No... then we would have to wait to get receive some data.
+               * If the user has specified the O_NONBLOCK option, then do not
+               * wait.
+               */
+
+              else if ((filep->f_oflags & O_NONBLOCK) != 0)
+                {
+                  /* Break out of the loop returning -EAGAIN */
+
+                  recvd = -EAGAIN;
+                  leave_critical_section(flags);
+                  break;
+                }
+#endif
 
 #ifdef CONFIG_SERIAL_REMOVABLE
               /* Check again if the removable device is still connected
@@ -1333,16 +1342,23 @@ static ssize_t uart_readv(FAR struct file *filep, FAR struct uio *uio)
 
 #ifdef CONFIG_SERIAL_IFLOWCONTROL
 #ifdef CONFIG_SERIAL_IFLOWCONTROL_WATERMARKS
-  /* How many bytes are now buffered */
+  /* How many bytes are now buffered. Head needs to be copied
+   * to a non-volatile variable to prevent TOCTOU error in case
+   * the interrupt handler changes it between comparison and assignment.
+   * (Copy of tail is not strictly needed but saves us few instructions.)
+   */
 
   rxbuf = &dev->recv;
-  if (rxbuf->head >= rxbuf->tail)
+  head = rxbuf->head;
+  tail = rxbuf->tail;
+
+  if (head >= tail)
     {
-      nbuffered = rxbuf->head - rxbuf->tail;
+      nbuffered = head - tail;
     }
   else
     {
-      nbuffered = rxbuf->size - rxbuf->tail + rxbuf->head;
+      nbuffered = rxbuf->size - tail + head;
     }
 
   /* Is the level now below the watermark level that we need to report? */

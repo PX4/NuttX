@@ -918,8 +918,8 @@ struct usbhost_driver_s
                      usbhost_asynch_t callback, FAR void *arg);
 #endif
 
-  /* Cancel any pending syncrhonous or asynchronous transfer on an
-   * endpoint
+  /* Cancel any pending synchronous or asynchronous transfer on an
+   * endpoint.
    */
 
   CODE int (*cancel)(FAR struct usbhost_driver_s *drvr, usbhost_ep_t ep);
@@ -1302,6 +1302,29 @@ int usbhost_wlaninit(void);
 
 int usbhost_enumerate(FAR struct usbhost_hubport_s *hub,
                       FAR struct usbhost_class_s **devclass);
+
+#ifdef CONFIG_USBHOST_WAITER
+/****************************************************************************
+ * Name: usbhost_waiter_initialize
+ *
+ * Description:
+ *   Initialize the USB host waiter. This function will start a thread that
+ *   will monitor for device connection/disconnection events.
+ *
+ ****************************************************************************/
+
+int usbhost_waiter_initialize(FAR struct usbhost_connection_s *conn);
+
+/****************************************************************************
+ * Name: usbhost_drivers_initialize
+ *
+ * Description:
+ *   Initialize all enabled USB host device drivers.
+ *
+ ****************************************************************************/
+
+void usbhost_drivers_initialize(void);
+#endif
 
 #undef EXTERN
 #if defined(__cplusplus)

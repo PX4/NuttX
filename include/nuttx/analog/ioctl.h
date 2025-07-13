@@ -116,6 +116,16 @@
 #define AN_MCP3008_FIRST (AN_SAMV7_AFEC_FIRST + AN_SAMV7_AFEC_NCMDS)
 #define AN_MCP3008_NCMDS 1
 
+/* See include/nuttx/analog/ads1115.h */
+
+#define AN_ADS1115_FIRST (AN_MCP3008_FIRST + AN_MCP3008_NCMDS)
+#define AN_ADS1115_NCMDS 10
+
+/* See include/nuttx/analog/mcp47x6.h */
+
+#define AN_MCP47X6_FIRST (AN_ADS1115_FIRST + AN_ADS1115_NCMDS)
+#define AN_MCP47X6_NCMDS 3
+
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/

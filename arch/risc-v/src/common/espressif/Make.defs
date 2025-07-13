@@ -103,16 +103,27 @@ ifeq ($(CONFIG_ESP_RMT),y)
 	endif
 endif
 
+ifeq ($(CONFIG_ESP_SDM),y)
+	CHIP_CSRCS += esp_sdm.c
+endif
+
+ifeq ($(CONFIG_ESPRESSIF_DEDICATED_GPIO),y)
+	CHIP_CSRCS += esp_dedic_gpio.c
+endif
+
 ifeq ($(CONFIG_ESPRESSIF_TEMP),y)
 	CHIP_CSRCS += esp_temperature_sensor.c
 endif
 
 ifeq ($(CONFIG_ESPRESSIF_I2C),y)
-	ifeq ($(CONFIG_ESPRESSIF_I2C_PERIPH),y)
+	ifeq ($(CONFIG_ESPRESSIF_I2C_PERIPH_MASTER_MODE),y)
 		CHIP_CSRCS += esp_i2c.c
 	endif
 	ifeq ($(CONFIG_ESPRESSIF_I2C_BITBANG),y)
 		CHIP_CSRCS += esp_i2c_bitbang.c
+	endif
+	ifeq ($(CONFIG_ESPRESSIF_I2C_PERIPH_SLAVE_MODE),y)
+		CHIP_CSRCS += esp_i2c_slave.c
 	endif
 endif
 
@@ -155,6 +166,18 @@ ifeq ($(CONFIG_SYSTEM_NXDIAG_ESPRESSIF_CHIP_WO_TOOL),y)
 	CHIP_CSRCS += esp_nxdiag.c
 endif
 
+ifeq ($(CONFIG_ESPRESSIF_ADC),y)
+CHIP_CSRCS += esp_adc.c
+endif
+
+ifeq ($(CONFIG_ESPRESSIF_SHA_ACCELERATOR),y)
+	CHIP_CSRCS += esp_sha.c
+endif
+
+ifeq ($(CONFIG_CRYPTO_CRYPTODEV_HARDWARE),y)
+	CHIP_CSRCS += esp_crypto.c
+endif
+
 #############################################################################
 # Espressif HAL for 3rd Party Platforms
 #############################################################################
@@ -163,7 +186,7 @@ endif
 
 ESP_HAL_3RDPARTY_REPO   = esp-hal-3rdparty
 ifndef ESP_HAL_3RDPARTY_VERSION
-	ESP_HAL_3RDPARTY_VERSION = e23f3131b564068a5033b765017a494c9553ce65
+	ESP_HAL_3RDPARTY_VERSION = 98dad3d9b4607df319eca4a7baf50545cda0b1a2
 endif
 
 ifndef ESP_HAL_3RDPARTY_URL
@@ -193,9 +216,10 @@ chip/$(ESP_HAL_3RDPARTY_REPO):
 	$(Q) $(call CLONE_ESP_HAL_3RDPARTY_REPO)
 	$(Q) echo "Espressif HAL for 3rd Party Platforms: ${ESP_HAL_3RDPARTY_VERSION}"
 	$(Q) git -C chip/$(ESP_HAL_3RDPARTY_REPO) checkout --quiet $(ESP_HAL_3RDPARTY_VERSION)
+	$(Q) git -C chip/$(ESP_HAL_3RDPARTY_REPO) submodule --quiet update --init $(GIT_DEPTH_PARAMETER) components/mbedtls/mbedtls
 ifeq ($(CONFIG_ESP_WIRELESS),y)
 	$(Q) echo "Espressif HAL for 3rd Party Platforms: initializing submodules..."
-	$(Q) git -C chip/$(ESP_HAL_3RDPARTY_REPO) submodule --quiet update --init $(GIT_DEPTH_PARAMETER) components/mbedtls/mbedtls components/esp_phy/lib components/esp_wifi/lib components/bt/controller/lib_esp32c3_family components/esp_coex/lib
+	$(Q) git -C chip/$(ESP_HAL_3RDPARTY_REPO) submodule --quiet update --init $(GIT_DEPTH_PARAMETER) components/esp_phy/lib components/esp_wifi/lib components/bt/controller/lib_esp32c3_family components/esp_coex/lib
 	$(Q) git -C chip/$(ESP_HAL_3RDPARTY_REPO)/components/mbedtls/mbedtls reset --quiet --hard
 	$(Q) echo "Applying patches..."
 	$(Q) cd chip/$(ESP_HAL_3RDPARTY_REPO)/components/mbedtls/mbedtls && git apply ../../../nuttx/patches/components/mbedtls/mbedtls/*.patch

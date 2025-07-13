@@ -39,14 +39,6 @@
 #if defined(CONFIG_I2C) && defined(CONFIG_SENSORS_MCP9844)
 
 /****************************************************************************
- * Pre-process Definitions
- ****************************************************************************/
-
-#ifndef CONFIG_MCP9844_I2C_FREQUENCY
-#  define CONFIG_MCP9844_I2C_FREQUENCY 400000
-#endif
-
-/****************************************************************************
  * Private Types
  ****************************************************************************/
 
@@ -99,7 +91,7 @@ static const struct file_operations g_mcp9844_fops =
  * Name: mcp9844_read_u16
  *
  * Description:
- *  Read a 16 bit valie from the MCP9844 at the address regaddr.
+ *  Read a 16 bit value from the MCP9844 at the address regaddr.
  *
  ****************************************************************************/
 

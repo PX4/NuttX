@@ -278,7 +278,7 @@
 
 #  define nosanitize_address __attribute__((no_sanitize_address))
 
-/* the Greenhills compiler do not support the following atttributes */
+/* the Greenhills compiler do not support the following attributes */
 
 #  if defined(__ghs__)
 #    undef nooptimiziation_function
@@ -349,7 +349,7 @@
 #  define used_code __attribute__((used))
 #  define used_data __attribute__((used))
 
-/* The allocation function annonations */
+/* The allocation function annotations */
 
 #  if __GNUC__ >= 11
 #    define fopen_like __attribute__((__malloc__(fclose, 1)))
@@ -437,7 +437,37 @@
 #    if defined(CONFIG_AVR_HAS_MEMX_PTR)
 /* I-space access qualifiers needed by Harvard architecture */
 
-#      define IOBJ __flash
+#      if defined(CONFIG_AVR_HAS_RAMPZ)
+#        define IOBJ __memx
+/* Compiler will not copy const variables declared with this qualifier
+ * to RAM, they will be kept in .progmemx.data section and read from there.
+ * This is used for chips with more than 64kB program memory, the compiler
+ * will use 24 bit pointers when accessing such variables. 16 bit pointer
+ * register "Z" is extended using additional "RAMPZ" register. All of this
+ * happens automatically.
+ *
+ * When working with these variables - passing pointers to them as function
+ * parameters for example, the same qualifier needs to be used (see IPTR
+ * below.) IPTR (__memx) linearizes flash and RAM and allows using generic
+ * pointer to both. Underlying memory for such access is then determined
+ * in runtime, with some impact on performance.
+ *
+ * To alleviate this, avr-gcc introduces __flashx qualifier which still
+ * provides 24 bit access to the variable but only allows program memory
+ * access. The check for pointer's underlying memory can then be skipped.
+ *
+ * This is currently not in use, it was introduced in avr-gcc 15 which
+ * is still fairly fresh. Can be considered at later time.
+ */
+#      else
+#        define IOBJ __flash
+/* Compiler will not copy variables declared with this qualifier to RAM.
+ * Instead, it will read them using LPM (Load from Program Memory.)
+ * Only first 64kB of program memory can be accessed this way so for
+ * chips with more memory than that, __memx is preferred
+ */
+#      endif
+
 #      define IPTR __memx
 
 #    else
@@ -546,7 +576,9 @@
 
 /* Indicate that a local variable is not used */
 
-#  define UNUSED(a) ((void)(1 || &(a)))
+#  ifndef UNUSED
+#    define UNUSED(a) ((void)(1 || &(a)))
+#  endif
 
 #  if defined(__clang__)
 #    define no_builtin(n) __attribute__((no_builtin(n)))
@@ -556,12 +588,16 @@
 #    define no_builtin(n)
 #  endif
 
-/* CMSE extention */
+/* CMSE extension */
 
 #  ifdef CONFIG_ARCH_HAVE_TRUSTZONE
 #    define tz_nonsecure_entry __attribute__((cmse_nonsecure_entry))
 #    define tz_nonsecure_call  __attribute__((cmse_nonsecure_call))
 #  endif
+
+/* Warning about usage of deprecated features. */
+
+#  define deprecated_function  __attribute__((deprecated))
 
 /* SDCC-specific definitions ************************************************/
 
@@ -674,7 +710,9 @@
 
 /* Indicate that a local variable is not used */
 
-#  define UNUSED(a) ((void)(1 || &(a)))
+#  ifndef UNUSED
+#    define UNUSED(a) ((void)(1 || &(a)))
+#  endif
 
 /* It is assumed that the system is build using the small
  * data model with storage defaulting to internal RAM.
@@ -729,6 +767,10 @@
 #  define return_address(x) 0
 
 #  define no_builtin(n)
+
+/* Warning about usage of deprecated features. */
+
+#  define deprecated_function
 
 /* Zilog-specific definitions ***********************************************/
 
@@ -863,7 +905,9 @@
 
 /* Indicate that a local variable is not used */
 
-#  define UNUSED(a) ((void)(1 || &(a)))
+#  ifndef UNUSED
+#    define UNUSED(a) ((void)(1 || &(a)))
+#  endif
 
 /* Older Zilog compilers support both types double and long long, but the
  * size is 32-bits (same as long and single precision) so it is safer to say
@@ -880,6 +924,10 @@
 #  define return_address(x) 0
 
 #  define no_builtin(n)
+
+/* Warning about usage of deprecated features. */
+
+#  define deprecated_function
 
 /* ICCARM-specific definitions **********************************************/
 
@@ -950,7 +998,9 @@
 
 /* Indicate that a local variable is not used */
 
-#  define UNUSED(a) ((void)(1 || &(a)))
+#  ifndef UNUSED
+#    define UNUSED(a) ((void)(1 || &(a)))
+#  endif
 
 #  define CONFIG_CPP_HAVE_VARARGS 1 /* Supports variable argument macros */
 #  define CONFIG_HAVE_FILENAME 1    /* Has __FILE__ */
@@ -960,6 +1010,10 @@
 #  define return_address(x) 0
 
 #  define no_builtin(n)
+
+/* Warning about usage of deprecated features. */
+
+#  define deprecated_function
 
 /* MSVC(Microsoft Visual C++)-specific definitions **************************/
 
@@ -1042,12 +1096,18 @@
 #  undef  CONFIG_LONG_IS_NOT_INT
 #  undef  CONFIG_PTR_IS_NOT_INT
 
-#  define UNUSED(a) ((void)(1 || &(a)))
+#  ifndef UNUSED
+#    define UNUSED(a) ((void)(1 || &(a)))
+#  endif
 
 #  define offsetof(a, b) ((size_t)(&(((a *)(0))->b)))
 #  define return_address(x) 0
 
 #  define no_builtin(n)
+
+/* Warning about usage of deprecated features. */
+
+#  define deprecated_function
 
 /* TASKING (Infineon AURIX C/C++)-specific definitions **********************/
 
@@ -1129,12 +1189,18 @@
 #  undef  CONFIG_LONG_IS_NOT_INT
 #  undef  CONFIG_PTR_IS_NOT_INT
 
-#  define UNUSED(a) ((void)(1 || &(a)))
+#  ifndef UNUSED
+#    define UNUSED(a) ((void)(1 || &(a)))
+#  endif
 
 #  define offsetof(a, b) ((size_t)(&(((a *)(0))->b)))
 #  define return_address(x) 0
 
 #  define no_builtin(n)
+
+/* Warning about usage of deprecated features. */
+
+#  define deprecated_function
 
 /* Unknown compiler *********************************************************/
 
@@ -1207,12 +1273,18 @@
 #  undef  CONFIG_HAVE_DOUBLE
 #  undef  CONFIG_HAVE_LONG_DOUBLE
 
-#  define UNUSED(a) ((void)(1 || &(a)))
+#  ifndef UNUSED
+#    define UNUSED(a) ((void)(1 || &(a)))
+#  endif
 
 #  define offsetof(a, b) ((size_t)(&(((a *)(0))->b)))
 #  define return_address(x) 0
 
 #  define no_builtin(n)
+
+/* Warning about usage of deprecated features. */
+
+#  define deprecated_function
 
 #endif
 
@@ -1224,6 +1296,14 @@
 #  undef CONFIG_HAVE_FLOAT
 #  undef CONFIG_HAVE_DOUBLE
 #  undef CONFIG_HAVE_LONG_DOUBLE
+#endif
+
+/* Decorators */
+
+#ifdef CONFIG_ARCH_RAMFUNCS
+#  define osentry_function no_builtin("memcpy") no_builtin("memset")
+#else
+#  define osentry_function
 #endif
 
 /****************************************************************************

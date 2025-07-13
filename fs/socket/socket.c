@@ -171,7 +171,7 @@ static int sock_file_truncate(FAR struct file *filep, off_t length)
 
 int sockfd_allocate(FAR struct socket *psock, int oflags)
 {
-  return file_allocate(&g_sock_inode, oflags, 0, psock, 0, true);
+  return file_allocate_from_inode(&g_sock_inode, oflags, 0, psock, 0);
 }
 
 /****************************************************************************
@@ -206,7 +206,7 @@ FAR struct socket *file_socket(FAR struct file *filep)
 int sockfd_socket(int sockfd, FAR struct file **filep,
                   FAR struct socket **socketp)
 {
-  if (fs_getfilep(sockfd, filep) < 0)
+  if (file_get(sockfd, filep) < 0)
     {
       *socketp = NULL;
       return -EBADF;
@@ -215,7 +215,7 @@ int sockfd_socket(int sockfd, FAR struct file **filep,
   *socketp = file_socket(*filep);
   if (*socketp == NULL)
     {
-      fs_putfilep(*filep);
+      file_put(*filep);
     }
 
   return *socketp != NULL ? OK : -ENOTSOCK;

@@ -323,7 +323,7 @@ begin_packed_struct struct v9fs_stat_s
 begin_packed_struct struct v9fs_rstat_s
 {
   struct v9fs_header_s header;
-  uint64_t vaild;
+  uint64_t valid;
   struct v9fs_qid_s qid;
   uint32_t mode;
   uint32_t uid;
@@ -1743,7 +1743,7 @@ void v9fs_transport_done(FAR struct v9fs_payload_s *cookie, int ret)
 {
   FAR struct v9fs_lerror_s *error = cookie->riov[0].iov_base;
 
-  /* Recive message = riov[0] (Header) + iov[1] (Payload) + ...
+  /* Receive message = riov[0] (Header) + iov[1] (Payload) + ...
    * So we first check if the type on the rheader is RLERROR. If it is,
    * it means that payload[1] is ecode.
    */

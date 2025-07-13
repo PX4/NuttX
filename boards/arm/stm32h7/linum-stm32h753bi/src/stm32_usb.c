@@ -63,7 +63,7 @@
 #endif
 
 #ifndef CONFIG_LINUM_STM32H753BI_USBHOST_STACKSIZE
-#  define CONFIG_LINUM_STM32H753BI_USBHOST_STACKSIZE 1024
+#  define CONFIG_LINUM_STM32H753BI_USBHOST_STACKSIZE 2048
 #endif
 
 /****************************************************************************
@@ -123,7 +123,7 @@ static int usbhost_waiter(int argc, char *argv[])
  * Name: stm32_usbinitialize
  *
  * Description:
- *   Called from stm32_usbinitialize very early in inialization to setup
+ *   Called from stm32_usbinitialize very early in initialization to setup
  *   USB-related GPIO pins for the linum-stm32h753bi board.
  *
  ****************************************************************************/

@@ -1660,7 +1660,7 @@ static int fdcan_send(struct stm32_fdcan_s *priv)
    * Format word T1:
    *   Data Length Code (DLC)            - Value from message structure
    *   Bit Rate Switch (BRS)             - Bit rate switching for CAN FD
-   *   FD format (FDF)                   - Frame transmited in CAN FD format
+   *   FD format (FDF)                   - Frame transmitted in CAN FD format
    *   Event FIFO Control (EFC)          - Do not store events.
    *   Message Marker (MM)               - Always zero
    */
@@ -2050,15 +2050,16 @@ static void fdcan_error_work(void *arg)
   ie = fdcan_getreg(priv, STM32_FDCAN_IE_OFFSET);
 
   pending = (ir & ie);
+  ie |= FDCAN_ANYERR_INTS;
 
   /* Check for common errors */
 
   if ((pending & FDCAN_CMNERR_INTS) != 0)
     {
-      /* When a protocol error ocurrs, the problem is recorded in
+      /* When a protocol error occurs, the problem is recorded in
        * the LEC/DLEC fields of the PSR register. In lieu of
-       * seprate interrupt flags for each error, the hardware
-       * groups procotol errors under a single interrupt each for
+       * separate interrupt flags for each error, the hardware
+       * groups protocol errors under a single interrupt each for
        * arbitration and data phases.
        *
        * These errors have a tendency to flood the system with
@@ -2071,7 +2072,6 @@ static void fdcan_error_work(void *arg)
       if ((psr & FDCAN_PSR_LEC_MASK) != 0)
         {
           ie &= ~(FDCAN_INT_PEA | FDCAN_INT_PED);
-          fdcan_putreg(priv, STM32_FDCAN_IE_OFFSET, ie);
         }
 
       /* Clear the error indications */
@@ -2113,7 +2113,6 @@ static void fdcan_error_work(void *arg)
        */
 
       ie &= ~(pending & FDCAN_RXERR_INTS);
-      fdcan_putreg(priv, STM32_FDCAN_IE_OFFSET, ie);
 
       /* Clear the error indications */
 
@@ -2128,7 +2127,7 @@ static void fdcan_error_work(void *arg)
 
   /* Re-enable ERROR interrupts */
 
-  fdcan_errint(priv, true);
+  fdcan_putreg(priv, STM32_FDCAN_IE_OFFSET, ie);
 }
 
 /****************************************************************************
@@ -2699,7 +2698,7 @@ static int fdcan_hw_initialize(struct stm32_fdcan_s *priv)
   stm32_configgpio(config->rxpinset);
   stm32_configgpio(config->txpinset);
 
-  /* Renable device if previosuly disabled in fdcan_shutdown() */
+  /* Re-enable device if previously disabled in fdcan_shutdown() */
 
   if (priv->state == FDCAN_STATE_DISABLED)
     {

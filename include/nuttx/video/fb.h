@@ -33,6 +33,9 @@
 #include <stdint.h>
 #include <errno.h>
 #include <debug.h>
+#ifdef CONFIG_VIDEO_FB_SPLASHSCREEN
+#  include <nuttx/video/rgbcolors.h>
+#endif
 
 #include <nuttx/compiler.h>
 #include <nuttx/fs/ioctl.h>
@@ -189,7 +192,7 @@
 #define FB_NO_OVERLAY         -1
 
 #ifdef CONFIG_FB_OVERLAY
-#  define FB_ACCL_TRANSP      0x01        /* Hardware tranparency support */
+#  define FB_ACCL_TRANSP      0x01        /* Hardware transparency support */
 #  define FB_ACCL_CHROMA      0x02        /* Hardware chromakey support */
 #  define FB_ACCL_COLOR       0x04        /* Hardware color support */
 #  define FB_ACCL_AREA        0x08        /* Hardware support area selection */
@@ -329,7 +332,7 @@
 #define FB_AUX_TEXT_MDA              0      /* Monochrome text */
 #define FB_AUX_TEXT_CGA              1      /* CGA/EGA/VGA Color text */
 #define FB_AUX_TEXT_S3_MMIO          2      /* S3 MMIO fasttext */
-#define FB_AUX_TEXT_MGA_STEP16       3      /* MGA Millenium I: text, attr, */
+#define FB_AUX_TEXT_MGA_STEP16       3      /* MGA Millennium I: text, attr, */
                                             /* 14 reserved bytes */
 #define FB_AUX_TEXT_MGA_STEP8        4      /* other MGAs: text, attr, */
                                             /* 6 reserved bytes */
@@ -374,10 +377,10 @@
 #define FB_ACCEL_SUN_LEO             13     /* Sun leo/zx */
 #define FB_ACCEL_IMS_TWINTURBO       14     /* IMS Twin Turbo */
 #define FB_ACCEL_3DLABS_PERMEDIA2    15     /* 3Dlabs Permedia 2 */
-#define FB_ACCEL_MATROX_MGA2064W     16     /* Matrox MGA2064W (Millenium) */
+#define FB_ACCEL_MATROX_MGA2064W     16     /* Matrox MGA2064W (Millennium) */
 #define FB_ACCEL_MATROX_MGA1064SG    17     /* Matrox MGA1064SG (Mystique) */
-#define FB_ACCEL_MATROX_MGA2164W     18     /* Matrox MGA2164W (Millenium II) */
-#define FB_ACCEL_MATROX_MGA2164W_AGP 19     /* Matrox MGA2164W (Millenium II) */
+#define FB_ACCEL_MATROX_MGA2164W     18     /* Matrox MGA2164W (Millennium II) */
+#define FB_ACCEL_MATROX_MGA2164W_AGP 19     /* Matrox MGA2164W (Millennium II) */
 #define FB_ACCEL_MATROX_MGAG100      20     /* Matrox G100 (Productiva G100) */
 #define FB_ACCEL_MATROX_MGAG200      21     /* Matrox G200 (Myst, Mill, ...) */
 #define FB_ACCEL_SUN_CG14            22     /* Sun cgfourteen */
@@ -483,6 +486,18 @@
 #define FB_ROTATE_CW                 1
 #define FB_ROTATE_UD                 2
 #define FB_ROTATE_CCW                3
+
+#ifdef CONFIG_VIDEO_FB_SPLASHSCREEN
+#  if defined(CONFIG_VIDEO_FB_SPLASHSCREEN_BPP32)
+#    define MKRGB ARGBTO32
+#  elif defined(CONFIG_VIDEO_FB_SPLASHSCREEN_BPP24)
+#    define MKRGB RGBTO24
+#  elif defined(CONFIG_VIDEO_FB_SPLASHSCREEN_BPP16)
+#    define MKRGB RGBTO16
+#  elif defined(CONFIG_VIDEO_FB_SPLASHSCREEN_BPP8)
+#    define MKRGB RGBTO8
+#  endif /* CONFIG_VIDEO_FB_SPLASHSCREEN_BPP32 */
+#endif /* CONFIG_VIDEO_FB_SPLASHSCREEN */
 
 /****************************************************************************
  * Public Types
@@ -886,7 +901,7 @@ struct fb_fix_screeninfo
  *
  * For pseudocolor: offset and length should be the same for all color
  * components. Offset specifies the position of the least significant bit
- * of the pallette index in a pixel value. Length indicates the number
+ * of the palette index in a pixel value. Length indicates the number
  * of available palette entries (i.e. # of entries = 1 << length).
  */
 
@@ -932,6 +947,53 @@ struct fb_var_screeninfo
   uint32_t colorspace;       /* Colorspace for FOURCC-based modes */
   uint32_t reserved[4];      /* Reserved for future compatibility */
 };
+
+#ifdef CONFIG_VIDEO_FB_SPLASHSCREEN
+#  if defined(CONFIG_VIDEO_FB_SPLASHSCREEN_BPP8) || \
+      defined(CONFIG_VIDEO_FB_SPLASHSCREEN_MONO) || \
+      defined(CONFIG_VIDEO_FB_SPLASHSCREEN_GREY)
+  typedef uint8_t fb_pixel_t;
+#  elif defined(CONFIG_VIDEO_FB_SPLASHSCREEN_BPP16)
+  typedef uint16_t fb_pixel_t;
+  #elif defined(CONFIG_VIDEO_FB_SPLASHSCREEN_BPP24)
+  typedef uint32_t fb_pixel_t;
+#  elif defined(CONFIG_VIDEO_FB_SPLASHSCREEN_BPP32)
+  typedef uint32_t fb_pixel_t;
+#  else
+#    error "Pixel depth is unknown"
+#endif
+
+/* Describes a point on the display */
+
+struct fb_point_s
+{
+  fb_coord_t x;         /* X position, range: 0 to screen width - 1 */
+  fb_coord_t y;         /* Y position, range: 0 to screen height - 1 */
+};
+
+struct fb_rect_s
+{
+  struct fb_point_s pt1; /* Upper, left-hand corner */
+  struct fb_point_s pt2; /* Lower, right-hand corner */
+};
+
+/* This structure describes the splashscreen */
+
+struct splscr_bitmap_s
+{
+  uint8_t          npixels;     /* Number of pixels                          */
+  uint8_t          lookup;      /* Pixel RGB lookup index                    */
+};
+
+struct palette_bitmap_s
+{
+  fb_coord_t            width;  /* Width in pixels                           */
+  fb_coord_t            height; /* Height in rows                            */
+  FAR const fb_pixel_t *lut;    /* Pointer to the palette (LUT)              */
+  FAR const struct
+       splscr_bitmap_s *data;   /* The RLE data                              */
+};
+#endif
 
 /****************************************************************************
  * Public Data

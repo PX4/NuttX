@@ -524,7 +524,7 @@ static int gd55_command_address(FAR struct gd55_dev_s *priv, uint8_t cmd,
 static int gd55_read_bytes(FAR struct gd55_dev_s *priv, FAR uint8_t *buffer,
                            off_t address, size_t buflen)
 {
-  bool                  mode_4byte_addr;
+  bool                  mode_4byte_addr = false;
   int                   ret;
   struct qspi_meminfo_s meminfo;
 
@@ -580,7 +580,7 @@ static int gd55_write_page(FAR struct gd55_dev_s *priv,
   struct qspi_meminfo_s meminfo;
   uint8_t               status;
   unsigned int          npages;
-  int                   ret;
+  int                   ret = OK;
   int                   i;
 
   npages = (buflen >> GD55_PAGE_SHIFT);
@@ -911,7 +911,7 @@ static int gd55_erase_chip(FAR struct gd55_dev_s *priv)
  * Name: gd55_write_enable
  *
  * Description:
- *   Enable the device for writing by setting the wriet enable latch bit
+ *   Enable the device for writing by setting the write enable latch bit
  *
  * Input Parameters:
  *   priv         - a reference to the device structure

@@ -143,7 +143,8 @@
  * previous freenode
  */
 
-#define MM_ALLOCNODE_OVERHEAD (MM_SIZEOF_ALLOCNODE - sizeof(mmsize_t))
+#define MM_ALLOCNODE_OVERHEAD (CONFIG_MM_NODE_GUARDSIZE + \
+                               MM_SIZEOF_ALLOCNODE - sizeof(mmsize_t))
 
 /* Get the node size */
 
@@ -217,7 +218,7 @@ struct mm_delaynode_s
 
 struct mm_heap_s
 {
-  /* Mutex for controling access to this heap */
+  /* Mutex for controlling access to this heap */
 
   mutex_t mm_lock;
 

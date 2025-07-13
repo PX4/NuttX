@@ -207,6 +207,7 @@ struct stm32_dev_s
   uint8_t dmachan;           /* DMA channel needed by this ADC */
   uint8_t dmacfg;            /* DMA channel configuration, only for ADC IPv2 */
   bool    hasdma;            /* True: This channel supports DMA */
+  uint16_t dmabatch;         /* Number of conversions for DMA batch */
 #endif
   bool    scan;              /* True: Scan mode */
 #ifdef CONFIG_STM32F7_ADC_CHANGE_SAMPLETIME
@@ -219,7 +220,8 @@ struct stm32_dev_s
 #endif
 #ifdef ADC_HAVE_TIMER
   uint8_t trigger;           /* Timer trigger channel: 0=CC1, 1=CC2, 2=CC3,
-                              * 3=CC4, 4=TRGO */
+                              * 3=CC4, 4=TRGO, 5=TRGO2
+                              */
 #endif
   xcpt_t   isr;              /* Interrupt handler for this ADC block */
   uint32_t base;             /* Base address of registers unique to this ADC
@@ -245,7 +247,7 @@ struct stm32_dev_s
 
   /* DMA transfer buffer */
 
-  uint16_t r_dmabuffer[CONFIG_STM32F7_ADC_MAX_SAMPLES];
+  uint16_t *r_dmabuffer;
 #endif
 
   /* List of selected ADC channels to sample */
@@ -282,6 +284,8 @@ static void tim_putreg(struct stm32_dev_s *priv, int offset,
                        uint16_t value);
 static void tim_modifyreg(struct stm32_dev_s *priv, int offset,
                           uint16_t clrbits, uint16_t setbits);
+static void tim_modifyreg32(struct stm32_dev_s *priv, int offset,
+                            uint32_t clrbits, uint32_t setbits);
 static void tim_dumpregs(struct stm32_dev_s *priv, const char *msg);
 #endif
 
@@ -451,6 +455,12 @@ struct adccmn_data_s g_adc123_cmn =
 /* ADC1 state */
 
 #ifdef CONFIG_STM32F7_ADC1
+
+#ifdef ADC1_HAVE_DMA
+static uint16_t g_adc1_dmabuffer[CONFIG_STM32F7_ADC_MAX_SAMPLES *
+                                 CONFIG_STM32F7_ADC1_DMA_BATCH];
+#endif
+
 static struct stm32_dev_s g_adcpriv1 =
 {
 #ifdef CONFIG_STM32F7_ADC_LL_OPS
@@ -482,6 +492,8 @@ static struct stm32_dev_s g_adcpriv1 =
   .dmachan     = ADC1_DMA_CHAN,
   .dmacfg      = CONFIG_STM32F7_ADC1_DMA_CFG,
   .hasdma      = true,
+  .r_dmabuffer = g_adc1_dmabuffer,
+  .dmabatch    = CONFIG_STM32F7_ADC1_DMA_BATCH,
 #endif
   .scan        = CONFIG_STM32F7_ADC1_SCAN,
 #ifdef CONFIG_PM
@@ -502,6 +514,12 @@ static struct adc_dev_s g_adcdev1 =
 /* ADC2 state */
 
 #ifdef CONFIG_STM32F7_ADC2
+
+#ifdef ADC2_HAVE_DMA
+static uint16_t g_adc2_dmabuffer[CONFIG_STM32F7_ADC_MAX_SAMPLES *
+                                 CONFIG_STM32F7_ADC2_DMA_BATCH];
+#endif
+
 static struct stm32_dev_s g_adcpriv2 =
 {
 #ifdef CONFIG_STM32F7_ADC_LL_OPS
@@ -533,6 +551,8 @@ static struct stm32_dev_s g_adcpriv2 =
   .dmachan     = ADC2_DMA_CHAN,
   .dmacfg      = CONFIG_STM32F7_ADC2_DMA_CFG,
   .hasdma      = true,
+  .r_dmabuffer = g_adc2_dmabuffer,
+  .dmabatch    = CONFIG_STM32F7_ADC2_DMA_BATCH,
 #endif
   .scan        = CONFIG_STM32F7_ADC2_SCAN,
 #ifdef CONFIG_PM
@@ -553,6 +573,12 @@ static struct adc_dev_s g_adcdev2 =
 /* ADC3 state */
 
 #ifdef CONFIG_STM32F7_ADC3
+
+#ifdef ADC3_HAVE_DMA
+static uint16_t g_adc3_dmabuffer[CONFIG_STM32F7_ADC_MAX_SAMPLES *
+                                 CONFIG_STM32F7_ADC3_DMA_BATCH];
+#endif
+
 static struct stm32_dev_s g_adcpriv3 =
 {
 #ifdef CONFIG_STM32F7_ADC_LL_OPS
@@ -584,6 +610,8 @@ static struct stm32_dev_s g_adcpriv3 =
   .dmachan     = ADC3_DMA_CHAN,
   .dmacfg      = CONFIG_STM32F7_ADC3_DMA_CFG,
   .hasdma      = true,
+  .r_dmabuffer = g_adc3_dmabuffer,
+  .dmabatch    = CONFIG_STM32F7_ADC3_DMA_BATCH,
 #endif
   .scan        = CONFIG_STM32F7_ADC3_SCAN,
 #ifdef CONFIG_PM
@@ -715,6 +743,7 @@ static uint32_t adccmn_getreg(struct stm32_dev_s *priv, uint32_t offset)
   return getreg32(offset + STM32_ADCCMN_BASE);
 }
 
+#ifdef ADC_HAVE_TIMER
 /****************************************************************************
  * Name: tim_getreg
  *
@@ -730,12 +759,10 @@ static uint32_t adccmn_getreg(struct stm32_dev_s *priv, uint32_t offset)
  *
  ****************************************************************************/
 
-#ifdef ADC_HAVE_TIMER
 static uint16_t tim_getreg(struct stm32_dev_s *priv, int offset)
 {
   return getreg16(priv->tbase + offset);
 }
-#endif
 
 /****************************************************************************
  * Name: tim_putreg
@@ -753,13 +780,11 @@ static uint16_t tim_getreg(struct stm32_dev_s *priv, int offset)
  *
  ****************************************************************************/
 
-#ifdef ADC_HAVE_TIMER
 static void tim_putreg(struct stm32_dev_s *priv, int offset,
                        uint16_t value)
 {
   putreg16(value, priv->tbase + offset);
 }
-#endif
 
 /****************************************************************************
  * Name: tim_modifyreg
@@ -778,13 +803,35 @@ static void tim_putreg(struct stm32_dev_s *priv, int offset,
  *
  ****************************************************************************/
 
-#ifdef ADC_HAVE_TIMER
 static void tim_modifyreg(struct stm32_dev_s *priv, int offset,
                           uint16_t clrbits, uint16_t setbits)
 {
   tim_putreg(priv, offset, (tim_getreg(priv, offset) & ~clrbits) | setbits);
 }
-#endif
+
+/****************************************************************************
+ * Name: tim_modifyreg32
+ *
+ * Description:
+ *   Modify the value of an ADC timer register (not atomic).
+ *
+ * Input Parameters:
+ *   priv    - A reference to the ADC block status
+ *   offset  - The offset to the register to modify
+ *   clrbits - The bits to clear
+ *   setbits - The bits to set
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+static void tim_modifyreg32(struct stm32_dev_s *priv, int offset,
+                            uint32_t clrbits, uint32_t setbits)
+{
+  uint32_t addr = priv->tbase + offset;
+  putreg32((getreg32(addr) & ~clrbits) | setbits, addr);
+}
 
 /****************************************************************************
  * Name: tim_dumpregs
@@ -800,7 +847,6 @@ static void tim_modifyreg(struct stm32_dev_s *priv, int offset,
  *
  ****************************************************************************/
 
-#ifdef ADC_HAVE_TIMER
 static void tim_dumpregs(struct stm32_dev_s *priv, const char *msg)
 {
   ainfo("%s:\n", msg);
@@ -839,7 +885,6 @@ static void tim_dumpregs(struct stm32_dev_s *priv, const char *msg)
             tim_getreg(priv, STM32_GTIM_DMAR_OFFSET));
     }
 }
-#endif
 
 /****************************************************************************
  * Name: adc_timstart
@@ -855,7 +900,6 @@ static void tim_dumpregs(struct stm32_dev_s *priv, const char *msg)
  *
  ****************************************************************************/
 
-#ifdef ADC_HAVE_TIMER
 static void adc_timstart(struct stm32_dev_s *priv, bool enable)
 {
   ainfo("enable: %d\n", enable ? 1 : 0);
@@ -873,7 +917,6 @@ static void adc_timstart(struct stm32_dev_s *priv, bool enable)
       tim_modifyreg(priv, STM32_GTIM_CR1_OFFSET, GTIM_CR1_CEN, 0);
     }
 }
-#endif
 
 /****************************************************************************
  * Name: adc_timinit
@@ -890,13 +933,11 @@ static void adc_timstart(struct stm32_dev_s *priv, bool enable)
  *
  ****************************************************************************/
 
-#ifdef ADC_HAVE_TIMER
 static int adc_timinit(struct stm32_dev_s *priv)
 {
   uint32_t prescaler;
   uint32_t reload;
   uint32_t timclk;
-
   uint16_t clrbits = 0;
   uint16_t setbits = 0;
   uint16_t cr2;
@@ -1093,18 +1134,25 @@ static int adc_timinit(struct stm32_dev_s *priv)
 
       case 4: /* TimerX TRGO event */
         {
-          /* TODO: TRGO support not yet implemented */
-
           /* Set the event TRGO */
 
           ccenable = 0;
           egr      = GTIM_EGR_TG;
 
-          /* Set the duty cycle by writing to the CCR register for this
-           * channel
-           */
+          tim_modifyreg(priv, STM32_GTIM_CR2_OFFSET, clrbits,
+                        GTIM_CR2_MMS_UPDATE);
+        }
+        break;
 
-          tim_putreg(priv, STM32_GTIM_CCR4_OFFSET, (uint16_t)(reload >> 1));
+      case 5: /* TimerX TRGO2 event */
+        {
+          /* Set the event TRGO2 */
+
+          ccenable = 0;
+          egr      = GTIM_EGR_TG;
+
+          tim_modifyreg32(priv, STM32_GTIM_CR2_OFFSET, clrbits,
+                          ATIM_CR2_MMS2_UPDATE);
         }
         break;
 

@@ -151,7 +151,7 @@ static int ptmx_minor_allocate(void)
        * prevent (unexpected) infinite loops.
        */
 
-      if (startaddr == minor)
+      if (startaddr == g_ptmx.px_next)
         {
           /* We are back where we started... the are no free device address */
 
@@ -206,12 +206,10 @@ static int ptmx_open(FAR struct file *filep)
   /* Open the master device:  /dev/ptyN, where N=minor */
 
   snprintf(devname, sizeof(devname), "/dev/pty%d", minor);
-  memcpy(&temp, filep, sizeof(temp));
-  ret = file_open(filep, devname, O_RDWR | O_CLOEXEC);
+  ret = file_open(&temp, devname, O_RDWR | O_CLOEXEC);
   DEBUGASSERT(ret >= 0);  /* file_open() should never fail */
-
-  /* Close the multiplexor device: /dev/ptmx */
-
+  ret = file_dup2(&temp, filep);
+  DEBUGASSERT(ret >= 0);  /* file_dup2() should never fail) */
   ret = file_close(&temp);
   DEBUGASSERT(ret >= 0);  /* file_close() should never fail */
 

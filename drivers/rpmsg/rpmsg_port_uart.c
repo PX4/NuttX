@@ -57,7 +57,7 @@
 
 #ifdef CONFIG_RPMSG_PORT_UART_CRC
 #  define rpmsg_port_uart_crc16(hdr)       \
-  crc16((FAR uint8_t *)&(hdr)->cmd, (hdr)->len - sizeof((hdr)->crc))
+  crc16ibm((FAR uint8_t *)&(hdr)->cmd, (hdr)->len - sizeof((hdr)->crc))
 #else
 #  define rpmsg_port_uart_crc16(hdr)       0
 #endif
@@ -430,7 +430,7 @@ static int rpmsg_port_uart_tx_thread(int argc, FAR char *argv[])
  * Name: rpmsg_port_uart_initialize
  *
  * Description:
- *   Initialze a rpmsg_port_uart device to communicate between two chips.
+ *   Initialize a rpmsg_port_uart device to communicate between two chips.
  *
  * Input Parameters:
  *   cfg      - Configuration of buffers needed for communication.

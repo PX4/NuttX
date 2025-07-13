@@ -202,6 +202,16 @@ config ARCH_CHIP_STM32H747XI
 		Dual core STM32 H7 Cortex M7+M4, 2048 Kb FLASH, 1024K Kb SRAM
 		TFBGA240
 
+config ARCH_CHIP_STM32H750B
+	bool "STM32H750B"
+	select STM32H7_STM32H7X5XX
+	select STM32H7_FLASH_CONFIG_I
+	select STM32H7_IO_CONFIG_X
+	select STM32H7_HAVE_SMPS
+	---help---
+		STM32 H7 Cortex M7+M4, 1024 Kb FLASH, 1024K Kb SRAM,
+		LQFP208
+
 config ARCH_CHIP_STM32H753AI
 	bool "STM32H753AI"
 	select STM32H7_STM32H7X3XX
@@ -304,11 +314,11 @@ choice
 	default STM32H7_PWR_DEFAULT_SUPPLY
 	depends on STM32H7_HAVE_SMPS && !STM32H7_HAVE_PWR_DIRECT_SMPS_SUPPLY
 	---help---
-		The STM32H7x5 and STM32H7x7 support power supply configrations for the VCORE core domain and an external supply,
+		The STM32H7x5 and STM32H7x7 support power supply configurations for the VCORE core domain and an external supply,
 		by configuring the SMPS step-down converter and voltage regulator.
 		Note:The SMPS step-down converter is not available on all packages.
 
-		Currenlty the only supported modes are Direct SMPS supply and LDO supply.
+		Currently the only supported modes are Direct SMPS supply and LDO supply.
 
 config STM32H7_PWR_DEFAULT_SUPPLY
 	bool "Default"
@@ -391,6 +401,7 @@ config STM32H7_STM32H7X3XX
 	select STM32H7_HAVE_SPI4
 	select STM32H7_HAVE_SPI5 if !STM32H7_IO_CONFIG_V
 	select STM32H7_HAVE_SPI6
+	select STM32H7_HAVE_RNG
 
 config STM32H7_STM32H7B3XX
 	bool
@@ -404,6 +415,7 @@ config STM32H7_STM32H7B3XX
 	select STM32H7_HAVE_SPI4
 	select STM32H7_HAVE_SPI5 if !STM32H7_IO_CONFIG_V
 	select STM32H7_HAVE_SPI6
+	select STM32H7_HAVE_RNG
 
 config STM32H7_STM32H7X5XX
 	bool
@@ -420,6 +432,7 @@ config STM32H7_STM32H7X5XX
 	select STM32H7_HAVE_SPI5 if !STM32H7_IO_CONFIG_V
 	select STM32H7_HAVE_SPI6
 	select STM32H7_HAVE_SMPS
+	select STM32H7_HAVE_RNG
 
 config STM32H7_STM32H7X7XX
 	bool
@@ -435,6 +448,7 @@ config STM32H7_STM32H7X7XX
 	select STM32H7_HAVE_SPI4
 	select STM32H7_HAVE_SPI5
 	select STM32H7_HAVE_SPI6
+	select STM32H7_HAVE_RNG
 
 config STM32H7_FLASH_CONFIG_B
 	bool
@@ -645,6 +659,10 @@ config STM32H7_HAVE_FDCAN2
 	bool
 	default n
 
+config STM32H7_HAVE_RNG
+	bool
+	default n
+
 # These "hidden" settings are the OR of individual peripheral selections
 # indicating that the general capability is required.
 
@@ -741,6 +759,12 @@ config STM32H7_ADC3
 	bool "ADC3"
 	default n
 	select STM32H7_ADC
+
+config STM32H7_RNG
+	bool "RNG"
+	default n
+	depends on STM32H7_HAVE_RNG
+	select ARCH_HAVE_RNG
 
 config STM32H7_CRC
 	bool "CRC"
@@ -1816,6 +1840,79 @@ config STM32H7_PM_SERIAL_ACTIVITY
 
 endif # PM
 endmenu # U[S]ART Configuration
+
+menu "ADC Configuration"
+	depends on STM32H7_ADC
+
+config STM32H7_ADC_MAX_SAMPLES
+	int "The maximum number of channels that can be sampled"
+	default 16
+	---help---
+		The maximum number of samples which can be handled without
+		overrun depends on various factors. This is the user's
+		responsibility to correctly select this value.
+		Since the interface to update the sampling time is available
+		for all supported devices, the user can change the default
+		values in the board initialization logic and avoid ADC overrun.
+
+config STM32H7_ADC1_DMA
+	bool "ADC1 DMA (not supported yet)"
+	depends on STM32H7_ADC1 && EXPERIMENTAL
+	default n
+	---help---
+		If DMA is selected, then the ADC may be configured to support
+		DMA transfer, which is necessary if multiple channels are read
+		or if very high trigger frequencies are used.
+
+config STM32H7_ADC1_DMA_BATCH
+	int "ADC1 DMA number of conversions"
+	depends on STM32H7_ADC1 && STM32H7_ADC1_DMA
+	default 1
+	---help---
+		This option allows you to select the number of regular group conversions
+		that will trigger a DMA callback transerring data to the upper-half driver.
+		By default, this value is 1, which means that data is transferred after
+		each group conversion.
+
+config STM32H7_ADC2_DMA
+	bool "ADC2 DMA (not supported yet)"
+	depends on STM32H7_ADC2 && EXPERIMENTAL
+	default n
+	---help---
+		If DMA is selected, then the ADC may be configured to support
+		DMA transfer, which is necessary if multiple channels are read
+		or if very high trigger frequencies are used.
+
+config STM32H7_ADC2_DMA_BATCH
+	int "ADC2 DMA number of conversions"
+	depends on STM32H7_ADC2 && STM32H7_ADC2_DMA
+	default 1
+	---help---
+		This option allows you to select the number of regular group conversions
+		that will trigger a DMA callback transerring data to the upper-half driver.
+		By default, this value is 1, which means that data is transferred after
+		each group conversion.
+
+config STM32H7_ADC3_DMA
+	bool "ADC3 DMA (not supported yet)"
+	depends on STM32H7_ADC3 && EXPERIMENTAL
+	default n
+	---help---
+		If DMA is selected, then the ADC may be configured to support
+		DMA transfer, which is necessary if multiple channels are read
+		or if very high trigger frequencies are used.
+
+config STM32H7_ADC3_DMA_BATCH
+	int "ADC3 DMA number of conversions"
+	depends on STM32H7_ADC3 && STM32H7_ADC3_DMA
+	default 1
+	---help---
+		This option allows you to select the number of regular group conversions
+		that will trigger a DMA callback transerring data to the upper-half driver.
+		By default, this value is 1, which means that data is transferred after
+		each group conversion.
+
+endmenu
 
 menu "SD/MMC Configuration"
 	depends on STM32H7_SDMMC
@@ -5608,6 +5705,15 @@ config STM32H7_LTDC_FB_SIZE
 	default 0
 	---help---
 		Must be the whole size of the active LTDC layer.
+
+config STM32H7_LTDC_FB_DOUBLE_BUFFER
+	bool "Enable double buffering"
+	default n
+	---help---
+		Enable double buffering to allow updates to the framebuffer while the display is being refreshed.
+		This configuration requires two framebuffers: one active and one inactive.
+		When the display refreshes, the active and inactive framebuffers are swapped,
+		enabling smooth and flicker-free updates.
 
 config STM32H7_LTDC_L1_CHROMAKEYEN
 	bool "Enable chromakey support for layer 1"

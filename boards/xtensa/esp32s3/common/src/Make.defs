@@ -46,7 +46,7 @@ ifeq ($(CONFIG_I2C_DRIVER),y)
   CSRCS += esp32s3_board_i2c.c
 endif
 
-ifeq ($(CONFIG_ESP32S3_I2S),y)
+ifeq ($(CONFIG_ESPRESSIF_I2S),y)
   CSRCS += esp32s3_board_i2s.c
 endif
 
@@ -66,7 +66,7 @@ ifeq ($(CONFIG_ESP32S3_OTG),y)
   CSRCS += esp32s3_board_usb.c
 endif
 
-ifeq ($(CONFIG_ESP32S3_ADC),y)
+ifeq ($(CONFIG_ESPRESSIF_ADC),y)
   CSRCS += esp32s3_board_adc.c
 endif
 
@@ -86,12 +86,20 @@ ifeq ($(CONFIG_ESP_MCPWM),y)
   CSRCS += esp32s3_board_mcpwm.c
 endif
 
+ifeq ($(CONFIG_MMCSD_SPI),y)
+  CSRCS += esp32s3_board_sdmmc.c
+endif
+
 ifeq ($(CONFIG_ESP32S3_SDMMC),y)
   CSRCS += esp32s3_board_sdmmc.c
 endif
 
 ifeq ($(CONFIG_USBMSC),y)
   CSRCS += esp32s3_usbmsc.c
+endif
+
+ifeq ($(CONFIG_ESPRESSIF_LEDC),y)
+CSRCS += esp32s3_board_ledc.c
 endif
 
 DEPPATH += --dep-path src

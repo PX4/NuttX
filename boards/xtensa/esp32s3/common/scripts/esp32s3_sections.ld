@@ -33,6 +33,11 @@ SECTIONS
 #ifdef CONFIG_ESP32S3_APP_FORMAT_MCUBOOT
   .metadata :
   {
+    /* The following metadata refers to the to MCUboot's struct
+     * esp_image_load_header defined at the following commit:
+     * https://github.com/mcu-tools/mcuboot/blob/cd22b693da426826e0255f8ee5b18d7360d9bc8f/boot/espressif/hal/include/esp_mcuboot_image.h
+     */
+
     /* Magic for load header */
 
     LONG(0xace637d3)
@@ -60,6 +65,46 @@ SECTIONS
     LONG(ADDR(.dram0.data))
     LONG(LOADADDR(.dram0.data))
     LONG(SIZEOF(.dram0.data))
+
+    /* RTC_IRAM metadata:
+     * - Destination address (VMA) for RTC_IRAM region
+     * - Flash offset (LMA) for start of RTC_IRAM region
+     * - Size of RTC_IRAM region
+     */
+
+    LONG(ADDR(.rtc.text))
+    LONG(LOADADDR(.rtc.text))
+    LONG(SIZEOF(.rtc.text))
+
+    /* RTC_DRAM metadata:
+     * - Destination address (VMA) for RTC_DRAM region
+     * - Flash offset (LMA) for start of RTC_DRAM region
+     * - Size of RTC_DRAM region
+     */
+
+    LONG(ADDR(.rtc.data))
+    LONG(LOADADDR(.rtc.data))
+    LONG(SIZEOF(.rtc.data))
+
+    /* IROM metadata:
+     * - Destination address (VMA) for IROM region
+     * - Flash offset (LMA) for start of IROM region
+     * - Size of IROM region
+     */
+
+    LONG(ADDR(.flash.text))
+    LONG(LOADADDR(.flash.text))
+    LONG(SIZEOF(.flash.text))
+
+    /* DROM metadata:
+     * - Destination address (VMA) for DROM region
+     * - Flash offset (LMA) for start of DROM region
+     * - Size of DROM region
+     */
+
+    LONG(ADDR(.flash.rodata))
+    LONG(LOADADDR(.flash.rodata))
+    LONG(LOADADDR(.flash.rodata) + SIZEOF(.flash.rodata) - LOADADDR(.flash.rodata))
   } >metadata
 #endif /* CONFIG_ESP32S3_APP_FORMAT_MCUBOOT */
 
@@ -113,7 +158,7 @@ SECTIONS
     *(.iram1 .iram1.*)
     esp32s3_start.*(.literal .text .literal.* .text.*)
     esp32s3_region.*(.literal .text .literal.* .text.*)
-
+    *libcoexist.a:(.coexiram .coexiram.*)
     *libarch.a:*esp_loader.*(.literal .text .literal.* .text.*)
     *libarch.a:esp32s3_cpuindex.*(.literal .text .literal.* .text.*)
     *libarch.a:esp32s3_irq.*(.literal .text .literal.* .text.*)
@@ -125,6 +170,7 @@ SECTIONS
     *libarch.a:xtensa_irqdispatch.*(.literal .text .literal.* .text.*)
     *libarch.a:xtensa_modifyreg32.*(.literal .text .literal.* .text.*)
     *libarch.a:xtensa_testset.*(.literal .text .literal.* .text.*)
+    *libarch.a:esp_app_desc.*(.literal .text .literal.* .text.*)
 
     *libc.a:sq_remlast.*(.literal .text .literal.* .text.*)
 
@@ -232,10 +278,20 @@ SECTIONS
     *libarch.a:*esp_efuse_fields.*(.text .text.* .literal .literal.*)
     *libarch.a:*esp_efuse_api_key.*(.text .text.* .literal .literal.*)
     *libarch.a:*log.*(.text .text.* .literal .literal.*)
-    *libarch.a:*log_noos.*(.text .text.* .literal .literal.*)
+    *libarch.a:*log_lock.*(.literal .literal.* .text .text.*)
+    *libarch.a:*log_print.*(.literal .literal.* .text .text.*)
+    *libarch.a:*log_timestamp.*(.literal.esp_log_early_timestamp .text.esp_log_early_timestamp)
+    *libarch.a:*log_timestamp.*(.literal.esp_log_timestamp .text.esp_log_timestamp)
+    *libarch.a:*log_timestamp_common.*(.literal .literal.* .text .text.*)
+    *libarch.a:*log_write.*(.literal.esp_log_write .text.esp_log_write)
+    *libarch.a:*log_write.*(.literal.esp_log_writev .text.esp_log_writev)
     *libarch.a:*cpu_region_protect.*(.text .text.* .literal .literal.*)
     *libarch.a:*mspi_timing_tuning.*(.text .text.* .literal .literal.*)
     *libarch.a:*esp_rom_cache_esp32s2_esp32s3.*(.literal .text .literal.* .text.*)
+    *libarch.a:*flash_qio_mode.*(.text .text.* .literal .literal.*)
+    *libarch.a:*spi_flash_wrap.*(.text .text.* .literal .literal.*)
+    *libarch.a:*spi_flash_oct_flash_init.*(.text .text.* .literal .literal.*)
+    *libarch.a:*spi_flash_hpm_enable.*(.text .text.* .literal .literal.*)
 
     *libc.a:*lib_instrument.*(.text .text.* .literal .literal.*)
 
@@ -303,8 +359,12 @@ SECTIONS
     . = ALIGN(8);
     _bss_start = ABSOLUTE(.);
     _sbss = ABSOLUTE(.);
-
+#ifdef CONFIG_XTENSA_EXTMEM_BSS
+    *(EXCLUDE_FILE(*libnet80211.a *libpp.a *libpython3.13.a) .bss EXCLUDE_FILE(*libnet80211.a *libpp.a *libpython3.13.a) .bss.*)
+    *(EXCLUDE_FILE(*libnet80211.a *libpp.a *libpython3.13.a) .bss EXCLUDE_FILE(*libnet80211.a *libpp.a *libpython3.13.a) COMMON)
+#else
     *(.bss .bss.*)
+#endif
     *(COMMON)
     *(.dynsbss)
     *(.sbss)
@@ -428,6 +488,10 @@ SECTIONS
 #ifdef CONFIG_ESP32S3_SPIRAM_MODE_OCT
     *libarch.a:esp32s3_psram_octal.*(.rodata .rodata.*)
 #endif
+    *libarch.a:*flash_qio_mode.*(.rodata .rodata.*)
+    *libarch.a:*spi_flash_wrap.*(.rodata .rodata.*)
+    *libarch.a:*spi_flash_oct_flash_init.*(.rodata .rodata.*)
+    *libarch.a:*spi_flash_hpm_enable.*(.rodata .rodata.*)
 
     . = ALIGN(4);
     _edata = ABSOLUTE(.);
@@ -437,6 +501,26 @@ SECTIONS
 
     _sheap = ABSOLUTE(.);
   } >dram0_0_seg AT>ROM
+
+  /* This section will be used by the debugger and disassembler to get more
+   * information about raw data present in the code.
+   * Indeed, it may be required to add some padding at some points in the
+   * code in order to align a branch/jump destination on a particular bound.
+   * Padding these instructions will generate null bytes that shall be
+   * interpreted as data, and not code by the debugger or disassembler.
+   * This section will only be present in the ELF file, not in the final
+   * binary.
+   */
+
+  .xt.prop 0 :
+  {
+    KEEP (*(.xt.prop .gnu.linkonce.prop.*))
+  }
+
+  .xt.lit 0 :
+  {
+    KEEP (*(.xt.lit .gnu.linkonce.p.*))
+  }
 
   /* The alignment of the ".flash.text" output section is forced to
    * 0x00010000 (64KB) to ensure that it will be allocated at the beginning
@@ -511,6 +595,10 @@ SECTIONS
   .flash.rodata : ALIGN(0x10000)
   {
     _rodata_reserved_start = ABSOLUTE(.);
+
+    /* !DO NOT PUT ANYTHING BEFORE THIS! */
+    /* Should be the first.  App version info. */
+    *(.rodata_desc .rodata_desc.*)
 
     _srodata = ABSOLUTE(.);
     *(EXCLUDE_FILE (esp32s3_start.* esp32s3_region.*
@@ -602,6 +690,7 @@ SECTIONS
    * Because to `extern_ram_seg` and `drom0_0_seg` are on the same bus
    */
 
+#ifdef CONFIG_XTENSA_EXTMEM_BSS
   .ext_ram.dummy (NOLOAD):
   {
     . = ORIGIN(extern_ram_seg);
@@ -615,12 +704,18 @@ SECTIONS
   {
     _ext_ram_bss_start = ABSOLUTE(.);
 
+    *(.extmem.bss .extmem.bss.*)
     *(.ext_ram.bss .ext_ram.bss.*)
+    *libpp.a:(.bss .bss.*)
+    *libpp.a:(COMMON)
+    *libnet80211.a:(.bss .bss.*)
+    *libnet80211.a:(COMMON)
     *libpython3.13.a:(*.PyRuntime)
-
+    *libpython3.13.a:(.bss .bss.*)
     . = ALIGN(4);
     _ext_ram_bss_end = ABSOLUTE(.);
   } > extern_ram_seg
+#endif
 
   .rtc.text :
   {
@@ -635,14 +730,14 @@ SECTIONS
      */
 
     . = SIZEOF(.rtc.text);
-  } >rtc_data_seg
+  } >rtc_slow_seg
 
   /* RTC BSS section. */
 
   .rtc.bss (NOLOAD) :
   {
     *(.rtc.bss)
-  } >rtc_data_seg
+  } >rtc_slow_seg
 
   .rtc.data :
   {
@@ -654,7 +749,7 @@ SECTIONS
    /* Whatever is left from the RTC memory is used as a special heap. */
 
     . = ALIGN (4);
-  } >rtc_data_seg AT>ROM
+  } >rtc_slow_seg AT>ROM
 
   .rtc.heap : ALIGN(4)
   {

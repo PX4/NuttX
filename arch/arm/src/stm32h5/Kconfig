@@ -14,6 +14,7 @@ choice
 
 config ARCH_CHIP_STM32H563ZI
 	bool "STM32H563ZI"
+	select ARCH_CORTEXM33
 	select STM32H5_STM32H5XXXX
 	select STM32H5_STM32H56XXX
 	select STM32H5_STM32H563XX
@@ -31,6 +32,7 @@ config STM32H5_STM32H5XXXX
 	bool
 	default n
 	select ARCH_HAVE_FPU
+	select STM32H5_HAVE_ICACHE
 
 config STM32H5_STM32H56XXX
 	bool
@@ -53,8 +55,10 @@ config STM32H5_STM32H56XXX
 	select STM32H5_HAVE_SPI4
 	select STM32H5_HAVE_SPI5
 	select STM32H5_HAVE_SPI6
+	select STM32H5_HAVE_I2C4
 	select STM32H5_HAVE_USBFS
 	select STM32H5_HAVE_HSI48
+	select STM32H5_HAVE_ICACHE_REMAP
 
 config STM32H5_STM32H563XX
 	# STM32H552 and STM32H562 devices documented in RM0439
@@ -133,7 +137,7 @@ config STM32H5_FLASH_CONFIG_E
 config STM32H5_FLASH_CONFIG_G
 	bool
 	default n
-	depends on STM32H5_STM32H6XXX
+	depends on STM32H5_STM32H56XXX
 
 config STM32H5_FLASH_CONFIG_I
 	bool
@@ -198,13 +202,19 @@ config STM32H5_SRAM2_INIT
 		case, the board should handle the initialization itself at the appropriate
 		time.
 
+config STM32H5_PROGMEM
+	bool "Flash progmem support"
+	default n
+	---help---
+		Add progmem support, start block and end block options are provided to
+		obtain a uniform flash memory mapping.
+
 comment "STM32H5 Peripherals"
 
 menu "STM32H5 Peripheral Selection"
 
 # These "hidden" settings determine if a peripheral option is available
 # for the selected MCU
-
 
 config STM32H5_HAVE_ETHERNET
 	bool
@@ -223,6 +233,14 @@ config STM32H5_HAVE_FDCAN2
 	default n
 
 config STM32H5_HAVE_HSI48
+	bool
+	default n
+
+config STM32H5_HAVE_ICACHE
+	bool
+	default n
+
+config STM32H5_HAVE_I2C4
 	bool
 	default n
 
@@ -293,11 +311,11 @@ config STM32H5_HAVE_USBFS
 # These "hidden" settings are the OR of individual peripheral selections
 # indicating that the general capability is required.
 
-config STM32H5_USART
+config STM32H5_ADC
 	bool
 	default n
 
-config STM32H5_ADC
+config STM32H5_DMA
 	bool
 	default n
 
@@ -313,6 +331,10 @@ config STM32H5_TIM
 	bool
 	default n
 
+config STM32H5_USART
+	bool
+	default n
+
 # These are the peripheral selections proper
 
 config STM32H5_ADC1
@@ -325,6 +347,18 @@ config STM32H5_ADC2
 	default n
 	select STM32H5_ADC
 
+config STM32H5_DMA1
+	bool "DMA1"
+	default n
+	select STM32H5_DMA
+	select ARCH_DMA
+
+config STM32H5_DMA2
+	bool "DMA2"
+	default n
+	select STM32H5_DMA
+	select ARCH_DMA
+
 config STM32H5_ETHMAC
 	bool "Ethernet MAC"
 	default n
@@ -333,23 +367,16 @@ config STM32H5_ETHMAC
 	select ARCH_HAVE_PHY
 	select STM32H5_HAVE_PHY_POLLED
 
+config STM32H5_ICACHE
+	bool "ICACHE"
+	default n
+	depends on STM32H5_HAVE_ICACHE
+
 config STM32H5_QSPI1
 	bool "QSPI1"
 	default n
 
-config STM32H5_USART2
-	bool "USART2"
-	default n
-	depends on STM32H5_HAVE_USART2
-	select ARCH_HAVE_SERIAL_TERMIOS
-	select STM32H5_USART
-
-config STM32H5_USART3
-	bool "USART3"
-	default n
-	depends on STM32H5_HAVE_USART3
-	select ARCH_HAVE_SERIAL_TERMIOS
-	select STM32H5_USART
+menu "U[S]ART/LPUART Selection"
 
 config STM32H5_UART4
 	bool "UART4"
@@ -365,13 +392,6 @@ config STM32H5_UART5
 	select ARCH_HAVE_SERIAL_TERMIOS
 	select STM32H5_USART
 
-config STM32H5_USART6
-	bool "USART6"
-	default n
-	depends on STM32H5_HAVE_USART6
-	select ARCH_HAVE_SERIAL_TERMIOS
-	select STM32H5_USART
-
 config STM32H5_UART7
 	bool "UART7"
 	default n
@@ -383,20 +403,6 @@ config STM32H5_UART8
 	bool "UART8"
 	default n
 	depends on STM32H5_HAVE_UART8
-	select ARCH_HAVE_SERIAL_TERMIOS
-	select STM32H5_USART
-
-config STM32H5_USART10
-	bool "USART10"
-	default n
-	depends on STM32H5_HAVE_USART10
-	select ARCH_HAVE_SERIAL_TERMIOS
-	select STM32H5_USART
-
-config STM32H5_USART11
-	bool "USART11"
-	default n
-	depends on STM32H5_HAVE_USART11
 	select ARCH_HAVE_SERIAL_TERMIOS
 	select STM32H5_USART
 
@@ -421,12 +427,51 @@ config STM32H5_USART1
 	select ARCH_HAVE_SERIAL_TERMIOS
 	select STM32H5_USART
 
+config STM32H5_USART2
+	bool "USART2"
+	default n
+	depends on STM32H5_HAVE_USART2
+	select ARCH_HAVE_SERIAL_TERMIOS
+	select STM32H5_USART
+
+config STM32H5_USART3
+	bool "USART3"
+	default n
+	depends on STM32H5_HAVE_USART3
+	select ARCH_HAVE_SERIAL_TERMIOS
+	select STM32H5_USART
+
+config STM32H5_USART6
+	bool "USART6"
+	default n
+	depends on STM32H5_HAVE_USART6
+	select ARCH_HAVE_SERIAL_TERMIOS
+	select STM32H5_USART
+
+config STM32H5_USART10
+	bool "USART10"
+	default n
+	depends on STM32H5_HAVE_USART10
+	select ARCH_HAVE_SERIAL_TERMIOS
+	select STM32H5_USART
+
+config STM32H5_USART11
+	bool "USART11"
+	default n
+	depends on STM32H5_HAVE_USART11
+	select ARCH_HAVE_SERIAL_TERMIOS
+	select STM32H5_USART
+
 config STM32H5_LPUART1
 	bool "LPUART1"
 	default n
 	depends on STM32H5_HAVE_LPUART1
 	select ARCH_HAVE_SERIAL_TERMIOS
 	select STM32H5_USART
+
+endmenu # U[S]ART/LPUART Selection
+
+menu "I2C Selection"
 
 config STM32H5_I2C
 	bool
@@ -450,7 +495,12 @@ config STM32H5_I2C3
 config STM32H5_I2C4
 	bool "I2C4"
 	default n
+	depends on STM32H5_HAVE_I2C4
 	select STM32H5_I2C
+
+endmenu # I2C Selection
+
+menu "SPI Selection"
 
 config STM32H5_SPI1
 	bool "SPI1"
@@ -490,6 +540,8 @@ config STM32H5_SPI6
 	depends on STM32H5_HAVE_SPI6
 	select SPI
 	select STM32H5_SPI
+
+endmenu # SPI Selection
 
 menu "STM32H5 Timer Selection"
 
@@ -571,13 +623,248 @@ config STM32H5_USBFS
 	depends on STM32H5_HAVE_USBFS
 	select USBDEV
 
-endmenu
+endmenu # STM32H5 Peripheral Selection
 
 config STM32H5_FLASH_PREFETCH
 	bool "Enable FLASH Pre-fetch"
 	default y
 	---help---
 		Enable FLASH prefetch
+
+menu "ICACHE Configuration"
+	depends on STM32H5_ICACHE
+
+config STM32H5_ICACHE_MONITOR_EN
+	bool "Enable ICACHE Hit/Miss Counters"
+	default n
+
+config STM32H5_ICACHE_DIRECT
+	bool "Enable 1-Way Direct Mapped Cache (N-Way = default)"
+	default n
+
+menu "ICACHE Interrupt Configuration"
+	depends on STM32H5_ICACHE
+
+config STM32H5_ICACHE_INV_INT
+	bool "Enable interrupts on full invalidation completion."
+	default n
+
+config STM32H5_ICACHE_ERR_INT
+	bool "Enable interrupts on occurrences of cache errors."
+	default n
+
+endmenu # ICACHE Interrupt Configuration
+
+menu "ICACHE Region Configuration"
+	depends on STM32H5_ICACHE
+
+config STM32H5_ICACHE_REGION0
+	bool "Enable Configuration of ICACHE Region 0"
+	default n
+
+config STM32H5_ICACHE_REGION1
+	bool "Enable Configuration of ICACHE Region 1"
+	default n
+
+config STM32H5_ICACHE_REGION2
+	bool "Enable Configuration of ICACHE Region 2"
+	default n
+
+config STM32H5_ICACHE_REGION3
+	bool "Enable Configuration of ICACHE Region 3"
+	default n
+
+menu "Region 0 Configuration"
+	depends on STM32H5_ICACHE_REGION0 && STM32H5_HAVE_ICACHE_REMAP
+
+config STM32H5_ICACHE_REGION0_BADDR
+	hex "ICACHE Region 0 Base Address Bits [28:21]"
+	default 0
+	range 0 255
+	depends on STM32H5_ICACHE_REGION0
+	---help---
+		Set bits [28:21] of the base address for ICACHE Region 0.
+
+config STM32H5_ICACHE_REGION0_RSIZE
+	int "ICACHE Region 0 Size"
+	default 1
+	range 1 7
+	depends on STM32H5_ICACHE_REGION0
+	---help---
+		Set the size of Region 0.
+                1 = 2 Mbytes, 2 = 4 Mbytes, 3 = 8 Mbytes, 4 = 16 Mbytes,
+                5 = 2 Mbytes, 6 = 64 Mbytes, 7 = 128 Mbytes.
+
+config STM32H5_ICACHE_REGION0_REMAPADDR
+	hex "ICACHE Region 0 Remap Address Bits [31:21]"
+	default 0
+	range 0 2047
+	depends on STM32H5_ICACHE_REGION0
+	---help---
+		Set bits [31:21] of ICACHE Region 0 Remap Address..
+
+config STM32H5_ICACHE_REGION0_MSTSEL
+	int "ICACHE Region 0 Master Select (0 or 1)"
+	default 0
+	range 0 1
+	depends on STM32H5_ICACHE_REGION0
+	---help---
+		Select ICACHE Region 0 Master 1 (0) or Master 2 (1).
+
+config STM32H5_ICACHE_REGION0_HBURST
+	int "ICACHE Region 0 Output Burst Type (0 = Wrap, 1 = Incr)"
+	default 0
+	range 0 1
+	depends on STM32H5_ICACHE_REGION0
+	---help---
+		Select Wrap (0) or Increment (1) Output Burst Type.
+
+endmenu # Region 0 Configuration
+
+menu "Region 1 Configuration"
+	depends on STM32H5_ICACHE_REGION1 && STM32H5_HAVE_ICACHE_REMAP
+
+config STM32H5_ICACHE_REGION1_BADDR
+	hex "ICACHE Region 1 Base Address Bits [28:21]"
+	default 0
+	range 0 255
+	depends on STM32H5_ICACHE_REGION1
+	---help---
+		Set bits [28:21] of the base address for ICACHE Region 1.
+
+config STM32H5_ICACHE_REGION1_RSIZE
+	int "ICACHE Region 1 Size"
+	default 1
+	range 1 7
+	depends on STM32H5_ICACHE_REGION1
+	---help---
+		Set the size of Region 1.
+                1 = 2 Mbytes, 2 = 4 Mbytes, 3 = 8 Mbytes, 4 = 16 Mbytes,
+                5 = 2 Mbytes, 6 = 64 Mbytes, 7 = 128 Mbytes.
+
+config STM32H5_ICACHE_REGION1_REMAPADDR
+	hex "ICACHE Region 1 Remap Address Bits [31:21]"
+	default 0
+	range 0 2047
+	depends on STM32H5_ICACHE_REGION1
+	---help---
+		Set bits [31:21] of ICACHE Region 1 Remap Address..
+
+config STM32H5_ICACHE_REGION1_MSTSEL
+	int "ICACHE Region 1 Master Select (0 or 1)"
+	default 0
+	range 0 1
+	depends on STM32H5_ICACHE_REGION1
+	---help---
+		Select ICACHE Region 1 Master 1 (0) or Master 2 (1).
+
+config STM32H5_ICACHE_REGION1_HBURST
+	int "ICACHE Region 1 Output Burst Type (0 = Wrap, 1 = Incr)"
+	default 0
+	range 0 1
+	depends on STM32H5_ICACHE_REGION1
+	---help---
+		Select Wrap (0) or Increment (1) Output Burst Type.
+
+endmenu # Region 1 Configuration
+
+menu "Region 2 Configuration"
+	depends on STM32H5_ICACHE_REGION2 && STM32H5_HAVE_ICACHE_REMAP
+
+config STM32H5_ICACHE_REGION2_BADDR
+	hex "ICACHE Region 2 Base Address Bits [28:21]"
+	default 0
+	range 0 255
+	depends on STM32H5_ICACHE_REGION2
+	---help---
+		Set bits [28:21] of the base address for ICACHE Region 2.
+
+config STM32H5_ICACHE_REGION2_RSIZE
+	int "ICACHE Region 2 Size"
+	default 1
+	range 1 7
+	depends on STM32H5_ICACHE_REGION2
+	---help---
+		Set the size of Region 2.
+                1 = 2 Mbytes, 2 = 4 Mbytes, 3 = 8 Mbytes, 4 = 16 Mbytes,
+                5 = 2 Mbytes, 6 = 64 Mbytes, 7 = 128 Mbytes.
+
+config STM32H5_ICACHE_REGION2_REMAPADDR
+	hex "ICACHE Region 2 Remap Address Bits [31:21]"
+	default 0
+	range 0 2047
+	depends on STM32H5_ICACHE_REGION2
+	---help---
+		Set bits [31:21] of ICACHE Region 2 Remap Address..
+
+config STM32H5_ICACHE_REGION2_MSTSEL
+	int "ICACHE Region 2 Master Select (0 or 1)"
+	default 0
+	range 0 1
+	depends on STM32H5_ICACHE_REGION2
+	---help---
+		Select ICACHE Region 2 Master 1 (0) or Master 2 (1).
+
+config STM32H5_ICACHE_REGION2_HBURST
+	int "ICACHE Region 2 Output Burst Type (0 = Wrap, 1 = Incr)"
+	default 0
+	range 0 1
+	depends on STM32H5_ICACHE_REGION2
+	---help---
+		Select Wrap (0) or Increment (1) Output Burst Type.
+
+endmenu # Region 2 Configuration
+
+menu "Region 3 Configuration"
+	depends on STM32H5_ICACHE_REGION3 && STM32H5_HAVE_ICACHE_REMAP
+
+config STM32H5_ICACHE_REGION3_BADDR
+	hex "ICACHE Region 3 Base Address Bits [28:21]"
+	default 0
+	range 0 255
+	depends on STM32H5_ICACHE_REGION3
+	---help---
+		Set bits [28:21] of the base address for ICACHE Region 3.
+
+config STM32H5_ICACHE_REGION3_RSIZE
+	int "ICACHE Region 3 Size"
+	default 1
+	range 1 7
+	depends on STM32H5_ICACHE_REGION3
+	---help---
+		Set the size of Region 3.
+                1 = 2 Mbytes, 2 = 4 Mbytes, 3 = 8 Mbytes, 4 = 16 Mbytes,
+                5 = 2 Mbytes, 6 = 64 Mbytes, 7 = 128 Mbytes.
+
+config STM32H5_ICACHE_REGION3_REMAPADDR
+	hex "ICACHE Region 3 Remap Address Bits [31:21]"
+	default 0
+	range 0 2047
+	depends on STM32H5_ICACHE_REGION3
+	---help---
+		Set bits [31:21] of ICACHE Region 3 Remap Address..
+
+config STM32H5_ICACHE_REGION3_MSTSEL
+	int "ICACHE Region 3 Master Select (0 or 1)"
+	default 0
+	range 0 1
+	depends on STM32H5_ICACHE_REGION3
+	---help---
+		Select ICACHE Region 3 Master 1 (0) or Master 2 (1).
+
+config STM32H5_ICACHE_REGION3_HBURST
+	int "ICACHE Region 3 Output Burst Type (0 = Wrap, 1 = Incr)"
+	default 0
+	range 0 1
+	depends on STM32H5_ICACHE_REGION3
+	---help---
+		Select Wrap (0) or Increment (1) Output Burst Type.
+
+endmenu # Region 3 Configuration
+
+endmenu # ICACHE Region Configuration
+
+endmenu # ICACHE Configuration
 
 config STM32H5_DISABLE_IDLE_SLEEP_DURING_DEBUG
 	bool "Disable IDLE Sleep (WFI) in debug mode"
@@ -593,6 +880,169 @@ config ARCH_BOARD_STM32H5_CUSTOM_CLOCKCONFIG
 	default n
 	---help---
 		Enables special, board-specific STM32 clock configuration.
+
+menu "ADC Configuration"
+	depends on STM32H5_ADC
+
+config STM32H5_ADC_MAX_SAMPLES
+	int "The maximum number of channels that can be sampled"
+	default 16
+	---help---
+		The maximum number of samples which can be handled without
+		overrun depends on various factors. This is the user's
+		responsibility to correctly select this value.
+		Since the interface to update the sampling time is available
+		for all supported devices, the user can change the default
+		values in the board initialization logic and avoid ADC overrun.
+
+config STM32H5_ADC1_RESOLUTION
+	int "ADC1 resolution"
+	depends on STM32H5_ADC1
+	default 0
+	range 0 3
+	---help---
+		ADC1 resolution. 0 - 12 bit, 1 - 10 bit, 2 - 8 bit, 3 - 6 bit
+
+config STM32H5_ADC1_DMA
+	bool "ADC1 DMA Enable"
+	depends on STM32H5_ADC1 && STM32H5_DMA
+	default n
+	---help---
+		If DMA is selected, then the ADC may be configured to support DMA
+		transfer, which is necessary if multiple channels are read or if
+		very high trigger frequencies are used.
+
+config STM32H5_ADC1_DMA_BATCH
+	int "ADC1 DMA number of conversions"
+	depends on STM32H5_ADC1 && STM32H5_ADC1_DMA
+	default 1
+	---help---
+		This option allows you to select the number of regular group conversions
+		that will trigger a DMA callback transerring data to the upper-half driver.
+		By default, this value is 1, which means that data is transferred after
+		each group conversion.
+
+config STM32H5_ADC1_DMA_CFG
+	bool "ADC1 DMA configuration"
+	depends on STM32H5_ADC1 && STM32H5_ADC1_DMA
+	default n
+	---help---
+		0 - ADC1 DMA in One Shot Mode, 1 - ADC1 DMA in Circular Mode
+
+config STM32H5_ADC1_OVERSAMPLE
+	bool "Enable ADC1 hardware oversampling support"
+	depends on STM32H5_ADC1
+	default n
+	---help---
+		Enable the on-chip ADC oversampling/accumulation block (CFGR2.OVSE).
+		Only STM32G0 and STM32L0 series include this hardware block.
+
+if STM32H5_ADC1_OVERSAMPLE
+
+config STM32H5_ADC1_TROVS
+	bool "Enable triggered oversampling (CFGR2.TROVS)"
+	default n
+	---help---
+		If set, oversampling will only occur when a trigger event occurs.
+		If not set, oversampling occurs continuously (TOVS=0).
+
+config STM32H5_ADC1_OVSR
+	int "Oversampling ratio (CFGR2.OVSR)"
+	default 0
+	range 0 7
+	---help---
+		Sets the oversampling ratio as 2^(OVSR+1). For example:
+		0 -> 2×
+		1 -> 4×
+		2 -> 8×
+		...
+		7 -> 256×
+
+config STM32H5_ADC1_OVSS
+	int "Oversampling right-shift bits (CFGR2.OVSS)"
+	default 0
+	range 0 8
+	---help---
+		Sets how many bits the accumulated result is right-shifted.
+		Max of 8-bits.
+
+endif # STM32H5_ADC1_OVERSAMPLE
+
+config STM32H5_ADC2_RESOLUTION
+	int "ADC2 resolution"
+	depends on STM32H5_ADC2
+	default 0
+	range 0 3
+	---help---
+		ADC1 resolution. 0 - 12 bit, 1 - 10 bit, 2 - 8 bit, 3 - 6 bit
+
+config STM32H5_ADC2_DMA
+	bool "ADC2 DMA Enable"
+	depends on STM32H5_ADC2 && STM32H5_DMA
+	default n
+	---help---
+		If DMA is selected, then the ADC may be configured to support DMA
+		transfer, which is necessary if multiple channels are read or if
+		very high trigger frequencies are used.
+
+config STM32H5_ADC2_DMA_BATCH
+	int "ADC2 DMA number of conversions"
+	depends on STM32H5_ADC2 && STM32H5_ADC2_DMA
+	default 1
+	---help---
+		This option allows you to select the number of regular group conversions
+		that will trigger a DMA callback transerring data to the upper-half driver.
+		By default, this value is 1, which means that data is transferred after
+		each group conversion.
+
+config STM32H5_ADC2_DMA_CFG
+	int "ADC2 DMA configuration"
+	depends on STM32H5_ADC2_DMA && STM32H5_DMA
+	range 0 1
+	default 0
+	---help---
+		0 - ADC2 DMA in One Shot Mode, 1 - ADC2 DMA in Circular Mode
+
+config STM32H5_ADC2_OVERSAMPLE
+	bool "Enable ADC2 hardware oversampling support"
+	depends on STM32H5_ADC2
+	default n
+	---help---
+		Enable the on-chip ADC oversampling/accumulation block (CFGR2.OVSE).
+		Only STM32G0 and STM32L0 series include this hardware block.
+
+if STM32H5_ADC2_OVERSAMPLE
+
+config STM32H5_ADC2_TROVS
+	bool "Enable triggered oversampling (CFGR2.TROVS)"
+	default n
+	---help---
+		If set, oversampling will only occur when a trigger event occurs.
+		If not set, oversampling occurs continuously (TOVS=0).
+
+config STM32H5_ADC2_OVSR
+	int "Oversampling ratio (CFGR2.OVSR)"
+	default 0
+	range 0 7
+	---help---
+		Sets the oversampling ratio as 2^(OVSR+1). For example:
+		0 -> 2×
+		1 -> 4×
+		2 -> 8×
+		...
+		7 -> 256×
+
+config STM32H5_ADC2_OVSS
+	int "Oversampling right-shift bits (CFGR2.OVSS)"
+	default 0
+	range 0 8
+	---help---
+		Sets how many bits the accumulated result is right-shifted.
+		Max of 8-bits.
+
+endif # STM32H5_ADC2_OVERSAMPLE
+
+endmenu # ADC Configuration
 
 menu "SPI Configuration"
 	depends on STM32H5_SPI
@@ -4010,6 +4460,18 @@ config UART5_RS485_DIR_POLARITY
 
 endif # UART5_SERIALDRIVER
 
+choice
+	prompt "USART6 Driver Configuration"
+	default STM32H5_USART6_SERIALDRIVER
+	depends on STM32H5_USART6
+
+config STM32H5_USART6_SERIALDRIVER
+	bool "Standard serial driver"
+	select USART6_SERIALDRIVER
+	select STM32H5_SERIALDRIVER
+
+endchoice # USART6 Driver Configuration
+
 if USART6_SERIALDRIVER
 
 config USART6_RS485
@@ -4528,7 +4990,7 @@ choice
 config STM32H5_FDCAN1_CLASSIC
 	bool "Classic CAN"
 	---help---
-		Enable Clasic CAN mode
+		Enable Classic CAN mode
 
 config STM32H5_FDCAN1_FD
 	bool "CAN FD"
@@ -4655,7 +5117,7 @@ choice
 config STM32H5_FDCAN2_CLASSIC
 	bool "Classic CAN"
 	---help---
-		Enable Clasic CAN mode
+		Enable Classic CAN mode
 
 config STM32H5_FDCAN2_FD
 	bool "CAN FD"

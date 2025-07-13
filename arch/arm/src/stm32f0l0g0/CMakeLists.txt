@@ -29,13 +29,18 @@ list(
   stm32_gpio.c
   stm32_exti_gpio.c
   stm32_irq.c
-  stm32_lse.c
   stm32_lowputc.c
   stm32_serial.c
-  stm32_rcc.c)
+  stm32_lsi.c
+  stm32_rcc.c
+  stm32_uid.c)
+
+if(CONFIG_STM32F0L0G0_RTC_LSECLOCK OR CONFIG_LCD_LSECLOCK)
+  list(APPEND SRCS stm32_lse.c)
+endif()
 
 if(CONFIG_STM32F0L0G0_DMA)
-  list(APPEND SRCS stm32_dma_v1.c)
+  list(APPEND SRCS stm32_dma.c)
 endif()
 
 if(CONFIG_STM32F0L0G0_PWR)
@@ -96,6 +101,23 @@ endif()
 
 if(CONFIG_STM32F0L0G0_TIM)
   list(APPEND SRCS stm32_tim.c stm32_tim_lowerhalf.c)
+endif()
+
+if(CONFIG_STM32F0L0G0_IWDG)
+  list(APPEND SRCS stm32_iwdg.c)
+endif()
+
+if(CONFIG_STM32F0L0G0_WWDG)
+  list(APPEND SRCS stm32_wwdg.c)
+endif()
+
+if(CONFIG_STM32F0L0G0_FDCAN)
+  if(CONFIG_STM32F0L0G0_FDCAN_CHARDRIVER)
+    list(APPEND SRCS stm32_fdcan.c)
+  endif()
+  if(CONFIG_STM32F0L0G0_FDCAN_SOCKET)
+    list(APPEND SRCS stm32_fdcan_sock.c)
+  endif()
 endif()
 
 target_sources(arch PRIVATE ${SRCS})

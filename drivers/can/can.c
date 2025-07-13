@@ -317,7 +317,7 @@ static int can_close(FAR struct file *filep)
 
           nxsem_post(&fifo->rx_sem);
 
-          /* Notify specfic poll/select waiter that they can read from the
+          /* Notify specific poll/select waiter that they can read from the
            * cd_recv buffer
            */
 
@@ -904,7 +904,7 @@ static int can_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       case CANIOC_SET_TRANSVSTATE:
         {
           /* if we don't use dev->cd_transv->cts_ops, please initlize
-           * this poniter to NULL in lower board code when Board reset.
+           * this pointer to NULL in lower board code when Board reset.
            */
 
           if (dev->cd_transv && dev->cd_transv->ct_ops
@@ -927,7 +927,7 @@ static int can_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
       case CANIOC_GET_TRANSVSTATE:
         {
           /* if we don't use dev->cd_transv->cts_ops, please initlize
-           * this poniter to NULL in lower board code when Board reset.
+           * this pointer to NULL in lower board code when Board reset.
            */
 
           if (dev->cd_transv && dev->cd_transv->ct_ops
@@ -1275,7 +1275,7 @@ int can_receive(FAR struct can_dev_s *dev, FAR struct can_hdr_s *hdr,
               nxsem_post(&fifo->rx_sem);
             }
 
-          /* Notify specfic poll/select waiter that they can read from the
+          /* Notify specific poll/select waiter that they can read from the
            * cd_recv buffer
            */
 
@@ -1547,119 +1547,3 @@ int can_txready(FAR struct can_dev_s *dev)
   return ret;
 }
 #endif /* CONFIG_CAN_TXREADY */
-
-/****************************************************************************
- * Name: can_bytes2dlc
- *
- * Description:
- *   In the CAN FD format, the coding of the DLC differs from the standard
- *   CAN format. The DLC codes 0 to 8 have the same coding as in standard
- *   CAN.  But the codes 9 to 15 all imply a data field of 8 bytes with
- *   standard CAN.  In CAN FD mode, the values 9 to 15 are encoded to values
- *   in the range 12 to 64.
- *
- * Input Parameters:
- *   nbytes - the byte count to convert to a DLC value
- *
- * Returned Value:
- *   The encoded DLC value corresponding to at least that number of bytes.
- *
- ****************************************************************************/
-
-uint8_t can_bytes2dlc(uint8_t nbytes)
-{
-  if (nbytes <= 8)
-    {
-      return nbytes;
-    }
-#ifdef CONFIG_CAN_FD
-  else if (nbytes <= 12)
-    {
-      return 9;
-    }
-  else if (nbytes <= 16)
-    {
-      return 10;
-    }
-  else if (nbytes <= 20)
-    {
-      return 11;
-    }
-  else if (nbytes <= 24)
-    {
-      return 12;
-    }
-  else if (nbytes <= 32)
-    {
-      return 13;
-    }
-  else if (nbytes <= 48)
-    {
-      return 14;
-    }
-  else /* if (nbytes <= 64) */
-    {
-      return 15;
-    }
-#else
-  else
-    {
-      return 8;
-    }
-#endif
-}
-
-/****************************************************************************
- * Name: can_dlc2bytes
- *
- * Description:
- *   In the CAN FD format, the coding of the DLC differs from the standard
- *   CAN format. The DLC codes 0 to 8 have the same coding as in standard
- *   CAN.  But the codes 9 to 15 all imply a data field of 8 bytes with
- *   standard CAN.  In CAN FD mode, the values 9 to 15 are encoded to values
- *   in the range 12 to 64.
- *
- * Input Parameters:
- *   dlc    - the DLC value to convert to a byte count
- *
- * Returned Value:
- *   The number of bytes corresponding to the DLC value.
- *
- ****************************************************************************/
-
-uint8_t can_dlc2bytes(uint8_t dlc)
-{
-  if (dlc > 8)
-    {
-#ifdef CONFIG_CAN_FD
-      switch (dlc)
-        {
-          case 9:
-            return 12;
-
-          case 10:
-            return 16;
-
-          case 11:
-            return 20;
-
-          case 12:
-            return 24;
-
-          case 13:
-            return 32;
-
-          case 14:
-            return 48;
-
-          default:
-          case 15:
-            return 64;
-        }
-#else
-      return 8;
-#endif
-    }
-
-  return dlc;
-}

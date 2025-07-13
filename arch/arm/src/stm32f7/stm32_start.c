@@ -36,6 +36,7 @@
 #include <arch/board/board.h>
 
 #include "arm_internal.h"
+#include "itm_syslog.h"
 #include "nvic.h"
 #include "mpu.h"
 
@@ -169,6 +170,7 @@ static inline void stm32_tcmenable(void)
  *
  ****************************************************************************/
 
+osentry_function
 void __start(void)
 {
   const uint32_t *src;

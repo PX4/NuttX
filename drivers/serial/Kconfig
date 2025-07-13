@@ -7,6 +7,15 @@ config ARCH_HAVE_SERIAL_TERMIOS
 	bool
 	default n
 
+config ARCH_HAVE_8BIT_SERIAL_BUFSIZE
+	bool
+	default n
+	---help---
+	This is set by ARCH_LDST_16BIT_NOT_ATOMIC if the architecture does
+	not support atomic 16-bit load/store instructions. Receive and transmit
+	buffer sizes are stored in uint8_t (instead of int16_t) variable
+	in such case.
+
 menuconfig SERIAL
 	bool "Serial Driver Support"
 	default y
@@ -239,7 +248,7 @@ config SERIAL_TIOCGICOUNT
 	default n
 	---help---
 		The ioctl TIOCGICOUNT is used to collect errors from serial ports
-                such as frame error, overrun, parity, etc.
+		such as frame error, overrun, parity, etc.
 
 config SERIAL_TIOCSERGSTRUCT
 	bool "Support TIOCSERGSTRUCT"
@@ -264,6 +273,7 @@ config SERIAL_TERMIOS
 
 config TTY_LAUNCH
 	bool "Enable feature TTY launch program"
+	depends on SCHED_HPWORK
 	default n
 	---help---
 		If select this, then user can launch a program with a special input.

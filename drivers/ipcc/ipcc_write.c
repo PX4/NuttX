@@ -92,9 +92,12 @@ void ipcc_txfree_notify(FAR struct ipcc_driver_s *priv)
 
   /* Notify all blocked writers that data is available to write */
 
-  while (nxsem_get_value(&priv->txsem, &semval) >= 0 && semval <= 0)
+  if (nxsem_get_value(&priv->txsem, &semval) >= 0)
     {
-      nxsem_post(&priv->txsem);
+      while (semval++ <= 0)
+        {
+          nxsem_post(&priv->txsem);
+        }
     }
 }
 
@@ -103,7 +106,7 @@ void ipcc_txfree_notify(FAR struct ipcc_driver_s *priv)
  *
  * Description:
  *   Writes data to IPCC memory so that another CPU can read the contents.
- *   Will block untill whole buffer is copied unless signal is received
+ *   Will block until whole buffer is copied unless signal is received
  *   or O_NONBLOCK flag is set.
  *
  * Input Parameters:

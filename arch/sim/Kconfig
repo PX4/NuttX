@@ -227,6 +227,30 @@ config SIM_NETUSRSOCK
 
 endchoice
 
+config SIM_CANDEV
+	bool "Simulated CAN Device"
+	depends on HOST_LINUX
+	default n
+	---help---
+		Build in support for a simulated CAN device.
+
+if SIM_CANDEV
+
+config SIM_CANDEV_CHAR
+	bool "Simulated CAN Device as CAN character driver"
+	default n
+	depends on CAN
+	select ARCH_HAVE_CAN_ERRORS
+
+config SIM_CANDEV_SOCK
+	bool "Simulated CAN Device as SocketCAN"
+	default n
+	depends on NET_CAN
+	select NET_CAN_HAVE_ERRORS
+	select NET_CAN_HAVE_CANFD
+
+endif # SIM_CANDEV
+
 if SIM_NETDEV
 
 choice
@@ -457,7 +481,7 @@ config SIM_FRAMEBUFFER_COUNT
 	default 2
 	---help---
 		Framebuffer count.
-		Simulated frambuffer count.  Default: 2
+		Simulated framebuffer count.  Default: 2
 
 config SIM_FB_INTERVAL_LINE
 	int "The line between non-consecutive framebuffers"
@@ -660,7 +684,7 @@ config SIM_UART_NUMBER
 		the same name that the host is using for this port (e.g.
 		/dev/ttyUSB0).
 
-		Alternativelly, a "simulated" host port may be used to.
+		Alternatively, a "simulated" host port may be used to.
 		This is useful if you need to also simulate the external
 		hardware, or to have NuttX communicate with any other
 		software in your system.
@@ -805,7 +829,7 @@ config SIM_USB_RAW_GADGET
 		Make Raw Gadget:
 		Run make in the raw_gadget and dummy_hcd directory. If raw_gadget
 		build fail, you need to check which register interface meets your
-		kenel version, usb_gadget_probe_driver or usb_gadget_register_driver.
+		kernel version, usb_gadget_probe_driver or usb_gadget_register_driver.
 
 		Install Raw Gadget:
 		Run ./insmod.sh in the raw_gadget and dummy_hcd directory.

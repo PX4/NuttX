@@ -42,6 +42,7 @@
 #include "hardware/esp32s3_soc.h"
 #include "hardware/esp32s3_cache_memory.h"
 #include "hardware/esp32s3_iomux.h"
+#include "hal/cache_hal.h"
 
 #include "soc/extmem_reg.h"
 
@@ -122,8 +123,10 @@ static struct smp_call_data_s g_call_data =
 SMP_CALL_INITIALIZER(pause_cpu_handler, NULL);
 #endif
 
+#ifdef CONFIG_XTENSA_EXTMEM_BSS
 extern uint8_t _ext_ram_bss_start;
 extern uint8_t _ext_ram_bss_end;
+#endif
 
 /****************************************************************************
  * ROM Function Prototypes
@@ -164,7 +167,7 @@ static inline uint32_t mmu_valid_space(uint32_t *start_address)
 
   for (int i = (FLASH_MMU_TABLE_SIZE - 1); i >= 0; i--)
     {
-      if (FLASH_MMU_TABLE[i] & MMU_INVALID)
+      if (FLASH_MMU_TABLE[i] & SOC_MMU_INVALID)
         {
           continue;
         }
@@ -175,7 +178,7 @@ static inline uint32_t mmu_valid_space(uint32_t *start_address)
 
       i++;
 
-      *start_address = DRAM0_CACHE_ADDRESS_LOW + (i) * MMU_PAGE_SIZE;
+      *start_address = SOC_DRAM0_CACHE_ADDRESS_LOW + (i) * MMU_PAGE_SIZE;
       return (FLASH_MMU_TABLE_SIZE - i) * MMU_PAGE_SIZE;
     }
 
@@ -225,11 +228,10 @@ static inline bool mmu_check_valid_ext_vaddr_region(uint32_t vaddr_start,
                                                     uint32_t len)
 {
   uint32_t vaddr_end = vaddr_start + len - 1;
-  bool valid = false;
-  valid |= (ADDRESS_IN_IRAM0_CACHE(vaddr_start) &&
-            ADDRESS_IN_IRAM0_CACHE(vaddr_end)) |
-           (ADDRESS_IN_DRAM0_CACHE(vaddr_start) &&
-            ADDRESS_IN_DRAM0_CACHE(vaddr_end));
+  bool valid = (SOC_ADDRESS_IN_IRAM0_CACHE(vaddr_start) &&
+                SOC_ADDRESS_IN_IRAM0_CACHE(vaddr_end)) |
+               (SOC_ADDRESS_IN_DRAM0_CACHE(vaddr_start) &&
+                SOC_ADDRESS_IN_DRAM0_CACHE(vaddr_end));
   return valid;
 }
 
@@ -269,7 +271,7 @@ static int IRAM_ATTR esp_mmu_map_region(uint32_t vaddr, uint32_t paddr,
     {
       entry_id = (vaddr & MMU_VADDR_MASK) >> 16;
       DEBUGASSERT(entry_id < MMU_ENTRY_NUM);
-      if (write_back == false &&  FLASH_MMU_TABLE[entry_id] != MMU_INVALID)
+      if (!write_back && FLASH_MMU_TABLE[entry_id] != SOC_MMU_INVALID)
         {
           esp_spiram_writeback_cache();
           write_back = true;
@@ -356,7 +358,8 @@ int IRAM_ATTR cache_dbus_mmu_map(int vaddr, int paddr, int num)
 #endif
   cache_state[cpu] = cache_suspend_dcache();
 
-  esp_mmu_map_region(vaddr, paddr, num * MMU_PAGE_SIZE, MMU_ACCESS_SPIRAM);
+  esp_mmu_map_region(vaddr, paddr, num * MMU_PAGE_SIZE,
+                     SOC_MMU_ACCESS_SPIRAM);
 
   regval = getreg32(EXTMEM_DCACHE_CTRL1_REG);
   regval &= ~EXTMEM_DCACHE_SHUT_CORE0_BUS;
@@ -396,7 +399,7 @@ int IRAM_ATTR esp_spiram_init_cache(void)
   uint32_t mapped_vaddr_size;
   uint32_t target_mapped_vaddr_start;
   uint32_t target_mapped_vaddr_end;
-  uint32_t ext_bss_size;
+  uint32_t ext_bss_size = 0;
 
   int ret = psram_get_available_size(&psram_size);
   if (ret != OK)
@@ -404,20 +407,21 @@ int IRAM_ATTR esp_spiram_init_cache(void)
       abort();
     }
 
-  minfo("PSRAM available size = %d\n", psram_size);
+  minfo("PSRAM available size = %" PRIu32 "\n", psram_size);
   mapped_vaddr_size = mmu_valid_space(&g_mapped_vaddr_start);
 
   if ((SPIRAM_VADDR_OFFSET + SPIRAM_VADDR_MAP_SIZE) > 0)
     {
       ASSERT(SPIRAM_VADDR_OFFSET % MMU_PAGE_SIZE == 0);
       ASSERT(SPIRAM_VADDR_MAP_SIZE % MMU_PAGE_SIZE == 0);
-      target_mapped_vaddr_start = DRAM0_CACHE_ADDRESS_LOW +
+      target_mapped_vaddr_start = SOC_DRAM0_CACHE_ADDRESS_LOW +
                                   SPIRAM_VADDR_OFFSET;
       target_mapped_vaddr_end = target_mapped_vaddr_start +
                                 SPIRAM_VADDR_MAP_SIZE;
       if (target_mapped_vaddr_start < g_mapped_vaddr_start)
         {
-          mwarn("Invalid target vaddr = 0x%x, change vaddr to: 0x%x\n",
+          mwarn("Invalid target vaddr = 0x%" PRIx32 ", "
+                "change vaddr to: 0x%" PRIx32 "\n",
                 target_mapped_vaddr_start, g_mapped_vaddr_start);
           target_mapped_vaddr_start = g_mapped_vaddr_start;
           ret = ERROR;
@@ -426,7 +430,8 @@ int IRAM_ATTR esp_spiram_init_cache(void)
       if (target_mapped_vaddr_end >
          (g_mapped_vaddr_start + mapped_vaddr_size))
         {
-          mwarn("Invalid vaddr map size: 0x%x, change vaddr end: 0x%x\n",
+          mwarn("Invalid vaddr map size: 0x%x, change vaddr end: "
+                "0x%" PRIx32 "\n",
                 SPIRAM_VADDR_MAP_SIZE,
                 g_mapped_vaddr_start + mapped_vaddr_size);
           target_mapped_vaddr_end = g_mapped_vaddr_start + mapped_vaddr_size;
@@ -434,7 +439,7 @@ int IRAM_ATTR esp_spiram_init_cache(void)
         }
 
       ASSERT(target_mapped_vaddr_end > target_mapped_vaddr_start);
-      ASSERT(target_mapped_vaddr_end <= DRAM0_CACHE_ADDRESS_HIGH);
+      ASSERT(target_mapped_vaddr_end <= SOC_DRAM0_CACHE_ADDRESS_HIGH);
       mapped_vaddr_size = target_mapped_vaddr_end -
                           target_mapped_vaddr_start;
       g_mapped_vaddr_start = target_mapped_vaddr_start;
@@ -445,8 +450,8 @@ int IRAM_ATTR esp_spiram_init_cache(void)
       /* Decide these logics when there's a real PSRAM with larger size */
 
       g_mapped_size = mapped_vaddr_size;
-      mwarn("Virtual address not enough for PSRAM, only %d size is mapped!",
-            g_mapped_size);
+      mwarn("Virtual address not enough for PSRAM, only %" PRIu32 " "
+            "size is mapped!", g_mapped_size);
       ret = ERROR;
     }
   else
@@ -454,7 +459,8 @@ int IRAM_ATTR esp_spiram_init_cache(void)
       g_mapped_size = psram_size;
     }
 
-  minfo("Virtual address size = 0x%x, start: 0x%x, end: 0x%x\n",
+  minfo("Virtual address size = 0x%" PRIx32 ", start: 0x%" PRIx32 ", "
+        "end: 0x%" PRIx32 "\n",
          mapped_vaddr_size, g_mapped_vaddr_start,
          g_mapped_vaddr_start + g_mapped_size);
 
@@ -462,7 +468,7 @@ int IRAM_ATTR esp_spiram_init_cache(void)
 
   cache_suspend_dcache();
 
-  cache_dbus_mmu_set(MMU_ACCESS_SPIRAM, g_mapped_vaddr_start,
+  cache_dbus_mmu_set(SOC_MMU_ACCESS_SPIRAM, g_mapped_vaddr_start,
                      0, 64, g_mapped_size >> 16, 0);
 
   regval = getreg32(EXTMEM_DCACHE_CTRL1_REG);
@@ -477,8 +483,10 @@ int IRAM_ATTR esp_spiram_init_cache(void)
 
   cache_resume_dcache(0);
 
+#ifdef CONFIG_XTENSA_EXTMEM_BSS
   ext_bss_size = ((intptr_t)&_ext_ram_bss_end -
                   (intptr_t)&_ext_ram_bss_start);
+#endif
 
   g_allocable_vaddr_start = g_mapped_vaddr_start + ext_bss_size;
   g_allocable_vaddr_end = g_mapped_vaddr_start + g_mapped_size -
@@ -660,7 +668,8 @@ int IRAM_ATTR esp_spiram_init(void)
     }
 #endif
 
-  minfo("Found %dMB SPI RAM device\n", psram_physical_size / (1024 * 1024));
+  minfo("Found %" PRIu32 "MB SPI RAM device\n",
+        psram_physical_size / (1024 * 1024));
   minfo("Speed: %dMHz\n", CONFIG_ESP32S3_SPIRAM_SPEED);
   minfo("Initialized, cache is in %s mode.\n",
                  (PSRAM_MODE == PSRAM_VADDR_MODE_EVENODD) ?
@@ -695,6 +704,27 @@ size_t esp_spiram_get_size(void)
 void IRAM_ATTR esp_spiram_writeback_cache(void)
 {
   cache_writeback_all();
+}
+
+/****************************************************************************
+ * Name: esp_spiram_writeback_range
+ *
+ * Description:
+ *   Writeback the Cache items (also clean the dirty bit) in the region from
+ *   DCache. If the region is not in DCache addr room, nothing will be done.
+ *
+ * Input Parameters:
+ *   addr - writeback region start address
+ *   size - writeback region size
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+void esp_spiram_writeback_range(uint32_t addr, uint32_t size)
+{
+  cache_hal_writeback_addr(addr, size);
 }
 
 /* If SPI RAM(PSRAM) has been initialized

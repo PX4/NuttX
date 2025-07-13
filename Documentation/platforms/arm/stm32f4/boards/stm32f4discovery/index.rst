@@ -2,6 +2,8 @@
 ST STM32F4-Discovery
 ====================
 
+.. tags:: chip:stm32, chip:stm32f4, chip:stm32f407
+
 This page discusses issues unique to NuttX configurations for the
 STMicro STM32F4Discovery development board featuring the STM32F407VGT6
 MCU. The STM32F407VGT6 is a 168MHz Cortex-M4 operation with 1Mbit Flash
@@ -975,7 +977,7 @@ demonstrating PCM audio using the CS43L22 stereo DAC/amplifier on board
 the STM32F4 Discovery and the STM32 I2S DMA interface.  It uses the
 file player at apps/system/nxplayer.  The serial console is on USART2.
 
-The original CS43L22 and STM32 I2S drivers were contribued by Taras
+The original CS43L22 and STM32 I2S drivers were contributed by Taras
 Drozdovsky in May of 2017.  The audio configuration was contributed by
 Alan Carvalho de Assis and derives, in part, from the work of Taras at
 https://github.com/tdrozdovskiy/CS43L22-Audio-driver.
@@ -1438,11 +1440,11 @@ other NSH configurations include these additions to the configuration file::
       CONFIG_FS_ROMFS=y
       CONFIG_LIBC_ARCH_ELF=y
       CONFIG_MODULE=y
-      CONFIG_LIBC_MODLIB=y
-      CONFIG_MODLIB_MAXDEPEND=2
-      CONFIG_MODLIB_ALIGN_LOG2=2
-      CONFIG_MODLIB_BUFFERSIZE=128
-      CONFIG_MODLIB_BUFFERINCR=32
+      CONFIG_LIBC_ELF=y
+      CONFIG_LIBC_ELF_MAXDEPEND=2
+      CONFIG_LIBC_ELF_ALIGN_LOG2=2
+      CONFIG_LIBC_ELF_BUFFERSIZE=128
+      CONFIG_LIBC_ELF_BUFFERINCR=32
 
 The could be followed may be added for testing shared libraries in the
 FLAT build using apps/examples/sotest (assuming that you also have SD

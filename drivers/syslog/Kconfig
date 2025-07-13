@@ -27,6 +27,16 @@ config SYSLOG_TO_SCHED_NOTE
 	---help---
 		If this option is enabled, syslog will be redirected to sched_note,
 		It uses the sched_note_printf macro to replace syslog
+
+config SYSLOG_NONE
+	bool "Disable system logging"
+	---help---
+		System logging is disabled and all calls to syslog() are replaced with
+		an empty function. This option can be useful for small systems when we don't
+		have any logging support, so we can get rid of unused logic.
+		This way the final image also won't contain the strings that are present
+		in syslog().
+
 endchoice
 
 config SYSLOG_CHARDEV
@@ -53,7 +63,7 @@ config SYSLOG_CRLF
 	bool "Syslog convert LF to CRLF"
 	default y
 	---help---
-		Pre-pend a carriage return before every linefeed that goes into the
+		Prepend a carriage return before every linefeed that goes into the
 		syslog.
 
 config SYSLOG_MAX_CHANNELS
@@ -130,11 +140,39 @@ config SYSLOG_INTBUFSIZE
 
 comment "Formatting options"
 
-config SYSLOG_TIMESTAMP
-	bool "Prepend timestamp to syslog message"
+config SYSLOG_RFC5424
+	bool "Standard syslog format (RFC 5424)"
 	default n
 	---help---
-		Prepend timestamp to syslog message.
+		Forces syslog logs to follow the RFC 5424 (syslog protocol) standard.
+		This allows for structured data elements, standard severity levels,
+		standard facilities, standard timestamps and other features that allow
+		syslogs to be compatible with other open source programs (such as
+		logging servers).
+
+if SYSLOG_RFC5424
+
+comment "RFC5424 options"
+
+config SYSLOG_RFC5424_HOSTNAME
+	bool "Enable hostname field"
+	default n
+	---help---
+		Adds the HOSTNAME field to the RFC 5424 compatible syslog output.
+
+config SYSLOG_RFC5424_TIMEQUALITY
+	bool "timeQuality structured data"
+	depends on SYSLOG_TIMESTAMP
+	default n
+	---help---
+		Enables the RFC 5424 'timeQuality' structured data element, which describes the
+		quality of the timestamp sent.
+
+endif # SYSLOG_RFC5424
+
+if !SYSLOG_RFC5424
+
+comment "Regular syslog formatting options"
 
 config SYSLOG_TIMESTAMP_REALTIME
 	bool "Use wall-clock for syslog timestamp"
@@ -188,19 +226,6 @@ config SYSLOG_PRIORITY
 	---help---
 		Prepend log priority (severity) to syslog message.
 
-config SYSLOG_PROCESS_NAME
-	bool "Prepend process name to syslog message"
-	default n
-	depends on TASK_NAME_SIZE > 0
-	---help---
-		Prepend Process name to syslog message.
-
-config SYSLOG_PROCESSID
-	bool "Prepend process ID to syslog message"
-	default n
-	---help---
-		Prepend Process ID to syslog message.
-
 config SYSLOG_PREFIX
 	bool "Prepend prefix to syslog message"
 	default n
@@ -218,6 +243,28 @@ config SYSLOG_COLOR_OUTPUT
 	default n
 	---help---
 		Enables colored output in syslog, according to message priority.
+
+endif # !SYSLOG_RFC5424
+
+config SYSLOG_TIMESTAMP
+	bool "Timestamp in syslog message"
+	default n
+	---help---
+		Prepend timestamp to syslog message, or include the TIMESTAMP field for
+		RFC 5424.
+
+config SYSLOG_PROCESS_NAME
+	bool "Prepend process name to syslog message"
+	default n
+	depends on TASK_NAME_SIZE > 0
+	---help---
+		Prepend Process name to syslog message.
+
+config SYSLOG_PROCESSID
+	bool "Prepend process ID to syslog message"
+	default n
+	---help---
+		Prepend Process ID to syslog message.
 
 comment "SYSLOG channels"
 
@@ -259,6 +306,21 @@ config SYSLOG_RPMSG
 	---help---
 		Use the RPMSG as a SYSLOG output device, send message to remote proc.
 
+config SYSLOG_CDCACM
+	bool "Log to CDCACM"
+	depends on CDCACM
+	default n
+	---help---
+		Use the CDCACM as a SYSLOG output device, send message to remote proc.
+
+config SYSLOG_CDCACM_MINOR
+	int "The syslog CDCACM minor number"
+	depends on SYSLOG_CDCACM
+	default 0
+	---help---
+		If there are more than one CDCACM devices, then a device minor number
+		may also need to be provided. Default: 0
+
 config SYSLOG_STREAM
 	bool "Log to stream"
 	default n
@@ -269,7 +331,7 @@ config SYSLOG_STREAM
 
 config SYSLOG_CONSOLE
 	bool "Log to /dev/console"
-	default !ARCH_LOWPUTC && !SYSLOG_CHAR && !RAMLOG_SYSLOG && !SYSLOG_RPMSG && !SYSLOG_RTT
+	default !ARCH_LOWPUTC && !SYSLOG_CHAR && !RAMLOG_SYSLOG && !SYSLOG_RPMSG && !SYSLOG_RTT && !SYSLOG_CDCACM
 	depends on DEV_CONSOLE
 	select SYSLOG_REGISTER
 	---help---
@@ -277,7 +339,7 @@ config SYSLOG_CONSOLE
 
 config SYSLOG_DEFAULT
 	bool "Default SYSLOG device"
-	default ARCH_LOWPUTC && !SYSLOG_CHAR && !RAMLOG_SYSLOG && !SYSLOG_RPMSG && !SYSLOG_RTT && !SYSLOG_CONSOLE
+	default ARCH_LOWPUTC && !SYSLOG_CHAR && !RAMLOG_SYSLOG && !SYSLOG_RPMSG && !SYSLOG_RTT && !SYSLOG_CDCACM && !SYSLOG_CONSOLE
 	---help---
 		syslog() interfaces will be present, but all output will go to the
 		up_putc(ARCH_LOWPUTC == y) or bit-bucket(ARCH_LOWPUTC == n).

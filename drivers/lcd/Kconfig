@@ -749,6 +749,10 @@ config LCD_ST7789_MIRRORY
 	bool "ST7789 Mirror Y"
 	default n
 
+config LCD_ST7789_MIRRORV
+	bool "ST7789 Mirror V"
+	default n
+
 config LCD_ST7789_INVCOLOR
 	bool "ST7789 Invert Color"
 	default y
@@ -782,6 +786,44 @@ config LCD_ST7789_SPIMODE
 config LCD_ST7789_FREQUENCY
 	int "SPI Frequency"
 	default 1000000
+
+config LCD_ST7789_START_DELAY
+	int "ST7789 SPI start delay"
+	depends on SPI_DELAY_CONTROL
+	range 0 1000000
+	default 60
+	---help---
+		The delay between CS active and first CLK. In ns.
+
+config LCD_ST7789_STOP_DELAY
+	int "ST7789 SPI stop delay"
+	depends on SPI_DELAY_CONTROL
+	range 0 1000000
+	default 65
+	---help---
+		The delay between last CLK and CS inactive. In ns.
+
+config LCD_ST7789_CS_DELAY
+	int "ST7789 SPI chip select delay"
+	depends on SPI_DELAY_CONTROL
+	range 0 1000000
+	default 40
+	---help---
+		The delay between CS inactive and CS active again. In ns.
+
+config LCD_ST7789_IFDELAY
+	int "ST7789 SPI frames delay"
+	depends on SPI_DELAY_CONTROL
+	range 0 1000000
+	default 50
+	---help---
+		The delay between consecutive frames. In ns.
+
+config LCD_ST7789_DATA_ENDIAN_LITTLE
+	bool "ST7789 RGB data endian little"
+	default n
+	---help---
+		The RGB data endian, MSB first by default(n).
 
 endif # LCD_ST7789
 
@@ -1408,6 +1450,18 @@ config LCD_ILI9341_IFACE0
 		Configure first LCD Display.
 
 if LCD_ILI9341_IFACE0
+config LCD_ILI9341_IFACE0_WIDTH
+	int "Width of the display"
+	default 240
+	---help---
+		Define the width of the display.
+
+config LCD_ILI9341_IFACE0_HEIGHT
+	int "Height of the display"
+	default 320
+	---help---
+		Define the the height of the display.
+
 choice
 	prompt "LCD Orientation"
 	default LCD_ILI9341_IFACE0_LANDSCAPE
@@ -1457,6 +1511,18 @@ config LCD_ILI9341_IFACE1
 		Configure second LCD Display.
 
 if LCD_ILI9341_IFACE1
+config LCD_ILI9341_IFACE1_WIDTH
+	int "Width of the display"
+	default 240
+	---help---
+		Define the width of the display.
+
+config LCD_ILI9341_IFACE1_HEIGHT
+	int "Height of the display"
+	default 320
+	---help---
+		Define the the height of the display.
+
 choice
 	prompt "LCD Orientation"
 	default LCD_ILI9341_IFACE1_LANDSCAPE

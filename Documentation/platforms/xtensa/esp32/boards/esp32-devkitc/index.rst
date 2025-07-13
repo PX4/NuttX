@@ -2,6 +2,8 @@
 ESP32 DevKitC
 =============
 
+.. tags:: chip:esp32, chip:esp32wroom32
+
 The `ESP32 DevKitC <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/hw-reference/modules-and-boards.html#esp32-devkitc-v4>`_ is a development board for the ESP32 SoC from Espressif, based on a ESP-WROOM-32 module. You can find the original V2 version and the newer V4 variant. They are
 pin compatible.
 
@@ -163,6 +165,27 @@ All of the configurations presented below can be tested by running the following
 Where <config_name> is the name of board configuration you want to use, i.e.: nsh, buttons, wifi...
 Then use a serial console terminal like ``picocom`` configured to 115200 8N1.
 
+adc
+---
+
+The ``adc`` configuration enables the ADC driver and the ADC example application.
+ADC Unit 1 is registered to ``/dev/adc0`` with channels 0, 3 and 4 enabled by default.
+Currently, the ADC operates in oneshot mode.
+
+More ADC channels can be enabled or disabled in ``ADC Configuration`` menu.
+
+This example shows channels 0 and 4 connected to GND and channel 3 to 3.3 V (all readings
+show in units of mV)::
+
+    nsh> adc -n 1
+    adc_main: g_adcstate.count: 1
+    adc_main: Hardware initialized. Opening the ADC device: /dev/adc0
+    Sample:
+    1: channel: 0 value: 142
+    2: channel: 3 value: 3441
+    3: channel: 4 value: 142
+
+
 audio
 -----
 
@@ -279,6 +302,23 @@ You can check that the sensor is working by using the ``sensortest`` application
     baro0: timestamp:66870000 value1:1008.37 value2:31.70
     baro0: timestamp:66890000 value1:1008.31 value2:31.70
 
+brickmatch
+----------
+
+This configuration enables brickmatch game using LCD screen (APA102) and gesture sensor (APDS9960).
+Alternatively, you can use led matrix (ws2812) by enabling `GAMES_BRICKMATCH_USE_LED_MATRIX` option for
+output device. Also for input device selection you can enable `GAMES_BRICKMATCH_USE_DJOYSTICK` to use joystick,
+`GAMES_BRICKMATCH_USE_GPIO` to use gpio and `GAMES_BRICKMATCH_USE_CONSOLEKEY` to use serial console.
+
+You can run the game by using ``brick`` command::
+
+    nsh> brick
+
+Here is the sample wiring diagram that demonstrates how to wire ws2812 with buttons for brickmatch example:
+
+.. figure:: esp32-brickmatch-game-schematic.jpg
+    :align: center
+
 buttons
 -------
 
@@ -306,9 +346,9 @@ the following output is expected::
     cap_main: Hardware initialized. Opening the capture device: /dev/capture0
     cap_main: Number of samples: 0
     pwm duty cycle: 50 %
-    pwm frequence: 50 Hz
+    pwm frequency: 50 Hz
     pwm duty cycle: 50 %
-    pwm frequence: 50 Hz
+    pwm frequency: 50 Hz
 
 coremark
 --------
@@ -319,6 +359,13 @@ disables the NuttShell to get the best possible score.
 
 .. note:: As the NSH is disabled, the application will start as soon as the
   system is turned on.
+
+crypto
+--------
+
+This configuration enables support for the cryptographic hardware and
+the /dev/crypto device file. Currently, only the hashing operation is
+supported.
 
 cxx
 ---
@@ -387,26 +434,83 @@ It can be tested by executing the ``elf`` application.
 espnow
 ------
 
+WARNING: espnow and wifi are using the same hardware on the esp32. When a
+connection to a accespoint is made while espnow is operational the espnow
+connection will break if the accesspoint wants to use a different wifi
+channel.
+
 A ``espnow`` setup can be used to create a 6lowpan network of esp32 nodes.
 A sample configuration is found in ``esp32-devkitc:espnow``. The node
-address can be changed under ``ESP32 Peripherals`` option ``Espnow``. To
-test the communication using ``udpserver`` and ``udpclient`` two nodes
-need to be prepared using e.g. node address ``0x0a`` and ``0x0b``.
+address can be changed under ``ESP32 Peripherals`` option ``Espnow``. The
+node address is direct related to the ipv6 address of the node. Changing
+the ipv6 address also changes the node address.
 
-On node ``0x0a`` the server can be started using:
+To test the communication using ``udpserver`` and ``udpclient`` two nodes
+need to be prepared with different ipv6 address.
 
-``nsh> ifup wpan0``
-``ifup wpan0..OK``
-``nsh> udpserver &``
+The server node is assigned the node address ``0x000a`` and the udp server
+is started using:
 
-On node ``0x0b`` the client can be started using:
+.. code-block :: bash
 
-``nsh> ifup wpan0``
-``ifup wpan0..OK``
-``nsh> udpclient fe80::ff:fe00:a``
+  nsh> ifconfig wpan0 inet6 fe80::ff:fe00:a
+  nsh> ifup wpan0
+  ifup wpan0..OK
+  nsh> udpserver &
+  udpserver [6:100]
 
-The client node will show that the messages are sent while the server
-shows that messages are received.
+The client node can use the default node address (``0xfffe``) and the
+updclient can be started using:
+
+.. code-block :: bash
+
+  nsh> ifup wpan0
+  ifup wpan0..OK
+  nsh> udpclient fe80::ff:fe00:a
+  client: 0. Sending 96 bytes
+  client: 0. Sent 96 bytes
+  client: 1. Sending 96 bytes
+  client: 1. Sent 96 bytes
+
+The server node will show the incoming messages:
+
+.. code-block :: bash
+
+  nsh> udpserver &
+  udpserver [6:100]
+  nsh> server: 0. Receiving up 1024 bytes
+  server: 0. Received 96 bytes from fe80:0000:0000:0000:0000:00ff:fe00:feff port 5472
+  server: 1. Receiving up 1024 bytes
+  server: 1. Received 96 bytes from fe80:0000:0000:0000:0000:00ff:fe00:feff port 5472
+  server: 2. Receiving up 1024 bytes
+
+The sample configuration also allows a telnet session over espnow:
+
+On the server (node ``0x000a``):
+
+.. code-block :: bash
+
+  nsh> ifconfig wpan0 inet6 fe80::ff:fe00:a
+  nsh> ifup wpan0
+  ifup wpan0..OK
+  nsh> telnetd -6 &
+
+On the client (node ``Oxfffe``):
+
+.. code-block :: bash
+
+  nsh> ifup wpan0
+  ifup wpan0..OK
+  nsh> telnet fe80::ff:fe00:a
+
+  NuttShell (NSH) NuttX-12.8.0
+  nsh> free
+  free
+        total       used       free    maxused    maxfree  nused  nfree name
+       253292      65996     187296      66624     129952    185      3 Umem
+  nsh> exit
+  exit
+  nsh>
 
 i2schar
 -------
@@ -788,7 +892,7 @@ To test it, just execute the ``pwm`` application::
 qencoder
 ---
 
-This configuration demostrates the use of Quadrature Encoder connected to pins
+This configuration demonstrates the use of Quadrature Encoder connected to pins
 GPIO10 and GPIO11. You can start measurement of pulses using the following
 command (by default, it will open ``\dev\qe0`` device and print 20 samples
 using 1 second delay)::
@@ -834,6 +938,52 @@ You can set an alarm, check its progress and receive a notification after it exp
     Alarm 0 is active with 10 seconds to expiration
     nsh> alarm_daemon: alarm 0 received
 
+sdm
+---
+
+This configuration enables the support for the Sigma-Delta Modulation (SDM) driver
+which can be used for LED dimming, simple dac with help of an low pass filter either
+active or passive and so on. ESP32 supports 1 group of SDM up to 8 channels with
+any GPIO up to user. This configuration enables 1 channel of SDM on GPIO5. You can test
+DAC feature with following command with connecting simple LED on GPIO5
+
+    nsh> dac -d 100 -s 10 test
+
+After this command you will see LED will light up in different brightness.
+
+sdmmc_spi
+---------
+
+This configuration is used to mount a FAT/FAT32 SD Card into the OS' filesystem.
+It uses SPI to communicate with the SD Card, defaulting to SPI3.
+
+The SD slot number, SPI port number and minor number can be modified in ``Application Configuration → NSH Library``.
+
+To access the card's files, make sure ``/dev/mmcsd0`` exists and then execute the following commands::
+
+    nsh> ls /dev
+    /dev:
+    console
+    mmcsd0
+    null
+    ttyS0
+    zero
+    nsh> mount -t vfat /dev/mmcsd0 /mnt
+
+This will mount the SD Card to ``/mnt``. Now, you can use the SD Card as a normal filesystem.
+For example, you can read a file and write to it::
+
+    nsh> ls /mnt
+    /mnt:
+    hello.txt
+    nsh> cat /mnt/hello.txt
+    Hello World
+    nsh> echo 'NuttX RTOS' >> /mnt/hello.txt
+    nsh> cat /mnt/hello.txt
+    Hello World!
+    NuttX RTOS
+    nsh>
+
 smp
 ---
 
@@ -853,6 +1003,22 @@ The apps/testing/smp test is included::
   CONFIG_TESTING_SMP_NBARRIER_THREADS=8
   CONFIG_TESTING_SMP_PRIORITY=100
   CONFIG_TESTING_SMP_STACKSIZE=2048
+
+snake
+-----
+
+This configuration enables snake game using led matrix (ws2812) and gpio pins.
+Alternatively, you can use serial console for input with enabling `GAMES_SNAKE_USE_CONSOLEKEY`
+option.
+
+You can run the game by using ``snake`` command::
+
+    nsh> snake
+
+Here is the sample wiring diagram that demonstrates how to wire ws2812 with buttons for snake example:
+
+.. figure:: esp32-brickmatch-game-schematic.jpg
+    :align: center
 
 sotest
 ------

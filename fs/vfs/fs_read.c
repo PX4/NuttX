@@ -35,8 +35,8 @@
 
 #include <nuttx/cancelpt.h>
 
-#include "notify/notify.h"
 #include "inode/inode.h"
+#include "vfs.h"
 
 /****************************************************************************
  * Private Functions
@@ -118,7 +118,7 @@ static ssize_t file_readv_compat(FAR struct file *filep,
 
       ntotal += nread;
 
-      /* Check for a parital success condition, including an end-of-file */
+      /* Check for a partial success condition, including an end-of-file */
 
       if (nread < iov[i].iov_len)
         {
@@ -159,10 +159,34 @@ ssize_t file_readv(FAR struct file *filep,
                    FAR const struct iovec *iov, int iovcnt)
 {
   FAR struct inode *inode;
-  ssize_t ret = -EBADF;
+  ssize_t ret;
 
   DEBUGASSERT(filep);
   inode = filep->f_inode;
+
+  /* Check buffer count and pointer for iovec */
+
+  if (iovcnt == 0)
+    {
+      return 0;
+    }
+
+  if (iov == NULL)
+    {
+      return -EFAULT;
+    }
+
+  /* Are all iov_base accessible? */
+
+  for (ret = 0; ret < iovcnt; ret++)
+    {
+      if (iov[ret].iov_base == NULL && iov[ret].iov_len != 0)
+        {
+          return -EFAULT;
+        }
+    }
+
+  ret = -EBADF;
 
   /* Was this file opened for read access? */
 
@@ -269,17 +293,17 @@ ssize_t nx_readv(int fd, FAR const struct iovec *iov, int iovcnt)
   ssize_t ret;
 
   /* First, get the file structure.  Note that on failure,
-   * fs_getfilep() will return the errno.
+   * file_get() will return the errno.
    */
 
-  ret = (ssize_t)fs_getfilep(fd, &filep);
+  ret = (ssize_t)file_get(fd, &filep);
   if (ret >= 0)
     {
       /* Then let file_readv do all of the work. */
 
       ret = file_readv(filep, iov, iovcnt);
 
-      fs_putfilep(filep);
+      file_put(filep);
     }
 
   return ret;

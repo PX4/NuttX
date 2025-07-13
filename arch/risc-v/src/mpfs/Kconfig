@@ -51,7 +51,7 @@ config MPFS_CLKINIT
 	depends on MPFS_BOOTLOADER
 	default y
 	---help---
-		This initilizes the system clocks at mpfs_start.c file. The option may be also turned off
+		This initializes the system clocks at mpfs_start.c file. The option may be also turned off
 		if some other entity has already set them up.
 
 config MPFS_L2_CLEAR
@@ -369,6 +369,7 @@ config MPFS_EMMCSD
 config MPFS_COREMMC
 	bool "COREMMC"
 	select ARCH_HAVE_SDIO
+	select ARCH_HAVE_SDIOWAIT_WRCOMPLETE
 	select SDIO_BLOCKSETUP
 	default n
 	---help---
@@ -384,6 +385,17 @@ config MPFS_COREMMC_IRQNUM
 	default 5
 	range 0 63
 	depends on MPFS_COREMMC
+
+config MPFS_COREMMC_WRCOMPLETE_IRQNUM
+	int "Number of F2H interrupt"
+	default 4
+	range 0 63
+	depends on MPFS_COREMMC
+	depends on MMCSD_SDIOWAIT_WRCOMPLETE
+	---help---
+		In case SD card's DAT0 line is connected to an F2H IRQ in the FPGA
+		design, select CONFIG_MMCSD_SDIOWAIT_WRCOMPLETE and configure the
+		correct IRQ line here.
 
 config MPFS_IHC_CLIENT
 	bool "IHC slave"
@@ -688,6 +700,14 @@ config MPFS_PHYINIT
 	---help---
 		call mpfs_phy_boardinitialize() on init
 
+config MPFS_PHY_RX_TIMEOUT_WA
+	int "RX restart timeout workaround"
+	default 0
+	---help---
+		This is a workaround for LAN8742A rev A and B silicon errata.
+		Reset ETH interface in case no RX packets have been received
+		in configured time. Set to 0 to disable.
+
 config MPFS_ETH0_PHY_KSZ9477
 	bool "Use ksz9477 switch as an SGMII PHY for ETH0"
 	default n
@@ -755,6 +775,13 @@ endchoice # GMAC speed
 
 endif # !MPFS_MAC_AUTONEG
 
+config MPFS_ETHMAC_HPWORK
+	bool "Use HP workqueue"
+	default n
+	depends on MPFS_ETHMAC
+	---help---
+		Select HPWORK workqueue for eth ISR work
+
 config MPFS_ETHMAC_MDC_CLOCK_SOURCE_HZ
 	int "MDC Clock Source (Hz)"
 	default 125000000
@@ -800,6 +827,12 @@ config MPFS_MPUCFG
 	default n
 	---help---
 		Enable driver to set MPUCFG entries.
+
+config MPFS_RCC
+	bool "Enable Reset and Clock Controller (RCC) driver"
+	default y
+	---help---
+		Enable driver for reset / clock controller.
 
 config MPFS_HAVE_CORERMII
 	bool "CoreRMII FPGA IP block configured"

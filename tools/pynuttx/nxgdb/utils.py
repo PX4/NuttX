@@ -41,6 +41,7 @@ g_symbol_cache = {}
 g_type_cache = {}
 g_macro_ctx = None
 g_backtrace_cache = {}
+TypeOrStr = Union[gdb.Type, str]
 
 
 class Value(gdb.Value):
@@ -226,8 +227,6 @@ class Backtrace:
 
 def lookup_type(name, block=None) -> gdb.Type:
     """Return the type object of a type name"""
-    global g_type_cache
-
     key = (name, block)
     if key not in g_type_cache:
         try:
@@ -240,6 +239,45 @@ def lookup_type(name, block=None) -> gdb.Type:
     return g_type_cache[key]
 
 
+def get_fieldnames(t: TypeOrStr) -> List[str]:
+    """Return the field names of a type"""
+    if isinstance(t, str):
+        t = lookup_type(t)
+
+    return [f.name for f in t.fields()]
+
+
+def get_type_field(obj: Union[TypeOrStr, gdb.Value], field: str) -> gdb.Field:
+    """
+    Get the type field descriptor from a type or string, or value object.
+    """
+
+    if isinstance(obj, str):
+        t = lookup_type(obj)
+    elif isinstance(obj, gdb.Type):
+        t = obj
+    elif isinstance(obj, gdb.Value):
+        t = obj.type
+    else:
+        raise gdb.GdbError(f"Unsupported type {type(obj)}")
+
+    if not t:
+        return None
+
+    while t.code in (gdb.TYPE_CODE_PTR, gdb.TYPE_CODE_ARRAY, gdb.TYPE_CODE_TYPEDEF):
+        t = t.target()
+
+    for f in t.fields():
+        if f.name == field:
+            return f
+
+
+def get_field_nitems(t: TypeOrStr, field: str) -> Union[int, None]:
+    """Return the array length of a field in type, or None if no such field"""
+    if field := get_type_field(t, field):
+        return nitems(field)
+
+
 long_type = lookup_type("long")
 
 # Common Helper Functions
@@ -247,11 +285,10 @@ long_type = lookup_type("long")
 
 def get_long_type():
     """Return the cached long type object"""
-    global long_type
     return long_type
 
 
-def offset_of(typeobj: Union[gdb.Type, str], field: str) -> Union[int, None]:
+def offset_of(typeobj: TypeOrStr, field: str) -> Union[int, None]:
     """Return the offset of a field in a structure"""
     if type(typeobj) is str:
         typeobj = gdb.lookup_type(typeobj)
@@ -269,7 +306,7 @@ def offset_of(typeobj: Union[gdb.Type, str], field: str) -> Union[int, None]:
 
 
 def container_of(
-    ptr: Union[gdb.Value, int], typeobj: Union[gdb.Type, str], member: str
+    ptr: Union[gdb.Value, int], typeobj: TypeOrStr, member: str
 ) -> gdb.Value:
     """
     Return a pointer to the containing data structure.
@@ -352,10 +389,10 @@ def parse_and_eval(expression: str, global_context: bool = False):
     return Value(gdb_value)
 
 
-def gdb_eval_or_none(expresssion):
+def gdb_eval_or_none(expression):
     """Evaluate an expression and return None if it fails"""
     try:
-        return parse_and_eval(expresssion)
+        return parse_and_eval(expression)
     except gdb.error:
         return None
 
@@ -433,26 +470,18 @@ def get_symbol_value(name, locspec="nx_start", cacheable=True):
     return value
 
 
-def get_field(val, key, default=None):
-    """Get a field from a gdb.Value, return default if key not found"""
+def get_field(obj: gdb.Value, field: Union[str, gdb.Field], default=None) -> gdb.Value:
+    """
+    Get a field value from a gdb.Value, return default if field is not found.
+    """
     try:
-        return val[key] if val else default
+        return obj[field] if obj else default
     except gdb.error:
         return default
 
 
-def has_field(obj: Union[gdb.Type, gdb.Value], key):
-    if isinstance(obj, gdb.Type):
-        t = obj
-    elif isinstance(obj, gdb.Value):
-        t = obj.type
-    else:
-        raise gdb.GdbError(f"Unsupported type {type(obj)}")
-
-    while t.code in (gdb.TYPE_CODE_PTR, gdb.TYPE_CODE_ARRAY, gdb.TYPE_CODE_TYPEDEF):
-        t = t.target()
-
-    return any(f.name == key for f in t.fields())
+def has_field(obj: Union[TypeOrStr, gdb.Value], field):
+    return get_type_field(obj, field) is not None
 
 
 def get_bytes(val, size):
@@ -522,7 +551,7 @@ def alias(name, command):
         pass
 
 
-def nitems(array):
+def nitems(array: Union[gdb.Field, gdb.Type]) -> int:
     array_type = array.type
     element_type = array_type.target()
     element_size = element_type.sizeof
@@ -688,7 +717,7 @@ def is_target_arch(arch, exact=False):
 
 
 def is_target_smp():
-    """Return Ture if the target use smp"""
+    """Return True if the target use smp"""
 
     if gdb.lookup_global_symbol("g_assignedtasks"):
         return True

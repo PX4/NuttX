@@ -1028,7 +1028,7 @@ static void i2s_tx_schedule(struct esp32_i2s_s *priv,
 
       /* Check if the DMA descriptor that generated an EOF interrupt is the
        * last descriptor of the current buffer container's DMA outlink.
-       * REVISIT: what to do if we miss syncronization and the descriptor
+       * REVISIT: what to do if we miss synchronization and the descriptor
        * that generated the interrupt is different from the expected (the
        * oldest of the list containing active transmissions)?
        */
@@ -1127,7 +1127,7 @@ static void i2s_rx_schedule(struct esp32_i2s_s *priv,
 
       /* Check if the DMA descriptor that generated an EOF interrupt is the
        * last descriptor of the current buffer container's DMA inlink.
-       * REVISIT: what to do if we miss syncronization and the descriptor
+       * REVISIT: what to do if we miss synchronization and the descriptor
        * that generated the interrupt is different from the expected (the
        * oldest of the list containing active transmissions)?
        */
@@ -1735,7 +1735,7 @@ static void i2s_configure(struct esp32_i2s_s *priv)
             }
         }
 
-      /* Congfigure RX chan bit, audio data bit and mono mode.
+      /* Configure RX chan bit, audio data bit and mono mode.
        * On ESP32, sample_bit should equals to data_bit.
        */
 
@@ -1959,8 +1959,8 @@ static uint32_t i2s_set_clock(struct esp32_i2s_s *priv)
 
   mclk_div = sclk / mclk;
 
-  i2sinfo("Clock division info: [sclk]%" PRIu32 " Hz [mdiv] %d "
-          "[mclk] %" PRIu32 " Hz [bdiv] %d [bclk] %" PRIu32 " Hz\n",
+  i2sinfo("Clock division info: [sclk] %" PRIu32 " Hz [mdiv] %" PRIu32\
+          "[mclk] %" PRIu32 " Hz [bdiv] %" PRIu16 " [bclk] %" PRIu32 " Hz\n",
           sclk, mclk_div, mclk, bclk_div, bclk);
 
   freq_diff = abs((int)sclk - (int)(mclk * mclk_div));
@@ -2062,7 +2062,7 @@ static void i2s_tx_channel_start(struct esp32_i2s_s *priv)
     {
       if (priv->tx_started)
         {
-          i2swarn("TX channel of port %d was previously started\n",
+          i2swarn("TX channel of port %" PRIu32 " was previously started\n",
                   priv->config->port);
           return;
         }
@@ -2099,7 +2099,8 @@ static void i2s_tx_channel_start(struct esp32_i2s_s *priv)
 
       priv->tx_started = true;
 
-      i2sinfo("Started TX channel of port %d\n", priv->config->port);
+      i2sinfo("Started TX channel of port %" PRIu32 "\n",
+              priv->config->port);
     }
 }
 #endif /* I2S_HAVE_TX */
@@ -2125,7 +2126,7 @@ static void i2s_rx_channel_start(struct esp32_i2s_s *priv)
     {
       if (priv->rx_started)
         {
-          i2swarn("RX channel of port %d was previously started\n",
+          i2swarn("RX channel of port %" PRIu32 " was previously started\n",
                   priv->config->port);
           return;
         }
@@ -2162,7 +2163,8 @@ static void i2s_rx_channel_start(struct esp32_i2s_s *priv)
 
       priv->rx_started = true;
 
-      i2sinfo("Started RX channel of port %d\n", priv->config->port);
+      i2sinfo("Started RX channel of port %" PRIu32 "\n",
+              priv->config->port);
     }
 }
 #endif /* I2S_HAVE_RX */
@@ -2188,7 +2190,7 @@ static void i2s_tx_channel_stop(struct esp32_i2s_s *priv)
     {
       if (!priv->tx_started)
         {
-          i2swarn("TX channel of port %d was previously stopped\n",
+          i2swarn("TX channel of port %" PRIu32 " was previously stopped\n",
                   priv->config->port);
           return;
         }
@@ -2215,7 +2217,8 @@ static void i2s_tx_channel_stop(struct esp32_i2s_s *priv)
 
       priv->tx_started = false;
 
-      i2sinfo("Stopped TX channel of port %d\n", priv->config->port);
+      i2sinfo("Stopped TX channel of port %" PRIu32 "\n",
+              priv->config->port);
     }
 }
 #endif /* I2S_HAVE_TX */
@@ -2241,7 +2244,7 @@ static void i2s_rx_channel_stop(struct esp32_i2s_s *priv)
     {
       if (!priv->rx_started)
         {
-          i2swarn("RX channel of port %d was previously stopped\n",
+          i2swarn("RX channel of port %" PRIu32 " was previously stopped\n",
                   priv->config->port);
           return;
         }
@@ -2268,7 +2271,8 @@ static void i2s_rx_channel_stop(struct esp32_i2s_s *priv)
 
       priv->rx_started = false;
 
-      i2sinfo("Stopped RX channel of port %d\n", priv->config->port);
+      i2sinfo("Stopped RX channel of port %" PRIu32 "\n",
+              priv->config->port);
     }
 }
 #endif /* I2S_HAVE_RX */
@@ -3043,7 +3047,7 @@ struct i2s_dev_s *esp32_i2sbus_initialize(int port)
 
   i2sinfo("port: %d\n", port);
 
-  /* Statically allocated I2S' device strucuture */
+  /* Statically allocated I2S' device structure */
 
   switch (port)
     {
@@ -3103,7 +3107,8 @@ struct i2s_dev_s *esp32_i2sbus_initialize(int port)
 
   /* Success exit */
 
-  i2sinfo("I2S%d was successfully initialized\n", priv->config->port);
+  i2sinfo("I2S%" PRIu32 " was successfully initialized\n",
+          priv->config->port);
 
   return &priv->dev;
 

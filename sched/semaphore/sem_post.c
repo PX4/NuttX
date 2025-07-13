@@ -37,7 +37,7 @@
 #include "semaphore/semaphore.h"
 
 /****************************************************************************
- * Private Functions
+ * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
@@ -69,14 +69,16 @@
  *
  ****************************************************************************/
 
-static int nxsem_post_slow(FAR sem_t *sem)
+int nxsem_post_slow(FAR sem_t *sem)
 {
   FAR struct tcb_s *stcb = NULL;
   irqstate_t flags;
-  int32_t sem_count;
 #if defined(CONFIG_PRIORITY_INHERITANCE) || defined(CONFIG_PRIORITY_PROTECT)
   uint8_t proto;
 #endif
+  bool blocking = false;
+  bool mutex = NXSEM_IS_MUTEX(sem);
+  uint32_t mholder = NXSEM_NO_MHOLDER;
 
   /* The following operations must be performed with interrupts
    * disabled because sem_post() may be called from an interrupt
@@ -85,19 +87,54 @@ static int nxsem_post_slow(FAR sem_t *sem)
 
   flags = enter_critical_section();
 
-  /* Check the maximum allowable value */
-
-  sem_count = atomic_read(NXSEM_COUNT(sem));
-  do
+  if (mutex)
     {
-      if (sem_count >= SEM_VALUE_MAX)
+      /* Mutex post from interrupt context is not allowed */
+
+      DEBUGASSERT(!up_interrupt_context());
+
+      /* Lock the mutex for us by setting the blocking bit */
+
+      mholder = atomic_fetch_or(NXSEM_MHOLDER(sem), NXSEM_MBLOCKING_BIT);
+
+      /* Mutex post from another thread is not allowed, unless
+       * called from nxsem_reset
+       */
+
+      DEBUGASSERT(mholder == (NXSEM_MBLOCKING_BIT | NXSEM_MRESET) ||
+                  (mholder & (~NXSEM_MBLOCKING_BIT)) == nxsched_gettid());
+
+      blocking = NXSEM_MBLOCKING(mholder);
+
+      if (!blocking)
         {
-          leave_critical_section(flags);
-          return -EOVERFLOW;
+          if (mholder != NXSEM_MRESET)
+            {
+              mholder = NXSEM_NO_MHOLDER;
+            }
+
+          atomic_set(NXSEM_MHOLDER(sem), mholder);
         }
     }
-  while (!atomic_try_cmpxchg_release(NXSEM_COUNT(sem), &sem_count,
-                                     sem_count + 1));
+  else
+    {
+      int32_t sem_count;
+
+      /* Check the maximum allowable value */
+
+      sem_count = atomic_read(NXSEM_COUNT(sem));
+      do
+        {
+          if (sem_count >= SEM_VALUE_MAX)
+            {
+              leave_critical_section(flags);
+              return -EOVERFLOW;
+            }
+        }
+      while (!atomic_try_cmpxchg_release(NXSEM_COUNT(sem), &sem_count,
+                                         sem_count + 1));
+      blocking = sem_count < 0;
+    }
 
   /* Perform the semaphore unlock operation, releasing this task as a
    * holder then also incrementing the count on the semaphore.
@@ -116,7 +153,10 @@ static int nxsem_post_slow(FAR sem_t *sem)
    * initialized if the semaphore is to used for signaling purposes.
    */
 
-  nxsem_release_holder(sem);
+  if (!mutex || blocking)
+    {
+      nxsem_release_holder(sem);
+    }
 
 #if defined(CONFIG_PRIORITY_INHERITANCE) || defined(CONFIG_PRIORITY_PROTECT)
   /* Don't let any unblocked tasks run until we complete any priority
@@ -138,7 +178,7 @@ static int nxsem_post_slow(FAR sem_t *sem)
    * there must be some task waiting for the semaphore.
    */
 
-  if (sem_count < 0)
+  if (blocking)
     {
       /* Check if there are any tasks in the waiting for semaphore
        * task list that are waiting for this semaphore.  This is a
@@ -147,7 +187,6 @@ static int nxsem_post_slow(FAR sem_t *sem)
        */
 
       stcb = (FAR struct tcb_s *)dq_remfirst(SEM_WAITLIST(sem));
-
       if (stcb != NULL)
         {
           FAR struct tcb_s *rtcb = this_task();
@@ -156,14 +195,21 @@ static int nxsem_post_slow(FAR sem_t *sem)
            * it is awakened.
            */
 
-          nxsem_add_holder_tcb(stcb, sem);
+          if (mutex)
+            {
+              uint32_t blocking_bit = dq_empty(SEM_WAITLIST(sem)) ?
+                0 : NXSEM_MBLOCKING_BIT;
+              atomic_set(NXSEM_MHOLDER(sem),
+                         ((uint32_t)stcb->pid) | blocking_bit);
+            }
+          else
+            {
+              nxsem_add_holder_tcb(stcb, sem);
+            }
 
           /* Stop the watchdog timer */
 
-          if (WDOG_ISACTIVE(&stcb->waitdog))
-            {
-              wd_cancel(&stcb->waitdog);
-            }
+          wd_cancel(&stcb->waitdog);
 
           /* Indicate that the wait is over. */
 
@@ -178,14 +224,6 @@ static int nxsem_post_slow(FAR sem_t *sem)
               up_switch_context(stcb, rtcb);
             }
         }
-#if 0 /* REVISIT:  This can fire on IOB throttle semaphore */
-      else
-        {
-          /* This should not happen. */
-
-          DEBUGPANIC();
-        }
-#endif
     }
 
   /* Check if we need to drop the priority of any threads holding
@@ -216,59 +254,4 @@ static int nxsem_post_slow(FAR sem_t *sem)
   leave_critical_section(flags);
 
   return OK;
-}
-
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Name: nxsem_post
- *
- * Description:
- *   When a kernel thread has finished with a semaphore, it will call
- *   nxsem_post().  This function unlocks the semaphore referenced by sem
- *   by performing the semaphore unlock operation on that semaphore.
- *
- *   If the semaphore value resulting from this operation is positive, then
- *   no tasks were blocked waiting for the semaphore to become unlocked; the
- *   semaphore is simply incremented.
- *
- *   If the value of the semaphore resulting from this operation is zero,
- *   then one of the tasks blocked waiting for the semaphore shall be
- *   allowed to return successfully from its call to nxsem_wait().
- *
- * Input Parameters:
- *   sem - Semaphore descriptor
- *
- * Returned Value:
- *   This is an internal OS interface and should not be used by applications.
- *   It follows the NuttX internal error return policy:  Zero (OK) is
- *   returned on success.  A negated errno value is returned on failure.
- *
- * Assumptions:
- *   This function may be called from an interrupt handler.
- *
- ****************************************************************************/
-
-int nxsem_post(FAR sem_t *sem)
-{
-  DEBUGASSERT(sem != NULL);
-
-  /* If this is a mutex, we can try to unlock the mutex in fast mode,
-   * else try to get it in slow mode.
-   */
-
-#if !defined(CONFIG_PRIORITY_INHERITANCE) && !defined(CONFIG_PRIORITY_PROTECT)
-  if (sem->flags & SEM_TYPE_MUTEX)
-    {
-      int32_t old = 0;
-      if (atomic_try_cmpxchg_release(NXSEM_COUNT(sem), &old, 1))
-        {
-          return OK;
-        }
-    }
-#endif
-
-  return nxsem_post_slow(sem);
 }

@@ -43,7 +43,7 @@ functions.  So we have::
   inttypes  - inttypes.h
   machine   - Various architecture-specific implementations.
   math      - math.h
-  modlib    - Part of module and shared library logic: nuttx/lib/modlib.h
+  elf    - Part of module and shared library logic: nuttx/lib/elf.h
   net       - Various network-related header files: netinet/ether.h, arpa/inet.h
   pthread   - pthread.h
   pwd       - pwd.h
@@ -92,7 +92,7 @@ Each type field has a format as follows::
   type name:
         For all simpler types
   formal type | actual type:
-        For array types where the form of the formal (eg. int parm[2])
+        For array types where the form of the formal (eg. int param[2])
         differs from the type of actual passed parameter (eg. int*).  This
         is necessary because you cannot do simple casts to array types.
   formal type | union member actual type | union member fieldname:
@@ -153,4 +153,5 @@ Implementation Details
    :maxdepth: 1
    :caption: Contents:
    
+   stream.rst
    zoneinfo.rst

@@ -137,7 +137,7 @@ static inline void sim_reset_alarm(struct timespec *alarm)
  * Name: sim_update_hosttimer
  *
  * Description:
- *   Ths function is called periodically to deliver the tick events to the
+ *   This function is called periodically to deliver the tick events to the
  *   NuttX simulation.
  *
  ****************************************************************************/
@@ -183,7 +183,7 @@ static void sim_update_hosttimer(void)
  * Name: sim_timer_update_internal
  *
  * Description:
- *   Ths function is called periodically to deliver the tick events to the
+ *   This function is called periodically to deliver the tick events to the
  *   NuttX simulation.
  *
  ****************************************************************************/
@@ -309,15 +309,15 @@ static int sim_start(struct oneshot_lowerhalf_s *lower,
 {
   struct sim_oneshot_lowerhalf_s *priv =
     (struct sim_oneshot_lowerhalf_s *)lower;
-  struct timespec current;
   irqstate_t flags;
 
   DEBUGASSERT(priv != NULL && callback != NULL && ts != NULL);
 
   flags = enter_critical_section();
 
-  sim_timer_current(&current);
-  clock_timespec_add(&current, ts, &priv->alarm);
+  clock_ticks2time(&priv->alarm,
+                   host_gettime(false) / NSEC_PER_TICK +
+                   clock_time2ticks(ts));
 
   priv->callback = callback;
   priv->arg      = arg;

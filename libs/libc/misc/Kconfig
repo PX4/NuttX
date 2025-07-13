@@ -77,7 +77,7 @@ config FDSAN
 config FDCHECK
 	bool "Enable fdcheck"
 	default n
-	depends on SCHED_HAVE_PARENT
+	depends on LIBC_OPEN_MAX <= 256
 	---help---
 		Enable the fdcheck support
 
@@ -93,7 +93,7 @@ config LIBC_UNAME_DISABLE_TIMESTAMP
 	---help---
 		Currently uname command will print the timestamp
 		when the binary was built, and it generates an issue
-		because two identical built binaries will have differents
+		because two identical built binaries will have different
 		hashes/CRC.
 
 choice

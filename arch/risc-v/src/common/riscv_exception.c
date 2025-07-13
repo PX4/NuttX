@@ -103,9 +103,12 @@ int riscv_exception(int mcause, void *regs, void *args)
          cause, READ_CSR(CSR_EPC), READ_CSR(CSR_TVAL));
 
 #ifdef CONFIG_ARCH_KERNEL_STACK
-  if ((tcb->flags & TCB_FLAG_TTYPE_MASK) != TCB_FLAG_TTYPE_KERNEL)
+  if (((tcb->flags & TCB_FLAG_TTYPE_MASK) != TCB_FLAG_TTYPE_KERNEL) &&
+      ((tcb->flags & TCB_FLAG_SYSCALL) == false))
     {
-      _alert("Segmentation fault in PID %d: %s\n",
+      struct tcb_s *ptcb = nxsched_get_tcb(tcb->group->tg_pid);
+
+      _alert("Segmentation fault in %s (PID %d: %s)\n", get_task_name(ptcb),
              tcb->pid, get_task_name(tcb));
 
       tcb->flags |= TCB_FLAG_FORCED_CANCEL;

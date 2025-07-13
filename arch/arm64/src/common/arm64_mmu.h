@@ -63,7 +63,7 @@
                                      (0x44 << (MT_NORMAL_NC * 8))      | \
                                      (MT_NORMAL_VAL << (MT_NORMAL * 8)))
 
-/* More flags from user's perpective are supported using remaining bits
+/* More flags from user's perspective are supported using remaining bits
  * of "attrs" field, i.e. attrs[31:3], underlying code will take care
  * of setting PTE fields correctly.
  *
@@ -170,8 +170,10 @@
  * in the address range [59:55] = 0b00000 are unchecked accesses.
  */
 
-#define TCR_TCMA0                   (1ULL << 57)
-#define TCR_TCMA1                   (1ULL << 58)
+#define TCR_TCMA0                   BIT(57)
+#define TCR_TCMA1                   BIT(58)
+#define TCR_MTX0_SHIFT              BIT(60)
+#define TCR_MTX1_SHIFT              BIT(61)
 
 #define TCR_PS_BITS_4GB             0x0ULL
 #define TCR_PS_BITS_64GB            0x1ULL

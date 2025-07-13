@@ -37,8 +37,11 @@
 #include "sched/sched.h"
 #include "init/init.h"
 
+#include "x86_64_internal.h"
+
 #include "intel64_lowsetup.h"
 #include "intel64_cpu.h"
+#include "x86_64_hwdebug.h"
 
 /****************************************************************************
  * Private Types
@@ -151,6 +154,14 @@ void x86_64_ap_boot(void)
   tcb = current_task(cpu);
   UNUSED(tcb);
 
+#ifdef CONFIG_SCHED_THREAD_LOCAL
+  /* Make sure that FS_BASE is not null */
+
+  write_fsbase((uintptr_t)tcb->stack_alloc_ptr +
+               sizeof(struct tls_info_s) +
+               (_END_TBSS - _START_TDATA));
+#endif
+
   /* Configure interrupts */
 
   up_irqinitialize();
@@ -191,6 +202,12 @@ void x86_64_ap_boot(void)
     {
       __revoke_low_memory();
     }
+
+#ifdef CONFIG_ARCH_HAVE_DEBUG
+  /* Initialize hardware debug interface */
+
+  x86_64_hwdebug_init();
+#endif
 
   up_update_task(tcb);
 

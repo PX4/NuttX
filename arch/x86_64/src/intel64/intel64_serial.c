@@ -35,7 +35,7 @@
 #include "chip.h"
 #include "x86_64_internal.h"
 
-/* This is a "stub" file to suppport up_putc if no real serial driver is
+/* This is a "stub" file to support up_putc if no real serial driver is
  * configured.  Normally, drivers/serial/uart_16550.c provides the serial
  * driver for this platform.
  */
@@ -85,16 +85,18 @@ void uart_putreg(struct u16550_s *priv, unsigned int offset,
  *
  ****************************************************************************/
 
-void up_lowputc(char ch)
+void up_putc(int ch)
 {
   fb_putc(ch);
 }
-
-void up_putc(int ch)
-{
-  up_lowputc(ch);
-}
 #endif
+
+void up_lowputc(int ch)
+{
+#ifdef CONFIG_MULTBOOT2_FB_TERM
+  fb_putc(ch);
+#endif
+}
 
 #ifdef USE_EARLYSERIALINIT
 void x86_64_earlyserialinit(void)

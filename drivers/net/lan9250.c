@@ -617,7 +617,7 @@ static void lan9250_wait_ready(FAR struct lan9250_driver_s *priv,
 
   if (timeout)
     {
-      nerr("ERROR: wait register:0x%02" PRIx32 \
+      nerr("ERROR: wait register:0x%04" PRIx16 \
            ", mask:0x%08" PRIx32 \
            ", expected:0x%08" PRIx32 "\n",
             address, mask, expected);
@@ -736,7 +736,7 @@ static void lan9250_wait_mac_ready(FAR struct lan9250_driver_s *priv,
 
   if (timeout)
     {
-      nerr("ERROR: wait MAC register:0x%02" PRIx32 \
+      nerr("ERROR: wait MAC register:0x%02" PRIx8 \
            ", mask:0x%08" PRIx32 ", expect:0x%08" PRIx32 "\n",
             address, mask, expected);
     }
@@ -1337,7 +1337,7 @@ static int lan9250_reset(FAR struct lan9250_driver_s *priv)
 
   /* Configure HMAC control:
    *
-   *   - Automaticaly strip the pad field on incoming packets
+   *   - Automatically strip the pad field on incoming packets
    *   - TX enable
    *   - RX enable
    *   - Full duplex mode if !CONFIG_LAN9250_HALFDUPPLEX
@@ -1417,7 +1417,7 @@ static int lan9250_transmit(FAR struct lan9250_driver_s *priv)
   status_size = (regval & TXFIR_TXSFUS_M) >> TXFIR_TXSFUS_S;
   free_size = regval & TXFIR_TXDFFS_M;
 
-  ninfo("availabe status size:%d, free space size:%d\n",
+  ninfo("available status size:%d, free space size:%d\n",
         status_size, free_size);
 
   /* Clear TX status FIFO if it is no empty by reading data */

@@ -53,7 +53,7 @@
 #define HIBYTE(n) ((uint8_t)(((n) & 0xff00) >> 8))
 
 /****************************************************************************
- * Private Type Definitions
+ * Private Types
  ****************************************************************************/
 
 /* Private data of the SMBus Smart Battery Data slave device */
@@ -723,7 +723,7 @@ static int smbus_sbd_callback(void *arg, i2c_slave_complete_t state,
     }
 
   /* Install the (re)filled write buffer.  Technically this buffer needs to
-   * be constant, but we want to be able to re-use the same buffer for the
+   * be constant, but we want to be able to reuse the same buffer for the
    * next request, so we just cast the buffer to const.  This should not
    * cause any problems, because the write buffer is only changed when the
    * I2C slave driver invokes this callback, which only happens when a new

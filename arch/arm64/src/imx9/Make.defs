@@ -86,6 +86,15 @@ endif
 ifeq ($(CONFIG_IMX9_BOOTLOADER), y)
   CHIP_CSRCS += imx9_system_ctl.c
   CHIP_CSRCS += imx9_trdc.c
+  CHIP_CSRCS += imx9_ele.c
+endif
+
+ifeq ($(CONFIG_IMX9_ROMAPI), y)
+  CHIP_CSRCS += imx9_romapi.c
+endif
+
+ifeq ($(CONFIG_IMX9_AHAB_BOOT), y)
+  CHIP_CSRCS += imx9_ahab.c
 endif
 
 ifeq ($(CONFIG_IMX9_DDR_TRAINING),y)

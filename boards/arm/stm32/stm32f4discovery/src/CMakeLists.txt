@@ -176,7 +176,7 @@ target_sources(board PRIVATE ${SRCS})
 # TODO: make this the default and then allow boards to redefine
 set_property(GLOBAL PROPERTY LD_SCRIPT "${NUTTX_BOARD_DIR}/scripts/ld.script")
 
-# TODO:move this to apropriate arch/toolchain level
+# TODO:move this to appropriate arch/toolchain level
 set_property(
   GLOBAL APPEND
   PROPERTY COMPILE_OPTIONS $<$<CONFIG:Release>:-fno-strict-aliasing
@@ -211,7 +211,7 @@ set_property(
   TARGET nuttx
   APPEND
   PROPERTY NUTTX_ELF_MODULE_LINK_OPTIONS -r -e module_initialize -T
-           ${NUTTX_DIR}/libs/libc/modlib/gnu-elf.ld)
+           ${NUTTX_DIR}/libs/libc/elf/gnu-elf.ld)
 
 # ELF module definitions
 

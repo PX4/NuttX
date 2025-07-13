@@ -2,6 +2,8 @@
 ST STM32F429I-DISCO
 ===================
 
+.. tags:: chip:stm32, chip:stm32f4, chip:stm32f429
+
 This page discusses issues unique to NuttX configurations for the
 STMicro STM32F429I-DISCO development board featuring the STM32F429ZIT6
 MCU. The STM32F429ZIT6 is a 180MHz Cortex-M4 operation with 2Mbit Flash
@@ -736,7 +738,7 @@ Executing
 ---------
 
 The ltdc is initialized during boot up.  Interaction with NSH is via the serial
-console at 115200 8N1 baud.  From the nsh comandline execute the fb example::
+console at 115200 8N1 baud.  From the nsh commandline execute the fb example::
 
   nsh> fb
 

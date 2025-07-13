@@ -51,7 +51,7 @@
   ((c) == ' '  || (c) == '\t' || (c) == '\r' || (c) == '\f' || c == '\v')
 
 /****************************************************************************
- * Private Type Definitions
+ * Private Types
  ****************************************************************************/
 
 /* This is the layout of the caller provided memory area */
@@ -176,8 +176,8 @@ static ssize_t lib_copystring(FAR FILE *stream, FAR char *ptr,
   size_t nwritten = 0;
   int ch;
 
-  /* Copy the string from the file until any whitepace delimiter is
-   * encountered
+  /* Copy the string from the file until any whitespace delimiter is
+   * encountered.
    */
 
   for (; ; )
@@ -197,7 +197,7 @@ static ssize_t lib_copystring(FAR FILE *stream, FAR char *ptr,
           (*nread)++;
         }
 
-      /* Check for whitepace (including \n') or EOF terminating the string */
+      /* Check for whitespace (including \n') or EOF terminating the string */
 
       if (isspace(ch) || ch == EOF)
         {

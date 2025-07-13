@@ -89,7 +89,7 @@ static const uint16_t g_broadcast_ipaddr[2] =
  * 33-33-00-00-00-00 0x86DD IPv6 Neighbor Discovery
  * 33-33-xx-xx-xx-xx 0x86DD IPv6 Multicast Address (RFC3307)
  *
- * The following is the first three octects of the IGMP address:
+ * The following is the first three octets of the IGMP address:
  */
 
 #ifdef CONFIG_NET_IGMP
@@ -115,7 +115,7 @@ static const uint8_t g_multicast_ethaddr[3] =
  *   If the destination IP address is in the local network (determined
  *   by logical ANDing of netmask and our IP address), the function
  *   checks the ARP cache to see if an entry for the destination IP
- *   address is found.  If so, an Ethernet header is pre-pended at the
+ *   address is found.  If so, an Ethernet header is prepended at the
  *   beginning of the packet and the function returns.
  *
  *   If no ARP cache entry is found for the destination IP address, the
@@ -262,7 +262,7 @@ void arp_out(FAR struct net_driver_s *dev)
 
   /* Check if we already have this destination address in the ARP table */
 
-  ret = arp_find(ipaddr, ethaddr.ether_addr_octet, dev);
+  ret = arp_find(ipaddr, ethaddr.ether_addr_octet, dev, false);
   if (ret < 0)
     {
       ninfo("ARP request for IP %08lx\n", (unsigned long)ipaddr);

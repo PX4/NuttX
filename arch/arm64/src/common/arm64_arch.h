@@ -491,7 +491,7 @@ void arm64_cpu_enable(void);
 #ifdef CONFIG_SMP
 uint64_t arm64_get_mpid(int cpu);
 #else
-#  define arm64_get_mpid(cpu) (GET_MPIDR() & MPIDR_ID_MASK)
+#  define arm64_get_mpid(cpu) ((void)(cpu), (GET_MPIDR() & MPIDR_ID_MASK))
 #endif /* CONFIG_SMP */
 
 /****************************************************************************
@@ -506,11 +506,15 @@ uint64_t arm64_get_mpid(int cpu);
 int arm64_get_cpuid(uint64_t mpid);
 #endif
 
-#ifdef CONFIG_ARM64_MTE
-void arm64_enable_mte(void);
-#else
-#define arm64_enable_mte()
-#endif
+/****************************************************************************
+ * Name: arm64_mte_init
+ *
+ * Description:
+ *   Initialize MTE settings and enable memory tagging
+ *
+ ****************************************************************************/
+
+void arm64_mte_init(void);
 
 #endif /* __ASSEMBLY__ */
 

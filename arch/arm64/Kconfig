@@ -124,6 +124,16 @@ config ARCH_CHIP_BCM2711
 	---help---
 		Broadcom BCM2711 quad-core ARM Cortex A72
 
+config ARCH_CHIP_SUNXI
+	bool "Allwinner sunxi 64-bit SoC Family"
+	select ARCH_HAVE_ADDRENV
+	select ARCH_HAVE_RESET
+	select ARCH_HAVE_IRQTRIGGER
+	select ARCH_NEED_ADDRENV_MAPPING
+	select ARM64_HAVE_PSCI
+	---help---
+		Allwinner sunxi 64-bit SoC Family
+
 config ARCH_CHIP_ARM64_CUSTOM
 	bool "Custom ARM64 chip"
 	select ARCH_CHIP_CUSTOM
@@ -131,6 +141,28 @@ config ARCH_CHIP_ARM64_CUSTOM
 		Select this option if there is no directory for the chip under arch/arm64/src/.
 
 endchoice # ARM64 chip selection
+
+if ARCH_CHIP_SUNXI
+
+choice
+	prompt "Allwinner sunxi 64-bit SoC selection"
+	default ARCH_CHIP_SUNXI_A527
+
+config ARCH_CHIP_SUNXI_A527
+	bool "Allwinner A527"
+	select ARCH_CORTEX_A55
+	select ARCH_HAVE_MULTICPU
+	select ARMV8A_HAVE_GICv3
+	select ARCH_HAVE_ELF_EXECUTABLE
+	select ARCH_HAVE_POWEROFF
+	select ARCH_HAVE_TEXT_HEAP
+	select ARM64_HAVE_PSCI
+	---help---
+		Allwinner A527 SoC
+
+endchoice # Allwinner sunxi 64-bit SoC selection
+
+endif # ARCH_CHIP_SUNXI
 
 config ARCH_ARMV8A
 	bool
@@ -153,6 +185,7 @@ menu "ARMv8.5 architectural features"
 
 config ARM64_MTE
 	bool "Memory Tagging Extension support"
+	select ARCH_HAVE_MEMTAG
 	select ARM64_TBI
 	default y
 
@@ -188,7 +221,7 @@ config ARCH_HAVE_EL3
 	---help---
 		Some ARM aarch64 Cortex-family processors only supports
 		EL0~El2(eg. Cortex-R82). For these Processors, the code
-		runing at EL3 is not necessary and system register for EL3
+		running at EL3 is not necessary and system register for EL3
 		is not accessible
 
 config ARCH_HAVE_CLUSTER_PMU
@@ -235,7 +268,7 @@ config ARCH_EARLY_PRINT
 		The aarch64 have EL0~El3 execute level and NS/S (security state),
 		the NuttX should be execute at EL1 in NS(ARmv8-A) or S(ARmv8-R)
 		state. but booting NuttX have different ELs and state while with
-		different platform, if NuttX runing at wrong ELs or state it will
+		different platform, if NuttX running at wrong ELs or state it will
 		not normal anymore. So we need to print something in arm64_head.S
 		to debug this situation.
 		Enabling this option will need to implement arm64_earlyprintinit and
@@ -310,6 +343,7 @@ config ARCH_CPU_UNKNOWN
 	default n
 	select ARCH_ARMV8A
 	select ARCH_HAVE_TRUSTZONE
+	select ARCH_HAVE_DEBUG
 	select ARCH_DCACHE
 	select ARCH_ICACHE
 	select ARCH_HAVE_MMU
@@ -325,6 +359,7 @@ config ARCH_FAMILY
 config ARCH_CHIP
 	string
 	default "a64"       if ARCH_CHIP_A64
+	default "a527"      if ARCH_CHIP_SUNXI_A527
 	default "rk3399"    if ARCH_CHIP_RK3399
 	default "zynq-mpsoc" if ARCH_CHIP_ZYNQ_MPSOC
 	default "qemu"      if ARCH_CHIP_QEMU
@@ -433,7 +468,7 @@ config ARM64_SEMIHOSTING_HOSTFS_CACHE_COHERENCE
 	bool "Cache coherence in semihosting hostfs"
 	depends on ARCH_DCACHE
 	---help---
-		Flush & Invalidte cache before & after bkpt instruction.
+		Flush & Invalidate cache before & after bkpt instruction.
 
 endif # ARM64_SEMIHOSTING_HOSTFS
 
@@ -465,6 +500,10 @@ config ARM64_PA_BITS
 
 if ARCH_CHIP_A64
 source "arch/arm64/src/a64/Kconfig"
+endif
+
+if ARCH_CHIP_SUNXI_A527
+source "arch/arm64/src/a527/Kconfig"
 endif
 
 if ARCH_CHIP_RK3399

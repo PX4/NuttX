@@ -281,6 +281,8 @@ static ssize_t esp32_bread_decrypt(struct mtd_dev_s *dev,
 #ifdef CONFIG_MTD_BYTE_WRITE
 static ssize_t esp32_write(struct mtd_dev_s *dev, off_t offset,
                            size_t nbytes, const uint8_t *buffer);
+static ssize_t esp32_write_encrypt(FAR struct mtd_dev_s *dev, off_t offset,
+                                   size_t nbytes, FAR const uint8_t *buffer);
 #endif
 static ssize_t esp32_bwrite(struct mtd_dev_s *dev, off_t startblock,
                             size_t nblocks, const uint8_t *buffer);
@@ -334,7 +336,7 @@ static struct esp32_spiflash_s g_esp32_spiflash1_encrypt =
             .read   = esp32_read_decrypt,
             .ioctl  = esp32_ioctl_encrypt,
 #ifdef CONFIG_MTD_BYTE_WRITE
-            .write  = NULL,
+            .write  = esp32_write_encrypt,
 #endif
             .name   = "esp32_mainflash_encrypt"
           },
@@ -1164,14 +1166,14 @@ static int IRAM_ATTR esp32_writedata_encrypted(
 
   if (addr % SPI_FLASH_ENCRYPT_UNIT_SIZE)
     {
-      ferr("ERROR: address=0x%x is not %d-byte align\n",
+      ferr("ERROR: address=0x%" PRIx32 " is not %d-byte align\n",
            addr, SPI_FLASH_ENCRYPT_UNIT_SIZE);
       return -EINVAL;
     }
 
   if (size % SPI_FLASH_ENCRYPT_UNIT_SIZE)
     {
-      ferr("ERROR: size=%u is not %d-byte align\n",
+      ferr("ERROR: size=%" PRIu32 " is not %d-byte align\n",
            size, SPI_FLASH_ENCRYPT_UNIT_SIZE);
       return -EINVAL;
     }
@@ -1181,6 +1183,8 @@ static int IRAM_ATTR esp32_writedata_encrypted(
   for (i = 0; i < blocks; i++)
     {
       memcpy(tmp_buf, buffer, SPI_FLASH_ENCRYPT_UNIT_SIZE);
+
+      esp32_set_write_opt(priv);
 
       esp32_spiflash_opstart();
       esp_rom_spiflash_write_encrypted_enable();
@@ -1196,7 +1200,8 @@ static int IRAM_ATTR esp32_writedata_encrypted(
                             SPI_FLASH_ENCRYPT_UNIT_SIZE);
       if (ret)
         {
-          ferr("ERROR: Failed to write encrypted data @ 0x%x\n", addr);
+          ferr("ERROR: Failed to write encrypted data @ 0x%" PRIx32 "\n",
+               addr);
           goto exit;
         }
 
@@ -2091,6 +2096,74 @@ static ssize_t esp32_write(struct mtd_dev_s *dev, off_t offset,
 
   return ret;
 }
+
+/****************************************************************************
+ * Name: esp32_write_encrypt
+ *
+ * Description:
+ *   write data to SPI Flash at designated address by SPI Flash hardware
+ *   encryption.
+ *
+ * Input Parameters:
+ *   dev    - ESP32 MTD device data
+ *   offset - target address offset
+ *   nbytes - data number
+ *   buffer - data buffer pointer
+ *
+ * Returned Value:
+ *   Written bytes if success or a negative value if fail.
+ *
+ ****************************************************************************/
+
+static ssize_t esp32_write_encrypt(FAR struct mtd_dev_s *dev, off_t offset,
+                                   size_t nbytes, FAR const uint8_t *buffer)
+{
+  ssize_t ret;
+  struct esp32_spiflash_s *priv = MTD2PRIV(dev);
+
+  ASSERT(buffer);
+
+  if ((offset % SPI_FLASH_ENCRYPT_MIN_SIZE) ||
+    (nbytes % SPI_FLASH_ENCRYPT_MIN_SIZE))
+    {
+      return -EINVAL;
+    }
+
+#ifdef CONFIG_ESP32_SPIFLASH_DEBUG
+  finfo("esp32_write_encrypt(%p, 0x%x, %zu, %p)\n", dev, offset,
+        nbytes, buffer);
+#endif
+
+  /* Acquire the mutex. */
+
+  ret = nxmutex_lock(&g_lock);
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+#ifdef CONFIG_ESP32_SPI_FLASH_SUPPORT_PSRAM_STACK
+  if (stack_is_psram())
+    {
+      ret = esp32_async_op(SPIFLASH_OP_CODE_ENCRYPT_WRITE, priv,
+                           offset, buffer, nbytes, 0);
+    }
+  else
+    {
+      ret = esp32_writeblk_encrypted(priv, offset, buffer, nbytes);
+    }
+#else
+  ret = esp32_writeblk_encrypted(priv, offset, buffer, nbytes);
+#endif
+
+  nxmutex_unlock(&g_lock);
+
+#ifdef CONFIG_ESP32_SPIFLASH_DEBUG
+  finfo("esp32_write_encrypt()=%d\n", ret);
+#endif
+
+  return ret;
+}
 #endif
 
 /****************************************************************************
@@ -2250,7 +2323,8 @@ static int esp32_ioctl(struct mtd_dev_s *dev, int cmd,
               geo->neraseblocks = MTD_SIZE(priv) / MTD_ERASESIZE(priv);
               ret               = OK;
 
-              finfo("blocksize: %d erasesize: %d neraseblocks: %d\n",
+              finfo("blocksize: %" PRIu32 " erasesize: %" PRIu32 ""
+                    " neraseblocks: %" PRIu32 "\n",
                     geo->blocksize, geo->erasesize, geo->neraseblocks);
             }
         }
@@ -2328,7 +2402,8 @@ static int esp32_ioctl_encrypt(struct mtd_dev_s *dev, int cmd,
               geo->neraseblocks = MTD_SIZE(priv) / geo->erasesize;
               ret               = OK;
 
-              finfo("blocksize: %d erasesize: %d neraseblocks: %d\n",
+              finfo("blocksize: %" PRIu32 " erasesize: %" PRIu32 ""
+                    " neraseblocks: %" PRIu32 "\n",
                     geo->blocksize, geo->erasesize, geo->neraseblocks);
             }
         }
@@ -2376,7 +2451,7 @@ static int esp32_ioctl_encrypt(struct mtd_dev_s *dev, int cmd,
  *   Disable the non-IRAM interrupts on the other core (the one that isn't
  *   handling the SPI flash operation) and notify that the SPI flash
  *   operation can start. Wait on a busy loop until it's finished and then
- *   reenable the non-IRAM interrups.
+ *   re-enable the non-IRAM interrupts.
  *
  * Input Parameters:
  *   argc          - Not used.
@@ -2642,12 +2717,12 @@ struct mtd_dev_s *esp32_spiflash_alloc_mtdpart(uint32_t mtd_offset,
   chip = priv->chip;
 
   finfo("ESP32 SPI Flash information:\n");
-  finfo("\tID = 0x%x\n", chip->device_id);
-  finfo("\tStatus mask = %x\n", chip->status_mask);
-  finfo("\tChip size = %d KB\n", chip->chip_size / 1024);
-  finfo("\tPage size = %d B\n", chip->page_size);
-  finfo("\tSector size = %d KB\n", chip->sector_size / 1024);
-  finfo("\tBlock size = %d KB\n", chip->block_size / 1024);
+  finfo("\tID = 0x%" PRIx32 "\n", chip->device_id);
+  finfo("\tStatus mask = %" PRIx32 "\n", chip->status_mask);
+  finfo("\tChip size = %" PRIu32 " KB\n", chip->chip_size / 1024);
+  finfo("\tPage size = %" PRIu32 " B\n", chip->page_size);
+  finfo("\tSector size = %" PRIu32 " KB\n", chip->sector_size / 1024);
+  finfo("\tBlock size = %" PRIu32 " KB\n", chip->block_size / 1024);
 
   ASSERT((mtd_offset + mtd_size) <= chip->chip_size);
   ASSERT((mtd_offset % chip->sector_size) == 0);
@@ -2662,8 +2737,8 @@ struct mtd_dev_s *esp32_spiflash_alloc_mtdpart(uint32_t mtd_offset,
       size = mtd_size;
     }
 
-  finfo("\tMTD offset = 0x%x\n", mtd_offset);
-  finfo("\tMTD size = 0x%x\n", size);
+  finfo("\tMTD offset = 0x%" PRIx32 "\n", mtd_offset);
+  finfo("\tMTD size = 0x%" PRIx32 "\n", size);
 
   startblock = MTD_SIZE2BLK(priv, mtd_offset);
   blocks = MTD_SIZE2BLK(priv, size);
@@ -2755,6 +2830,28 @@ bool esp32_flash_encryption_enabled(void)
     }
 
   return enabled;
+}
+
+/****************************************************************************
+ * Name: esp32_get_flash_address_mapped_as_text
+ *
+ * Description:
+ *   Get flash address which is currently mapped as text
+ *
+ * Input Parameters:
+ *   None
+ *
+ * Returned Value:
+ *   flash address which is currently mapped as text
+ *
+ ****************************************************************************/
+
+uint32_t esp32_get_flash_address_mapped_as_text(void)
+{
+  uint32_t i = MMU_ADDR2PAGE((uint32_t)&_stext - SOC_IROM_MASK_LOW)
+               + IROM0_PAGES_START;
+  return (PRO_MMU_TABLE[i] & DPORT_MMU_ADDRESS_MASK)
+         * SPI_FLASH_MMU_PAGE_SIZE;
 }
 
 #endif /* CONFIG_ESP32_SPIFLASH */

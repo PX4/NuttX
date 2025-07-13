@@ -83,13 +83,6 @@ static int psock_socketlevel_option(FAR struct socket *psock, int option,
 {
   FAR struct socket_conn_s *conn = psock->s_conn;
 
-  /* Verify that the socket option if valid (but might not be supported ) */
-
-  if (!value || !value_len)
-    {
-      return -EINVAL;
-    }
-
   /* Process the options always handled locally */
 
   switch (option)
@@ -271,6 +264,13 @@ int psock_getsockopt(FAR struct socket *psock, int level, int option,
 {
   int ret = -ENOPROTOOPT;
 
+  /* Verify that the socket option is valid (but might not be supported ) */
+
+  if (value == NULL || value_len == NULL || *value_len == 0)
+    {
+      return -EINVAL;
+    }
+
   /* Verify that the sockfd corresponds to valid, allocated socket */
 
   if (psock == NULL || psock->s_conn == NULL)
@@ -365,7 +365,7 @@ int getsockopt(int sockfd, int level, int option,
   if (ret == OK)
     {
       ret = psock_getsockopt(psock, level, option, value, value_len);
-      fs_putfilep(filep);
+      file_put(filep);
     }
 
   if (ret < 0)

@@ -66,7 +66,7 @@
 #endif
 
 /****************************************************************************
- * Private Type Definitions
+ * Private Types
  ****************************************************************************/
 
 /* This structure describes the state of the upper half driver */
@@ -240,7 +240,7 @@ errout:
  * Name: audio_read
  *
  * Description:
- *   A dummy read method.  This is provided only to satsify the VFS layer.
+ *   A dummy read method.  This is provided only to satisfy the VFS layer.
  *
  ****************************************************************************/
 
@@ -268,7 +268,7 @@ static ssize_t audio_read(FAR struct file *filep,
  * Name: audio_write
  *
  * Description:
- *   A dummy write method.  This is provided only to satsify the VFS layer.
+ *   A dummy write method.  This is provided only to satisfy the VFS layer.
  *
  ****************************************************************************/
 
@@ -590,7 +590,7 @@ static int audio_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         {
           audinfo("AUDIOIOC_REGISTERMQ\n");
 
-          ret = fs_getfilep((mqd_t)arg, &upper->usermq);
+          ret = file_get((mqd_t)arg, &upper->usermq);
         }
         break;
 
@@ -603,7 +603,7 @@ static int audio_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
         {
           audinfo("AUDIOIOC_UNREGISTERMQ\n");
 
-          fs_putfilep(upper->usermq);
+          file_put(upper->usermq);
           upper->usermq = NULL;
           ret = OK;
         }
@@ -687,7 +687,7 @@ static int audio_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
  * Input Parameters:
  *   handle - This is the handle that was provided to the lower-half
  *     start() method.
- *   apb - A pointer to the previsously enqueued ap_buffer_s
+ *   apb - A pointer to the previously enqueued ap_buffer_s
  *   status - Status of the dequeue operation
  *
  * Returned Value:
@@ -801,7 +801,7 @@ static inline void audio_message(FAR struct audio_upperhalf_s *upper,
  *
  * Description:
  *   Send an AUDIO_MSG_IOERR message to the client to indicate that
- *   audio dirver have io error.  The lower-half driver initiates this
+ *   audio driver have io error.  The lower-half driver initiates this
  *   call via its callback pointer to our upper-half driver.
  *
  ****************************************************************************/
@@ -880,7 +880,7 @@ static inline void audio_underrun(FAR struct audio_upperhalf_s *upper,
  * Input Parameters:
  *   priv - Private context data owned by the upper-half
  *   reason - The reason code for the callback
- *   apb - A pointer to the previsously enqueued ap_buffer_s
+ *   apb - A pointer to the previously enqueued ap_buffer_s
  *   status - Status information associated with the callback
  *
  * Returned Value:

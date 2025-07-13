@@ -32,7 +32,6 @@
 
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
-#include <nuttx/mm/kmap.h>
 
 #include "sched/sched.h"
 #include "semaphore/semaphore.h"
@@ -73,16 +72,22 @@ void nxsem_wait_irq(FAR struct tcb_s *wtcb, int errcode)
 {
   FAR struct tcb_s *rtcb = this_task();
   FAR sem_t *sem = wtcb->waitobj;
-
-#ifdef CONFIG_MM_KMAP
-  sem = kmm_map_user(wtcb, sem, sizeof(*sem));
-#endif
+  bool mutex = NXSEM_IS_MUTEX(sem);
 
   /* It is possible that an interrupt/context switch beat us to the punch
    * and already changed the task's state.
    */
 
-  DEBUGASSERT(sem != NULL && atomic_read(NXSEM_COUNT(sem)) < 0);
+  DEBUGASSERT(sem != NULL);
+  DEBUGASSERT(mutex || atomic_read(NXSEM_COUNT(sem)) < 0);
+  DEBUGASSERT(!mutex || NXSEM_MBLOCKING(atomic_read(NXSEM_MHOLDER(sem))));
+
+  /* Mutex is never interrupted by a signal or canceled */
+
+  if (mutex && (errcode == EINTR || errcode == ECANCELED))
+    {
+      return;
+    }
 
   /* Restore the correct priority of all threads that hold references
    * to this semaphore.
@@ -90,21 +95,21 @@ void nxsem_wait_irq(FAR struct tcb_s *wtcb, int errcode)
 
   nxsem_canceled(wtcb, sem);
 
-  /* And increment the count on the semaphore.  This releases the count
-   * that was taken by sem_post().  This count decremented the semaphore
-   * count to negative and caused the thread to be blocked in the first
-   * place.
-   */
-
-  atomic_fetch_add(NXSEM_COUNT(sem), 1);
-
   /* Remove task from waiting list */
 
   dq_rem((FAR dq_entry_t *)wtcb, SEM_WAITLIST(sem));
 
-#ifdef CONFIG_MM_KMAP
-  kmm_unmap(sem);
-#endif
+  /* This restores the value to what it was before the previous sem_wait.
+   * This caused the thread to be blocked in the first place.
+   *
+   * For mutexes, the holder is updated by the thread itself
+   * when it exits nxsem_wait
+   */
+
+  if (!mutex)
+    {
+      atomic_fetch_add(NXSEM_COUNT(sem), 1);
+    }
 
   /* Indicate that the wait is over. */
 

@@ -23,7 +23,7 @@
 if(CONFIG_SEGGER_RTT OR CONFIG_SEGGER_SYSVIEW)
   if(NOT EXISTS ${CMAKE_CURRENT_LIST_DIR}/SystemView)
 
-    set(SYSVIEW_VERSION 354)
+    set(SYSVIEW_VERSION 356)
 
     FetchContent_Declare(
       systemview
@@ -47,6 +47,8 @@ endif()
 
 if(CONFIG_SEGGER_RTT)
   nuttx_add_kernel_library(RTT)
+
+  target_sources(RTT PRIVATE segger.c)
 
   set(RTT_SRCS SystemView/SEGGER/SEGGER_RTT.c)
 

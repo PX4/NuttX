@@ -60,7 +60,7 @@ class Stack(object):
                 size: {self._stack_size}, sp: {self._cur_sp}\n"
             )
 
-            raise gdb.GdbError("Inconsistant stack size...Maybe memory corruption?")
+            raise gdb.GdbError("Inconsistent stack size...Maybe memory corruption?")
 
         # TODO: check if stack ptr is located at a sane address range!
 
@@ -111,7 +111,7 @@ class Stack(object):
 
         return self.check_max_usage()
 
-    def avalaible(self):
+    def available(self):
         cur_usage = self.cur_usage()
         return self._stack_size - cur_usage
 

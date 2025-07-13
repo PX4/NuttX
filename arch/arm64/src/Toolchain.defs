@@ -43,7 +43,11 @@ ifeq ($(CONFIG_ARCH_ARMV8A),y)
   endif
   ARCHCPUFLAGS += $(OPTION_MARCH)$(OPTION_MARCH_FEATURE)
 else ifeq ($(CONFIG_ARCH_ARMV8R),y)
-  ARCHCPUFLAGS += -march=armv8-r
+  ifeq ($(CONFIG_ARCH_FPU),y)
+    ARCHCPUFLAGS += -march=armv8-r
+  else
+    ARCHCPUFLAGS += -march=armv8-r+nofp
+  endif
 else ifeq ($(CONFIG_ARCH_CORTEX_A53),y)
   ARCHCPUFLAGS += -mcpu=cortex-a53
 else ifeq ($(CONFIG_ARCH_CORTEX_A55),y)
@@ -54,6 +58,10 @@ else ifeq ($(CONFIG_ARCH_CORTEX_A72),y)
   ARCHCPUFLAGS += -mcpu=cortex-a72
 else ifeq ($(CONFIG_ARCH_CORTEX_R82),y)
   ARCHCPUFLAGS += -mcpu=cortex-r82
+endif
+
+ifeq ($(CONFIG_ARM_TOOLCHAIN_CLANG),y)
+  ARCHCPUFLAGS += --target=aarch64-none-elf
 endif
 
 ifeq ($(CONFIG_DEBUG_CUSTOMOPT),y)
@@ -76,6 +84,14 @@ ifeq ($(CONFIG_STACK_CANARIES),y)
   ARCHOPTIMIZATION += -fstack-protector-all
 endif
 
+ifeq ($(CONFIG_STACK_USAGE),y)
+  ARCHOPTIMIZATION += -fstack-usage
+endif
+
+ifneq ($(CONFIG_STACK_USAGE_WARNING),0)
+  ARCHOPTIMIZATION += -Wstack-usage=$(CONFIG_STACK_USAGE_WARNING)
+endif
+
 ifeq ($(CONFIG_MM_UBSAN_ALL),y)
   ARCHOPTIMIZATION += $(CONFIG_MM_UBSAN_OPTION)
 endif
@@ -86,18 +102,35 @@ endif
 
 ifeq ($(CONFIG_MM_KASAN_INSTRUMENT_ALL),y)
   ARCHOPTIMIZATION += -fsanitize=kernel-address
+  KASAN_PARAM += asan-stack=0
+  KASAN_PARAM += asan-instrumentation-with-call-threshold=0
+
+  ifeq ($(CONFIG_MM_KASAN_GLOBAL),y)
+    KASAN_PARAM += asan-globals=1
+  else
+    KASAN_PARAM += asan-globals=0
+  endif
+
+  ifeq ($(CONFIG_MM_KASAN_DISABLE_READS_CHECK),y)
+    KASAN_PARAM += asan-instrument-reads=0
+  endif
+
+  ifeq ($(CONFIG_MM_KASAN_DISABLE_WRITES_CHECK),y)
+    KASAN_PARAM += asan-instrument-writes=0
+  endif
+
+  ifeq ($(CONFIG_ARM_TOOLCHAIN_CLANG),y)
+    ARCHOPTIMIZATION += $(addprefix -mllvm ,$(KASAN_PARAM))
+  else
+    ARCHOPTIMIZATION += $(addprefix --param ,$(KASAN_PARAM))
+  endif
 endif
 
-ifeq ($(CONFIG_MM_KASAN_GLOBAL),y)
-  ARCHOPTIMIZATION += --param asan-globals=1
-endif
-
-ifeq ($(CONFIG_MM_KASAN_DISABLE_READS_CHECK),y)
-  ARCHOPTIMIZATION += --param asan-instrument-reads=0
-endif
-
-ifeq ($(CONFIG_MM_KASAN_DISABLE_WRITES_CHECK),y)
-  ARCHOPTIMIZATION += --param asan-instrument-writes=0
+# If we don't use MMU, all memory is treated as device memory and can't handle
+# alignment faults. Some compiler builtins like memset() can introduce
+# alignment faults. We need to disable them in that case.
+ifneq ($(CONFIG_ARCH_USE_MMU),y)
+  ARCHOPTIMIZATION += -fno-builtin
 endif
 
 # Instrumentation options
@@ -183,21 +216,33 @@ CROSSDEV ?= aarch64-none-elf-
 
 # Default toolchain
 
-CC = $(CROSSDEV)gcc
-CXX = $(CROSSDEV)g++
-CPP = $(CROSSDEV)gcc -E -P -x c
-STRIP = $(CROSSDEV)strip --strip-unneeded
-OBJCOPY = $(CROSSDEV)objcopy
-OBJDUMP = $(CROSSDEV)objdump
-LD = $(CROSSDEV)ld
-AR = $(CROSSDEV)ar rcs
-NM = $(CROSSDEV)nm
+ifeq ($(CONFIG_ARCH_TOOLCHAIN_GCC),y)
+  CC = $(CROSSDEV)gcc
+  CXX = $(CROSSDEV)g++
+  CPP = $(CROSSDEV)gcc -E -P -x c
+  STRIP = $(CROSSDEV)strip --strip-unneeded
+  OBJCOPY = $(CROSSDEV)objcopy
+  OBJDUMP = $(CROSSDEV)objdump
+  LD = $(CROSSDEV)ld
+  AR = $(CROSSDEV)ar rcs
+  NM = $(CROSSDEV)nm
+else ifeq ($(CONFIG_ARCH_TOOLCHAIN_CLANG),y)
+  CC      = clang
+  CXX     = clang++
+  CPP     = clang -E -P -x c
+  LD      = ld.lld -m aarch64elf
+  STRIP   = llvm-strip --strip-unneeded
+  AR      = llvm-ar rcs
+  NM      = llvm-nm
+  OBJCOPY = llvm-objcopy
+  OBJDUMP = llvm-objdump
+endif
 
 # Link Time Optimization
 
 ifeq ($(CONFIG_LTO_FULL),y)
   ARCHOPTIMIZATION += -flto
-  ifeq ($(CONFIG_ARM64_TOOLCHAIN_GNU_EABI),y)
+  ifeq ($(CONFIG_ARCH_TOOLCHAIN_GCC),y)
     LD := $(CROSSDEV)gcc
     AR := $(CROSSDEV)gcc-ar rcs
     NM := $(CROSSDEV)gcc-nm
@@ -206,18 +251,12 @@ ifeq ($(CONFIG_LTO_FULL),y)
   endif
 endif
 
-ifeq ($(CONFIG_ARCH_TOOLCHAIN_GNU),y)
-  ifeq ($(CONFIG_ARCH_TOOLCHAIN_CLANG),)
-    ifeq ($(GCCVER),)
-      export GCCVER := $(shell $(CC) --version | grep gcc | sed -E "s/.* ([0-9]+\.[0-9]+).*/\1/" | cut -d'.' -f1)
-    endif
-    ifeq ($(shell expr "$(GCCVER)" \>= 12), 1)
-      LDFLAGS += --no-warn-rwx-segments
-    endif
-
+ifeq ($(CONFIG_ARCH_TOOLCHAIN_GCC),y)
+  ifeq ($(GCCVER),)
+    export GCCVER := $(shell $(CC) --version | grep gcc | sed -E "s/.* ([0-9]+\.[0-9]+).*/\1/" | cut -d'.' -f1)
   endif
   ifeq ($(shell expr "$(GCCVER)" \>= 12), 1)
-    LDFLAGS += --print-memory-usage
+    LDFLAGS += --no-warn-rwx-segments --print-memory-usage
   endif
 endif
 
@@ -240,12 +279,18 @@ endif
 # Loadable module definitions
 
 CMODULEFLAGS = $(CFLAGS) -fvisibility=hidden # --target1-abs
-LDMODULEFLAGS = -r -T $(call CONVERT_PATH,$(TOPDIR)/libs/libc/modlib/gnu-elf.ld)
+LDMODULEFLAGS = -r -T $(call CONVERT_PATH,$(TOPDIR)/libs/libc/elf/gnu-elf.ld)
 
 # ELF module definitions
 
-CELFFLAGS = $(CFLAGS) -fvisibility=hidden -mlong-calls # --target1-abs
-CXXELFFLAGS = $(CXXFLAGS) -fvisibility=hidden -mlong-calls # --target1-abs
+CELFFLAGS = $(CFLAGS) -fvisibility=hidden # --target1-abs
+CXXELFFLAGS = $(CXXFLAGS) -fvisibility=hidden # --target1-abs
 
-LDELFFLAGS = -r -e main
-LDELFFLAGS += -T $(call CONVERT_PATH,$(TOPDIR)$(DELIM)libs$(DELIM)libc$(DELIM)modlib$(DELIM)gnu-elf.ld)
+LDELFFLAGS = -r -e __start
+ifneq ($(CONFIG_BUILD_KERNEL),y)
+  # Flat build and protected elf entry point use crt0,
+  # Kernel build will use apps/import/scripts/crt0
+
+  LDELFFLAGS += $(TOPDIR)$(DELIM)arch$(DELIM)arm64$(DELIM)src$(DELIM)crt0.o
+endif
+LDELFFLAGS += -T $(call CONVERT_PATH,$(TOPDIR)$(DELIM)libs$(DELIM)libc$(DELIM)elf$(DELIM)gnu-elf.ld)

@@ -32,7 +32,7 @@ config USBDEV_SUPERSPEED
 		Hardware handles super speed operation (USB 3.2)
 
 config USBDEV_EPBUFFER_ALIGNMENT
-	int "The usbdev ep req bffer aligned bytes"
+	int "The usbdev ep req buffer aligned bytes"
 	default 0
 	---help---
 		The aligned bytes of usbdev ep req buffer
@@ -232,7 +232,7 @@ config COMPOSITE_VENDORID
 	default 0x0000
 
 config COMPOSITE_VENDORSTR
-	string "Composite vendor ID"
+	string "Composite vendor string"
 	default "NuttX"
 	---help---
 		The vendor ID code/string
@@ -432,8 +432,8 @@ menuconfig CDCACM
 	bool "USB Modem (CDC/ACM) support"
 	default n
 	select SERIAL_REMOVABLE
-	select SERIAL_TXDMA
-	select SERIAL_RXDMA
+	select SERIAL_RXDMA if !CDCACM_DISABLE_RXBUF
+	select SERIAL_TXDMA if !CDCACM_DISABLE_TXBUF
 	---help---
 		Enables USB Modem (CDC/ACM) support
 
@@ -682,6 +682,15 @@ config CDCACM_BULKIN_REQLEN
 		than CDCACM_TXBUFSIZE-1, since a request larger than the TX
 		buffer can never be sent.
 
+config CDCACM_DISABLE_RXBUF
+	bool "CDC/ACM use usb rx req buf directly"
+	default n
+	---help---
+		The interaction between cdcacm and serial uses usb req buf
+		directly instead of using a separate buffer.
+
+if !CDCACM_DISABLE_RXBUF
+
 config CDCACM_RXBUFSIZE
 	int "Receive buffer size"
 	default 513 if USBDEV_DUALSPEED
@@ -693,6 +702,17 @@ config CDCACM_RXBUFSIZE
 		will hold four full-speed, 64 byte packets; a buffer size of 513
 		will hold one high-speed, 512 byte packet.
 
+endif # !CDCACM_DISABLE_RXBUF
+
+config CDCACM_DISABLE_TXBUF
+	bool "CDC/ACM use usb tx req buf directly"
+	default n
+	---help---
+		The interaction between cdcacm and serial uses usb req buf
+		directly instead of using a separate buffer.
+
+if !CDCACM_DISABLE_TXBUF
+
 config CDCACM_TXBUFSIZE
 	int "Transmit buffer size"
 	default 769 if USBDEV_DUALSPEED
@@ -703,6 +723,8 @@ config CDCACM_TXBUFSIZE
 		that the circular buffer is managed.  So a TX buffer size of 769
 		will hold one request of size 768; a buffer size of 193 will hold
 		two requests of size 96 bytes.
+
+endif # !CDCACM_DISABLE_TXBUF
 
 if !CDCACM_COMPOSITE
 

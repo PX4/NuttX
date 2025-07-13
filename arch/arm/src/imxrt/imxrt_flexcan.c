@@ -713,9 +713,9 @@ static int imxrt_transmit(struct imxrt_driver_s *priv)
   mb->cs = cs; /* Go. */
 
   /* Errata ER005829 step 8: Write twice into the first TX MB
-   * Errata mentions writng 0x8 value, but this one couses
+   * Errata mentions writing 0x8 value, but this one causes
    * the ESR2_LPTM register to choose the reserved MB for
-   * transmiting the package, hence we write 0x3
+   * transmitting the package, hence we write 0x3.
    */
 
   struct mb_s *buffer = flexcan_get_mb(priv, RXMBCOUNT);
@@ -1517,11 +1517,11 @@ static int imxrt_ioctl(struct net_driver_s *dev, int cmd,
         {
           struct can_ioctl_data_s *req =
               (struct can_ioctl_data_s *)((uintptr_t)arg);
-          req->arbi_bitrate = priv->arbi_timing.bitrate / 1000; /* kbit/s */
+          req->arbi_bitrate = priv->arbi_timing.bitrate;
           req->arbi_samplep = priv->arbi_timing.samplep;
           if (priv->canfd_capable)
             {
-              req->data_bitrate = priv->data_timing.bitrate / 1000; /* kbit/s */
+              req->data_bitrate = priv->data_timing.bitrate;
               req->data_samplep = priv->data_timing.samplep;
             }
           else
@@ -1540,7 +1540,7 @@ static int imxrt_ioctl(struct net_driver_s *dev, int cmd,
               (struct can_ioctl_data_s *)((uintptr_t)arg);
 
           struct flexcan_timeseg arbi_timing;
-          arbi_timing.bitrate = req->arbi_bitrate * 1000;
+          arbi_timing.bitrate = req->arbi_bitrate;
           arbi_timing.samplep = req->arbi_samplep;
 
           if (imxrt_bitratetotimeseg(&arbi_timing, 10, 0))
@@ -1554,7 +1554,7 @@ static int imxrt_ioctl(struct net_driver_s *dev, int cmd,
 
           if (priv->canfd_capable)
           {
-            data_timing.bitrate = req->data_bitrate * 1000;
+            data_timing.bitrate = req->data_bitrate;
             data_timing.samplep = req->data_samplep;
 
             if (ret == OK && imxrt_bitratetotimeseg(&data_timing, 10, 1))
@@ -1569,15 +1569,13 @@ static int imxrt_ioctl(struct net_driver_s *dev, int cmd,
 
           if (ret == OK)
             {
-              /* Reset CAN controller and start with new timings */
+              /* Apply the new timings (interface is guaranteed to be down) */
 
               priv->arbi_timing = arbi_timing;
               if (priv->canfd_capable)
               {
                 priv->data_timing = data_timing;
               }
-
-              imxrt_ifup(dev);
             }
         }
         break;
@@ -1752,9 +1750,9 @@ static int imxrt_initialize(struct imxrt_driver_s *priv)
     }
 
   /*  Errata ER005829 step 7: Reserve first TX MB
-   *  Errata mentions writng 0x8 value, but this one couses
+   *  Errata mentions writing 0x8 value, but this one causes
    *  the ESR2_LPTM register to choose the reserved MB for
-   *  transmiting the package, hence we write 0x3
+   *  transmitting the package, hence we write 0x3.
    */
 
       struct mb_s *buffer = flexcan_get_mb(priv, RXMBCOUNT);

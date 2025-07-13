@@ -96,18 +96,28 @@ endif
 
 ifeq ($(CONFIG_MM_KASAN_INSTRUMENT_ALL),y)
   ARCHOPTIMIZATION += -fsanitize=kernel-address
-endif
+  KASAN_PARAM += asan-stack=0
+  KASAN_PARAM += asan-instrumentation-with-call-threshold=0
 
-ifeq ($(CONFIG_MM_KASAN_GLOBAL),y)
-  ARCHOPTIMIZATION += --param asan-globals=1
-endif
+  ifeq ($(CONFIG_MM_KASAN_GLOBAL),y)
+    KASAN_PARAM += asan-globals=1
+  else
+    KASAN_PARAM += asan-globals=0
+  endif
 
-ifeq ($(CONFIG_MM_KASAN_DISABLE_READS_CHECK),y)
-  ARCHOPTIMIZATION += --param asan-instrument-reads=0
-endif
+  ifeq ($(CONFIG_MM_KASAN_DISABLE_READS_CHECK),y)
+    KASAN_PARAM += asan-instrument-reads=0
+  endif
 
-ifeq ($(CONFIG_MM_KASAN_DISABLE_WRITES_CHECK),y)
-  ARCHOPTIMIZATION += --param asan-instrument-writes=0
+  ifeq ($(CONFIG_MM_KASAN_DISABLE_WRITES_CHECK),y)
+    KASAN_PARAM += asan-instrument-writes=0
+  endif
+
+  ifeq ($(CONFIG_ARM_TOOLCHAIN_CLANG),y)
+    ARCHOPTIMIZATION += $(addprefix -mllvm ,$(KASAN_PARAM))
+  else
+    ARCHOPTIMIZATION += $(addprefix --param ,$(KASAN_PARAM))
+  endif
 endif
 
 # Instrumentation options
@@ -531,12 +541,12 @@ endif
 # Loadable module definitions
 
 CMODULEFLAGS = $(CFLAGS) -fvisibility=hidden -mlong-calls # --target1-abs
-LDMODULEFLAGS = -r -T $(call CONVERT_PATH,$(TOPDIR)/libs/libc/modlib/gnu-elf.ld)
+LDMODULEFLAGS = -r -T $(call CONVERT_PATH,$(TOPDIR)/libs/libc/elf/gnu-elf.ld)
 
 # ELF module definitions
 
 CELFFLAGS = $(CFLAGS) -fvisibility=hidden -mlong-calls # --target1-abs
-CXXELFFLAGS = $(CXXFLAGS)-fvisibility=hidden
+CXXELFFLAGS = $(CXXFLAGS)-fvisibility=hidden -mlong-calls
 
 ifeq ($(CONFIG_PIC),y)
   CFLAGS += --fixed-r10
@@ -551,7 +561,14 @@ else
   endif
 endif
 
-LDELFFLAGS +=  -e main -T $(call CONVERT_PATH,$(TOPDIR)$(DELIM)libs$(DELIM)libc$(DELIM)modlib$(DELIM)gnu-elf.ld)
+ifneq ($(CONFIG_BUILD_KERNEL),y)
+  # Flat build and protected elf entry point use crt0,
+  # Kernel build will use apps/import/scripts/crt0
+
+  LDELFFLAGS += $(TOPDIR)$(DELIM)arch$(DELIM)arm$(DELIM)src$(DELIM)crt0.o
+endif
+
+LDELFFLAGS += -e __start -T $(call CONVERT_PATH,$(TOPDIR)$(DELIM)libs$(DELIM)libc$(DELIM)elf$(DELIM)gnu-elf.ld)
 
 # Zig toolchain
 

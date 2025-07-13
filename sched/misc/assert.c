@@ -284,7 +284,8 @@ static void dump_stacks(FAR struct tcb_s *rtcb, uintptr_t sp)
   else
     {
       force = true;
-      _alert("ERROR: Stack pointer is not within the stack\n");
+      _alert("ERROR: Stack pointer %" PRIxPTR "is not within the stack\n",
+             sp);
     }
 
 #if CONFIG_ARCH_INTERRUPTSTACK > 0
@@ -307,6 +308,9 @@ static void dump_stacks(FAR struct tcb_s *rtcb, uintptr_t sp)
                     up_getusrsp((FAR void *)running_regs()) : 0;
       if (tcbstack_sp < tcbstack_base || tcbstack_sp >= tcbstack_top)
         {
+          _alert("ERROR: Stack pointer %" PRIxPTR " is not within the"
+                 " stack\n", tcbstack_sp);
+
           tcbstack_sp = 0;
           force = true;
         }
@@ -456,10 +460,10 @@ static void dump_backtrace(FAR struct tcb_s *tcb, FAR void *arg)
  ****************************************************************************/
 
 #ifdef CONFIG_SCHED_DUMP_ON_EXIT
-static void dump_filelist(FAR struct tcb_s *tcb, FAR void *arg)
+static void dump_fdlist(FAR struct tcb_s *tcb, FAR void *arg)
 {
-  FAR struct filelist *filelist = &tcb->group->tg_filelist;
-  files_dumplist(filelist);
+  FAR struct fdlist *list = &tcb->group->tg_fdlist;
+  fdlist_dump(list);
 }
 #endif
 
@@ -548,7 +552,7 @@ static void dump_tasks(void)
 #endif
 
 #ifdef CONFIG_SCHED_DUMP_ON_EXIT
-  nxsched_foreach(dump_filelist, NULL);
+  nxsched_foreach(dump_fdlist, NULL);
 #endif
 }
 

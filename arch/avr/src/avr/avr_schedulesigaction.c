@@ -35,7 +35,6 @@
 #include <avr/io.h>
 
 #include "sched/sched.h"
-#include "signal/signal.h"
 #include "avr_internal.h"
 
 /****************************************************************************
@@ -99,8 +98,8 @@ void up_schedule_sigaction(struct tcb_s *tcb)
         {
           /* In this case just deliver the signal now. */
 
-          nxsig_deliver(tcb);
-          tcb->flags &= ~TCB_FLAG_SIGDELIVER;
+          (tcb->sigdeliver)(tcb);
+          tcb->sigdeliver = NULL;
         }
 
       /* CASE 2:  We are in an interrupt handler AND the
@@ -126,6 +125,9 @@ void up_schedule_sigaction(struct tcb_s *tcb)
           tcb->xcp.saved_pc1  = up_current_regs()[REG_PC1];
 #if defined(REG_PC2)
           tcb->xcp.saved_pc2  = up_current_regs()[REG_PC2];
+#endif
+#if defined(REG_RAMPZ)
+          tcb->xcp.saved_rampz = up_current_regs()[REG_RAMPZ];
 #endif
           tcb->xcp.saved_sreg = up_current_regs()[REG_SREG];
 
@@ -168,6 +170,9 @@ void up_schedule_sigaction(struct tcb_s *tcb)
       tcb->xcp.saved_pc1     = tcb->xcp.regs[REG_PC1];
 #if defined(REG_PC2)
       tcb->xcp.saved_pc2     = tcb->xcp.regs[REG_PC2];
+#endif
+#if defined(REG_RAMPZ)
+      tcb->xcp.saved_rampz   = tcb->xcp.regs[REG_RAMPZ];
 #endif
       tcb->xcp.saved_sreg    = tcb->xcp.regs[REG_SREG];
 

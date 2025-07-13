@@ -22,15 +22,17 @@
 
 # The start-up, "head", file.  May be either a .S or a .c file.
 
+STARTUP_ELF_OBJS = crt0$(OBJEXT)
+
 HEAD_ASRC  = xtensa_vectors.S xtensa_window_vector.S xtensa_windowspill.S
 HEAD_ASRC += xtensa_int_handlers.S xtensa_user_handler.S
 
 # Common Xtensa files (arch/xtensa/src/common)
 
-CMN_ASRCS  = xtensa_context.S xtensa_cpuint.S xtensa_panic.S
+CMN_ASRCS  = xtensa_context.S xtensa_panic.S
 
 CMN_CSRCS  = xtensa_assert.c xtensa_cache.c xtensa_cpenable.c
-CMN_CSRCS += xtensa_cpuinfo.c xtensa_createstack.c xtensa_exit.c
+CMN_CSRCS += xtensa_cpuinfo.c xtensa_cpuint.c xtensa_createstack.c xtensa_exit.c
 CMN_CSRCS += xtensa_getintstack.c xtensa_initialize.c xtensa_initialstate.c
 CMN_CSRCS += xtensa_irqdispatch.c xtensa_lowputs.c xtensa_mdelay.c
 CMN_CSRCS += xtensa_modifyreg8.c xtensa_modifyreg16.c xtensa_modifyreg32.c
@@ -48,6 +50,10 @@ endif
 
 ifeq ($(CONFIG_ARCH_FPU),y)
   CMN_CSRCS += xtensa_fpucmp.c
+endif
+
+ifeq ($(CONFIG_ARCH_HAVE_DEBUG),y)
+  CMN_CSRCS += xtensa_debug.c
 endif
 
 ifeq ($(CONFIG_SCHED_BACKTRACE),y)

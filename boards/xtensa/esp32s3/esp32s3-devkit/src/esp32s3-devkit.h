@@ -179,7 +179,7 @@ int board_bmp180_initialize(int devno, int busno);
  *
  ****************************************************************************/
 
-#ifdef CONFIG_ESP32S3_I2S
+#if defined(CONFIG_ESPRESSIF_I2S)
 int board_i2sdev_initialize(int port, bool enable_tx, bool enable_rx);
 #endif
 
@@ -214,18 +214,6 @@ int esp32s3_cs4344_initialize(int port);
 
 #ifdef CONFIG_INPUT_DJOYSTICK
 int esp32s3_djoy_initialize(void);
-#endif
-
-/****************************************************************************
- * Name: esp32s3_ledc_setup
- *
- * Description:
- *   Initialize LEDC PWM and register the PWM device.
- *
- ****************************************************************************/
-
-#ifdef CONFIG_ESP32S3_LEDC
-int esp32s3_pwm_setup(void);
 #endif
 
 #ifdef CONFIG_ESP32S3_TWAI

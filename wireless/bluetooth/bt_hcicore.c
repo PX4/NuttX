@@ -1802,6 +1802,12 @@ int bt_receive(FAR struct bt_driver_s *btdev, enum bt_buf_type_e type,
   struct bt_buf_s *buf;
   int ret;
 
+  if (len + BLUETOOTH_H4_HDRLEN > CONFIG_IOB_BUFSIZE)
+    {
+      wlerr("ERROR: Data too long\n");
+      return -EINVAL;
+    }
+
   wlinfo("data %p len %zu\n", data, len);
 
   /* Critical command complete/status events use the high priority work
@@ -2016,6 +2022,12 @@ int bt_hci_cmd_send_sync(uint16_t opcode, FAR struct bt_buf_s *buf,
         {
           ret = 0;
         }
+    }
+  else
+    {
+      wlerr("ERROR:  Failed get response\n");
+      nxsem_destroy(&sync_sem);
+      return -EIO;
     }
 
   /* Note: if ret < 0 the packet might just be delayed and could still

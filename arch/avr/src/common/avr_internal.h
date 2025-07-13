@@ -59,12 +59,17 @@
 #define INTSTACK_COLOR 's'
 #define HEAP_COLOR     'h'
 
-#define getreg8(a)     (*(volatile uint8_t *)(a))
-#define putreg8(v,a)   (*(volatile uint8_t *)(a) = (v))
-#define getreg16(a)    (*(volatile uint16_t *)(a))
-#define putreg16(v,a)  (*(volatile uint16_t *)(a) = (v))
-#define getreg32(a)    (*(volatile uint32_t *)(a))
-#define putreg32(v,a)  (*(volatile uint32_t *)(a) = (v))
+/* ATMega and similar chips have their registers memory-mapped,
+ * Dx cores don't
+ */
+#ifndef CONFIG_ARCH_CHIP_AVRDX
+#  define getreg8(a)     (*(volatile uint8_t *)(a))
+#  define putreg8(v,a)   (*(volatile uint8_t *)(a) = (v))
+#  define getreg16(a)    (*(volatile uint16_t *)(a))
+#  define putreg16(v,a)  (*(volatile uint16_t *)(a) = (v))
+#  define getreg32(a)    (*(volatile uint32_t *)(a))
+#  define putreg32(v,a)  (*(volatile uint32_t *)(a) = (v))
+#endif
 
 /****************************************************************************
  * Public Types
@@ -138,9 +143,13 @@ void avr_addregion(void);
 
 void avr_lowinit(void);
 
-/* Defined in chip/xxx_serial.c */
+/* Defined in chip/xxx_serial.c except for AVR Dx family
+ * which has avr_earlyserialinit in avrdx/avrdx_serial_early.c
+ * This family also allows to build serial drivers even without
+ * console being enabled
+ */
 
-#ifdef CONFIG_DEV_CONSOLE
+#if defined(CONFIG_DEV_CONSOLE) || defined(CONFIG_ARCH_CHIP_AVRDX)
 void avr_earlyserialinit(void);
 void avr_serialinit(void);
 #endif

@@ -33,8 +33,8 @@
 
 #include <nuttx/fs/fs.h>
 
-#include "notify/notify.h"
 #include "inode/inode.h"
+#include "vfs.h"
 
 /****************************************************************************
  * Private Functions
@@ -50,10 +50,10 @@ static int fchstat(int fd, FAR struct stat *buf, int flags)
   int ret;
 
   /* First, get the file structure.  Note that on failure,
-   * fs_getfilep() will return the errno.
+   * file_get() will return the errno.
    */
 
-  ret = fs_getfilep(fd, &filep);
+  ret = file_get(fd, &filep);
   if (ret < 0)
     {
       goto errout;
@@ -62,7 +62,7 @@ static int fchstat(int fd, FAR struct stat *buf, int flags)
   /* Perform the fchstat operation */
 
   ret = file_fchstat(filep, buf, flags);
-  fs_putfilep(filep);
+  file_put(filep);
   if (ret >= 0)
     {
       /* Successfully fchstat'ed the file */

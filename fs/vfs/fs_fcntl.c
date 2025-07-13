@@ -71,8 +71,6 @@ static int file_vfcntl(FAR struct file *filep, int cmd, va_list ap)
          */
 
         {
-          /* Does not set the errno variable in the event of a failure */
-
           ret = file_dup(filep, va_arg(ap, int), 0);
         }
         break;
@@ -80,46 +78,6 @@ static int file_vfcntl(FAR struct file *filep, int cmd, va_list ap)
       case F_DUPFD_CLOEXEC:
         {
           ret = file_dup(filep, va_arg(ap, int), O_CLOEXEC);
-        }
-        break;
-
-      case F_GETFD:
-        /* Get the file descriptor flags defined in <fcntl.h> that are
-         * associated with the file descriptor fd.  File descriptor flags are
-         * associated with a single file descriptor and do not affect other
-         * file descriptors that refer to the same file.
-         */
-
-        {
-          ret = filep->f_oflags & O_CLOEXEC ? FD_CLOEXEC : 0;
-        }
-        break;
-
-      case F_SETFD:
-        /* Set the file descriptor flags defined in <fcntl.h>, that are
-         * associated with fd, to the third argument, arg, taken as type int.
-         * If the FD_CLOEXEC flag in the third argument is 0, the file shall
-         * remain open across the exec functions; otherwise, the file shall
-         * be closed upon successful execution of one of the exec functions.
-         */
-
-        {
-          int oflags = va_arg(ap, int);
-
-          if (oflags & ~FD_CLOEXEC)
-            {
-              ret = -ENOSYS;
-              break;
-            }
-
-          if (oflags & FD_CLOEXEC)
-            {
-              ret = file_ioctl(filep, FIOCLEX, NULL);
-            }
-          else
-            {
-              ret = file_ioctl(filep, FIONCLEX, NULL);
-            }
         }
         break;
 
@@ -335,7 +293,6 @@ int file_fcntl(FAR struct file *filep, int cmd, ...)
 
 int fcntl(int fd, int cmd, ...)
 {
-  FAR struct file *filep;
   va_list ap;
   int ret;
 
@@ -347,23 +304,73 @@ int fcntl(int fd, int cmd, ...)
 
   va_start(ap, cmd);
 
-  /* Get the file structure corresponding to the file descriptor. */
-
-  ret = fs_getfilep(fd, &filep);
-  if (ret >= 0)
+  switch (cmd)
     {
-      /* Let file_vfcntl() do the real work.  The errno is not set on
-       * failures.
-       */
+      case F_GETFD:
+        /* Get the file descriptor flags defined in <fcntl.h> that are
+         * associated with the file descriptor fd.  File descriptor flags are
+         * associated with a single file descriptor and do not affect other
+         * file descriptors that refer to the same file.
+         */
 
-      ret = file_vfcntl(filep, cmd, ap);
-      fs_putfilep(filep);
-    }
+        {
+          int flags;
 
-  if (ret < 0)
-    {
-      set_errno(-ret);
-      ret = ERROR;
+          ret = ioctl(fd, FIOGCLEX, &flags);
+          if (ret >= 0)
+            {
+              ret = flags;
+            }
+        }
+        break;
+
+      case F_SETFD:
+        /* Set the file descriptor flags defined in <fcntl.h>, that are
+         * associated with fd, to the third argument, arg, taken as type int.
+         * If the FD_CLOEXEC flag in the third argument is 0, the file shall
+         * remain open across the exec functions; otherwise, the file shall
+         * be closed upon successful execution of one of the exec functions.
+         */
+
+        {
+          int oflags = va_arg(ap, int);
+
+          if (oflags & ~FD_CLOEXEC)
+            {
+              set_errno(ENOSYS);
+              ret = ERROR;
+              break;
+            }
+
+          if (oflags & FD_CLOEXEC)
+            {
+              ret = ioctl(fd, FIOCLEX, NULL);
+            }
+          else
+            {
+              ret = ioctl(fd, FIONCLEX, NULL);
+            }
+        }
+        break;
+
+      default:
+        {
+          FAR struct file *filep;
+
+          ret = file_get(fd, &filep);
+          if (ret >= 0)
+            {
+              ret = file_vfcntl(filep, cmd, ap);
+              file_put(filep);
+            }
+
+          if (ret < 0)
+            {
+              set_errno(-ret);
+              ret = ERROR;
+            }
+        }
+        break;
     }
 
   va_end(ap);

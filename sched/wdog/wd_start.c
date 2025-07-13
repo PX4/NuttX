@@ -82,6 +82,9 @@
 
 #endif
 
+#define wdparm_to_ptr(type, arg) ((type)(uintptr_t)arg)
+#define ptr_to_wdparm(ptr)       wdparm_to_ptr(wdparm_t, ptr)
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -112,9 +115,9 @@ static unsigned int g_wdtimernested;
 static inline_function void wd_expiration(clock_t ticks)
 {
   FAR struct wdog_s *wdog;
-  irqstate_t flags;
-  wdentry_t func;
-  wdparm_t arg;
+  irqstate_t         flags;
+  wdentry_t          func;
+  wdparm_t           arg;
 
   flags = spin_lock_irqsave(&g_wdspinlock);
 
@@ -148,7 +151,7 @@ static inline_function void wd_expiration(clock_t ticks)
       /* Indicate that the watchdog is no longer active. */
 
       func = wdog->func;
-      arg = wdog->arg;
+      arg  = wdog->arg;
       wdog->func = NULL;
 
       /* Execute the watchdog function */
@@ -187,17 +190,20 @@ static inline_function void wd_expiration(clock_t ticks)
  *   wdog and wdentry is not NULL.
  *
  * Returned Value:
- *   None.
+ *   Whether the head of the watchdog list has changed.
  *
  ****************************************************************************/
 
 static inline_function
-void wd_insert(FAR struct wdog_s *wdog, clock_t expired,
+bool wd_insert(FAR struct wdog_s *wdog, clock_t expired,
                wdentry_t wdentry, wdparm_t arg)
 {
   FAR struct wdog_s *curr;
+  FAR struct wdog_s *head;
 
   /* Traverse the watchdog list */
+
+  head = list_first_entry(&g_wdactivelist, struct wdog_s, node);
 
   list_for_every_entry(&g_wdactivelist, curr, struct wdog_s, node)
     {
@@ -222,6 +228,10 @@ void wd_insert(FAR struct wdog_s *wdog, clock_t expired,
   up_getpicbase(&wdog->picbase);
   wdog->arg = arg;
   wdog->expired = expired;
+
+  /* Return whether the head of the watchdog list has changed. */
+
+  return head == curr;
 }
 
 /****************************************************************************
@@ -248,7 +258,7 @@ void wd_insert(FAR struct wdog_s *wdog, clock_t expired,
  *
  * Input Parameters:
  *   wdog     - Watchdog ID
- *   ticks    - Absoulute time in clock ticks
+ *   ticks    - Absolute time in clock ticks
  *   wdentry  - Function to call on timeout
  *   arg      - Parameter to pass to wdentry.
  *
@@ -277,23 +287,6 @@ int wd_start_abstick(FAR struct wdog_s *wdog, clock_t ticks,
       return -EINVAL;
     }
 
-  /* Calculate ticks+1, forcing the delay into a range that we can handle.
-   *
-   * NOTE that one is added to the delay.  This is correct and must not be
-   * changed:  The contract for the use wdog_start is that the wdog will
-   * delay FOR AT LEAST as long as requested, but may delay longer due to
-   * variety of factors.  The wdog logic has no knowledge of the the phase
-   * of the system timer when it is started:  The next timer interrupt may
-   * occur immediately or may be delayed for almost a full cycle. In order
-   * to meet the contract requirement, the requested time is also always
-   * incremented by one so that the delay is always at least as long as
-   * requested.
-   *
-   * There is extensive documentation about this time issue elsewhere.
-   */
-
-  ticks++;
-
   /* NOTE:  There is a race condition here... the caller may receive
    * the watchdog between the time that wd_start_abstick is called and
    * the critical section is established.
@@ -310,10 +303,9 @@ int wd_start_abstick(FAR struct wdog_s *wdog, clock_t ticks,
       wdog->func = NULL;
     }
 
-  wd_insert(wdog, ticks, wdentry, arg);
+  reassess |= wd_insert(wdog, ticks, wdentry, arg);
 
-  if (!g_wdtimernested &&
-      (reassess || list_is_head(&g_wdactivelist, &wdog->node)))
+  if (!g_wdtimernested && reassess)
     {
       /* Resume the interval timer that will generate the next
        * interval event. If the timer at the head of the list changed,
@@ -382,18 +374,17 @@ int wd_start_abstick(FAR struct wdog_s *wdog, clock_t ticks,
  *
  ****************************************************************************/
 
-int wd_start(FAR struct wdog_s *wdog, sclock_t delay,
+int wd_start(FAR struct wdog_s *wdog, clock_t delay,
              wdentry_t wdentry, wdparm_t arg)
 {
-  /* Verify the wdog and setup parameters */
+  /* Ensure delay is within the range the wdog can handle. */
 
-  if (delay < 0)
+  if (delay > WDOG_MAX_DELAY)
     {
       return -EINVAL;
     }
 
-  return wd_start_abstick(wdog, clock_systime_ticks() + delay,
-                          wdentry, arg);
+  return wd_start_abstick(wdog, clock_delay2abstick(delay), wdentry, arg);
 }
 
 /****************************************************************************

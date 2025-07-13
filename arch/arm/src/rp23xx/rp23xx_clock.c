@@ -55,7 +55,7 @@
 #include "rp23xx_pll.h"
 #include "hardware/rp23xx_clocks.h"
 #include "hardware/rp23xx_resets.h"
-#include "hardware/rp23xx_watchdog.h"
+#include "hardware/rp23xx_ticks.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -70,6 +70,12 @@ static uint32_t rp23xx_clock_freq[RP23XX_CLOCKS_NDX_MAX];
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+
+static void tick_start(int tick, int cycles)
+{
+  putreg32(cycles, RP23XX_TICKS_CYCLES(tick));
+  putreg32(RP23XX_TICKS_WATCHDOG_CTRL_EN, RP23XX_TICKS_CTRL(tick));
+}
 
 static inline bool has_glitchless_mux(int clk_index)
 {
@@ -202,11 +208,6 @@ bool rp23xx_clock_configure(int clk_index,
 
 void clocks_init(void)
 {
-  /* Start tick in watchdog */
-
-  putreg32((BOARD_REF_FREQ / MHZ) | RP23XX_WATCHDOG_CTRL_ENABLE,
-           RP23XX_WATCHDOG_CTRL);
-
   /* Disable resus that may be enabled from previous software */
 
   putreg32(0, RP23XX_CLOCKS_CLK_SYS_RESUS_CTRL);
@@ -230,8 +231,8 @@ void clocks_init(void)
 
   /* Configure PLLs
    *                   REF     FBDIV VCO     POSTDIV
-   * PLL SYS: 12 / 1 = 12MHz * 125 = 1500MHZ / 5 / 2 = 150MHz
-   * PLL USB: 12 / 1 = 12MHz * 40  = 480 MHz / 5 / 2 =  48MHz
+   * PLL SYS: 12 / 1 = 12MHz * 125 = 1500MHz / 5 / 2 = 150MHz
+   * PLL USB: 12 / 1 = 12MHz * 100 = 1200MHz / 5 / 5 =  48MHz
    */
 
   setbits_reg32(RP23XX_RESETS_RESET_PLL_SYS | RP23XX_RESETS_RESET_PLL_USB,
@@ -243,7 +244,7 @@ void clocks_init(void)
     ;
 
   rp23xx_pll_init(RP23XX_PLL_SYS_BASE, 1, 1500 * MHZ, 5, 2);
-  rp23xx_pll_init(RP23XX_PLL_USB_BASE, 1, 480 * MHZ, 5, 2);
+  rp23xx_pll_init(RP23XX_PLL_USB_BASE, 1, 1200 * MHZ, 5, 5);
 
   /* Configure clocks */
 
@@ -414,11 +415,14 @@ void rp23xx_clockconfig(void)
    *   from flash
    * - and the PLLs, as this is fatal if clock muxing has not been reset on
    *   this boot
+   * - and USB, syscfg, as this disturbs USB-to-SWD on core 1
    */
 
   setbits_reg32(RP23XX_RESETS_RESET_MASK & ~(RP23XX_RESETS_RESET_IO_QSPI |
                                              RP23XX_RESETS_RESET_PADS_QSPI |
                                              RP23XX_RESETS_RESET_PLL_USB |
+                                             RP23XX_RESETS_RESET_USBCTRL |
+                                             RP23XX_RESETS_RESET_SYSCFG |
                                              RP23XX_RESETS_RESET_JTAG |
                                              RP23XX_RESETS_RESET_PLL_SYS),
                 RP23XX_RESETS_RESET);
@@ -451,6 +455,13 @@ void rp23xx_clockconfig(void)
    */
 
   clocks_init();
+
+  /* Configure all TICK blocks */
+
+  for (int i = 0; i < (int)RP23XX_TICK_NUM; ++i)
+    {
+      tick_start(i, (BOARD_REF_FREQ / MHZ));
+    }
 
   /* Peripheral clocks should now all be running */
 

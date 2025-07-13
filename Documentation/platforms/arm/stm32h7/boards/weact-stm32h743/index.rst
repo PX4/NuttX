@@ -2,6 +2,8 @@
 weact-stm32h743
 ===============
 
+.. tags:: chip:stm32, chip:stm32h7, chip:stm32h743
+
 This page discusses issues unique to NuttX configurations for the
 WeAct STM32H743 board.
 
@@ -54,6 +56,28 @@ USART1
   RX     PB15 
   ====== =====
 
+
+SDMMC
+======
+
+The WeAct STM32H743 has one SDCard slot connected as below:
+
+  ========== =====
+  SDMMC1     PINS
+  ========== =====
+  SDMMC_D0   PC8
+  SDMMC_D1   PC9
+  SDMMC_D2   PC10
+  SDMMC_D3   PC11
+  SDMMC_DK   PC12
+  ========== =====
+
+  =============== =====
+  GPIO            PINS
+  =============== =====
+  SDCARD_DETECTED PD4
+  =============== =====
+
 ==============
 
 Each weact-stm32h743 configuration is maintained in a sub-directory and
@@ -79,7 +103,7 @@ usbnsh
 Configures the NuttShell (nsh) located at apps/examples/nsh. This
 configuration enables a serial console over USB.
 
-After flasing and reboot your board you should see in your dmesg logs::
+After flashing and reboot your board you should see in your dmesg logs::
 
        [ 2638.948089] usb 1-1.4: new full-speed USB device number 16 using xhci_hcd
        [ 2639.054432] usb 1-1.4: New USB device found, idVendor=0525, idProduct=a4a7, bcdDevice= 1.01
@@ -93,3 +117,18 @@ After flasing and reboot your board you should see in your dmesg logs::
 
 You may need to press **ENTER** 3 times before the NSH show up.
 
+sdcard
+------
+
+Configures the NuttShell (nsh) and enables SD card support. The board has an onboard microSD slot that should be
+automatically registered as the block device /dev/mmcsd0 when an SD card is present.
+
+The SD card can then be mounted by the NSH commands::
+
+    nsh> mount -t vfat /dev/mmcsd0 /mnt
+    nsh> mount
+    nsh> echo "Hello World!!" > /mnt/test_file.txt
+    nhs> ls /mnt/
+    test_file.txt
+    nsh> cat /mnt/test_file.txt
+    Hello World!!

@@ -33,12 +33,13 @@
 #include <nuttx/init.h>
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
+#include <nuttx/mm/kmap.h>
 
 #include "sched/sched.h"
 #include "semaphore/semaphore.h"
 
 /****************************************************************************
- * Private Functions
+ * Public Functions
  ****************************************************************************/
 
 /****************************************************************************
@@ -68,11 +69,14 @@
  *
  ****************************************************************************/
 
-static int nxsem_wait_slow(FAR sem_t *sem)
+int nxsem_wait_slow(FAR sem_t *sem)
 {
-  FAR struct tcb_s *rtcb;
+  FAR struct tcb_s *rtcb = this_task();
   irqstate_t flags;
   int ret;
+  bool unlocked;
+  FAR struct tcb_s *htcb = NULL;
+  bool mutex = NXSEM_IS_MUTEX(sem);
 
   /* The following operations must be performed with interrupts
    * disabled because nxsem_post() may be called from an interrupt
@@ -85,19 +89,62 @@ static int nxsem_wait_slow(FAR sem_t *sem)
 
   /* Check if the lock is available */
 
-  if (atomic_fetch_sub(NXSEM_COUNT(sem), 1) > 0)
+  if (mutex)
+    {
+      uint32_t mholder;
+
+      /* We lock the mutex for us by setting the blocks bit,
+       * this is all that is needed if we block
+       */
+
+      mholder = atomic_fetch_or(NXSEM_MHOLDER(sem), NXSEM_MBLOCKING_BIT);
+      if (NXSEM_MACQUIRED(mholder))
+        {
+          /* htcb gets NULL if
+           * - the only holder did exit (without posting first)
+           * - the mutex was reset before
+           * In both cases we simply acquire the mutex, thus recovering
+           * from these situations.
+           */
+
+          htcb = nxsched_get_tcb(mholder & (~NXSEM_MBLOCKING_BIT));
+        }
+
+      unlocked = htcb == NULL;
+    }
+  else
+    {
+      unlocked = atomic_fetch_sub(NXSEM_COUNT(sem), 1) > 0;
+    }
+
+  if (unlocked)
     {
       /* It is, let the task take the semaphore. */
 
       ret = nxsem_protect_wait(sem);
       if (ret < 0)
         {
-          atomic_fetch_add(NXSEM_COUNT(sem), 1);
+          if (mutex)
+            {
+              atomic_set(NXSEM_MHOLDER(sem), NXSEM_NO_MHOLDER);
+            }
+          else
+            {
+              atomic_fetch_add(NXSEM_COUNT(sem), 1);
+            }
+
           leave_critical_section(flags);
           return ret;
         }
 
-      nxsem_add_holder(sem);
+      /* For mutexes, we only add the holder to the tasks list at the
+       * time when a task blocks on the mutex, for priority restoration
+       */
+
+      if (!mutex)
+        {
+          nxsem_add_holder(sem);
+        }
     }
 
   /* The semaphore is NOT available, We will have to block the
@@ -109,7 +156,6 @@ static int nxsem_wait_slow(FAR sem_t *sem)
 #ifdef CONFIG_PRIORITY_INHERITANCE
       uint8_t prioinherit = sem->flags & SEM_PRIO_MASK;
 #endif
-      rtcb = this_task();
 
       /* First, verify that the task is not already waiting on a
        * semaphore
@@ -117,9 +163,20 @@ static int nxsem_wait_slow(FAR sem_t *sem)
 
       DEBUGASSERT(rtcb->waitobj == NULL);
 
+#ifdef CONFIG_MM_KMAP
+      sem = kmm_map_user(rtcb, sem, sizeof(*sem));
+#endif
+
       /* Save the waited on semaphore in the TCB */
 
       rtcb->waitobj = sem;
+
+      /* In case of a mutex, store the previous holder in the task's list */
+
+      if (mutex)
+        {
+          nxsem_add_holder_tcb(htcb, sem);
+        }
 
       /* If priority inheritance is enabled, then check the priority of
        * the holder of the semaphore.
@@ -201,6 +258,10 @@ static int nxsem_wait_slow(FAR sem_t *sem)
 
       ret = rtcb->errcode != OK ? -rtcb->errcode : OK;
 
+#ifdef CONFIG_MM_KMAP
+      kmm_unmap(sem);
+#endif
+
 #ifdef CONFIG_PRIORITY_INHERITANCE
       if (prioinherit != 0)
         {
@@ -209,65 +270,18 @@ static int nxsem_wait_slow(FAR sem_t *sem)
 #endif
     }
 
+  /* If this now holds the mutex, set the holder TID and the lock bit */
+
+  if (mutex && ret == OK)
+    {
+      uint32_t blocking_bit =
+        dq_empty(SEM_WAITLIST(sem)) ? 0 : NXSEM_MBLOCKING_BIT;
+
+      atomic_set(NXSEM_MHOLDER(sem), ((uint32_t)rtcb->pid) | blocking_bit);
+    }
+
   leave_critical_section(flags);
   return ret;
-}
-
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
-
-/****************************************************************************
- * Name: nxsem_wait
- *
- * Description:
- *   This function attempts to lock the semaphore referenced by 'sem'.  If
- *   the semaphore value is (<=) zero, then the calling task will not return
- *   until it successfully acquires the lock.
- *
- *   This is an internal OS interface.  It is functionally equivalent to
- *   sem_wait except that:
- *
- *   - It is not a cancellation point, and
- *   - It does not modify the errno value.
- *
- * Input Parameters:
- *   sem - Semaphore descriptor.
- *
- * Returned Value:
- *   This is an internal OS interface and should not be used by applications.
- *   It follows the NuttX internal error return policy:  Zero (OK) is
- *   returned on success.  A negated errno value is returned on failure.
- *   Possible returned errors:
- *
- *   - EINVAL:  Invalid attempt to get the semaphore
- *   - EINTR:   The wait was interrupted by the receipt of a signal.
- *
- ****************************************************************************/
-
-int nxsem_wait(FAR sem_t *sem)
-{
-  /* This API should not be called from interrupt handlers & idleloop */
-
-  DEBUGASSERT(sem != NULL && up_interrupt_context() == false);
-  DEBUGASSERT(!OSINIT_IDLELOOP() || !sched_idletask());
-
-  /* If this is a mutex, we can try to get the mutex in fast mode,
-   * else try to get it in slow mode.
-   */
-
-#if !defined(CONFIG_PRIORITY_INHERITANCE) && !defined(CONFIG_PRIORITY_PROTECT)
-  if (sem->flags & SEM_TYPE_MUTEX)
-    {
-      int32_t old = 1;
-      if (atomic_try_cmpxchg_acquire(NXSEM_COUNT(sem), &old, 0))
-        {
-          return OK;
-        }
-    }
-#endif
-
-  return nxsem_wait_slow(sem);
 }
 
 /****************************************************************************
