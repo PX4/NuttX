@@ -128,7 +128,7 @@ void __start(void)
   /* Set up clock */
 
   rp23xx_clockconfig();
-  rp23xx_boardearlyinitialize(); // inits uart as well
+  rp23xx_boardearlyinitialize();
 
   /* Initialize all spinlock states */
 
@@ -161,7 +161,7 @@ void __start(void)
 #endif
 
   /* Initialize onboard resources */
-  showprogress('c');
+
   rp23xx_boardinitialize();
   showprogress('D');
 

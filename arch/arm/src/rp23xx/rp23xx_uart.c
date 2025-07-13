@@ -145,6 +145,7 @@ void arm_lowputc(char ch)
   }
 
   /* Send the character */
+
   putreg32((uint32_t)ch, CONSOLE_BASE + RP23XX_UART_UARTDR_OFFSET);
 #endif
 }
