@@ -783,6 +783,7 @@ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
           priv->baud = cfgetispeed(termiosp);
 
           /* Configure the UART line format and speed. */
+
 #ifndef CONFIG_SUPPRESS_UART_CONFIG
           up_set_format(dev);
 #endif
