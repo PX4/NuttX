@@ -298,7 +298,8 @@ void rp23xx_gpio_set_function(uint32_t gpio, uint32_t func)
   modbits_reg32(RP23XX_PADS_BANK0_GPIO_IE,
   		// FIXME: is this needed here? SDK do not include this bitmask here, but only at very end (see below)
                 // RP23XX_PADS_BANK0_GPIO_ISO |
-                RP23XX_PADS_BANK0_GPIO_IE | RP23XX_PADS_BANK0_GPIO_OD,
+                RP23XX_PADS_BANK0_GPIO_IE |
+                RP23XX_PADS_BANK0_GPIO_OD,
                 RP23XX_PADS_BANK0_GPIO(gpio));
 
   // pico-sdk: Zero all fields apart from fsel; we want this IO to do what the peripheral tells it.
@@ -403,6 +404,7 @@ void rp23xx_gpio_enable_irq(uint32_t gpio)
   if (g_gpio_irq_handlers[gpio] != NULL)
     {
       /* Set interrupt enable bit */
+
       // FIXME - isn't this separate per core like in pico-sdk (different IRQ control base)?!
       // https://github.com/raspberrypi/pico-sdk/blob/9a4113fbbae65ee82d8cd6537963bc3d3b14bcca/src/rp2_common/hardware_gpio/gpio.c#L173-L196
       reg = RP23XX_IO_BANK0_PROC_INTE(gpio, 0);
