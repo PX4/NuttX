@@ -598,7 +598,7 @@ static uint32_t esp32_spi_setfrequency(struct spi_dev_s *dev,
               pre = 8192;
             }
 
-          errval = abs(APB_CLK_FREQ / (pre * n) - frequency);
+          errval = APB_CLK_FREQ / (pre * n) - frequency;
           if (bestn == -1 || errval <= besterr)
             {
               besterr = errval;

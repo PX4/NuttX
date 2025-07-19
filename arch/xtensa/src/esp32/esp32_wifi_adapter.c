@@ -5597,6 +5597,8 @@ int esp_wifi_sta_bitrate(struct iwreq *iwr, bool set)
   return OK;
 }
 
+#endif
+
 /****************************************************************************
  * Name: esp_wifi_sta_get_txpower
  *
@@ -5789,6 +5791,8 @@ int esp_wifi_sta_country(struct iwreq *iwr, bool set)
 
   return OK;
 }
+
+#ifdef ESP32_WLAN_HAS_STA
 
 /****************************************************************************
  * Name: esp_wifi_sta_rssi
@@ -6016,7 +6020,8 @@ int esp_wifi_softap_register_recv_cb(int (*recv_cb)(void *buffer,
 {
   int ret;
 
-  ret = esp_wifi_internal_reg_rxcb(ESP_IF_WIFI_AP, (wifi_rxcb_t)recv_cb);
+  // ret = esp_wifi_internal_reg_rxcb(ESP_IF_WIFI_AP, (wifi_rxcb_t)recv_cb);
+  ret = esp_wifi_internal_reg_rxcb(1, (wifi_rxcb_t)recv_cb);
 
   return wifi_errno_trans(ret);
 }

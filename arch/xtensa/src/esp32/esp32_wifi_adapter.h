@@ -420,6 +420,8 @@ int esp_wifi_sta_freq(struct iwreq *iwr, bool set);
 
 int esp_wifi_sta_bitrate(struct iwreq *iwr, bool set);
 
+#endif
+
 /****************************************************************************
  * Name: esp_wifi_sta_get_txpower
  *
@@ -489,6 +491,8 @@ int esp_wifi_sta_country(struct iwreq *iwr, bool set);
  *   Negated errno returned on failure.
  *
  ****************************************************************************/
+
+#ifdef ESP32_WLAN_HAS_STA
 
 int esp_wifi_sta_rssi(struct iwreq *iwr, bool set);
 #endif
