@@ -821,11 +821,6 @@ static void rp23xx_i2c_init(struct rp23xx_i2cdev_s *priv)
   i2c_reg_write(priv, RP23XX_I2C_IC_INTR_MASK_OFFSET, 0x00);
   i2c_reg_read(priv, RP23XX_I2C_IC_CLR_INTR_OFFSET);
 
-  /* set threshold level of the Rx/Tx FIFO */
-
-  i2c_reg_write(priv, RP23XX_I2C_IC_RX_TL_OFFSET, 0xff);
-  i2c_reg_write(priv, RP23XX_I2C_IC_TX_TL_OFFSET, 0);
-
   /* set hold time for margin */
 
   i2c_reg_write(priv, RP23XX_I2C_IC_SDA_HOLD_OFFSET, 1);
@@ -835,6 +830,16 @@ static void rp23xx_i2c_init(struct rp23xx_i2cdev_s *priv)
                  RP23XX_I2C_IC_CON_IC_SLAVE_DISABLE |
                  RP23XX_I2C_IC_CON_MASTER_MODE |
                  RP23XX_I2C_IC_CON_TX_EMPTY_CTRL));
+
+    /* set threshold level of the Rx/Tx FIFO */
+
+    // in the pico-sdk, these are written after the RP23XX_I2C_IC_CON_OFFSET write
+
+    i2c_reg_write(priv, RP23XX_I2C_IC_RX_TL_OFFSET, 0); // nuttx: 0xff -> pico-sdk: i2c->hw->tx_tl = 0; ?
+    i2c_reg_write(priv, RP23XX_I2C_IC_TX_TL_OFFSET, 0);
+
+    // sdk: Always enable the DREQ signalling -- harmless if DMA isn't listening
+    // sdk:      i2c->hw->dma_cr = I2C_IC_DMA_CR_TDMAE_BITS | I2C_IC_DMA_CR_RDMAE_BITS;
 }
 
 static void rp23xx_i2c_enable(struct rp23xx_i2cdev_s *priv)

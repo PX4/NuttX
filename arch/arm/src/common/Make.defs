@@ -20,6 +20,8 @@
 #
 ############################################################################
 
+#include $(TOPDIR)/tools/Config.mk
+
 STARTUP_OBJS = crt0$(OBJEXT)
 
 # Common ARM files
