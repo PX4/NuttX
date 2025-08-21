@@ -2650,7 +2650,7 @@ static int mmcsd_mmcinitialize(FAR struct mmcsd_state_s *priv)
 
 static int mmcsd_read_csd(FAR struct mmcsd_state_s *priv)
 {
-  uint8_t buffer[512] aligned_data(16);
+  uint8_t buffer[512] aligned_data(32);
   int ret;
 
   DEBUGASSERT(priv != NULL);
@@ -2670,7 +2670,7 @@ static int mmcsd_read_csd(FAR struct mmcsd_state_s *priv)
 
   if ((priv->caps & SDIO_CAPS_DMASUPPORTED) != 0)
     {
-      ret = SDIO_DMAPREFLIGHT(priv->dev, buffer, priv->blocksize);
+      ret = SDIO_DMAPREFLIGHT(priv->dev, buffer, sizeof(buffer));
       if (ret != OK)
         {
           return ret;
