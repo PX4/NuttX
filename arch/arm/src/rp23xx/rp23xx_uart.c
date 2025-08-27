@@ -140,8 +140,9 @@ void arm_lowputc(char ch)
   /* Wait for the transmitter to be available */
 
   while ((getreg32(CONSOLE_BASE + RP23XX_UART_UARTFR_OFFSET) &
-          RP23XX_UART_UARTFR_TXFF))
-    ;
+          RP23XX_UART_UARTFR_TXFF)){
+          up_udelay(10); // Small delay to allow hardware to catch up
+  }
 
   /* Send the character */
 

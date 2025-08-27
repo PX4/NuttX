@@ -170,7 +170,7 @@ $(COBJS) $(UCOBJS): %$(OBJEXT): %.c
 	$(call COMPILE, $<, $@)
 
 $(STARTUP_OBJS): %$(OBJEXT): %.c
-	$(Q) $(CC) $(CELFFLAGS) -c common$(DELIM)crt0.c -o crt0$(OBJEXT)
+	$(Q) $(CC) $(CELFFLAGS) $(CFLAGS) -c common$(DELIM)crt0.c -o crt0$(OBJEXT)
 
 ifeq ($(CONFIG_BUILD_FLAT),y)
 $(BIN): $(STARTUP_OBJS) $(OBJS)

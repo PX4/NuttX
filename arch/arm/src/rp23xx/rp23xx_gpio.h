@@ -110,11 +110,11 @@ static inline void rp23xx_gpio_put(uint32_t gpio, int set)
 
   if (set)
     {
-      putreg32(value, RP23XX_SIO_GPIO_OUT_SET);
+      putreg32(value, reg_set);
     }
   else
     {
-      putreg32(value, RP23XX_SIO_GPIO_OUT_CLR);
+      putreg32(value, reg_clr);
     }
 #else
   uint32_t mask = 1ul << (gpio & 0x1fu);

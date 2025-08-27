@@ -57,7 +57,7 @@
  * Pre-processor Definitions
  ****************************************************************************/
 
-#define XOSC_STARTUPDELAY_MULT 6
+#define XOSC_STARTUPDELAY_MULT 2
 #define XOSC_STARTUPDELAY (BOARD_XOSC_STARTUPDELAY * XOSC_STARTUPDELAY_MULT)
 
 /****************************************************************************
@@ -87,6 +87,7 @@ void rp23xx_xosc_init(void)
 
   uint32_t startup_delay = (((BOARD_XOSC_FREQ / 1000) + 128) / 256) *
                               XOSC_STARTUPDELAY;
+  // FIXME: either the assert is incorrect or the XOSC_STARTUPDELAY_MULT 6 is too high!
   ASSERT(startup_delay < 1 << 13);
   putreg32(startup_delay, RP23XX_XOSC_STARTUP);
 
