@@ -386,13 +386,20 @@ void up_disable_dcache(void)
 void up_invalidate_dcache(uintptr_t start, uintptr_t end)
 {
   uint32_t ccsidr;
+  uint32_t csselr;
   uint32_t sshift;
   uint32_t ssize;
 
   /* Get the characteristics of the D-Cache */
 
+  csselr = getreg32(NVIC_CSSELR);
+  putreg32((csselr & ~NVIC_CSSELR_IND) |
+            NVIC_CSSELR_IND_DCACHE, NVIC_CSSELR);
+
   ccsidr = getreg32(NVIC_CCSIDR);
   sshift = CCSIDR_LSSHIFT(ccsidr) + 4;   /* log2(cache-line-size-in-bytes) */
+
+  putreg32(csselr, NVIC_CSSELR);    /* restore csselr */
 
   /* Invalidate the D-Cache containing this range of addresses */
 
@@ -406,7 +413,7 @@ void up_invalidate_dcache(uintptr_t start, uintptr_t end)
 
   ARM_DSB();
 
-  if (start & (ssize - 1))
+  if ((start & (ssize - 1)) != 0)
     {
       start &= ~(ssize - 1);
       putreg32(start, NVIC_DCCIMVAC);
