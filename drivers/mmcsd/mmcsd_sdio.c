@@ -3056,6 +3056,11 @@ static int mmcsd_cardidentify(FAR struct mmcsd_state_s *priv)
     {
       ferr("ERROR: CMD1 RECVR3: %d\n", ret);
     }
+  else if (response == 0)
+    {
+      // CLEARLY still an SD-Card
+      finfo("CMD1 response data is 0, SD-Card detected\n");
+    }
   else
     {
       /* CMD1 succeeded... this must be an MMC card */
