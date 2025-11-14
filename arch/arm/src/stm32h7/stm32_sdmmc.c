@@ -213,6 +213,7 @@
                                      STM32_SDMMC_CLKCR_WIDBUS_D1)
 #define STM32_SDMMC_CLKCR_MMCWIDEXFR (STM32_SDMMC_MMCXFR_CLKDIV   |     \
                                      STM32_SDMMC_CLKCR_EDGE       |     \
+                                     STM32_SDMMC_CLKCR_PWRSAV     |     \
                                      STM32_SDMMC_CLKCR_WIDBUS_D4)
 #ifdef HAVE_SDMMC_SDIO_MODE
 /* Do not enable power saving configuration bit (in SD 4-bit mode) because
