@@ -57,6 +57,10 @@ ifeq ($(CONFIG_STM32H7_ADC),y)
 CHIP_CSRCS += stm32_adc.c
 endif
 
+ifeq ($(CONFIG_STM32H7_CAN),y)
+CHIP_CSRCS += stm32_fdcan_cdev.c
+endif
+
 ifeq ($(CONFIG_STM32H7_FDCAN),y)
 CHIP_CSRCS += stm32_fdcan_sock.c
 endif
