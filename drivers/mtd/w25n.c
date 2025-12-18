@@ -392,7 +392,7 @@ static int w25n_waitready_erase(FAR struct w25n_dev_s *priv)
       /* Unlock SPI, sleep, re-lock - allows other SPI access while waiting */
 
       w25n_unlock(priv);
-      nxsched_usleep(1000);
+      nxsig_usleep(1000);
       w25n_lock(priv);
     }
   while (--timeout > 0);
