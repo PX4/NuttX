@@ -302,6 +302,10 @@ int  arm_busfault(int irq, void *context, void *arg);
 int  arm_usagefault(int irq, void *context, void *arg);
 int  arm_securefault(int irq, void *context, void *arg);
 
+/* Security Monitor */
+
+void security_monitor_init(void);
+
 #  endif /* CONFIG_ARCH_CORTEXM3,4,7 */
 
 /* Exception handling logic unique to the Cortex-A and Cortex-R families

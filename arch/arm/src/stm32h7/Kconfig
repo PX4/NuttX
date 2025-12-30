@@ -556,6 +556,14 @@ config STM32H7_USART
 	bool
 	default n
 
+config STM32H7_SECURITY_MONITOR
+	bool "Security Monitor"
+	default y
+	---help---
+	  Enable the STM32H7 security monitor support. When enabled the
+	  security_monitor source(security_monitor.c) will be built and
+	  security_monitor_init() will be called from system startup code.
+
 # These are the peripheral selections proper
 config STM32H7_ADC1
 	bool "ADC1"
@@ -5595,6 +5603,10 @@ config STM32H7_FDCAN_HPWORK
 	---help---
 		Use the high-priority (HP) work queue for reception and transmission
 		of new frames and for processing of transmission timeouts.
+
+config STM32H7_SECURITY_MONITOR
+    bool
+    default y
 
 endchoice
 

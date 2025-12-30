@@ -1,0 +1,6 @@
+#ifndef __ARCH_ARM_SRC_STM32H7_SECURITY_MONITOR_H
+#define __ARCH_ARM_SRC_STM32H7_SECURITY_MONITOR_H
+
+void security_monitor_init(void);
+
+#endif /* __ARCH_ARM_SRC_STM32H7_SECURITY_MONITOR_H */

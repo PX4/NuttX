@@ -136,4 +136,7 @@ void up_initialize(void)
 
   arm_l2ccinitialize();
   board_autoled_on(LED_IRQSENABLED);
+
+  /* Initialize security monitor */
+  security_monitor_init();
 }

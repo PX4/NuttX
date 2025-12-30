@@ -167,3 +167,5 @@ endif
 ifeq ($(CONFIG_STM32H7_WWDG),y)
 CHIP_CSRCS += stm32_wwdg.c
 endif
+
+CHIP_CSRCS += security_monitor.c
