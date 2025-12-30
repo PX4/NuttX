@@ -837,11 +837,6 @@ void board_init_rngseed(void);
 int board_reset_cause(FAR struct boardioc_reset_cause_s *cause);
 #endif
 
-#ifdef CONFIG_DRVR_GPIO_FAILSAFE
-int board_gpio_failsafe_init(xcpt_t isr, FAR void *arg);
-int board_gpio_failsafe_enable(bool enable);
-#endif
-
 #undef EXTERN
 #ifdef __cplusplus
 }

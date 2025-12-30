@@ -47,10 +47,6 @@ else ifeq ($(CONFIG_DRVR_READAHEAD),y)
   CSRCS += rwbuffer.c
 endif
 
-ifeq ($(CONFIG_DRVR_GPIO_FAILSAFE),y)
-  CSRCS += gpio_failsafe.c
-endif
-
 # Include build support
 
 DEPPATH += --dep-path misc
