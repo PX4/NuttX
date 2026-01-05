@@ -2997,8 +2997,8 @@ static int stm32_ioctl(struct net_driver_s *dev, int cmd, unsigned long arg)
 {
 #ifndef CONFIG_STM32H7_NO_PHY
 #ifdef CONFIG_ARCH_PHY_INTERRUPT
-  struct stm32_ethmac_s *priv = (struct stm32_ethmac_s *)dev->d_private;
 #endif
+  struct stm32_ethmac_s *priv = (struct stm32_ethmac_s *)dev->d_private;
   int ret;
 
   switch (cmd)
