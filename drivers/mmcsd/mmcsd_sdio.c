@@ -2584,6 +2584,17 @@ static int mmcsd_mmcwidebus(FAR struct mmcsd_state_s *priv)
  ****************************************************************************/
 
 #ifdef CONFIG_MMCSD_MMCSUPPORT
+
+// Some definitions for clock speed calculation, since we can't include our board.h here
+#define getreg32(a)    (*(volatile uint32_t *)(a))
+#define STM32_SDMMC_CLKCR_OFFSET 0x0004
+struct stm32_dev_s
+{
+  struct sdio_dev_s  dev;             /* Standard, base SDIO interface */
+  /* STM32-specific extensions */
+  uint32_t          base;
+};
+
 static int mmcsd_mmcinitialize(FAR struct mmcsd_state_s *priv)
 {
   uint32_t cid[4];
@@ -2705,10 +2716,17 @@ static int mmcsd_mmcinitialize(FAR struct mmcsd_state_s *priv)
       if (ret != OK)
         {
           ferr("ERROR: Failed to set wide bus operation: %d\n", ret);
+	  syslog(LOG_ERR, "----- ERROR: Failed to set wide bus: %d\n", ret);
         }
 	else
 	{
 	  finfo("Wide bus selected successfully!\n");
+	  syslog(LOG_INFO, "----- Wide bus selected successfully!\n");
+
+	  struct stm32_dev_s *priv2 = (struct stm32_dev_s *)priv->dev;
+	  uint32_t regval = getreg32(priv2->base + STM32_SDMMC_CLKCR_OFFSET) & 0x1FF;
+	  float clock_mhz = 120 / regval;
+	  syslog(LOG_INFO, "----- EMMC clock speed is %.3f MHz\n", clock_mhz);
 	}
     }
 #else
