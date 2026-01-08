@@ -211,6 +211,7 @@ static int     mmcsd_ioctl(FAR struct inode *inode, int cmd,
 
 static void    mmcsd_mediachange(FAR void *arg);
 static int     mmcsd_widebus(FAR struct mmcsd_state_s *priv);
+static int     mmcsd_mmcwidebus(FAR struct mmcsd_state_s *priv);
 #ifdef CONFIG_MMCSD_MMCSUPPORT
 static int     mmcsd_mmcinitialize(FAR struct mmcsd_state_s *priv);
 static int     mmcsd_read_csd(FAR struct mmcsd_state_s *priv);
@@ -2510,6 +2511,69 @@ static int mmcsd_widebus(FAR struct mmcsd_state_s *priv)
   return -ENOSYS;
 }
 
+static int mmcsd_mmcwidebus(FAR struct mmcsd_state_s *priv)
+{
+  int ret;
+  //uint32_t csd[4];
+
+  /* EMMC wide-bus, EMMC always supports 1, 4, 8 bit modes
+  CMD6 to SWITCH settings, 0x03B70100 to select 4-bit mode */
+
+  //if ((priv->buswidth & MMCSD_SCR_BUSWIDTH_4BIT) != 0 &&
+      //(priv->caps & SDIO_CAPS_1BIT_ONLY) == 0)
+  {
+    /* Send CMD6 */
+
+    mmcsd_sendcmdpoll(priv, MMCSD_CMD6, 0x03B70100);
+    ret = mmcsd_recv_r1(priv, MMCSD_CMD6);
+    if (ret != OK)
+    {
+      return ret;
+    }
+
+    /* Configure the SDIO peripheral */
+    // Set SDIO clock to MMC 4-bit speed
+
+    // NOTE: This doesn't work unless we sleep right here too!!!
+    // Maybe the EMMC chip needs time to change modes from 1-bit to 4-bit
+    nxsig_usleep(MMCSD_CLK_DELAY * 2);
+
+    SDIO_WIDEBUS(priv->dev, true);
+    SDIO_CLOCK(priv->dev, CLOCK_MMC_TRANSFER_4BIT);
+    priv->buswidth = 4;
+    priv->widebus = true;
+    nxsig_usleep(MMCSD_CLK_DELAY);
+
+    // Read EXT_CSD to confirm EMMC changed bus width
+    ret = mmcsd_read_csd(priv);
+    if (ret != OK)
+    {
+      ferr("ERROR: Failed to determinate number of blocks: %d\n", ret);
+
+      SDIO_WIDEBUS(priv->dev, false);
+      SDIO_CLOCK(priv->dev, CLOCK_MMC_TRANSFER);
+      priv->buswidth = 1;
+      priv->widebus = false;
+      nxsig_usleep(MMCSD_CLK_DELAY);
+
+      // Revert back to 1 bit using CMD6 0x03B70000
+      mmcsd_sendcmdpoll(priv, MMCSD_CMD6, 0x03B70000);
+      mmcsd_recv_r1(priv, MMCSD_CMD6);
+      nxsig_usleep(MMCSD_CLK_DELAY * 2);
+
+      return ret;
+    }
+    //mmcsd_decode_csd(priv, csd);
+
+    return OK;
+  }
+
+  /* Wide bus operation not supported */
+
+  fwarn("WARNING: Card does not support wide-bus operation\n");
+  return -ENOSYS;
+}
+
 /****************************************************************************
  * Name: mmcsd_mmcinitialize
  *
@@ -2520,6 +2584,17 @@ static int mmcsd_widebus(FAR struct mmcsd_state_s *priv)
  ****************************************************************************/
 
 #ifdef CONFIG_MMCSD_MMCSUPPORT
+
+// Some definitions for clock speed calculation, since we can't include our board.h here
+#define getreg32(a)    (*(volatile uint32_t *)(a))
+#define STM32_SDMMC_CLKCR_OFFSET 0x0004
+struct stm32_dev_s
+{
+  struct sdio_dev_s  dev;             /* Standard, base SDIO interface */
+  /* STM32-specific extensions */
+  uint32_t          base;
+};
+
 static int mmcsd_mmcinitialize(FAR struct mmcsd_state_s *priv)
 {
   uint32_t cid[4];
@@ -2630,9 +2705,36 @@ static int mmcsd_mmcinitialize(FAR struct mmcsd_state_s *priv)
   mmcsd_decode_csd(priv, csd);
 
   /* Select high speed MMC clocking (which may depend on the DSR setting) */
-
   SDIO_CLOCK(priv->dev, CLOCK_MMC_TRANSFER);
   nxsig_usleep(MMCSD_CLK_DELAY);
+
+#if 1 // Test widebus mode, its not working on Firefly REV2.1
+   if ((priv->caps & SDIO_CAPS_4BIT_ONLY) == 0)
+    {
+      /* Select width (4-bit) bus operation (if the card supports it) */
+      ret = mmcsd_mmcwidebus(priv);
+      if (ret != OK)
+        {
+          ferr("ERROR: Failed to set wide bus operation: %d\n", ret);
+	  syslog(LOG_ERR, "----- ERROR: Failed to set wide bus: %d\n", ret);
+        }
+	else
+	{
+	  finfo("Wide bus selected successfully!\n");
+	  syslog(LOG_INFO, "----- Wide bus selected successfully!\n");
+
+	  struct stm32_dev_s *priv2 = (struct stm32_dev_s *)priv->dev;
+	  uint32_t regval = getreg32(priv2->base + STM32_SDMMC_CLKCR_OFFSET) & 0x1FF;
+	  float clock_mhz = 120 / regval;
+	  syslog(LOG_INFO, "----- EMMC clock speed is %.3f MHz\n", clock_mhz);
+	}
+    }
+#else
+  /* Select high speed MMC clocking (which may depend on the DSR setting) */
+  //SDIO_CLOCK(priv->dev, CLOCK_MMC_TRANSFER);
+  //nxsig_usleep(MMCSD_CLK_DELAY);
+#endif
+
   return OK;
 }
 
@@ -2650,7 +2752,7 @@ static int mmcsd_mmcinitialize(FAR struct mmcsd_state_s *priv)
 
 static int mmcsd_read_csd(FAR struct mmcsd_state_s *priv)
 {
-  uint8_t buffer[512] aligned_data(16);
+  uint8_t buffer[512] aligned_data(32);
   int ret;
 
   DEBUGASSERT(priv != NULL);
@@ -2670,7 +2772,7 @@ static int mmcsd_read_csd(FAR struct mmcsd_state_s *priv)
 
   if ((priv->caps & SDIO_CAPS_DMASUPPORTED) != 0)
     {
-      ret = SDIO_DMAPREFLIGHT(priv->dev, buffer, priv->blocksize);
+      ret = SDIO_DMAPREFLIGHT(priv->dev, buffer, sizeof(buffer));
       if (ret != OK)
         {
           return ret;
@@ -2750,6 +2852,10 @@ static int mmcsd_read_csd(FAR struct mmcsd_state_s *priv)
 
   priv->nblocks = (buffer[215] << 24) | (buffer[214] << 16) |
                   (buffer[213] << 8) | buffer[212];
+
+  if (buffer[183] == 0) priv->buswidth = 1;
+  else if (buffer[183] == 1) priv->buswidth = 4;
+  else if (buffer[183] == 2) priv->buswidth = 8;
 
   finfo("MMC ext CSD read succsesfully, number of block %" PRId32 "\n",
         priv->nblocks);
@@ -2990,6 +3096,11 @@ static int mmcsd_cardidentify(FAR struct mmcsd_state_s *priv)
   if (ret != OK)
     {
       ferr("ERROR: CMD1 RECVR3: %d\n", ret);
+    }
+  else if (response == 0)
+    {
+      // CLEARLY still an SD-Card
+      finfo("CMD1 response data is 0, SD-Card detected\n");
     }
   else
     {
