@@ -726,6 +726,64 @@ config MX25RXX_LXX
 	
 endif # MTD_MX25RXX
 
+
+config MTD_MT25QL
+	bool "SPI based MT25QL flash, defaulted to Extended SPI MODE"
+	default n
+	select SPI
+	---help---
+		SPI-based driver for MT5QL series flash memory
+if MTD_MT25QL
+
+config MT25QL_SPIMODE
+	int "MT25QL SPI Mode"
+	default 0
+
+config MT25QL_SPIFREQUENCY
+	int "MT25QL SPI Frequency"
+	default 20000000
+	---help---
+		Max SPI speed of MT25QL flash can reach upto 133MHz.
+		Using 20MHz as a defautl for now.
+config MT25QL_MANUFACTURER
+	hex "Mt25QL Manufacturer ID"
+	default 0x20
+	---help---
+		The library also supports similar flash by  other
+		manufacturers, 0x20 is the manufacturer ID for
+		MICRON MT25QLxx serial flash.
+
+config MT25QL_MEMORY_TYPE
+	hex "Memory type of the flash"
+	default 0xBA
+	---help---
+		The commonly used and availble flash memory of MT25Q
+		class is 3.3V identified by 0xBA. The library also
+		supports the low voltage class memmory from Micron
+		identified by 0xBB.
+
+config MT25QL_SUBSECTOR_ERASE
+	bool "Sub-Sector Erase"
+	default n
+	---help---
+		Some devices support a smaller erase size (4K vs 64K).
+		This option enables support for sub-sector erase. The
+		SMART file system can take advantage of this option if
+		it is enabled.
+
+config MT25QL_4_BYTE_MODE
+	bool "Enable 4-Byte addressing mode of operation"
+	default n
+	---help---
+		By default the flash memory is configured for 3 bytes address mode
+		of operation, but it can be reonfigured to use 4-byte addresses.
+
+config MT25QL_DEBUG
+	bool "Enable driver debug feature"
+	default n
+
+endif # MTD_MT25QL
+
 config MTD_SMART
 	bool "Sector Mapped Allocation for Really Tiny (SMART) Flash support"
 	default n
