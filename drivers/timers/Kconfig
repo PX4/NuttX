@@ -112,6 +112,24 @@ config FAKE_CAPTURE
 
 endif # CAPTURE
 
+config DSHOT
+	bool "DShot Driver Support"
+	default n
+	---help---
+		This selection enables the DShot driver for ESC control.
+
+if DSHOT
+
+config DSHOT_NCHANNELS
+	int "Maximum DShot channels in API structs"
+	default 8
+	range 1 16
+	---help---
+		Specifies the number of output channels per timer.  Each timer
+		may support fewer output channels than this value.
+
+endif # DSHOT
+
 config TIMER
 	bool "Timer Support"
 	default n
