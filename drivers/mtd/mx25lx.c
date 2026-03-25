@@ -82,6 +82,12 @@
 #define MX25L_MX25L25635F_NSECTORS      8192
 #define MX25L_MX25L25635F_PAGE_SHIFT    8     /* Page size 1 << 8 = 256 */
 
+/* MX25R8035F capacity is 8Mbit (1024Kbit x 8) = 1Mb */
+
+#define MX25L_MX25R8035F_SECTOR_SHIFT  12    /* Sector size 1 << 12 = 4Kb */
+#define MX25L_MX25R8035F_NSECTORS      256
+#define MX25L_MX25R8035F_PAGE_SHIFT    8     /* Page size 1 << 8 = 256 */
+
 /* Parts larger than 128Mbit require 4-byte addressing */
 
 #define MX25L_ADDRESSBYTES_3            3
@@ -180,6 +186,9 @@
 #define MX25L_JEDEC_MX25L3233F_CAPACITY  0x16  /* MX25L3233F memory capacity */
 #define MX25L_JEDEC_MX25L6433F_CAPACITY  0x17  /* MX25L6433F memory capacity */
 #define MX25L_JEDEC_MX25L25635F_CAPACITY 0x19  /* MX25L25635F memory capacity */
+
+#define MX25L_JEDEC_MX25R_MEMORY_TYPE    0x28  /* MX25Rx ultra-low-power memory type */
+#define MX25L_JEDEC_MX25R8035F_CAPACITY  0x14  /* MX25R8035F memory capacity (8Mbit) */
 
 /* Status register bit definitions */
 
@@ -396,6 +405,20 @@ static inline int mx25l_readid(FAR struct mx25l_dev_s *priv)
           priv->nsectors     = MX25L_MX25L25635F_NSECTORS;
           priv->pageshift    = MX25L_MX25L25635F_PAGE_SHIFT;
           priv->addressbytes = MX25L_ADDRESSBYTES_4;
+          return OK;
+        }
+    }
+  else if (manufacturer == MX25L_JEDEC_MANUFACTURER &&
+           memory == MX25L_JEDEC_MX25R_MEMORY_TYPE)
+    {
+      if (capacity == MX25L_JEDEC_MX25R8035F_CAPACITY)
+        {
+          /* Save the FLASH geometry */
+
+          priv->sectorshift  = MX25L_MX25R8035F_SECTOR_SHIFT;
+          priv->nsectors     = MX25L_MX25R8035F_NSECTORS;
+          priv->pageshift    = MX25L_MX25R8035F_PAGE_SHIFT;
+          priv->addressbytes = MX25L_ADDRESSBYTES_3;
           return OK;
         }
     }
