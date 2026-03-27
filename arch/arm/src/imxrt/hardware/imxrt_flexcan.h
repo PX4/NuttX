@@ -391,11 +391,11 @@
 #define CAN_FDCTRL_TDCEN           (1 << 15) /* Bit 15: Transceiver Delay Compensation Enable */
 #define CAN_FDCTRL_MBDSR0_SHIFT    (16)      /* Bits 16-17: Message Buffer Data Size for Region 0 */
 #define CAN_FDCTRL_MBDSR0_MASK     (0x3 << CAN_FDCTRL_MBDSR0_SHIFT)
-#define CAN_FDCTRL_MSBSR0(x)       (((uint32_t)(((uint32_t)(x)) << CAN_FDCTRL_MBDSR0_SHIFT)) & CAN_FDCTRL_MBDSR0_MASK)
+#define CAN_FDCTRL_MBDSR0(x)       (((uint32_t)(((uint32_t)(x)) << CAN_FDCTRL_MBDSR0_SHIFT)) & CAN_FDCTRL_MBDSR0_MASK)
                                              /* Bit 18: Reserved */
 #define CAN_FDCTRL_MBDSR1_SHIFT    (19)      /* Bits 19-20: Message Buffer Data Size for Region 2 */
 #define CAN_FDCTRL_MBDSR1_MASK     (0x3 << CAN_FDCTRL_MBDSR1_SHIFT)
-#define CAN_FDCTRL_MSBSR1(x)       (((uint32_t)(((uint32_t)(x)) << CAN_FDCTRL_MBDSR1_SHIFT)) & CAN_FDCTRL_MBDSR1_MASK)
+#define CAN_FDCTRL_MBDSR1(x)       (((uint32_t)(((uint32_t)(x)) << CAN_FDCTRL_MBDSR1_SHIFT)) & CAN_FDCTRL_MBDSR1_MASK)
                                              /* Bits 21-30: Reserved */
 #define CAN_FDCTRL_FDRATE          (1 << 31) /* Bit 31: Bit Rate Switch Enable */
 
