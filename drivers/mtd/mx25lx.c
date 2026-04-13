@@ -82,6 +82,12 @@
 #define MX25L_MX25L25635F_NSECTORS      8192
 #define MX25L_MX25L25635F_PAGE_SHIFT    8     /* Page size 1 << 8 = 256 */
 
+/* MX25L1606E capacity is 16Mbit (2048Kbit x 8) = 2Mb */
+
+#define MX25L_MX25L1606E_SECTOR_SHIFT  12    /* Sector size 1 << 12 = 4Kb */
+#define MX25L_MX25L1606E_NSECTORS      512
+#define MX25L_MX25L1606E_PAGE_SHIFT    8     /* Page size 1 << 8 = 256 */
+
 /* MX25R8035F capacity is 8Mbit (1024Kbit x 8) = 1Mb */
 
 #define MX25L_MX25R8035F_SECTOR_SHIFT  12    /* Sector size 1 << 12 = 4Kb */
@@ -183,6 +189,7 @@
 
 #define MX25L_JEDEC_MANUFACTURER         0xc2  /* Macronix manufacturer ID */
 #define MX25L_JEDEC_MEMORY_TYPE          0x20  /* MX25Lx  memory type */
+#define MX25L_JEDEC_MX25L1606E_CAPACITY  0x15  /* MX25L1606E memory capacity (16Mbit) */
 #define MX25L_JEDEC_MX25L3233F_CAPACITY  0x16  /* MX25L3233F memory capacity */
 #define MX25L_JEDEC_MX25L6433F_CAPACITY  0x17  /* MX25L6433F memory capacity */
 #define MX25L_JEDEC_MX25L25635F_CAPACITY 0x19  /* MX25L25635F memory capacity */
@@ -377,7 +384,17 @@ static inline int mx25l_readid(FAR struct mx25l_dev_s *priv)
     {
       /* Okay.. is it a FLASH capacity that we understand? */
 
-      if (capacity == MX25L_JEDEC_MX25L3233F_CAPACITY)
+      if (capacity == MX25L_JEDEC_MX25L1606E_CAPACITY)
+        {
+          /* Save the FLASH geometry */
+
+          priv->sectorshift  = MX25L_MX25L1606E_SECTOR_SHIFT;
+          priv->nsectors     = MX25L_MX25L1606E_NSECTORS;
+          priv->pageshift    = MX25L_MX25L1606E_PAGE_SHIFT;
+          priv->addressbytes = MX25L_ADDRESSBYTES_3;
+          return OK;
+        }
+      else if (capacity == MX25L_JEDEC_MX25L3233F_CAPACITY)
         {
           /* Save the FLASH geometry */
 
