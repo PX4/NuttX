@@ -494,6 +494,10 @@ config STM32H7_FDCAN
 	select NET_CAN_HAVE_TX_DEADLINE
 	default n
 
+config STM32H7_CAN
+	bool
+	default n
+
 config STM32H7_DAC
 	bool
 	default n
@@ -701,6 +705,18 @@ config STM32H7_FDCAN2
 	select STM32H7_FDCAN
 	default n
 	depends on STM32H7_HAVE_FDCAN2
+
+config STM32H7_CAN1
+	bool "CAN1"
+	default n
+	select CAN
+	select STM32H7_CAN
+
+config STM32H7_CAN2
+	bool "CAN2"
+	default n
+	select CAN
+	select STM32H7_CAN
 
 menu "STM32H7 I2C Selection"
 
@@ -5600,5 +5616,35 @@ endchoice
 
 endmenu # FDCAN Driver
 
+menu "CAN driver configuration"
+	depends on STM32H7_CAN
+
+config STM32H7_CAN1_BAUD
+	int "CAN1 BAUD"
+	default 1000000
+	depends on STM32H7_CAN1
+	---help---
+		CAN1 BAUD rate.  Required if CONFIG_STM32H7_CAN1 is defined.
+
+config STM32H7_CAN2_BAUD
+	int "CAN2 BAUD"
+	default 1000000
+	depends on STM32H7_CAN2
+	---help---
+		CAN2 BAUD rate.  Required if CONFIG_STM32H7_CAN2 is defined.
+
+config STM32H7_CAN_TSEG1
+	int "TSEG1 quanta"
+	default 7
+	---help---
+		The number of CAN time quanta in segment 1. Default: 7
+
+config STM32H7_CAN_TSEG2
+	int "TSEG2 quanta"
+	default 1
+	---help---
+		The number of CAN time quanta in segment 2. Default: 1
+
+endmenu # CAN driver configuration
 
 endif # ARCH_CHIP_STM32H7
