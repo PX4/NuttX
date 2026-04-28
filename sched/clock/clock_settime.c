@@ -44,9 +44,21 @@
 #  include "clock/clock_timekeeping.h"
 #endif
 
+#if defined(CONFIG_RTC) && defined(CONFIG_SCHED_LPWORK)
+static struct work_s g_rtc_work;
+static struct timespec g_rtc_to_set;
+#endif
+
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+
+#if defined(CONFIG_RTC) && defined(CONFIG_SCHED_LPWORK)
+static void rtc_worker(FAR void *arg)
+{
+  up_rtc_settime(arg);
+}
+#endif
 
 static void nxclock_set_realtime(FAR const struct timespec *tp)
 {
@@ -82,7 +94,24 @@ static void nxclock_set_realtime(FAR const struct timespec *tp)
 #  ifdef CONFIG_RTC
   if (g_rtc_enabled)
     {
+#    ifdef CONFIG_SCHED_LPWORK
+      /* Setting the current time in RTC may be a blocking operation (driver
+       * needs to wait for oscillator stabilization after reset and so on).
+       * This may cause the unwanted effect of clock_settime blocking the
+       * code execution for a considerable amount of time.
+       *
+       * The solution is to plan a low priority work that takes care
+       * of setting the time in RTC and let clock_settime continue. We don't
+       * have to check if the work is available, just cancel it if there
+       * is a new time set request.
+       */
+
+      g_rtc_to_set = *tp;
+      work_queue(LPWORK, &g_rtc_work, rtc_worker,
+                 (FAR void *)&g_rtc_to_set, 0);
+#    else
       up_rtc_settime(tp);
+#    endif
     }
 #  endif
 
