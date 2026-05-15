@@ -459,8 +459,26 @@ static ssize_t stm32_bbsram_internal_write(struct bbsramfh_s *bbf,
                                            const char *buffer,
                                            off_t offset, size_t len)
 {
+  volatile uint8_t *dest;
+  const uint8_t *src;
+  size_t i;
+
   bbf->dirty = 1;
-  memcpy(&bbf->data[offset], buffer, len);
+
+  /* Perform byte-wise copy to BKPSRAM.
+   *
+   * Some optimized memcpy implementations may issue halfword/word stores,
+   * which can fault for unaligned destination offsets in this memory region.
+   */
+
+  dest = &bbf->data[offset];
+  src = (const uint8_t *)buffer;
+
+  for (i = 0; i < len; i++)
+    {
+      dest[i] = src[i];
+    }
+
   return len;
 }
 
