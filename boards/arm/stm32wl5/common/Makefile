@@ -1,5 +1,5 @@
-##############################################################################
-# boards/arm/stm32h5/nucleo-h563zi/src/Makefile
+#############################################################################
+# boards/arm/stm32wl5/common/Makefile
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -18,41 +18,22 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 #
-##############################################################################
+#############################################################################
 
--include $(TOPDIR)/Make.defs
+include $(TOPDIR)/Make.defs
 
-ASRCS =
-CSRCS = stm32_boot.c stm32_bringup.c stm32_clockconfig.c
+STM32_BOARD_COMMON_DIR := $(TOPDIR)$(DELIM)boards$(DELIM)arm$(DELIM)common$(DELIM)stm32
+STM32_COMMON_SRCDIR := $(TOPDIR)$(DELIM)arch$(DELIM)$(CONFIG_ARCH)$(DELIM)src$(DELIM)common$(DELIM)stm32
 
-ifeq ($(CONFIG_ARCH_LEDS),y)
-CSRCS += stm32_autoleds.c
-else
-CSRCS += stm32_userleds.c
-endif
+include board/Make.defs
+include $(STM32_BOARD_COMMON_DIR)$(DELIM)src$(DELIM)Make.defs
 
-ifeq ($(CONFIG_ARCH_BUTTONS),y)
-CSRCS += stm32_buttons.c
-endif
-
-ifeq ($(CONFIG_ADC),y)
-CSRCS += stm32_adc.c
-endif
-
-ifeq ($(CONFIG_STM32_DTS),y)
-CSRCS += stm32_dts.c
-endif
-
-ifeq ($(CONFIG_STM32_FDCAN),y)
-CSRCS += stm32_can.c
-endif
-
-ifeq ($(CONFIG_STM32_PWM),y)
-CSRCS += stm32_pwm.c
-endif
-
-ifeq ($(CONFIG_STM32_USBFS_HOST),y)
-CSRCS += stm32_usb.c
-endif
+DEPPATH += --dep-path board
 
 include $(TOPDIR)/boards/Board.mk
+
+ARCHSRCDIR = $(TOPDIR)$(DELIM)arch$(DELIM)$(CONFIG_ARCH)$(DELIM)src
+BOARDDIR = $(ARCHSRCDIR)$(DELIM)board
+CFLAGS += ${INCDIR_PREFIX}$(BOARDDIR)$(DELIM)include
+
+CFLAGS += ${INCDIR_PREFIX}$(STM32_COMMON_SRCDIR)
