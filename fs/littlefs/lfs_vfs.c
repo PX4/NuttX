@@ -26,6 +26,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <nuttx/fs/fs.h>
@@ -1120,6 +1121,47 @@ static int littlefs_bind(FAR struct inode *driver, FAR const void *data,
       goto errout_with_fs;
     }
 
+  /* Parse comma-separated mount options. Recognised tokens:
+   *   autoformat           - format if mount fails
+   *   forceformat          - always format before mounting
+   *   block_size_factor=N  - override CONFIG_FS_LITTLEFS_BLOCK_SIZE_FACTOR
+   */
+
+  bool autoformat        = false;
+  bool forceformat       = false;
+  int  block_size_factor = CONFIG_FS_LITTLEFS_BLOCK_SIZE_FACTOR;
+
+  if (data != NULL)
+    {
+      FAR char *dup = strdup(data);
+      FAR char *tmp = dup;
+      FAR char *tok;
+
+      if (dup == NULL)
+        {
+          ret = -ENOMEM;
+          goto errout_with_fs;
+        }
+
+      while ((tok = strsep(&tmp, ",")) != NULL)
+        {
+          if (!strcmp(tok, "autoformat"))
+            {
+              autoformat = true;
+            }
+          else if (!strcmp(tok, "forceformat"))
+            {
+              forceformat = true;
+            }
+          else
+            {
+              sscanf(tok, "block_size_factor=%d", &block_size_factor);
+            }
+        }
+
+      kmm_free(dup);
+    }
+
   /* Initialize lfs_config structure */
 
   fs->cfg.context        = fs;
@@ -1131,10 +1173,8 @@ static int littlefs_bind(FAR struct inode *driver, FAR const void *data,
                            CONFIG_FS_LITTLEFS_READ_SIZE_FACTOR;
   fs->cfg.prog_size      = fs->geo.blocksize *
                            CONFIG_FS_LITTLEFS_PROGRAM_SIZE_FACTOR;
-  fs->cfg.block_size     = fs->geo.erasesize *
-                           CONFIG_FS_LITTLEFS_BLOCK_SIZE_FACTOR;
-  fs->cfg.block_count    = fs->geo.neraseblocks /
-                           CONFIG_FS_LITTLEFS_BLOCK_SIZE_FACTOR;
+  fs->cfg.block_size     = fs->geo.erasesize  * block_size_factor;
+  fs->cfg.block_count    = fs->geo.neraseblocks / block_size_factor;
   fs->cfg.block_cycles   = CONFIG_FS_LITTLEFS_BLOCK_CYCLE;
   fs->cfg.cache_size     = fs->geo.blocksize *
                            CONFIG_FS_LITTLEFS_CACHE_SIZE_FACTOR;
@@ -1152,7 +1192,7 @@ static int littlefs_bind(FAR struct inode *driver, FAR const void *data,
 
   /* Force format the device if -o forceformat */
 
-  if (data && strcmp(data, "forceformat") == 0)
+  if (forceformat)
     {
       ret = littlefs_convert_result(lfs_format(&fs->lfs, &fs->cfg));
       if (ret < 0)
@@ -1166,7 +1206,7 @@ static int littlefs_bind(FAR struct inode *driver, FAR const void *data,
     {
       /* Auto format the device if -o autoformat */
 
-      if (ret != -EFAULT || !data || strcmp(data, "autoformat"))
+      if (ret != -EFAULT || !autoformat)
         {
           goto errout_with_fs;
         }
