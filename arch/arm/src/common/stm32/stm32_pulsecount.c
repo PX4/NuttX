@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/arm/src/common/stm32/stm32_pulsecount_m3m4_v1v2v3.c
+ * arch/arm/src/common/stm32/stm32_pulsecount.c
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -39,17 +39,9 @@
 #include "arm_internal.h"
 #include "chip.h"
 #include "stm32_pulsecount.h"
-#include "stm32_rcc.h"
-#include "stm32_gpio.h"
-#include "stm32_tim.h"
+#include "stm32.h"
 
-/* This module then only compiles if there is at least one enabled timer
- * intended for use with the pulsecount upper half driver.
- *
- * It implements support for both:
- *   1. STM32 TIMER IP version 1 - F0, F1, F2, F37x, F4, L0, L1
- *   2. STM32 TIMER IP version 2 - F3 (no F37x), F7, H7, L4, L4+
- */
+/* Generalized pulse count support for all STM32 families */
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -67,31 +59,41 @@
  * RCC RST offset, reset bit to use
  */
 
-#  define TIMCLK_TIM1      STM32_TIM1_CLKIN
-#  define TIMRCCEN_TIM1    STM32_RCC_APB2ENR
-#  define TIMEN_TIM1       RCC_APB2ENR_TIM1EN
-#  define TIMRCCRST_TIM1   STM32_RCC_APB2RSTR
-#  define TIMRST_TIM1      RCC_APB2RSTR_TIM1RST
-#  define TIMCLK_TIM8      STM32_TIM8_CLKIN
-#  define TIMRCCEN_TIM8    STM32_RCC_APB2ENR
-#  define TIMEN_TIM8       RCC_APB2ENR_TIM8EN
-#  define TIMRCCRST_TIM8   STM32_RCC_APB2RSTR
-#  define TIMRST_TIM8      RCC_APB2RSTR_TIM8RST
+#define TIMCLK_TIM1      STM32_TIM1_CLKIN
+#define TIMRCCEN_TIM1    STM32_RCC_APB2ENR
+#define TIMEN_TIM1       RCC_APB2ENR_TIM1EN
+#define TIMRCCRST_TIM1   STM32_RCC_APB2RSTR
+#define TIMRST_TIM1      RCC_APB2RSTR_TIM1RST
+#define TIMCLK_TIM8      STM32_TIM8_CLKIN
+#define TIMRCCEN_TIM8    STM32_RCC_APB2ENR
+#define TIMEN_TIM8       RCC_APB2ENR_TIM8EN
+#define TIMRCCRST_TIM8   STM32_RCC_APB2RSTR
+#define TIMRST_TIM8      RCC_APB2RSTR_TIM8RST
+
+/* The TIM1/TIM8 update-event interrupt vector is named differently across
+ * families. This will be unified later.
+ */
+
+#if defined(STM32_IRQ_TIM1UP)
+#  define PULSECOUNT_TIM1_IRQ  STM32_IRQ_TIM1UP
+#elif defined(STM32_IRQ_TIM1_UP)
+#  define PULSECOUNT_TIM1_IRQ  STM32_IRQ_TIM1_UP
+#elif defined(STM32_IRQ_TIM1_BRK)
+#  define PULSECOUNT_TIM1_IRQ  STM32_IRQ_TIM1_BRK
+#endif
+
+#if defined(STM32_IRQ_TIM8UP)
+#  define PULSECOUNT_TIM8_IRQ  STM32_IRQ_TIM8UP
+#elif defined(STM32_IRQ_TIM8_UP)
+#  define PULSECOUNT_TIM8_IRQ  STM32_IRQ_TIM8_UP
+#endif
 
 /* Default GPIO pins state */
 
 #if defined(CONFIG_STM32_STM32F10XX)
 #  define PINCFG_DEFAULT (GPIO_INPUT | GPIO_CNF_INFLOAT | GPIO_MODE_INPUT)
-#elif defined(CONFIG_STM32_STM32F20XX) ||         \
-    defined(CONFIG_STM32_STM32F30XX) ||           \
-    defined(CONFIG_STM32_STM32F33XX) ||           \
-    defined(CONFIG_STM32_STM32F37XX) ||           \
-    defined(CONFIG_STM32_STM32F4XXX) ||           \
-    defined(CONFIG_STM32_STM32L15XX) ||           \
-    defined(CONFIG_STM32_STM32G4XXX)
-#  define PINCFG_DEFAULT (GPIO_INPUT | GPIO_FLOAT)
 #else
-#  error "Unrecognized STM32 chip"
+#  define PINCFG_DEFAULT (GPIO_INPUT | GPIO_FLOAT)
 #endif
 
 #define PULSECOUNT_POL_NEG      1
@@ -267,7 +269,7 @@ static struct stm32_tim_s g_pulsecount1dev =
   .timid       = 1,
   .timtype     = TIMTYPE_TIM1,
   .t_dts       = CONFIG_STM32_TIM1_PULSECOUNT_TDTS,
-  .irq         = STM32_IRQ_TIM1UP,
+  .irq         = PULSECOUNT_TIM1_IRQ,
   .base        = STM32_TIM1_BASE,
   .pclk        = TIMCLK_TIM1,
 };
@@ -318,7 +320,7 @@ static struct stm32_tim_s g_pulsecount8dev =
   .timid       = 8,
   .timtype     = TIMTYPE_TIM8,
   .t_dts       = CONFIG_STM32_TIM8_PULSECOUNT_TDTS,
-  .irq         = STM32_IRQ_TIM8UP,
+  .irq         = PULSECOUNT_TIM8_IRQ,
   .base        = STM32_TIM8_BASE,
   .pclk        = TIMCLK_TIM8,
 };
@@ -361,6 +363,11 @@ static struct stm32_pulsecount_s g_pulsecount8lower =
 static bool pulsecount_reg_is_32bit(uint8_t timtype, uint32_t offset)
 {
   bool ret = false;
+
+  /* TODO: If all the advanced-timer registers are safely word-accessible
+   * then this helper could be dropped and every access made 32-bit.
+   * This is NOT verified yet.
+   */
 
   if (timtype == TIMTYPE_ADVANCED)
     {
@@ -831,7 +838,11 @@ static int pulsecount_channel_configure(struct pulsecount_lowerhalf_s *dev,
           ocmode |= (ATIM_CCMR_CCS_CCOUT << ATIM_CCMR1_CC1S_SHIFT);
           ocmode |= (chanmode << ATIM_CCMR1_OC1M_SHIFT);
           ocmode |= ATIM_CCMR1_OC1PE;
-#ifdef HAVE_IP_TIMERS_V2
+#ifdef ATIM_CCMR1_OC1M
+          /* Clear the extended (bit 3) output-compare-mode bit on the timer
+           * IP versions that have it.
+           */
+
           ccmr &= ~(ATIM_CCMR1_OC1M);
 #endif
           break;
@@ -847,7 +858,11 @@ static int pulsecount_channel_configure(struct pulsecount_lowerhalf_s *dev,
           ocmode |= (ATIM_CCMR_CCS_CCOUT << ATIM_CCMR1_CC2S_SHIFT);
           ocmode |= (chanmode << ATIM_CCMR1_OC2M_SHIFT);
           ocmode |= ATIM_CCMR1_OC2PE;
-#ifdef HAVE_IP_TIMERS_V2
+#ifdef ATIM_CCMR1_OC2M
+          /* Clear the extended (bit 3) output-compare-mode bit on the timer
+           * IP versions that have it.
+           */
+
           ccmr &= ~(ATIM_CCMR1_OC2M);
 #endif
           break;
