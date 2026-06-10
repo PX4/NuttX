@@ -390,7 +390,7 @@ static int stm32h7_israngeerased(size_t startaddress, size_t size)
       count += 4;
     }
 
-  baddr = (uint8_t *)startaddress;
+  baddr = (uint8_t *)addr;
   while (count < size)
     {
       if (getreg8(baddr) != FLASH_ERASEDVALUE)
@@ -823,7 +823,15 @@ ssize_t up_progmem_eraseblock(size_t block)
   stm32h7_flash_modifyreg32(priv, STM32_FLASH_CR1_OFFSET, FLASH_CR_SER, 0);
   stm32h7_flash_modifyreg32(priv, STM32_FLASH_CR1_OFFSET, FLASH_CR_SNB_MASK,
                             0);
+
   ret = 0;
+
+  /* The flash controller does not maintain the CPU D-Cache, so invalidate
+   * the erased range to keep the blank check below (and any subsequent
+   * reads) from observing stale cached data.
+   */
+
+  up_invalidate_dcache(block_address, block_address + FLASH_SECTOR_SIZE);
 
 exit_with_lock_sem:
   stm32h7_lock_flash(priv);
