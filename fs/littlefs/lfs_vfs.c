@@ -1048,6 +1048,9 @@ static int littlefs_bind(FAR struct inode *driver, FAR const void *data,
 {
   FAR struct littlefs_mountpt_s *fs;
   int ret;
+  int block_size_factor = CONFIG_FS_LITTLEFS_BLOCK_SIZE_FACTOR;
+  bool autoformat = false;
+  bool forceformat = false;
 
   /* Open the block driver */
 
@@ -1127,39 +1130,32 @@ static int littlefs_bind(FAR struct inode *driver, FAR const void *data,
    *   block_size_factor=N  - override CONFIG_FS_LITTLEFS_BLOCK_SIZE_FACTOR
    */
 
-  bool autoformat        = false;
-  bool forceformat       = false;
-  int  block_size_factor = CONFIG_FS_LITTLEFS_BLOCK_SIZE_FACTOR;
-
   if (data != NULL)
     {
-      FAR char *dup = strdup(data);
-      FAR char *tmp = dup;
-      FAR char *tok;
+      FAR const char *p = data;
 
-      if (dup == NULL)
+      while (*p != '\0')
         {
-          ret = -ENOMEM;
-          goto errout_with_fs;
-        }
+          FAR const char *end = strchrnul(p, ',');
+          size_t len = end - p;
 
-      while ((tok = strsep(&tmp, ",")) != NULL)
-        {
-          if (!strcmp(tok, "autoformat"))
+          if (len == sizeof("autoformat") - 1 &&
+              strncmp(p, "autoformat", len) == 0)
             {
               autoformat = true;
             }
-          else if (!strcmp(tok, "forceformat"))
+          else if (len == sizeof("forceformat") - 1 &&
+                   strncmp(p, "forceformat", len) == 0)
             {
               forceformat = true;
             }
           else
             {
-              sscanf(tok, "block_size_factor=%d", &block_size_factor);
+              sscanf(p, "block_size_factor=%d", &block_size_factor);
             }
-        }
 
-      kmm_free(dup);
+          p = (*end != '\0') ? end + 1 : end;
+        }
     }
 
   /* Initialize lfs_config structure */
