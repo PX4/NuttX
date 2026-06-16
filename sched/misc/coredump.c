@@ -305,11 +305,17 @@ static void elf_emit_tcb_note(FAR struct elf_dumpinfo_s *cinfo,
 
   elf_emit(cinfo, &nhdr, sizeof(nhdr));
 
+#if CONFIG_TASK_NAME_SIZE > 0
   strlcpy(name, tcb->name, sizeof(name));
+#else
+  name[0] = '\0';
+#endif
   elf_emit(cinfo, name, sizeof(name));
 
   info.pr_pid   = tcb->pid;
+#if CONFIG_TASK_NAME_SIZE > 0
   strlcpy(info.pr_fname, tcb->name, sizeof(info.pr_fname));
+#endif
   elf_emit(cinfo, &info, sizeof(info));
 
   /* Fill Process status */
