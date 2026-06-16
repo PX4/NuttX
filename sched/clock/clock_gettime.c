@@ -145,7 +145,7 @@ int nxclock_gettime(clockid_t clock_id, FAR struct timespec *tp)
         }
 
       ret = file_ioctl(filep, PTP_CLOCK_GETTIME, tp);
-      fs_putfilep(filep);
+      file_put(filep);
     }
 #endif
   else

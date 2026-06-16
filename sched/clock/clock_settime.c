@@ -160,7 +160,7 @@ int clock_settime(clockid_t clock_id, FAR const struct timespec *tp)
           if (ret >= 0)
             {
               ret = file_ioctl(filep, PTP_CLOCK_SETTIME, tp);
-              fs_putfilep(filep);
+              file_put(filep);
             }
         }
 #endif

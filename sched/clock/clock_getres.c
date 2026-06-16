@@ -87,7 +87,7 @@ int clock_getres(clockid_t clock_id, struct timespec *res)
             }
 
           ret = file_ioctl(filep, PTP_CLOCK_GETRES, res);
-          fs_putfilep(filep);
+          file_put(filep);
         }
         break;
 #endif

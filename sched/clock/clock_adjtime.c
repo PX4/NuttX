@@ -261,7 +261,7 @@ int nxclock_adjtime(clockid_t clock_id, FAR struct timex *buf)
 
       ret = file_ioctl(filep, PTP_CLOCK_ADJTIME,
                        (unsigned long)(uintptr_t)buf);
-      fs_putfilep(filep);
+      file_put(filep);
     }
 #endif
 
