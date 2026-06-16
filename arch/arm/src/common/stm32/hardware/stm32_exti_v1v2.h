@@ -149,7 +149,7 @@
 #  define EXTI_RTC_TAMPER        (1 << 19) /* EXTI line 19 is connected to the RTC Tamper and TimeStamp events */
 #  define EXTI_RTC_TIMESTAMP     (1 << 19) /* EXTI line 19 is connected to the RTC Tamper and TimeStamp events */
 #  define EXTI_RTC_WAKEUP        (1 << 20) /* EXTI line 20 is connected to the RTC Wakeup event */
-#elif defined(CONFIG_STM32_STM32G47XX)
+#elif defined(CONFIG_ARCH_CHIP_STM32G4)
 #  define EXTI_PVD_LINE          (1 << 16) /* EXTI line 16 is connected to the PVD output */
 #  define EXTI_RTC_ALARM         (1 << 17) /* EXTI line 17 is connected to the RTC Alarm event */
 #  define EXTI_USB_WAKEUP        (1 << 18) /* EXTI line 18 is connected to the USB Device FS Wakeup event */
