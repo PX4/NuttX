@@ -169,6 +169,7 @@
 #define STM32_DAC2_BASE      0x50000c00     /* 0x50000c00-0x50000fff: DAC2 */
 #define STM32_DAC3_BASE      0x50001000     /* 0x50001000-0x500013ff: DAC3 */
 #define STM32_DAC4_BASE      0x50001400     /* 0x50001400-0x500017ff: DAC4 */
+#define STM32_RNG_BASE       0x50060800     /* 0x50060800-0x50060bff: RNG */
 
 /* Compatibility defines */
 
