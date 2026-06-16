@@ -64,7 +64,7 @@ static void uart_ram_detach(FAR struct uart_dev_s *dev);
 static int uart_ram_ioctl(FAR struct file *filep, int cmd,
                           unsigned long arg);
 static int uart_ram_receive(FAR struct uart_dev_s *dev,
-                            FAR uint32_t *status);
+                            FAR unsigned int *status);
 static void uart_ram_rxint(FAR struct uart_dev_s *dev, bool enable);
 static bool uart_ram_rxavailable(FAR struct uart_dev_s *dev);
 static void uart_ram_dmasend(FAR struct uart_dev_s *dev);
@@ -300,7 +300,8 @@ static int uart_ram_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
  * Name: uart_ram_receive
  ****************************************************************************/
 
-static int uart_ram_receive(FAR struct uart_dev_s *dev, FAR uint32_t *status)
+static int uart_ram_receive(FAR struct uart_dev_s *dev,
+                            FAR unsigned int *status)
 {
   FAR struct uart_ram_s *priv = dev->priv;
   int rdoff;
