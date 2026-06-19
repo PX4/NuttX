@@ -180,9 +180,17 @@
 
 #elif defined(CONFIG_STM32_STM32F4XXX)
 #  if defined(CONFIG_STM32_USE_LEGACY_PINMAP)
-#    include "hardware/stm32f40xxx_pinmap_legacy.h"
+#   if defined(CONFIG_STM32_STM32F427A)
+#       include "hardware/stm32f427ax_pinmap_legacy.h"
+#    else
+#       include "hardware/stm32f40xxx_pinmap_legacy.h"
+#    endif
 #  else
-#    include "hardware/stm32f40xxx_pinmap.h"
+#   if defined(CONFIG_STM32_STM32F427A)
+#       include "hardware/stm32f427ax_pinmap.h"
+#    else
+#       include "hardware/stm32f40xxx_pinmap.h"
+#    endif
 #  endif
 
 /* STM32 G4 Family **********************************************************/
