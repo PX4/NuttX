@@ -71,6 +71,8 @@
 #define ALIGN_UP(n)       (((n)+ALIGN_MASK) & ~ALIGN_MASK)
 #define IS_ALIGNED(n)     (((uint32_t)(n) & ALIGN_MASK) == 0)
 
+#define QSPI_WAIT_TIMEOUT 1000000
+
 /* Debug ********************************************************************/
 
 /* Check if QSPI debug is enabled */
@@ -1036,21 +1038,38 @@ static int qspi_setupxctnfrommem(struct qspi_xctnspec_s *xctn,
  *
  ****************************************************************************/
 
-static void qspi_waitstatusflags(struct stm32h7_qspidev_s *priv,
-                                 uint32_t mask, int polarity)
+static int qspi_waitstatusflags(struct stm32h7_qspidev_s *priv,
+                                uint32_t mask, int polarity)
 {
   uint32_t regval;
+  uint32_t timeout = QSPI_WAIT_TIMEOUT;
 
   if (polarity)
     {
       while (!((regval = qspi_getreg(priv, STM32_QUADSPI_SR_OFFSET)) & mask))
-        ;
+        {
+          if (timeout-- == 0)
+            {
+              spierr("ERROR: QSPI wait timeout mask=%08lx polarity=%d SR=%08lx\n",
+                     (unsigned long)mask, polarity, (unsigned long)regval);
+              return -ETIMEDOUT;
+            }
+        }
     }
   else
     {
       while (((regval = qspi_getreg(priv, STM32_QUADSPI_SR_OFFSET)) & mask))
-        ;
+        {
+          if (timeout-- == 0)
+            {
+              spierr("ERROR: QSPI wait timeout mask=%08lx polarity=%d SR=%08lx\n",
+                     (unsigned long)mask, polarity, (unsigned long)regval);
+              return -ETIMEDOUT;
+            }
+        }
     }
+
+  return OK;
 }
 
 /****************************************************************************
@@ -1654,26 +1673,12 @@ static int qspi_receive_blocking(struct stm32h7_qspidev_s *priv,
   volatile uint32_t *datareg =
     (volatile uint32_t *)(priv->base + STM32_QUADSPI_DR_OFFSET);
   uint8_t *dest = (uint8_t *)xctn->buffer;
-  uint32_t addrval;
-  uint32_t regval;
 
-  addrval = qspi_getreg(priv, STM32_QUADSPI_AR_OFFSET);
   if (dest != NULL)
     {
       /* Counter of remaining data */
 
       uint32_t remaining = xctn->datasize;
-
-      /* Ensure CCR register specifies indirect read */
-
-      regval  = qspi_getreg(priv, STM32_QUADSPI_CCR_OFFSET);
-      regval &= ~QSPI_CCR_FMODE_MASK;
-      regval |= QSPI_CCR_FMODE(CCR_FMODE_INDRD);
-      qspi_putreg(priv, regval, STM32_QUADSPI_CCR_OFFSET);
-
-      /* Start the transfer by re-writing the address in AR register */
-
-      qspi_putreg(priv, addrval, STM32_QUADSPI_AR_OFFSET);
 
       /* Transfer loop */
 
@@ -1681,7 +1686,12 @@ static int qspi_receive_blocking(struct stm32h7_qspidev_s *priv,
         {
           /* Wait for Fifo Threshold, or Transfer Complete, to read data */
 
-          qspi_waitstatusflags(priv, QSPI_SR_FTF | QSPI_SR_TCF, 1);
+          ret = qspi_waitstatusflags(priv, QSPI_SR_FTF | QSPI_SR_TCF, 1);
+
+          if (ret < 0)
+            {
+              return ret;
+            }
 
           *dest = *(volatile uint8_t *)datareg;
           dest++;
@@ -1692,7 +1702,13 @@ static int qspi_receive_blocking(struct stm32h7_qspidev_s *priv,
         {
           /* Wait for transfer complete, then clear it */
 
-          qspi_waitstatusflags(priv, QSPI_SR_TCF, 1);
+          ret = qspi_waitstatusflags(priv, QSPI_SR_TCF, 1);
+
+          if (ret < 0)
+            {
+              return ret;
+            }
+
           qspi_putreg(priv, QSPI_FCR_CTCF, STM32_QUADSPI_FCR_OFFSET);
 
           /* Use Abort to clear the busy flag, and ditch any extra bytes in
@@ -1745,7 +1761,12 @@ static int qspi_transmit_blocking(struct stm32h7_qspidev_s *priv,
         {
           /* Wait for Fifo Threshold to write data */
 
-          qspi_waitstatusflags(priv, QSPI_SR_FTF, 1);
+          ret = qspi_waitstatusflags(priv, QSPI_SR_FTF, 1);
+
+          if (ret < 0)
+            {
+              return ret;
+            }
 
           *(volatile uint8_t *)datareg = *src++;
           remaining--;
@@ -1755,7 +1776,13 @@ static int qspi_transmit_blocking(struct stm32h7_qspidev_s *priv,
         {
           /* Wait for transfer complete, then clear it */
 
-          qspi_waitstatusflags(priv, QSPI_SR_TCF, 1);
+          ret = qspi_waitstatusflags(priv, QSPI_SR_TCF, 1);
+
+          if (ret < 0)
+            {
+              return ret;
+            }
+
           qspi_putreg(priv, QSPI_FCR_CTCF, STM32_QUADSPI_FCR_OFFSET);
 
           /* Use Abort to clear the Busy flag */
@@ -1855,7 +1882,7 @@ static uint32_t qspi_setfrequency(struct qspi_dev_s *dev, uint32_t frequency)
       return 0;
     }
 
-  spiinfo("frequency=%d\n", frequency);
+  spiinfo("frequency=%lu\n", (unsigned long)frequency);
   DEBUGASSERT(priv);
 
   /* Wait till BUSY flag reset */
@@ -1909,14 +1936,18 @@ static uint32_t qspi_setfrequency(struct qspi_dev_s *dev, uint32_t frequency)
   /* Calculate the new actual frequency */
 
   actual = QSPI_CLK_FREQUENCY / prescaler;
-  spiinfo("prescaler=%d actual=%d\n", prescaler, actual);
+  spiinfo("prescaler=%lu actual=%lu\n",
+          (unsigned long)prescaler,
+          (unsigned long)actual);
 
   /* Save the frequency setting */
 
   priv->frequency = frequency;
   priv->actual    = actual;
 
-  spiinfo("Frequency %d->%d\n", frequency, actual);
+  spiinfo("Frequency %lu->%lu\n",
+          (unsigned long)frequency,
+          (unsigned long)actual);
   return actual;
 }
 
@@ -1987,7 +2018,7 @@ static void qspi_setmode(struct qspi_dev_s *dev, enum qspi_mode_e mode)
         }
 
       qspi_putreg(priv, regval, STM32_QUADSPI_DCR_OFFSET);
-      spiinfo("DCR=%08x\n", regval);
+      spiinfo("DCR=%08lx\n", (unsigned long)regval);
 
       /* Save the mode so that subsequent re-configurations will be faster */
 
@@ -2166,12 +2197,6 @@ static int qspi_command(struct qspi_dev_s *dev,
 #else
   /* Polling mode */
 
-  /* Set up the Communications Configuration Register as per command info */
-
-  qspi_ccrconfig(priv, &xctn, CCR_FMODE_INDWR);
-
-  /* That may be it, unless there is also data to transfer */
-
   if (QSPICMD_ISDATA(cmdinfo->flags))
     {
       DEBUGASSERT(cmdinfo->buffer != NULL && cmdinfo->buflen > 0);
@@ -2179,10 +2204,12 @@ static int qspi_command(struct qspi_dev_s *dev,
 
       if (QSPICMD_ISWRITE(cmdinfo->flags))
         {
+          qspi_ccrconfig(priv, &xctn, CCR_FMODE_INDWR);
           ret = qspi_transmit_blocking(priv, &xctn);
         }
       else
         {
+          qspi_ccrconfig(priv, &xctn, CCR_FMODE_INDRD);
           ret = qspi_receive_blocking(priv, &xctn);
         }
 
@@ -2190,13 +2217,15 @@ static int qspi_command(struct qspi_dev_s *dev,
     }
   else
     {
-      ret = OK;
+      qspi_ccrconfig(priv, &xctn, CCR_FMODE_INDWR);
+
+      ret = qspi_waitstatusflags(priv, QSPI_SR_TCF, 1);
+
+      if (ret == OK)
+        {
+          ret = qspi_waitstatusflags(priv, QSPI_SR_BUSY, 0);
+        }
     }
-
-  /* Wait for Transfer complete, and not busy */
-
-  qspi_waitstatusflags(priv, QSPI_SR_TCF, 1);
-  qspi_waitstatusflags(priv, QSPI_SR_BUSY, 0);
 
 #endif
 
@@ -2353,11 +2382,6 @@ static int qspi_memory(struct qspi_dev_s *dev,
           ret = qspi_receive_blocking(priv, &xctn);
         }
 
-      /* Wait for Transfer complete, and not busy */
-
-      qspi_waitstatusflags(priv, QSPI_SR_TCF, 1);
-      qspi_waitstatusflags(priv, QSPI_SR_BUSY, 0);
-
       MEMORY_SYNC();
     }
 
@@ -2383,11 +2407,6 @@ static int qspi_memory(struct qspi_dev_s *dev,
     {
       ret = qspi_receive_blocking(priv, &xctn);
     }
-
-  /* Wait for Transfer complete, and not busy */
-
-  qspi_waitstatusflags(priv, QSPI_SR_TCF, 1);
-  qspi_waitstatusflags(priv, QSPI_SR_BUSY, 0);
 
   MEMORY_SYNC();
 

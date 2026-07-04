@@ -574,6 +574,11 @@ static void w25qxxxjv_write_enable(FAR struct w25qxxxjv_dev_s *priv)
     {
       w25qxxxjv_command(priv->qspi, W25QXXXJV_WRITE_ENABLE);
       status = w25qxxxjv_read_status(priv);
+
+      if ((status & STATUS_WEL_MASK) != STATUS_WEL_ENABLED)
+        {
+          nxsig_usleep(1000);
+        }
     }
   while ((status & STATUS_WEL_MASK) != STATUS_WEL_ENABLED);
 }
@@ -590,6 +595,11 @@ static void w25qxxxjv_write_disable(FAR struct w25qxxxjv_dev_s *priv)
     {
       w25qxxxjv_command(priv->qspi, W25QXXXJV_WRITE_DISABLE);
       status = w25qxxxjv_read_status(priv);
+
+      if ((status & STATUS_WEL_MASK) != STATUS_WEL_DISABLED)
+        {
+          nxsig_usleep(1000);
+        }
     }
   while ((status & STATUS_WEL_MASK) != STATUS_WEL_DISABLED);
 }
@@ -868,7 +878,10 @@ static int w25qxxxjv_erase_sector(FAR struct w25qxxxjv_dev_s *priv,
 
   /* Wait for erasure to finish */
 
-  while ((w25qxxxjv_read_status(priv) & STATUS_BUSY_MASK) != 0);
+  while ((w25qxxxjv_read_status(priv) & STATUS_BUSY_MASK) != 0)
+    {
+      nxsig_usleep(1000);
+    }
 
   return OK;
 }
@@ -976,8 +989,8 @@ static int w25qxxxjv_write_page(struct w25qxxxjv_dev_s *priv,
 
       if (ret < 0)
         {
-          ferr("ERROR: QSPI_MEMORY failed writing address=%06x\n",
-               address);
+          ferr("ERROR: QSPI_MEMORY failed writing address=%06jx\n",
+               (intmax_t)address);
           return ret;
         }
 
