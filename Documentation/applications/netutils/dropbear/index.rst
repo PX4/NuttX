@@ -77,6 +77,35 @@ Then open an SSH session from a host on the same network::
     <username>@<ip_address>'s password:
     nsh>
 
+File transfer with scp
+----------------------
+
+When ``CONFIG_NETUTILS_DROPBEAR_SCP`` is enabled (default ``y``, requires
+``CONFIG_PIPES=y``), Dropbear's ``scp`` program is built as a builtin
+application and the server accepts SSH ``exec`` requests, allowing files to
+be copied to and from the board with a standard ``scp`` client.
+
+The port implements only the legacy scp protocol. OpenSSH 9.0 and later
+default to the SFTP protocol, which is not supported by this port, so a
+plain ``scp`` invocation from a recent Linux distribution fails. Pass the
+``-O`` flag to force the legacy scp protocol.
+
+Copy a file from the host to the board::
+
+    $ scp -O <file> <username>@<ip_address>:/data/<file>
+
+Copy a file from the board back to the host::
+
+    $ scp -O <username>@<ip_address>:/data/<file> .
+
+When Dropbear listens on a non-default port, add ``-P <port>``::
+
+    $ scp -O -P 2222 <file> <username>@<ip_address>:/data/<file>
+
+Transfers must always be initiated from the host. Running ``scp`` on the
+target to push or pull files from another machine is not supported, since
+the port does not include an SSH client.
+
 Notes
 -----
 
@@ -119,6 +148,13 @@ Remove the stale entry with::
     $ ssh-keygen -R <ip_address>
 
 Then reconnect normally. The client will prompt to accept the new host key.
+
+**scp fails with "subsystem request failed" or "Connection closed"**
+
+Recent OpenSSH clients use the SFTP protocol by default, which this port
+does not support. Retry forcing the legacy scp protocol::
+
+    $ scp -O <file> <username>@<ip_address>:/data/<file>
 
 **Connection refused**
 
