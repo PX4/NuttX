@@ -83,7 +83,10 @@
 
 #define MMCSD_SCR_DATADELAY     (100)      /* Wait up to 100MS to get SCR */
 #define MMCSD_BLOCK_RDATADELAY  (100)      /* Wait up to 100MS to get one data block */
-#define MMCSD_BLOCK_WDATADELAY  (260)      /* Wait up to 260MS to write one data block */
+//#define MMCSD_BLOCK_WDATADELAY  (260)      /* Wait up to 260MS to write one data block */
+// We're seeing issues with EMMC, it is known that first write can take a long time due to the EMMC
+// performing some one-time task, so make a longer timeout
+#define MMCSD_BLOCK_WDATADELAY  (990)      /* Wait up to 990MS to write one data block */
 
 #define IS_EMPTY(priv) (priv->type == MMCSD_CARDTYPE_UNKNOWN)
 
@@ -3101,6 +3104,13 @@ static int mmcsd_cardidentify(FAR struct mmcsd_state_s *priv)
     {
       // CLEARLY still an SD-Card
       finfo("CMD1 response data is 0, SD-Card detected\n");
+
+      /* CMD1 is illegal for SD cards and may leave the card in a non-idle
+       * or error-latched state. Reset it back to a clean idle state before
+       * SD identification (CMD8/ACMD41) so detection is deterministic.
+      */
+      mmcsd_sendcmdpoll(priv, MMCSD_CMD0, 0);
+      nxsig_usleep(MMCSD_IDLE_DELAY);
     }
   else
     {

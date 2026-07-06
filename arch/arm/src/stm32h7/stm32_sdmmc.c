@@ -238,7 +238,9 @@
 
 /* DTIMER setting */
 
-#define SDMMC_DTIMER_DATATIMEOUT_MS  250
+//#define SDMMC_DTIMER_DATATIMEOUT_MS  250
+// Slightly larger than MMCSD_BLOCK_WDATADELAY, see note there (mmcsd_sdio.c)
+#define SDMMC_DTIMER_DATATIMEOUT_MS  1000
 
 /* Block size for multi-block transfers */
 
