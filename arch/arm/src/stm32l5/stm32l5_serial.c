@@ -1878,15 +1878,14 @@ static int stm32l5serial_interrupt(int irq, void *context, void *arg)
 static int stm32l5serial_ioctl(struct file *filep, int cmd,
                                unsigned long arg)
 {
-#if defined(CONFIG_SERIAL_TERMIOS) || defined(CONFIG_SERIAL_TIOCSERGSTRUCT)
-  struct inode      *inode = filep->f_inode;
-  struct uart_dev_s *dev   = inode->i_private;
-#endif
-#if defined(CONFIG_SERIAL_TERMIOS)
-  struct stm32_serial_s *priv =
-    (struct stm32_serial_s *)dev->priv;
-#endif
-  int                ret    = OK;
+  struct inode          *inode = filep->f_inode;
+  struct uart_dev_s     *dev   = inode->i_private;
+  struct stm32_serial_s *priv  = (struct stm32_serial_s *)dev->priv;
+  int                    ret   = OK;
+
+  UNUSED(inode);
+  UNUSED(dev);
+  UNUSED(priv);
 
   switch (cmd)
     {
