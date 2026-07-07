@@ -1405,6 +1405,19 @@ static void stm32_recvdma(struct stm32_dev_s *priv)
     {
       /* In an aligned case, we have always received all blocks */
 
+      /* The IDMA wrote the data directly into priv->buffer. The invalidate
+       * done in stm32_dmarecvsetup happens BEFORE the transfer, and on
+       * Cortex-M7 those cache lines can be re-populated (speculative
+       * prefetch or another access) before the DMA finishes, leaving the CPU
+       * with stale data. Invalidate again now that the transfer is complete
+       * so subsequent reads see the freshly DMA'd data. Fixes intermittent
+       * read corruption with write-back dcache (no CONFIG_ARMV7M_DCACHE_
+       * WRITETHROUGH needed). See NuttX groups thread -KQr4Qq9uMg.
+       */
+
+      up_invalidate_dcache((uintptr_t)priv->buffer,
+                           (uintptr_t)priv->buffer + priv->receivecnt);
+
       priv->remaining = 0;
     }
 
