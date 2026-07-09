@@ -1533,6 +1533,13 @@ config MPU60X0_ACCEL_AFS_SEL
 
 endif # SENSORS_MPU60X0
 
+config SENSORS_MPU6050
+	bool "Invensense MPU6050 Sensor support"
+	default n
+	depends on I2C
+	---help---
+		Enable uORB driver support for Invensense MPU6050 6-axis MotionTracker device over I2C.
+
 config SENSORS_MPU9250
 	bool "Invensense MPU9250 Sensor support"
 	default n

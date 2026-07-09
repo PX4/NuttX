@@ -436,6 +436,10 @@ if(CONFIG_SENSORS)
     list(APPEND SRCS mpu60x0.c)
   endif()
 
+  if(CONFIG_SENSORS_MPU6050)
+    list(APPEND SRCS mpu6050_uorb.c)
+  endif()
+
   if(CONFIG_SENSORS_MPU9250)
     list(APPEND SRCS mpu9250_uorb.c)
   endif()
