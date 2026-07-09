@@ -550,6 +550,7 @@ Implemented Drivers
 - :doc:`lis2mdl`
 - lsm9ds1
 - ltr308
+- :doc:`mpu6050`
 - mpu9250
 - ms56xx
 - :doc:`nau7802`

@@ -1,0 +1,77 @@
+.. _mpu6050:
+
+=======
+MPU6050
+=======
+
+Contributed by Shriyans.
+
+The InvenSense MPU6050 is a high-performance 6-axis MotionTracking device that combines
+a 3-axis gyroscope and a 3-axis accelerometer on the same silicon die, communicating
+over an I2C serial bus.
+
+The driver uses the :doc:`uorb
+</components/drivers/special/sensors/sensors_uorb>` interface.
+
+Application Programming Interface
+=================================
+
+.. code-block:: c
+
+   #include <nuttx/sensors/mpu6050.h>
+
+The MPU6050 registration function allows the driver to be registered as a uORB
+lower-half sensor driver. Registering this driver will cause two separate uORB
+topics to appear under ``/dev/uorb/``:
+
+- ``sensor_accel<n>`` - Accelerometer topic reporting linear acceleration in m/s² and temperature.
+- ``sensor_gyro<n>`` - Gyroscope topic reporting angular velocity in rad/s and temperature.
+
+Where ``n`` is the device number passed during device registration (e.g., 0).
+
+.. code-block:: c
+
+   /* Example uORB sensor registration on I2C bus 0 at default address 0x68 */
+
+   int err = mpu6050_register(0, i2c_master, MPU6050_ADDR_LOW);
+   if (err < 0)
+     {
+       syslog(LOG_ERR, "Failed to register MPU6050: %d\n", err);
+     }
+
+Configuration Options
+=====================
+
+- ``CONFIG_SENSORS_MPU6050`` - Enables uORB driver support for the InvenSense MPU6050 6-axis MotionTracker over I2C.
+
+Supported Operations
+====================
+
+The MPU6050 uORB driver supports standard sensor operations (`activate`, `fetch`,
+`set_interval`, `batch`, and `control`). It acquires simultaneous 3-axis accelerometer
+and 3-axis gyroscope samples, applies appropriate scale conversions, and publishes them
+to their respective uORB topics.
+
+Example Usage (`uorb_listener`)
+-------------------------------
+
+Once registered on target hardware, the MPU6050 topics can be verified directly from the
+NuttX shell (NSH) using the `uorb_listener` utility:
+
+.. code-block:: bash
+
+   nsh> uorb_listener sensor_accel0 5
+   TOPIC: sensor_accel0 #0
+   timestamp: 12345678
+   x: 0.0210
+   y: 0.0035
+   z: 9.8066
+   temperature: 25.4000
+
+   nsh> uorb_listener sensor_gyro0 5
+   TOPIC: sensor_gyro0 #0
+   timestamp: 12345680
+   x: 0.0012
+   y: -0.0004
+   z: 0.0001
+   temperature: 25.4000
