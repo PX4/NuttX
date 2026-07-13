@@ -40,6 +40,10 @@ if(CONFIG_RTL8721DX_FLASH_FS)
   list(APPEND SRCS ${AMEBA_COMMON}/ameba_flash_mtd.c)
 endif()
 
+if(CONFIG_AMEBA_GPIO)
+  list(APPEND SRCS ${AMEBA_COMMON}/ameba_gpio.c)
+endif()
+
 target_include_directories(arch PRIVATE ${AMEBA_COMMON})
 target_sources(arch PRIVATE ${SRCS})
 
@@ -88,6 +92,12 @@ set(AMEBA_FWLIB_SRCS
 
 if(CONFIG_RTL8721DX_FLASH_FS)
   list(APPEND AMEBA_FWLIB_SRCS ${AMEBA_SOC}/fwlib/ram_common/ameba_flash_ram.c)
+endif()
+
+if(CONFIG_AMEBA_GPIO)
+  # GPIO_INTStatusGet/ClearEdge are not in the ROM symbol table; compile them in
+  # from the fwlib source (mirrors the make build's ameba_board.mk).
+  list(APPEND AMEBA_FWLIB_SRCS ${AMEBA_SOC}/fwlib/ram_common/ameba_gpio.c)
 endif()
 
 # Silence a couple of warnings the vendored SDK sources trip under NuttX's

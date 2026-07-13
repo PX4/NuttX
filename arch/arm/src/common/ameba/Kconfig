@@ -1,0 +1,25 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+# Shared Realtek Ameba peripheral drivers (arch/arm/src/common/ameba).  These
+# options are common to every Ameba ARM chip (RTL8721Dx, RTL8720F, ...) and
+# are sourced from each chip's own Kconfig.
+#
+
+menu "Ameba Peripheral Support"
+
+config AMEBA_GPIO
+    bool "GPIO"
+    default n
+    select DEV_GPIO
+    ---help---
+        Expose Ameba GPIO pins through the NuttX GPIO (ioexpander) upper
+        half at /dev/gpioN.  The board selects which pins are registered
+        and their type (input, output or interrupt) in its bring-up code.
+
+        The driver (arch/arm/src/common/ameba/ameba_gpio.c) sits on the SDK
+        fwlib register layer and dispatches pin interrupts through the ROM
+        GPIO interrupt handler.
+
+endmenu # Ameba Peripheral Support

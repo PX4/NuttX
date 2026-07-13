@@ -272,6 +272,7 @@ static const char *g_white_prefix[] =
   "DCache_",
   "ChipInfo_",
   "FLASH_",
+  "GPIO_",
   "IPC_",
   "LOGUART_",
   "OSC2M_",

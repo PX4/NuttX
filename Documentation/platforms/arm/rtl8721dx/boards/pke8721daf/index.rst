@@ -33,6 +33,8 @@ Supported in this NuttX port:
   partition), backing the Wi-Fi key-value store
 * Wi-Fi station and SoftAP through the ``wapi`` tool
 * DHCP client (STA) and DHCP server (SoftAP)
+* GPIO pins exposed as ``/dev/gpioN`` character devices (input, output and
+  interrupt), driven directly on the SDK fwlib register layer
 
 Buttons and LEDs
 ================
@@ -57,6 +59,24 @@ Networking-enabled NSH with littlefs at ``/data`` and the ``wapi`` Wi-Fi tool.
 The console is the LOG-UART at 1500000 8N1 (the rate is configured by the
 bootloader and inherited by NuttX). The Wi-Fi examples below are available from
 this configuration.
+
+gpio
+----
+
+Minimal NSH with the GPIO driver and the ``gpio`` example enabled (no Wi-Fi).
+The board registers three pins from its pin table (see
+``boards/arm/rtl8721dx/pke8721daf/src/rtl8721dx_gpio.c``): an output at
+``/dev/gpio0``, an input at ``/dev/gpio1`` and an interrupt pin at
+``/dev/gpio2``. Edit that table to match a board's wiring. Exercise them with
+the example::
+
+    nsh> gpio -o 1 /dev/gpio0     # drive the output high
+    nsh> gpio /dev/gpio1          # read the input
+    nsh> gpio -w 1 /dev/gpio2     # wait for a rising-edge interrupt
+
+Pins are encoded with the ``AMEBA_PA()`` / ``AMEBA_PB()`` helpers from
+``arch/arm/src/common/ameba/ameba_gpio.h`` (port A/B, pin 0-31), matching the
+Ameba SDK ``PinName`` layout.
 
 Wi-Fi
 =====

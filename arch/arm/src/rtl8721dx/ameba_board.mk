@@ -116,6 +116,18 @@ AMEBA_FWLIB_SRCS += $(TOPDIR)/arch/arm/src/rtl8721dx/ameba_app_start.c \
 ifeq ($(CONFIG_RTL8721DX_FLASH_FS),y)
 AMEBA_FWLIB_SRCS += $(AMEBA_SOC)/fwlib/ram_common/ameba_flash_ram.c
 endif
+# GPIO register layer.  The GPIO driver (arch/.../common/ameba/ameba_gpio.c)
+# calls the fwlib GPIO API.  GPIO_INTStatusGet/ClearEdge are NOT in the ROM
+# symbol table, so fwlib ram_common/ameba_gpio.c is compiled in to provide
+# them.  That same source also defines GPIO_Init (which IS in ROM), so the
+# local object overrides the ROM PROVIDE(GPIO_Init) as a harmless side effect
+# (same source, equivalent behaviour).  Everything else the driver calls
+# (GPIO_WriteBit/ReadDataBit/Direction/INTMode/INTConfig, Pinmux_Config,
+# PAD_PullCtrl) has no SDK source and resolves to the ROM symbol table.
+ifeq ($(CONFIG_AMEBA_GPIO),y)
+AMEBA_FWLIB_SRCS += $(AMEBA_SOC)/fwlib/ram_common/ameba_gpio.c
+endif
+
 # -Wno-int-conversion: the vendored SDK passes NULL to irq_register()'s u32
 # "Data" (interrupt context) argument in many places -- an intentional
 # NULL-as-context idiom.  Silence -Wint-conversion for the SDK fwlib sources

@@ -68,6 +68,19 @@ int rtl8721dx_bringup(void);
 int rtl8721dx_wifi_initialize(void);
 #endif
 
+#ifdef CONFIG_AMEBA_GPIO
+/****************************************************************************
+ * Name: rtl8721dx_gpio_initialize
+ *
+ * Description:
+ *   Register the board's GPIO pins with the NuttX GPIO upper half
+ *   (boards/arm/rtl8721dx/pke8721daf/src/rtl8721dx_gpio.c).
+ *
+ ****************************************************************************/
+
+int rtl8721dx_gpio_initialize(void);
+#endif
+
 #ifdef CONFIG_RTL8721DX_FLASH_FS
 /****************************************************************************
  * Name: ameba_flash_fs_initialize
