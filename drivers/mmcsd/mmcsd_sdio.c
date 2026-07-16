@@ -213,6 +213,7 @@ static void    mmcsd_mediachange(FAR void *arg);
 static int     mmcsd_widebus(FAR struct mmcsd_state_s *priv);
 #ifdef CONFIG_MMCSD_MMCSUPPORT
 static int     mmcsd_mmcinitialize(FAR struct mmcsd_state_s *priv);
+static int     mmcsd_mmc_widebus(FAR struct mmcsd_state_s *priv);
 static int     mmcsd_read_csd(FAR struct mmcsd_state_s *priv);
 #endif
 static int     mmcsd_sdinitialize(FAR struct mmcsd_state_s *priv);
@@ -2511,6 +2512,60 @@ static int mmcsd_widebus(FAR struct mmcsd_state_s *priv)
 }
 
 /****************************************************************************
+ * Name: mmcsd_mmc_widebus
+ *
+ * Description:
+ *  An MMC card has been detected.  Select wide bus operation.
+ *  If the host mandates 4-bit (SDIO_CAPS_4BIT_ONLY), force it.
+ *  Otherwise try 4-bit; future eMMC revisions may add 8-bit support.
+ *
+ * Assumptions:
+ *   The card is in transfer state and the transfer clock has been selected.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_MMCSD_MMCSUPPORT
+static int mmcsd_mmc_widebus(FAR struct mmcsd_state_s *priv)
+{
+  int ret;
+
+  /* Unlike SD cards (SCR register), MMC EXT_CSD[183] reports the
+   * current bus width, not supported modes.  Simply try the SWITCH;
+   * the card will reject it if 4-bit is not supported.
+   */
+
+  if ((priv->caps & SDIO_CAPS_1BIT_ONLY) == 0)
+    {
+      /* Select wide, 4-bit bus operation.
+       * TODO: Try 8-bit first (0x02), fall back to 4-bit (0x01).
+       */
+
+      SDIO_WIDEBUS(priv->dev, true);
+      priv->widebus = true;
+      nxsig_usleep(MMCSD_CLK_DELAY);
+
+      mmcsd_sendcmdpoll(priv, MMCSD_CMD6,
+                        (0x03u << 24) | (183u << 16) |
+                        (0x01u << 8)  | 0x00u);
+      ret = mmcsd_recv_r1(priv, MMCSD_CMD6);
+      if (ret != OK)
+        {
+          ferr("ERROR: MMC wide bus switch failed: %d\n", ret);
+          SDIO_WIDEBUS(priv->dev, false);
+          priv->widebus = false;
+          return ret;
+        }
+
+      finfo("MMC wide bus operation selected\n");
+      return OK;
+    }
+
+  fwarn("WARNING: Card does not support wide-bus operation\n");
+  return -ENOSYS;
+}
+#endif
+
+/****************************************************************************
  * Name: mmcsd_mmcinitialize
  *
  * Description:
@@ -2591,6 +2646,8 @@ static int mmcsd_mmcinitialize(FAR struct mmcsd_state_s *priv)
       return ret;
     }
 
+  mmcsd_decode_csd(priv, csd);
+
   /* Set the Driver Stage Register (DSR) if (1) a CONFIG_MMCSD_DSR has been
    * provided and (2) the card supports a DSR register.  If no DSR value
    * the card default value (0x0404) will be used.
@@ -2611,10 +2668,8 @@ static int mmcsd_mmcinitialize(FAR struct mmcsd_state_s *priv)
       return ret;
     }
 
-  /* CSD Decoding for MMC should be done after entering in data-transfer mode
-   * because if the card has block addressing then extended CSD register
-   * must be read in order to get the right number of blocks and capacity,
-   * but it has to be done in data-transfer mode.
+  /* Read extended CSD in data-transfer mode to obtain the number of
+   * blocks, capacity, and the BUS_WIDTH support (EXT_CSD[183]).
    */
 
   if (IS_BLOCK(priv->type))
@@ -2622,7 +2677,8 @@ static int mmcsd_mmcinitialize(FAR struct mmcsd_state_s *priv)
       ret = mmcsd_read_csd(priv);
       if (ret != OK)
         {
-          ferr("ERROR: Failed to determinate number of blocks: %d\n", ret);
+          ferr("ERROR: Failed to determinate number of blocks: %d\n",
+               ret);
           return ret;
         }
     }
@@ -2633,6 +2689,15 @@ static int mmcsd_mmcinitialize(FAR struct mmcsd_state_s *priv)
 
   SDIO_CLOCK(priv->dev, CLOCK_MMC_TRANSFER);
   nxsig_usleep(MMCSD_CLK_DELAY);
+
+  /* Select wide (4-bit) bus operation (if the card supports it) */
+
+  ret = mmcsd_mmc_widebus(priv);
+  if (ret != OK)
+    {
+      ferr("ERROR: Failed to set MMC wide bus operation: %d\n", ret);
+    }
+
   return OK;
 }
 
