@@ -211,6 +211,10 @@
                                      STM32_SDMMC_CLKCR_EDGE       |     \
                                      STM32_SDMMC_CLKCR_PWRSAV     |     \
                                      STM32_SDMMC_CLKCR_WIDBUS_D1)
+#define STM32_SDMMC_CLKCR_MMCWIDEXFR (STM32_SDMMC_MMCXFR_CLKDIV   |     \
+                                     STM32_SDMMC_CLKCR_EDGE       |     \
+                                     STM32_SDMMC_CLKCR_PWRSAV     |     \
+                                     STM32_SDMMC_CLKCR_WIDBUS_D4)
 #ifdef HAVE_SDMMC_SDIO_MODE
 /* Do not enable power saving configuration bit (in SD 4-bit mode) because
  * the SDIO clock is not enabled when the bus goes to the idle state.
@@ -234,7 +238,9 @@
 
 /* DTIMER setting */
 
-#define SDMMC_DTIMER_DATATIMEOUT_MS  250
+//#define SDMMC_DTIMER_DATATIMEOUT_MS  250
+// Slightly larger than MMCSD_BLOCK_WDATADELAY, see note there (mmcsd_sdio.c)
+#define SDMMC_DTIMER_DATATIMEOUT_MS  1000
 
 /* Block size for multi-block transfers */
 
@@ -1399,6 +1405,19 @@ static void stm32_recvdma(struct stm32_dev_s *priv)
     {
       /* In an aligned case, we have always received all blocks */
 
+      /* The IDMA wrote the data directly into priv->buffer. The invalidate
+       * done in stm32_dmarecvsetup happens BEFORE the transfer, and on
+       * Cortex-M7 those cache lines can be re-populated (speculative
+       * prefetch or another access) before the DMA finishes, leaving the CPU
+       * with stale data. Invalidate again now that the transfer is complete
+       * so subsequent reads see the freshly DMA'd data. Fixes intermittent
+       * read corruption with write-back dcache (no CONFIG_ARMV7M_DCACHE_
+       * WRITETHROUGH needed). See NuttX groups thread -KQr4Qq9uMg.
+       */
+
+      up_invalidate_dcache((uintptr_t)priv->buffer,
+                           (uintptr_t)priv->buffer + priv->receivecnt);
+
       priv->remaining = 0;
     }
 
@@ -2127,6 +2146,12 @@ static void stm32_clock(struct sdio_dev_s *dev, enum sdio_clock_e rate)
 
     case CLOCK_MMC_TRANSFER:
       clckr = STM32_SDMMC_CLKCR_MMCXFR;
+      break;
+
+    /* TODO: New mode for MMC 4-bit, not proven working yet */
+
+    case CLOCK_MMC_TRANSFER_4BIT:
+      clckr = STM32_SDMMC_CLKCR_MMCWIDEXFR;
       break;
 
     /* SD normal operation clocking (wide 4-bit mode) */
