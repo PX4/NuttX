@@ -478,6 +478,7 @@
 #define SDIO_CAPS_4BIT            0x08 /* Bit 3=1: Supports 4 bit operation */
 #define SDIO_CAPS_8BIT            0x10 /* Bit 4=1: Supports 8 bit operation */
 #define SDIO_CAPS_4BIT_ONLY       0x20 /* Bit 5=1: Supports 4-bit only operation */
+#define SDIO_CAPS_MMC_HS_MODE     0x40 /* Bit 6=1: Supports eMMC high speed mode */
 
 /****************************************************************************
  * Name: SDIO_STATUS
@@ -924,9 +925,10 @@ enum sdio_clock_e
 {
   CLOCK_SDIO_DISABLED = 0, /* Clock is disabled */
   CLOCK_IDMODE,            /* Initial ID mode clocking (<400KHz) */
-  CLOCK_MMC_TRANSFER,      /* MMC normal operation clocking */
+  CLOCK_MMC_TRANSFER,      /* MMC normal operation clocking (narrow 1-bit mode) */
   CLOCK_SD_TRANSFER_1BIT,  /* SD normal operation clocking (narrow 1-bit mode) */
-  CLOCK_SD_TRANSFER_4BIT   /* SD normal operation clocking (wide 4-bit mode) */
+  CLOCK_SD_TRANSFER_4BIT,  /* SD normal operation clocking (wide 4-bit mode) */
+  CLOCK_MMC_TRANSFER_4BIT  /* MMC normal operation clocking (wide 4-bit mode) */
 };
 
 /* Event set.  A uint8_t is big enough to hold a set of 8-events.  If more
