@@ -11134,6 +11134,14 @@ config STM32_ETHMAC_REGDEBUG
 	---help---
 		Enable very low-level register access debug.  Depends on CONFIG_DEBUG_FEATURES.
 
+config STM32_ETH_TXTIMEOUT
+	int "TX watchdog timeout (seconds)"
+	depends on STM32_ETHMAC
+	default 60
+	---help---
+		Seconds before the TX watchdog resets the MAC when a transmission
+		does not complete.
+
 endmenu # Ethernet MAC configuration
 
 config STM32_USBHOST
