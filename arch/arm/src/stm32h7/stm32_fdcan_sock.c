@@ -561,6 +561,12 @@ int32_t fdcan_bittiming(struct fdcan_bitseg *timing)
   const uint8_t max_quanta_per_bit = (timing->bitrate >= 1000000) ? 10 : 17;
   static const int max_sp_location = 900;
 
+  if (target_bitrate == 0)
+    {
+      nerr("Target bitrate invalid - zero.");
+      return 2;
+    }
+
   /* Computing (prescaler * BS):
    *   BITRATE = 1 / (PRESCALER * (1 / PCLK) * (1 + BS1 + BS2))
    *   BITRATE = PCLK / (PRESCALER * (1 + BS1 + BS2))
@@ -1732,7 +1738,11 @@ static int fdcan_ifup(struct net_driver_s *dev)
 
   irqstate_t flags = enter_critical_section();
 
-  fdcan_initialize(priv);
+  if (fdcan_initialize(priv) < 0)
+    {
+      leave_critical_section(flags);
+      return -EIO;
+    }
 
   fdcan_setinit(priv->base, 1);
   fdcan_setconfig(priv->base, 1);
@@ -1917,6 +1927,14 @@ static int fdcan_netdev_ioctl(struct net_driver_s *dev, int cmd,
           priv->arbi_timing.bitrate = req->arbi_bitrate * 1000;
 #ifdef CONFIG_NET_CAN_CANFD
           priv->data_timing.bitrate = req->data_bitrate * 1000;
+          /* Classic CAN ioctls pass data_bitrate 0. Programming 0 fails
+           * fdcan_bittiming() after it has already cleared IE, so RX
+           * interrupts never run. Match the arbitration rate instead.
+           */
+          if (priv->data_timing.bitrate == 0)
+            {
+              priv->data_timing.bitrate = priv->arbi_timing.bitrate;
+            }
 #endif
 
           /* Reset CAN controller and start with new timings */
