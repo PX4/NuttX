@@ -2091,6 +2091,25 @@ int fdcan_initialize(struct fdcan_driver_s *priv)
 
   putreg32(regval, priv->base + STM32_FDCAN_DBTP_OFFSET);
 
+#ifdef CONFIG_NET_CAN_CANFD
+  /* BRS needs TDC or the transmitter samples its own delayed bit and
+   * goes bus-off. Same formula as the PX4 stm32h7 UAVCAN driver.
+   */
+
+  if (priv->data_timing.bitrate > priv->arbi_timing.bitrate)
+    {
+      modifyreg32(priv->base + STM32_FDCAN_DBTP_OFFSET, 0, FDCAN_DBTP_TDC);
+      uint32_t tdco = (uint32_t)priv->data_timing.bs1 + 2U;
+      if (tdco > 0x7FU)
+        {
+          tdco = 0x7FU;
+        }
+
+      putreg32(tdco << FDCAN_TDCR_TDCO_SHIFT,
+               priv->base + STM32_FDCAN_TDCR_OFFSET);
+    }
+#endif
+
   /* Operation Configuration */
 
 #ifdef STM32H7_FDCAN_LOOPBACK
