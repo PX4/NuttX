@@ -271,6 +271,9 @@
 #ifndef CONFIG_STM32H7_ETH_NTXDESC
 #  define CONFIG_STM32H7_ETH_NTXDESC 4
 #endif
+#ifndef CONFIG_STM32H7_ETH_TXTIMEOUT
+#  define CONFIG_STM32H7_ETH_TXTIMEOUT 60
+#endif
 
 #ifndef min
 #  define min(a,b) ((a) < (b) ? (a) : (b))
@@ -335,9 +338,9 @@
 
 /* Timing *******************************************************************/
 
-/* TX timeout = 1 minute */
+/* TX timeout */
 
-#define STM32_TXTIMEOUT   (60*CLK_TCK)
+#define STM32_TXTIMEOUT   (CONFIG_STM32H7_ETH_TXTIMEOUT*CLK_TCK)
 
 /* PHY reset/configuration delays in milliseconds */
 

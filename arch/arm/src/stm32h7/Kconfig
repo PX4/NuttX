@@ -5186,6 +5186,13 @@ config STM32H7_ETH100MBPS
 		If STM32H7_AUTONEG is not defined, then this may be defined to select 100 MBps
 		speed.  Default: 10 Mbps
 
+config STM32H7_ETH_TXTIMEOUT
+	int "TX watchdog timeout (seconds)"
+	default 60
+	---help---
+		Seconds before the TX watchdog resets the MAC when a transmission
+		does not complete.
+
 config STM32H7_PHYSR
 	int "PHY Status Register Address (decimal)"
 	depends on STM32H7_AUTONEG
