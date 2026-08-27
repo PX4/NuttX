@@ -40,6 +40,7 @@
 #include <nuttx/wqueue.h>
 #include <nuttx/signal.h>
 #include <nuttx/net/netdev.h>
+#include <nuttx/net/net.h>
 #include <nuttx/net/can.h>
 #include <netpacket/can.h>
 
@@ -1198,13 +1199,21 @@ static void fdcan_receive_work(void *arg)
           priv->dev.d_buf = (uint8_t *)frame;
         }
 
-      /* Send to socket interface */
+      /* Drop the critical section before the net stack. can_input()
+       * allocates IOBs and may take the net lock; doing that with IRQs
+       * masked hardfaults (IMPRECISERR in hpwork / can_datahandler).
+       * Hold the (recursive) net lock around can_input() the same way
+       * imxrt FlexCAN does, so can_callback()'s trylock succeeds.
+       */
 
+      leave_critical_section(flags);
+
+      net_lock();
       can_input(&priv->dev);
-
-      /* Update iface statistics */
-
+      net_unlock();
       NETDEV_RXPACKETS(&priv->dev);
+
+      flags = enter_critical_section();
 
       /* Point the packet buffer back to the next Tx buffer that will be
        * used during the next write.  If the write queue is full, then
