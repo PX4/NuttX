@@ -283,14 +283,7 @@ int rexec_af(FAR char **ahost, int inport, FAR const char *user,
              FAR const char *passwd, FAR const char *cmd, FAR int *fd2p,
              sa_family_t af);
 
-#ifdef CONFIG_LIBC_NETDB
-#if 0 /* None of these are yet supported */
-
-void                 endhostent(void);
-void                 endnetent(void);
-void                 endprotoent(void);
-void                 endservent(void);
-#endif
+#ifdef CONFIG_LIBC_NETDB_CORE
 void                 freeaddrinfo(FAR struct addrinfo *ai);
 FAR const char      *gai_strerror(int);
 int                  getaddrinfo(FAR const char *nodename,
@@ -301,6 +294,16 @@ int                  getnameinfo(FAR const struct sockaddr *sa,
                                  socklen_t salen, FAR char *node,
                                  socklen_t nodelen, FAR char *service,
                                  socklen_t servicelen, int flags);
+#endif
+
+#ifdef CONFIG_LIBC_NETDB
+#if 0 /* None of these are yet supported */
+
+void                 endhostent(void);
+void                 endnetent(void);
+void                 endprotoent(void);
+void                 endservent(void);
+#endif
 
 FAR struct hostent  *gethostbyaddr(FAR const void *addr, socklen_t len,
                                    int type);
