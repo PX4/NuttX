@@ -554,7 +554,7 @@ static int  imx9_ioctl(struct net_driver_s *dev, int cmd,
 
 /* CAN ID filtering */
 
-#ifdef CONFIG_NETDEV_CAN_FILTER_IOCTL
+#ifdef CONFIG_NETDEV_CAN_IOCTL
 static uint32_t imx9_add_filter(struct imx9_driver_s *priv,
                                  uint8_t filter_type,
                                  bool ext_id,
@@ -1602,7 +1602,7 @@ static int imx9_ioctl(struct net_driver_s *dev, int cmd,
 
   switch (cmd)
     {
-#ifdef CONFIG_NETDEV_CAN_BITRATE_IOCTL
+#ifdef CONFIG_NETDEV_CAN_IOCTL
       case SIOCGCANBITRATE: /* Get bitrate from a CAN controller */
         {
           struct imx9_driver_s *priv = (struct imx9_driver_s *)dev;
@@ -1655,9 +1655,7 @@ static int imx9_ioctl(struct net_driver_s *dev, int cmd,
             }
         }
         break;
-#endif
 
-#ifdef CONFIG_NETDEV_CAN_FILTER_IOCTL
       case SIOCACANSTDFILTER: /* Set STD ID CAN filter */
         {
           struct imx9_driver_s *priv = (struct imx9_driver_s *)dev;
@@ -1723,7 +1721,7 @@ static int imx9_ioctl(struct net_driver_s *dev, int cmd,
  *
  ****************************************************************************/
 
-#ifdef CONFIG_NETDEV_CAN_FILTER_IOCTL
+#ifdef CONFIG_NETDEV_CAN_IOCTL
 static uint32_t imx9_add_filter(struct imx9_driver_s *priv,
                                uint8_t filter_type,
                                bool ext_id,
@@ -1864,7 +1862,7 @@ static uint8_t imx9_reset_filter(struct imx9_driver_s *priv)
 
   return OK;
 }
-#endif /* CONFIG_NETDEV_CAN_FILTER_IOCTL */
+#endif /* CONFIG_NETDEV_CAN_IOCTL */
 
 /****************************************************************************
  * Function: imx9_init_eccram
