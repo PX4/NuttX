@@ -1086,6 +1086,7 @@ static int netdev_ifr_ioctl(FAR struct socket *psock, int cmd,
       case SIOCDCANEXTFILTER:  /* Delete an extended-ID filter */
       case SIOCACANSTDFILTER:  /* Add a standard-ID filter */
       case SIOCDCANSTDFILTER:  /* Delete a standard-ID filter */
+      case SIOCGCANERRORS:     /* Get CAN error counters and state */
         {
           dev = netdev_ifr_dev(req);
           if (dev && dev->d_ioctl)
