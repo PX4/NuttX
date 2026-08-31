@@ -1894,7 +1894,7 @@ static int fdcan_netdev_ioctl(struct net_driver_s *dev, int cmd,
 
   switch (cmd)
     {
-#ifdef CONFIG_NETDEV_CAN_BITRATE_IOCTL
+#ifdef CONFIG_NETDEV_CAN_IOCTL
       case SIOCGCANBITRATE: /* Get bitrate from a CAN controller */
         {
           struct can_ioctl_data_s *req =
@@ -1922,7 +1922,7 @@ static int fdcan_netdev_ioctl(struct net_driver_s *dev, int cmd,
 #endif
         }
         break;
-#endif /* CONFIG_NETDEV_CAN_BITRATE_IOCTL */
+#endif /* CONFIG_NETDEV_CAN_IOCTL */
 
       default:
         ret = -ENOTSUP;

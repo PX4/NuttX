@@ -1066,7 +1066,7 @@ static int netdev_ifr_ioctl(FAR struct socket *psock, int cmd,
         break;
 #endif
 
-#if defined(CONFIG_NETDEV_IOCTL) && defined(CONFIG_NETDEV_CAN_BITRATE_IOCTL)
+#if defined(CONFIG_NETDEV_IOCTL) && defined(CONFIG_NETDEV_CAN_IOCTL)
       case SIOCSCANBITRATE:  /* Set bitrate of a CAN controller */
         {
           dev = netdev_ifr_dev(req);
@@ -1079,23 +1079,9 @@ static int netdev_ifr_ioctl(FAR struct socket *psock, int cmd,
             }
         }
 
-        /* If down, fall-through to common code in SIOCGCANBITRATE. */
+        /* If down, fall-through to the common CAN ioctl code. */
 
-      case SIOCGCANBITRATE:  /* Get bitrate from a CAN controller */
-        {
-          dev = netdev_ifr_dev(req);
-          if (dev && dev->d_ioctl)
-            {
-              struct can_ioctl_data_s *can_bitrate_data =
-                &req->ifr_ifru.ifru_can_data;
-              ret = dev->d_ioctl(dev, cmd,
-                            (unsigned long)(uintptr_t)can_bitrate_data);
-            }
-        }
-        break;
-#endif
-
-#if defined(CONFIG_NETDEV_IOCTL) && defined(CONFIG_NETDEV_CAN_FILTER_IOCTL)
+      case SIOCGCANBITRATE:    /* Get bitrate from a CAN controller */
       case SIOCACANEXTFILTER:  /* Add an extended-ID filter */
       case SIOCDCANEXTFILTER:  /* Delete an extended-ID filter */
       case SIOCACANSTDFILTER:  /* Add a standard-ID filter */
@@ -1104,10 +1090,12 @@ static int netdev_ifr_ioctl(FAR struct socket *psock, int cmd,
           dev = netdev_ifr_dev(req);
           if (dev && dev->d_ioctl)
             {
-              struct can_ioctl_filter_s *can_filter =
-                &req->ifr_ifru.ifru_can_filter;
+              /* Every CAN ioctl argument struct is a member of the
+               * ifr_ifru union, so cmd's struct is at its address.
+               */
+
               ret = dev->d_ioctl(dev, cmd,
-                            (unsigned long)(uintptr_t)can_filter);
+                            (unsigned long)(uintptr_t)&req->ifr_ifru);
             }
         }
         break;
