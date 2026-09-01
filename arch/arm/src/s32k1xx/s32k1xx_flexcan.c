@@ -1449,7 +1449,7 @@ static int s32k1xx_txavail(struct net_driver_s *dev)
  *
  ****************************************************************************/
 
-#ifdef CONFIG_NETDEV_CAN_BITRATE_IOCTL
+#ifdef CONFIG_NETDEV_CAN_IOCTL
 static int s32k1xx_ioctl(struct net_driver_s *dev, int cmd,
                          unsigned long arg)
 {
@@ -1512,13 +1512,12 @@ static int s32k1xx_ioctl(struct net_driver_s *dev, int cmd,
 
           if (ret == OK)
             {
-              /* Reset CAN controller and start with new timings */
+              /* Apply the new timings (interface is guaranteed to be down) */
 
               priv->arbi_timing = arbi_timing;
 #ifdef CONFIG_NET_CAN_CANFD
               priv->data_timing = data_timing;
 #endif
-              s32k1xx_ifup(dev);
             }
         }
         break;

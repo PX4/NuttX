@@ -1656,7 +1656,7 @@ static int s32k3xx_ioctl(struct net_driver_s *dev, int cmd,
 
   switch (cmd)
     {
-#ifdef CONFIG_NETDEV_CAN_BITRATE_IOCTL
+#ifdef CONFIG_NETDEV_CAN_IOCTL
       case SIOCGCANBITRATE: /* Get bitrate from a CAN controller */
         {
           struct can_ioctl_data_s *req =
@@ -1711,13 +1711,12 @@ static int s32k3xx_ioctl(struct net_driver_s *dev, int cmd,
 
           if (ret == OK)
             {
-              /* Reset CAN controller and start with new timings */
+              /* Apply the new timings (interface is guaranteed to be down) */
 
               priv->arbi_timing = arbi_timing;
 #ifdef CONFIG_NET_CAN_CANFD
               priv->data_timing = data_timing;
 #endif
-              s32k3xx_ifup(dev);
             }
         }
         break;

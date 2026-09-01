@@ -119,6 +119,14 @@
 #define SIOCACANSTDFILTER  _SIOC(0x0030)  /* Add hardware-level standard ID filter */
 #define SIOCDCANSTDFILTER  _SIOC(0x0031)  /* Delete hardware-level standard ID filter */
 
+/* 0x0032-0x0044 are used upstream (SIOCCANRECOVERY, SIOCGCANSTATE for
+ * sleep/operational, VLAN, ...). SIOCGCANSTATE there is not fault
+ * confinement, so error counters get a distinct command.
+ */
+
+#define SIOCGCANERRORS     _SIOC(0x0045)  /* Get CAN error counters and fault
+                                           * confinement state */
+
 /****************************************************************************
  * Public Type Definitions
  ****************************************************************************/
