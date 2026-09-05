@@ -35,6 +35,7 @@
 #include <arch/irq.h>
 
 #include <nuttx/kmalloc.h>
+#include <nuttx/mm/iob.h>
 #include <nuttx/queue.h>
 #include <nuttx/mutex.h>
 #include <nuttx/net/netconfig.h>
@@ -152,6 +153,10 @@ void can_free(FAR struct can_conn_s *conn)
   /* Remove the connection from the active list */
 
   dq_rem(&conn->sconn.node, &g_active_can_connections);
+
+  /* Free the readahead queue */
+
+  iob_free_queue(&conn->readahead);
 
   /* Free the connection. */
 
