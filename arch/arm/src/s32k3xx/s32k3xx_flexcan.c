@@ -92,7 +92,11 @@
 
 #define POOL_SIZE                   1
 
+#ifdef CONFIG_NET_CAN_RAW_TX_DEADLINE
 #define MSG_DATA                    sizeof(struct timeval)
+#else
+#define MSG_DATA                    0
+#endif
 
 /* CAN bit timing values  */
 #define PRESDIV_MAX                 256
@@ -507,7 +511,7 @@ static struct s32k3xx_driver_s g_flexcan5;
 static uint8_t g_tx_pool[(sizeof(struct canfd_frame)+MSG_DATA)*POOL_SIZE];
 static uint8_t g_rx_pool[(sizeof(struct canfd_frame)+MSG_DATA)*POOL_SIZE];
 #else
-static uint8_t g_tx_pool[sizeof(struct can_frame)*POOL_SIZE];
+static uint8_t g_tx_pool[(sizeof(struct can_frame)+MSG_DATA)*POOL_SIZE];
 static uint8_t g_rx_pool[sizeof(struct can_frame)*POOL_SIZE];
 #endif
 
