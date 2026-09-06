@@ -106,6 +106,16 @@ FAR struct can_conn_s *can_alloc(void)
   conn = NET_BUFPOOL_TRYALLOC(g_can_connections);
   if (conn != NULL)
     {
+#ifdef CONFIG_NET_CAN_SOCK_RXBUF
+      /* Hand the receive buffer of the connection to its byte ring.
+       * The pool zeroes a connection when it is freed, so the ring is set
+       * up once here, for as long as the connection is in use.
+       */
+
+      spin_lock_init(&conn->rxq_lock);
+      circbuf_init(&conn->rxq, conn->rxbuf, sizeof(conn->rxbuf));
+#endif
+
       /* FIXME SocketCAN default behavior enables loopback */
 
 #ifdef CONFIG_NET_CANPROTO_OPTIONS
@@ -167,9 +177,11 @@ void can_free(FAR struct can_conn_s *conn)
 
   dq_rem(&conn->sconn.node, &g_active_can_connections);
 
+#ifndef CONFIG_NET_CAN_SOCK_RXBUF
   /* Free the readahead queue */
 
   iob_free_queue(&conn->readahead);
+#endif
 
   /* Free the connection. */
 

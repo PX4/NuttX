@@ -75,10 +75,6 @@ struct can_recvfrom_s
  * Private Functions
  ****************************************************************************/
 
-#ifdef CONFIG_NET_CANPROTO_OPTIONS
-static int can_recv_filter(FAR struct can_conn_s *conn, canid_t id);
-#endif
-
 /****************************************************************************
  * Name: can_add_recvlen
  *
@@ -108,6 +104,8 @@ static inline void can_add_recvlen(FAR struct can_recvfrom_s *pstate,
   pstate->pr_buffer  += recvlen;
   pstate->pr_buflen  -= recvlen;
 }
+
+#ifndef CONFIG_NET_CAN_SOCK_RXBUF
 
 /****************************************************************************
  * Name: can_recvfrom_newdata
@@ -213,6 +211,66 @@ static inline void can_newdata(FAR struct net_driver_s *dev,
 
   dev->d_len = 0;
 }
+#endif /* !CONFIG_NET_CAN_SOCK_RXBUF */
+
+#ifdef CONFIG_NET_CAN_SOCK_RXBUF
+
+/****************************************************************************
+ * Name: can_rxq_pop
+ *
+ * Description:
+ *   Remove the oldest record from the receive buffer of a socket
+ *   and copy its frame into the buffer of the reader.  A frame longer than
+ *   that buffer is truncated and the rest of its record is dropped, so the
+ *   record behind it stays intact.
+ *
+ * Input Parameters:
+ *   conn   - The CAN connection holding the frame
+ *   buf    - Where the frame is to be copied
+ *   buflen - The room in buf
+ *   tsout  - Receives the arrival time, or NULL if it is not wanted
+ *
+ * Returned Value:
+ *   The number of bytes copied, which is zero when the reader asked for
+ *   zero bytes, or -ENODATA if the buffer holds no frame.
+ *
+ ****************************************************************************/
+
+static int can_rxq_pop(FAR struct can_conn_s *conn, FAR void *buf,
+                       size_t buflen, FAR struct timeval *tsout)
+{
+  struct can_rxhdr_s hdr;
+  irqstate_t flags;
+  size_t recvlen;
+
+  flags = spin_lock_irqsave(&conn->rxq_lock);
+
+  if (circbuf_is_empty(&conn->rxq))
+    {
+      spin_unlock_irqrestore(&conn->rxq_lock, flags);
+      return -ENODATA;
+    }
+
+  circbuf_read(&conn->rxq, &hdr, sizeof(hdr));
+
+  recvlen = hdr.len < buflen ? hdr.len : buflen;
+  circbuf_read(&conn->rxq, buf, recvlen);
+  circbuf_skip(&conn->rxq, hdr.len - recvlen);
+
+  spin_unlock_irqrestore(&conn->rxq_lock, flags);
+
+#ifdef CONFIG_NET_TIMESTAMP
+  if (tsout != NULL)
+    {
+      *tsout = hdr.ts;
+    }
+#else
+  UNUSED(tsout);
+#endif
+
+  return (int)recvlen;
+}
+#endif
 
 /****************************************************************************
  * Name: can_readahead
@@ -227,13 +285,48 @@ static inline void can_newdata(FAR struct net_driver_s *dev,
  *   None
  *
  * Assumptions:
- *   The network is locked.
+ *   The network is locked.  With CONFIG_NET_CAN_SOCK_RXBUF this also runs
+ *   from can_recvfrom_eventhandler(), so from the receive interrupt on the
+ *   drivers that call can_input() from their interrupt handler.
  *
  ****************************************************************************/
 
 static inline int can_readahead(struct can_recvfrom_s *pstate)
 {
   FAR struct can_conn_s *conn = pstate->pr_conn;
+#ifdef CONFIG_NET_CAN_SOCK_RXBUF
+#ifdef CONFIG_NET_TIMESTAMP
+  struct timeval ts;
+  FAR struct timeval *tsout = &ts;
+#else
+  FAR struct timeval *tsout = NULL;
+#endif
+  int recvlen;
+
+  /* Take the oldest frame straight out of the receive buffer of
+   * this socket and into the buffer of the reader.
+   */
+
+  pstate->pr_recvlen = -1;
+
+  recvlen = can_rxq_pop(conn, pstate->pr_buffer, pstate->pr_buflen, tsout);
+  if (recvlen < 0)
+    {
+      return 0;
+    }
+
+#ifdef CONFIG_NET_TIMESTAMP
+  if (_SO_GETOPT(conn->sconn.s_options, SO_TIMESTAMP) &&
+      pstate->pr_msglen == sizeof(struct timeval))
+    {
+      memcpy(pstate->pr_msgbuf, &ts, sizeof(struct timeval));
+    }
+#endif
+
+  can_add_recvlen(pstate, recvlen);
+
+  return recvlen;
+#else
   FAR struct iob_s *iob;
   int recvlen;
 
@@ -300,50 +393,16 @@ static inline int can_readahead(struct can_recvfrom_s *pstate)
             }
         }
 
+      /* Update the accumulated size of the data read */
+
+      can_add_recvlen(pstate, recvlen);
+
       return recvlen;
     }
 
   return 0;
-}
-
-#ifdef CONFIG_NET_CANPROTO_OPTIONS
-static int can_recv_filter(FAR struct can_conn_s *conn, canid_t id)
-{
-  uint32_t i;
-
-#ifdef CONFIG_NET_CAN_ERRORS
-  /* error message frame */
-
-  if ((id & CAN_ERR_FLAG) != 0)
-    {
-      return id & conn->err_mask ? 1 : 0;
-    }
 #endif
-
-  for (i = 0; i < conn->filter_count; i++)
-    {
-      if (conn->filters[i].can_id & CAN_INV_FILTER)
-        {
-          if ((id & conn->filters[i].can_mask) !=
-                ((conn->filters[i].can_id & ~CAN_INV_FILTER) &
-                 conn->filters[i].can_mask))
-            {
-              return 1;
-            }
-        }
-      else
-        {
-          if ((id & conn->filters[i].can_mask) ==
-                (conn->filters[i].can_id & conn->filters[i].can_mask))
-            {
-              return 1;
-            }
-        }
-    }
-
-  return 0;
 }
-#endif
 
 static uint16_t can_recvfrom_eventhandler(FAR struct net_driver_s *dev,
                                           FAR void *pvpriv, uint16_t flags)
@@ -354,6 +413,49 @@ static uint16_t can_recvfrom_eventhandler(FAR struct net_driver_s *dev,
 
   if (pstate)
     {
+#ifdef CONFIG_NET_CAN_SOCK_RXBUF
+      if ((flags & CAN_NEWDATA) != 0)
+        {
+          FAR struct can_conn_s *conn = pstate->pr_conn;
+
+          /* The frame is already retained in the receive buffer
+           * of this socket, so just take it from there.  A reader that
+           * asked for zero bytes still consumes one frame.
+           */
+
+          can_readahead(pstate);
+          if (pstate->pr_recvlen < 0)
+            {
+              /* Nothing retained yet.  Keep waiting for the next
+               * frame.
+               */
+
+              return flags;
+            }
+
+          /* Don't allow any further call backs. */
+
+          pstate->pr_cb->flags = 0;
+          pstate->pr_cb->priv  = NULL;
+          pstate->pr_cb->event = NULL;
+
+          if (can_rxq_empty(conn))
+            {
+              /* Indicate that the data has been consumed.  Frames left
+               * behind still have to reach a poll(POLLIN) waiter on this
+               * socket.
+               */
+
+              flags &= ~CAN_NEWDATA;
+            }
+
+          /* Wake up the waiting thread, returning the number of bytes
+           * actually read.
+           */
+
+          nxsem_post(&pstate->pr_sem);
+        }
+#else
 #if defined(CONFIG_NET_CANPROTO_OPTIONS) || defined(CONFIG_NET_TIMESTAMP)
       struct can_conn_s *conn = pstate->pr_conn;
 #endif
@@ -418,6 +520,7 @@ static uint16_t can_recvfrom_eventhandler(FAR struct net_driver_s *dev,
 
           nxsem_post(&pstate->pr_sem);
         }
+#endif
     }
 
   return flags;
@@ -466,6 +569,65 @@ static ssize_t can_recvfrom_result(int result,
 
   return pstate->pr_recvlen;
 }
+
+/****************************************************************************
+ * Public Functions
+ ****************************************************************************/
+
+#ifdef CONFIG_NET_CANPROTO_OPTIONS
+
+/****************************************************************************
+ * Name: can_recv_filter
+ *
+ * Description:
+ *   Check a CAN ID against the filters of a socket.
+ *
+ * Input Parameters:
+ *   conn - A pointer to the CAN connection structure
+ *   id   - The CAN ID of the frame, including its flags
+ *
+ * Returned Value:
+ *   One if the socket accepts the frame, zero if it does not.
+ *
+ ****************************************************************************/
+
+int can_recv_filter(FAR struct can_conn_s *conn, canid_t id)
+{
+  uint32_t i;
+
+#ifdef CONFIG_NET_CAN_ERRORS
+  /* error message frame */
+
+  if ((id & CAN_ERR_FLAG) != 0)
+    {
+      return id & conn->err_mask ? 1 : 0;
+    }
+#endif
+
+  for (i = 0; i < conn->filter_count; i++)
+    {
+      if (conn->filters[i].can_id & CAN_INV_FILTER)
+        {
+          if ((id & conn->filters[i].can_mask) !=
+                ((conn->filters[i].can_id & ~CAN_INV_FILTER) &
+                 conn->filters[i].can_mask))
+            {
+              return 1;
+            }
+        }
+      else
+        {
+          if ((id & conn->filters[i].can_mask) ==
+                (conn->filters[i].can_id & conn->filters[i].can_mask))
+            {
+              return 1;
+            }
+        }
+    }
+
+  return 0;
+}
+#endif
 
 /****************************************************************************
  * Name: can_recvmsg
@@ -536,13 +698,13 @@ ssize_t can_recvmsg(FAR struct socket *psock, FAR struct msghdr *msg,
    * socket has been disconnected.
    */
 
-  ret = can_readahead(&state);
-  if (ret > 0)
+  can_readahead(&state);
+
+  ret = state.pr_recvlen;
+  if (ret >= 0)
     {
       goto errout_with_state;
     }
-
-  ret = state.pr_recvlen;
 
   /* Handle non-blocking CAN sockets */
 

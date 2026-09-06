@@ -228,8 +228,12 @@ static int can_setup(FAR struct socket *psock)
        */
 
 #if CONFIG_NET_RECV_BUFSIZE > 0
+#  ifdef CONFIG_NET_CAN_SOCK_RXBUF
+      conn->recv_buffsize = CAN_RXQ_CLAMP(CONFIG_NET_RECV_BUFSIZE);
+#  else
       conn->recv_buffnum = (CONFIG_NET_RECV_BUFSIZE + CONFIG_IOB_BUFSIZE - 1)
                             / CONFIG_IOB_BUFSIZE;
+#  endif
 #endif
 
       /* Attach the connection instance to the socket */
@@ -447,7 +451,7 @@ static int can_poll_local(FAR struct socket *psock, FAR struct pollfd *fds,
 
       /* Check for read data availability now */
 
-      if (!IOB_QEMPTY(&conn->readahead))
+      if (!can_rxq_empty(conn))
         {
           /* Normal data may be read without blocking. */
 

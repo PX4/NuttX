@@ -200,8 +200,12 @@ int can_setsockopt(FAR struct socket *psock, int level, int option,
           buffersize = MIN(buffersize, CONFIG_NET_MAX_RECV_BUFSIZE);
 #endif
 
+#ifdef CONFIG_NET_CAN_SOCK_RXBUF
+          conn->recv_buffsize = CAN_RXQ_CLAMP(buffersize);
+#else
           conn->recv_buffnum = (buffersize + CONFIG_IOB_BUFSIZE - 1)
                               / CONFIG_IOB_BUFSIZE;
+#endif
 
           break;
         }

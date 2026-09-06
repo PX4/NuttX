@@ -71,6 +71,40 @@ config CAN_MAX_CONNS
 		This is useful in case the system is under very heavy load (or
 		under attack), ensuring that the heap will not be exhausted.
 
+config NET_CAN_SOCK_RXBUF
+	bool "Per-socket receive buffer instead of I/O buffers"
+	default n
+	---help---
+		Store received frames in a buffer that belongs to the socket
+		instead of in I/O buffers from the shared pool.
+
+		A received frame is copied from the device buffer into the buffer of
+		every listening socket, so CAN reception neither starves nor is
+		starved by the other protocols using the pool.  The buffer is
+		guarded by an irqsave spinlock because some drivers deliver a frame
+		from their receive interrupt handler.
+
+		When this is disabled, CAN sockets read ahead into I/O buffers from
+		the shared pool.
+
+config NET_CAN_SOCK_RXBUF_SIZE
+	int "Receive buffer size per socket (bytes)"
+	depends on NET_CAN_SOCK_RXBUF
+	default 144
+	range 144 32768
+	---help---
+		Bytes of receive buffer reserved in every preallocated CAN
+		connection.
+
+		One frame is stored as one record: a packed header holding the
+		length of the frame, and its arrival time if CONFIG_NET_TIMESTAMP
+		is set, followed by the frame as the driver delivers it.  The
+		minimum size holds one frame of the largest type the build
+		supports.
+
+		A frame that does not fit in the free space is dropped and counted
+		as a receive drop.
+
 config NET_CAN_EXTID
 	bool "Enable CAN extended IDs"
 	default n

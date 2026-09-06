@@ -30,11 +30,17 @@
 #include <nuttx/config.h>
 
 #include <sys/types.h>
+#include <sys/time.h>
+#include <assert.h>
 #include <poll.h>
 
+#include <nuttx/compiler.h>
+#include <nuttx/circbuf.h>
 #include <nuttx/semaphore.h>
+#include <nuttx/spinlock.h>
 #include <nuttx/can.h>
 #include <nuttx/net/net.h>
+#include <nuttx/net/can.h>
 #include <nuttx/net/netdev.h>
 
 #include "devif/devif.h"
@@ -57,6 +63,39 @@
 #define can_callback_free(dev,conn,cb) \
   devif_conn_callback_free(dev, cb, &conn->sconn.list, &conn->sconn.list_tail)
 
+#ifdef CONFIG_NET_CAN_SOCK_RXBUF
+
+/* The space one record of the largest frame takes in the receive
+ * buffer.  The buffer is never configured smaller than that, so a socket
+ * can always receive.
+ */
+
+#  define CAN_RXQ_RECORD_MAX (sizeof(struct can_rxhdr_s) + NET_CAN_PKTSIZE)
+
+/* CAN_RXQ_CLAMP() fits an SO_RCVBUF size into the receive buffer */
+
+#  define CAN_RXQ_CLAMP(size) \
+     ((size) > CONFIG_NET_CAN_SOCK_RXBUF_SIZE ? \
+      CONFIG_NET_CAN_SOCK_RXBUF_SIZE : \
+      ((size) < (int)CAN_RXQ_RECORD_MAX ? (int)CAN_RXQ_RECORD_MAX : (size)))
+
+/* CAN_RXQ_LIMIT() is the number of bytes the socket may retain */
+
+#  if CONFIG_NET_RECV_BUFSIZE > 0
+#    define CAN_RXQ_LIMIT(conn) ((size_t)(conn)->recv_buffsize)
+#  else
+#    define CAN_RXQ_LIMIT(conn) ((size_t)CONFIG_NET_CAN_SOCK_RXBUF_SIZE)
+#  endif
+#endif
+
+/* can_rxq_empty() reports whether a frame is waiting to be read */
+
+#ifdef CONFIG_NET_CAN_SOCK_RXBUF
+#  define can_rxq_empty(conn) circbuf_is_empty(&(conn)->rxq)
+#else
+#  define can_rxq_empty(conn) IOB_QEMPTY(&(conn)->readahead)
+#endif
+
 /****************************************************************************
  * Public Type Definitions
  ****************************************************************************/
@@ -70,6 +109,27 @@ struct can_poll_s
   FAR struct pollfd *fds;          /* Needed to handle poll events */
   FAR struct devif_callback_s *cb; /* Needed to teardown the poll */
 };
+
+#ifdef CONFIG_NET_CAN_SOCK_RXBUF
+
+/* The header of one record in the receive buffer of a socket.  It
+ * is written and read as a byte stream, so it needs no alignment there and
+ * is packed to leave more of the buffer to the frames themselves.
+ */
+
+begin_packed_struct struct can_rxhdr_s
+{
+#ifdef CONFIG_NET_TIMESTAMP
+  struct timeval ts;                 /* Arrival time, for SO_TIMESTAMP */
+#endif
+  uint16_t len;                      /* Length of the frame that follows */
+} end_packed_struct;
+
+/* The buffer holds at least one record of the largest frame */
+
+static_assert(CONFIG_NET_CAN_SOCK_RXBUF_SIZE >= (int)CAN_RXQ_RECORD_MAX,
+              "The receive buffer cannot hold one CAN frame");
+#endif
 
 /* This "connection" structure describes the underlying state of the socket */
 
@@ -90,6 +150,17 @@ struct can_conn_s
   FAR struct devif_callback_s *snd_cb; /* NULL until the first send */
   FAR struct net_driver_s *snd_dev;    /* Device snd_cb belongs to */
 
+#ifdef CONFIG_NET_CAN_SOCK_RXBUF
+  /* Receive buffer of the socket.  A received frame is copied into it from
+   * the device buffer, so this socket never holds an I/O buffer from the
+   * shared pool.  rxq holds variable length records in rxbuf, one per
+   * frame: a struct can_rxhdr_s followed by the frame itself.
+   */
+
+  uint8_t          rxbuf[CONFIG_NET_CAN_SOCK_RXBUF_SIZE];
+  struct circbuf_s rxq;              /* Records of the retained frames */
+  spinlock_t       rxq_lock;         /* Protects the receive buffer */
+#else
   /* Read-ahead buffering.
    *
    *   readahead - A singly linked list of type struct iob_qentry_s
@@ -97,9 +168,14 @@ struct can_conn_s
    */
 
   struct iob_queue_s readahead;      /* remove Read-ahead buffering */
+#endif
 
 #if CONFIG_NET_RECV_BUFSIZE > 0
+#  ifdef CONFIG_NET_CAN_SOCK_RXBUF
+  int32_t recv_buffsize;             /* SO_RCVBUF limit, in bytes */
+#  else
   int32_t recv_buffnum;              /* Recv buffer number */
+#  endif
 #endif
 
   /* CAN-specific content follows */
@@ -247,8 +323,29 @@ uint16_t can_callback(FAR struct net_driver_s *dev,
  *
  ****************************************************************************/
 
+#ifndef CONFIG_NET_CAN_SOCK_RXBUF
 uint16_t can_datahandler(FAR struct net_driver_s *dev,
                          FAR struct can_conn_s *conn);
+#endif
+
+/****************************************************************************
+ * Name: can_recv_filter
+ *
+ * Description:
+ *   Check a CAN ID against the filters of a socket.
+ *
+ * Input Parameters:
+ *   conn - A pointer to the CAN connection structure
+ *   id   - The CAN ID of the frame, including its flags
+ *
+ * Returned Value:
+ *   One if the socket accepts the frame, zero if it does not.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_NET_CANPROTO_OPTIONS
+int can_recv_filter(FAR struct can_conn_s *conn, canid_t id);
+#endif
 
 /****************************************************************************
  * Name: can_recvmsg
