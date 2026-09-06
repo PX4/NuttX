@@ -81,6 +81,15 @@ struct can_conn_s
 
   FAR struct net_driver_s *dev;      /* Reference to CAN device */
 
+  /* The send callback of the socket.  can_sendmsg() allocates it on the
+   * first send and keeps it for as long as the socket stays bound to
+   * snd_dev and that device stays up, so sending a frame costs no
+   * callback allocation.
+   */
+
+  FAR struct devif_callback_s *snd_cb; /* NULL until the first send */
+  FAR struct net_driver_s *snd_dev;    /* Device snd_cb belongs to */
+
   /* Read-ahead buffering.
    *
    *   readahead - A singly linked list of type struct iob_qentry_s

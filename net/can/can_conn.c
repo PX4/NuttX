@@ -148,6 +148,19 @@ void can_free(FAR struct can_conn_s *conn)
 
   DEBUGASSERT(conn->crefs == 0);
 
+  /* Free the send callback of the socket.  The device it belongs to may
+   * have been unregistered meanwhile; can_callback_free() checks that and
+   * takes the callback out of the list of the connection either way.
+   */
+
+  if (conn->snd_cb != NULL)
+    {
+      net_lock();
+      can_callback_free(conn->snd_dev, conn, conn->snd_cb);
+      conn->snd_cb = NULL;
+      net_unlock();
+    }
+
   nxmutex_lock(&g_free_lock);
 
   /* Remove the connection from the active list */

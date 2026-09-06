@@ -454,9 +454,11 @@ static int can_poll_local(FAR struct socket *psock, FAR struct pollfd *fds,
           eventset |= POLLRDNORM;
         }
 
-      if (psock_can_cansend(psock) >= 0)
+      if (conn->dev == NULL && psock_can_cansend(psock) >= 0)
         {
-          /* A CAN frame may be sent without blocking. */
+          /* An unbound socket has no driver to ask, so a send is reported
+           * possible.
+           */
 
           eventset |= POLLWRNORM;
         }
@@ -464,6 +466,16 @@ static int can_poll_local(FAR struct socket *psock, FAR struct pollfd *fds,
       /* Check if any requested events are already in effect */
 
       poll_notify(&fds, 1, eventset);
+
+      /* Ask the driver of a bound socket to poll for TX data.  It polls
+       * only when it has a free mailbox, and the resulting CAN_POLL event
+       * is what reports POLLOUT, so POLLOUT reflects the mailbox state.
+       */
+
+      if ((fds->events & POLLOUT) != 0 && conn->dev != NULL)
+        {
+          netdev_txnotify_dev(conn->dev);
+        }
 
 errout_with_lock:
       net_unlock();
