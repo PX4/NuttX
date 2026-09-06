@@ -370,13 +370,13 @@ static int can_poll_local(FAR struct socket *psock, FAR struct pollfd *fds,
                           bool setup)
 {
   FAR struct can_conn_s *conn;
-  FAR struct can_poll_s *info;
+  FAR struct can_poll_s *info = NULL;
   FAR struct devif_callback_s *cb;
   pollevent_t eventset = 0;
   int ret = OK;
+  int i;
 
   conn = psock->s_conn;
-  info = conn->pollinfo;
 
   /* FIXME add NETDEV_DOWN support */
 
@@ -385,6 +385,25 @@ static int can_poll_local(FAR struct socket *psock, FAR struct pollfd *fds,
   if (setup)
     {
       net_lock();
+
+      /* Take the first free slot.  Every poll of the socket gets one of
+       * its own, so concurrent polls do not overwrite each other.
+       */
+
+      for (i = 0; i < CONFIG_NET_CAN_NPOLLWAITERS; i++)
+        {
+          if (conn->pollinfo[i].fds == NULL)
+            {
+              info = &conn->pollinfo[i];
+              break;
+            }
+        }
+
+      if (info == NULL)
+        {
+          ret = -EBUSY;
+          goto errout_with_lock;
+        }
 
       info->dev = conn->dev;
 
@@ -455,6 +474,8 @@ errout_with_lock:
 
       if (info != NULL)
         {
+          net_lock();
+
           /* Cancel any response notifications */
 
           can_callback_free(info->dev, conn, info->cb);
@@ -463,9 +484,14 @@ errout_with_lock:
 
           info->fds->priv = NULL;
 
-          /* Then free the poll info container */
+          /* Then free the poll info container.  The slot is free once fds
+           * is NULL, so it is cleared under the lock together with the
+           * callback that could still reach it.
+           */
 
+          info->fds   = NULL;
           info->psock = NULL;
+          net_unlock();
         }
     }
 
