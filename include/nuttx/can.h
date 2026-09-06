@@ -35,6 +35,10 @@
 
 #include <nuttx/can/can_common.h>
 
+#ifdef CONFIG_NET_CAN_RAW_RXNOTIFY
+#  include <nuttx/wqueue.h>
+#endif
+
 /****************************************************************************
  * Pre-processor Definitions
  ****************************************************************************/
@@ -122,6 +126,10 @@
                                  /* All filters must match to trigger */
 #define CAN_RAW_TX_DEADLINE    (__SO_PROTOCOL + 6)
                                  /* Abort frame when deadline passed */
+#ifdef CONFIG_NET_CAN_RAW_RXNOTIFY
+#define CAN_RAW_RXNOTIFY       (__SO_PROTOCOL + 7)
+                                 /* Worker to run on received frames */
+#endif
 
 /* CAN filter support (Hardware level filtering) ****************************/
 
@@ -364,6 +372,23 @@ struct can_filter
   canid_t can_id;
   canid_t can_mask;
 };
+
+#ifdef CONFIG_NET_CAN_RAW_RXNOTIFY
+
+/* struct can_rxnotify_s - CAN_RAW_RXNOTIFY registration.
+ * worker: Called on the high priority work queue once per batch of frames
+ *         received by the socket, NULL to disarm the notification.
+ * arg:    Handed to the worker.
+ *
+ * The socket keeps the registration until it disarms it or is closed.
+ */
+
+struct can_rxnotify_s
+{
+  worker_t     worker;
+  FAR void    *arg;
+};
+#endif
 
 /****************************************************************************
  * Public Function Prototypes

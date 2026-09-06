@@ -167,6 +167,27 @@ config NET_CAN_RAW_FILTER_MAX
 	---help---
 		Maximum number of CAN_RAW filters that can be set per CAN connection.
 
+config NET_CAN_RAW_RXNOTIFY
+	bool "CAN_RAW_RXNOTIFY sockopt"
+	default n
+	depends on NET_CAN_SOCK_OPTS && BUILD_FLAT
+	select SCHED_WORKQUEUE
+	select SCHED_HPWORK
+	---help---
+		Enable the CAN_RAW_RXNOTIFY socket option.  A socket registers a
+		worker with it, and the worker is queued on the high priority work
+		queue once per batch of received frames: the first frame of a batch
+		queues it and the frames behind it find it already queued.  The
+		registration lasts until the socket sets a NULL worker or closes.
+
+		The stack calls the worker pointer as it was given and validates
+		nothing, so this option is for flat builds, where the reader of the
+		frames lives in the same image as the network stack.  Arming it is
+		as trusted an operation as writing to kernel memory.
+
+		When this is disabled, readers are woken only by poll() and by the
+		CAN notifier.
+
 config NET_CAN_NPOLLWAITERS
 	int "Number of poll threads"
 	default 4

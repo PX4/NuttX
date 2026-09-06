@@ -279,16 +279,23 @@ uint16_t can_callback(FAR struct net_driver_s *dev,
 #endif
               NETDEV_RXDROPPED(dev);
             }
-#ifdef CONFIG_NET_CAN_NOTIFIER
           else
             {
+#ifdef CONFIG_NET_CAN_NOTIFIER
               /* Provide notification(s) that additional CAN read-ahead
                * data is available.
                */
 
               can_readahead_signal(conn);
-            }
 #endif
+              /* Run the worker the socket registered with
+               * CAN_RAW_RXNOTIFY.  A driver that delivers a batch of
+               * frames in one pass queues it on the first frame of the
+               * batch, so the socket is woken once per batch.
+               */
+
+              can_rxnotify(conn);
+            }
 
           /* The listeners run even when the frame was dropped, so a reader
            * blocked on an already full buffer is woken and takes the
@@ -429,6 +436,14 @@ uint16_t can_datahandler(FAR struct net_driver_s *dev,
 
       can_readahead_signal(conn);
 #endif
+      /* Run the worker the socket registered with CAN_RAW_RXNOTIFY.  A
+       * driver that delivers a batch of frames in one pass queues it on
+       * the first frame of the batch, so the socket is woken once per
+       * batch.
+       */
+
+      can_rxnotify(conn);
+
       ret = iob->io_pktlen;
 
       /* Device buffer has been enqueued, clear the handle */

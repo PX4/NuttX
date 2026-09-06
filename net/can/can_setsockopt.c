@@ -211,6 +211,35 @@ int can_setsockopt(FAR struct socket *psock, int level, int option,
         }
 #endif
 
+#ifdef CONFIG_NET_CAN_RAW_RXNOTIFY
+      case CAN_RAW_RXNOTIFY:
+        {
+          FAR const struct can_rxnotify_s *notify = value;
+
+          if (value_len != sizeof(struct can_rxnotify_s))
+            {
+              return -EINVAL;
+            }
+
+          net_lock();
+
+          /* The worker is cleared before the queued one is cancelled, so a
+           * frame arriving while this runs cannot re-queue it afterwards.
+           */
+
+          conn->rxnotify_worker = notify->worker;
+          conn->rxnotify_arg    = notify->arg;
+
+          if (notify->worker == NULL)
+            {
+              work_cancel(HPWORK, &conn->rxnotify_work);
+            }
+
+          net_unlock();
+        }
+        break;
+#endif
+
       default:
         nerr("ERROR: Unrecognized CAN option: %d\n", option);
         ret = -ENOPROTOOPT;

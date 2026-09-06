@@ -46,7 +46,7 @@
 #include "devif/devif.h"
 #include "socket/socket.h"
 
-#ifdef CONFIG_NET_CAN_NOTIFIER
+#if defined(CONFIG_NET_CAN_NOTIFIER) || defined(CONFIG_NET_CAN_RAW_RXNOTIFY)
 #  include <nuttx/wqueue.h>
 #endif
 
@@ -86,6 +86,27 @@
 #  else
 #    define CAN_RXQ_LIMIT(conn) ((size_t)CONFIG_NET_CAN_SOCK_RXBUF_SIZE)
 #  endif
+#endif
+
+/* can_rxnotify() runs the worker a socket registered with
+ * CAN_RAW_RXNOTIFY.  The receive paths call it after retaining a frame, so
+ * it must be safe to call from an interrupt; work_queue() is.
+ */
+
+#ifdef CONFIG_NET_CAN_RAW_RXNOTIFY
+#  define can_rxnotify(conn) \
+     do \
+       { \
+         if ((conn)->rxnotify_worker != NULL && \
+             work_available(&(conn)->rxnotify_work)) \
+           { \
+             work_queue(HPWORK, &(conn)->rxnotify_work, \
+                        (conn)->rxnotify_worker, (conn)->rxnotify_arg, 0); \
+           } \
+       } \
+     while (0)
+#else
+#  define can_rxnotify(conn)
 #endif
 
 /* can_rxq_empty() reports whether a frame is waiting to be read */
@@ -194,6 +215,17 @@ struct can_conn_s
 #  ifdef CONFIG_NET_CAN_ERRORS
   can_err_mask_t err_mask;
 #  endif
+#endif
+
+#ifdef CONFIG_NET_CAN_RAW_RXNOTIFY
+  /* CAN_RAW_RXNOTIFY registration.  The work structure is what makes the
+   * notification one per batch: while the worker is still queued, a further
+   * received frame does not queue it again.
+   */
+
+  struct work_s rxnotify_work;       /* Queued on the first frame of a batch */
+  worker_t      rxnotify_worker;     /* NULL when the socket did not arm it */
+  FAR void     *rxnotify_arg;        /* Handed to the worker */
 #endif
 };
 

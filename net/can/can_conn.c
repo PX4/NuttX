@@ -158,6 +158,16 @@ void can_free(FAR struct can_conn_s *conn)
 
   DEBUGASSERT(conn->crefs == 0);
 
+#ifdef CONFIG_NET_CAN_RAW_RXNOTIFY
+  /* Disarm the receive notification so the worker cannot run against a
+   * connection that is going back to the pool.
+   */
+
+  conn->rxnotify_worker = NULL;
+  conn->rxnotify_arg    = NULL;
+  work_cancel(HPWORK, &conn->rxnotify_work);
+#endif
+
   /* Free the send callback of the socket.  The device it belongs to may
    * have been unregistered meanwhile; can_callback_free() checks that and
    * takes the callback out of the list of the connection either way.
