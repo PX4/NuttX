@@ -1055,8 +1055,15 @@ int devif_poll(FAR struct net_driver_s *dev, devif_poll_callback_t callback)
         {
           /* Copy iob to flat buffer */
 
-          len = MAX(dev->d_len, dev->d_sndlen);
-          iob_copyout(buf, dev->d_iob, len, -llhdrlen);
+          if (dev->d_iob != NULL)
+            {
+              /* A protocol that writes its packet straight into the device
+               * buffer leaves d_iob NULL and there is nothing to copy out.
+               */
+
+              len = MAX(dev->d_len, dev->d_sndlen);
+              iob_copyout(buf, dev->d_iob, len, -llhdrlen);
+            }
 
           /* Restore flat buffer pointer */
 

@@ -217,6 +217,22 @@ static int can_input_conn(FAR struct net_driver_s *dev,
 static int can_in(FAR struct net_driver_s *dev)
 {
   FAR struct can_conn_s *conn = can_active(dev, NULL);
+#ifdef CONFIG_NET_CAN_SOCK_RXBUF
+  uint16_t buflen = dev->d_len;
+
+  /* Every listener copies the frame out of the device buffer into its own
+   * receive buffer, so there is nothing to clone.  A frame that no
+   * socket is listening for is simply not retained anywhere.
+   */
+
+  for (; conn != NULL; conn = can_active(dev, conn))
+    {
+      dev->d_len = buflen;
+      can_input_conn(dev, conn);
+    }
+
+  return OK;
+#else
   FAR struct can_conn_s *nextconn;
 
   /* Do we have second connection that can hold this packet? */
@@ -244,6 +260,7 @@ static int can_in(FAR struct net_driver_s *dev)
   /* We can deliver the packet directly to the last listener. */
 
   return can_input_conn(dev, conn);
+#endif
 }
 
 /****************************************************************************
@@ -289,6 +306,13 @@ int can_input(FAR struct net_driver_s *dev)
       return ret;
     }
 
+#ifdef CONFIG_NET_CAN_SOCK_RXBUF
+  /* The listeners copy from the device buffer, so no I/O buffer is needed
+   * to receive a frame.
+   */
+
+  return can_in(dev);
+#else
   ret = netdev_input(dev, can_in, false);
   if (ret < 0)
     {
@@ -298,6 +322,7 @@ int can_input(FAR struct net_driver_s *dev)
     }
 
   return ret;
+#endif
 }
 
 #endif /* CONFIG_NET && CONFIG_NET_CAN */
