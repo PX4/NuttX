@@ -2159,7 +2159,13 @@ static int imxrt_dma_setup(struct uart_dev_s *dev)
        */
 
       priv->rxdmanext = 0;
+
 #ifdef CONFIG_ARMV7M_DCACHE
+
+      /* Make sure the rx buffer area is all invalid or clean */
+
+      up_invalidate_dcache((uintptr_t)priv->rxfifo,
+                           (uintptr_t)priv->rxfifo + RXDMA_BUFFER_SIZE);
       priv->rxdmaavail = 0;
 #endif
 
@@ -3203,7 +3209,10 @@ static void imxrt_dma_txcallback(DMACH_HANDLE handle, void *arg, bool done,
    * This is important to free TX buffer space by 'uart_xmitchars_done'.
    */
 
-  priv->dev.dmatx.nbytes = priv->dev.dmatx.length + priv->dev.dmatx.nlength;
+  priv->dev.dmatx.nbytes = priv->dev.dmatx.length;
+#if CONFIG_IMXRT_EDMA_NTCD > 1
+  priv->dev.dmatx.nbytes += priv->dev.dmatx.nlength;
+#endif
 
   /* Adjust the pointers and unblock writers */
 
@@ -3286,6 +3295,7 @@ static void imxrt_dma_send(struct uart_dev_s *dev)
 
   imxrt_dmach_xfrsetup(priv->txdma, &config);
 
+#if CONFIG_IMXRT_EDMA_NTCD > 1
   /* Is this a split transfer? */
 
   if (dev->dmatx.nbuffer)
@@ -3300,6 +3310,7 @@ static void imxrt_dma_send(struct uart_dev_s *dev)
 
       imxrt_dmach_xfrsetup(priv->txdma, &config);
     }
+#endif
 
   /* Start transmission with the callback on DMA completion */
 
