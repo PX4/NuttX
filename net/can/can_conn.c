@@ -35,6 +35,7 @@
 #include <arch/irq.h>
 
 #include <nuttx/kmalloc.h>
+#include <nuttx/mm/iob.h>
 #include <nuttx/queue.h>
 #include <nuttx/mutex.h>
 #include <nuttx/net/netconfig.h>
@@ -105,6 +106,16 @@ FAR struct can_conn_s *can_alloc(void)
   conn = NET_BUFPOOL_TRYALLOC(g_can_connections);
   if (conn != NULL)
     {
+#ifdef CONFIG_NET_CAN_SOCK_RXBUF
+      /* Hand the receive buffer of the connection to its byte ring.
+       * The pool zeroes a connection when it is freed, so the ring is set
+       * up once here, for as long as the connection is in use.
+       */
+
+      spin_lock_init(&conn->rxq_lock);
+      circbuf_init(&conn->rxq, conn->rxbuf, sizeof(conn->rxbuf));
+#endif
+
       /* FIXME SocketCAN default behavior enables loopback */
 
 #ifdef CONFIG_NET_CANPROTO_OPTIONS
@@ -147,11 +158,40 @@ void can_free(FAR struct can_conn_s *conn)
 
   DEBUGASSERT(conn->crefs == 0);
 
+#ifdef CONFIG_NET_CAN_RAW_RXNOTIFY
+  /* Disarm the receive notification so the worker cannot run against a
+   * connection that is going back to the pool.
+   */
+
+  conn->rxnotify_worker = NULL;
+  conn->rxnotify_arg    = NULL;
+  work_cancel(HPWORK, &conn->rxnotify_work);
+#endif
+
+  /* Free the send callback of the socket.  The device it belongs to may
+   * have been unregistered meanwhile; can_callback_free() checks that and
+   * takes the callback out of the list of the connection either way.
+   */
+
+  if (conn->snd_cb != NULL)
+    {
+      net_lock();
+      can_callback_free(conn->snd_dev, conn, conn->snd_cb);
+      conn->snd_cb = NULL;
+      net_unlock();
+    }
+
   nxmutex_lock(&g_free_lock);
 
   /* Remove the connection from the active list */
 
   dq_rem(&conn->sconn.node, &g_active_can_connections);
+
+#ifndef CONFIG_NET_CAN_SOCK_RXBUF
+  /* Free the readahead queue */
+
+  iob_free_queue(&conn->readahead);
+#endif
 
   /* Free the connection. */
 

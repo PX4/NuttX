@@ -85,6 +85,14 @@ static uint16_t psock_send_eventhandler(FAR struct net_driver_s *dev,
 
   if (pstate)
     {
+      /* A down device never polls, so the send cannot complete. */
+
+      if ((flags & NETDEV_DOWN) != 0)
+        {
+          pstate->snd_sent = -ENETDOWN;
+          goto end_wait;
+        }
+
       /* Check if the outgoing packet is available. It may have been claimed
        * by a send event handler serving a different thread -OR- if the
        * output buffer currently contains unprocessed incoming data. In
@@ -105,25 +113,52 @@ static uint16_t psock_send_eventhandler(FAR struct net_driver_s *dev,
 
       /* It looks like we are good to send the data */
 
-      else
+      else if (dev->d_buf == NULL)
         {
-          /* Copy the packet data into the device packet buffer and send it */
+          /* Drivers built on the netdev upper half hand the poll no device
+           * buffer.  Their frame goes out through devif_send() and an I/O
+           * buffer, with the control message appended after it.
+           */
 
           int ret = devif_send(dev, pstate->snd_buffer,
-                               pstate->snd_buflen + pstate->pr_msglen, 0);
-          dev->d_len = dev->d_sndlen - pstate->pr_msglen;
+                               pstate->snd_buflen, 0);
+
+          if (ret > 0 && pstate->pr_msglen > 0 &&
+              iob_trycopyin(dev->d_iob, pstate->pr_msgbuf,
+                            pstate->pr_msglen, pstate->snd_buflen,
+                            false) != (int)pstate->pr_msglen)
+            {
+              netdev_iob_release(dev);
+              ret = -ENOMEM;
+            }
+
           if (ret <= 0)
             {
               pstate->snd_sent = ret;
               goto end_wait;
             }
 
+          dev->d_sndlen    = pstate->snd_buflen + pstate->pr_msglen;
+          dev->d_len       = pstate->snd_buflen;
           pstate->snd_sent = pstate->snd_buflen;
+        }
+      else
+        {
+          /* Every other SocketCAN driver hands the poll its TX buffer.  The
+           * frame and the control message that follows it are written
+           * straight into it, without an I/O buffer.
+           */
+
+          memcpy(dev->d_buf, pstate->snd_buffer, pstate->snd_buflen);
           if (pstate->pr_msglen > 0) /* concat cmsg data after packet */
             {
               memcpy(dev->d_buf + pstate->snd_buflen, pstate->pr_msgbuf,
                      pstate->pr_msglen);
             }
+
+          dev->d_len       = pstate->snd_buflen;
+          dev->d_sndlen    = pstate->snd_buflen + pstate->pr_msglen;
+          pstate->snd_sent = pstate->snd_buflen;
         }
 
 end_wait:
@@ -226,6 +261,15 @@ ssize_t can_sendmsg(FAR struct socket *psock, FAR struct msghdr *msg,
    */
 
   net_lock();
+
+  /* A down device never polls, so the send would wait for nothing. */
+
+  if ((dev->d_flags & IFF_UP) == 0)
+    {
+      net_unlock();
+      return -ENETDOWN;
+    }
+
   memset(&state, 0, sizeof(struct send_s));
   nxsem_init(&state.snd_sem, 0, 0); /* Doesn't really fail */
 
@@ -247,14 +291,41 @@ ssize_t can_sendmsg(FAR struct socket *psock, FAR struct msghdr *msg,
     }
 #endif
 
-  /* Allocate resource to receive a callback */
+  /* The socket keeps one send callback and reuses it, so a send needs no
+   * callback allocation.  Drop it when the socket has been bound to another
+   * device, so that the allocation below picks up the current device.  An
+   * armed callback belongs to a send that is still waiting and is left
+   * alone.
+   */
 
-  state.snd_cb = can_callback_alloc(dev, conn);
+  if (conn->snd_cb != NULL && conn->snd_cb->event == NULL &&
+      conn->snd_dev != dev)
+    {
+      can_callback_free(conn->snd_dev, conn, conn->snd_cb);
+      conn->snd_cb = NULL;
+    }
+
+  if (conn->snd_cb == NULL)
+    {
+      conn->snd_dev = dev;
+      conn->snd_cb  = can_callback_alloc(dev, conn);
+    }
+
+  state.snd_cb = conn->snd_cb;
+  if (state.snd_cb != NULL && state.snd_cb->event != NULL)
+    {
+      /* Another thread is sending on this socket and holds the callback of
+       * the socket, so this send allocates one of its own.
+       */
+
+      state.snd_cb = can_callback_alloc(dev, conn);
+    }
+
   if (state.snd_cb)
     {
       /* Set up the callback in the connection */
 
-      state.snd_cb->flags = CAN_POLL;
+      state.snd_cb->flags = CAN_POLL | NETDEV_DOWN;
       state.snd_cb->priv  = (FAR void *)&state;
       state.snd_cb->event = psock_send_eventhandler;
 
@@ -272,12 +343,34 @@ ssize_t can_sendmsg(FAR struct socket *psock, FAR struct msghdr *msg,
         }
       else
         {
-          ret = net_sem_timedwait(&state.snd_sem, UINT_MAX);
+          /* SO_SNDTIMEO bounds a wait that a full ring would never end. */
+
+          ret = net_sem_timedwait(&state.snd_sem,
+                                  _SO_TIMEOUT(conn->sconn.s_sndtimeo));
         }
 
-      /* Make sure that no further events are processed */
+      /* Make sure that no further events are processed.  The callback of
+       * the socket is kept for the next send and only disarmed, and only
+       * while it still carries this send: the event handler disarms it
+       * when it runs, and another sender may have armed it again since.
+       */
 
-      can_callback_free(dev, conn, state.snd_cb);
+      if (state.snd_cb != conn->snd_cb)
+        {
+          can_callback_free(dev, conn, state.snd_cb);
+        }
+      else if (state.snd_cb->priv == &state)
+        {
+          state.snd_cb->flags = 0;
+          state.snd_cb->priv  = NULL;
+          state.snd_cb->event = NULL;
+        }
+    }
+  else
+    {
+      /* No callback, so nothing will ever poll this send. */
+
+      ret = -ENOBUFS;
     }
 
   nxsem_destroy(&state.snd_sem);
@@ -292,6 +385,24 @@ ssize_t can_sendmsg(FAR struct socket *psock, FAR struct msghdr *msg,
       return state.snd_sent;
     }
 
+  /* A positive snd_sent means the event handler has copied the frame and
+   * cleared the callback, so the frame is on its way even if the wait
+   * timed out.  The zero timeout of a MSG_DONTWAIT send releases the
+   * network lock before it takes the semaphore, and a poll on another
+   * thread can complete the send in that gap.
+   */
+
+  if (state.snd_sent > 0)
+    {
+#ifdef CONFIG_NET_STATISTICS
+      g_netstats.can.sent++;
+#endif
+
+      /* Return the number of bytes actually sent */
+
+      return state.snd_sent;
+    }
+
   /* If net_sem_wait failed, then we were probably reawakened by a signal.
    * In this case, net_sem_wait will have returned negated errno
    * appropriately.
@@ -301,12 +412,6 @@ ssize_t can_sendmsg(FAR struct socket *psock, FAR struct msghdr *msg,
     {
       return ret;
     }
-
-#ifdef CONFIG_NET_STATISTICS
-  g_netstats.can.sent++;
-#endif
-
-  /* Return the number of bytes actually sent */
 
   return state.snd_sent;
 }

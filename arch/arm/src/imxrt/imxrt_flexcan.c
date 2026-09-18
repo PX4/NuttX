@@ -67,7 +67,7 @@
  * is required.
  */
 
-#define CANWORK    LPWORK
+#define CANWORK    HPWORK
 #define CANRCVWORK HPWORK
 
 /* CONFIG_IMXRT_FLEXCAN_NETHIFS determines the number of physical
@@ -100,7 +100,11 @@
 
 #define POOL_SIZE                   1
 
+#ifdef CONFIG_NET_CAN_RAW_TX_DEADLINE
 #define MSG_DATA                    sizeof(struct timeval)
+#else
+#define MSG_DATA                    0
+#endif
 
 /* CAN bit timing values  */
 #define CLK_FREQ                    80000000
@@ -323,7 +327,7 @@ static struct imxrt_driver_s g_flexcan3;
 static uint8_t g_tx_pool[(sizeof(struct canfd_frame)+MSG_DATA)*POOL_SIZE];
 static uint8_t g_rx_pool[(sizeof(struct canfd_frame)+MSG_DATA)*POOL_SIZE];
 #else
-static uint8_t g_tx_pool[sizeof(struct can_frame)*POOL_SIZE];
+static uint8_t g_tx_pool[(sizeof(struct can_frame)+MSG_DATA)*POOL_SIZE];
 static uint8_t g_rx_pool[sizeof(struct can_frame)*POOL_SIZE];
 #endif
 
@@ -716,12 +720,17 @@ static int imxrt_transmit(struct imxrt_driver_s *priv)
 
       if (CONFIG_NET_CAN_RAW_DEFAULT_TX_DEADLINE > 0)
         {
-          timeout = ((CONFIG_NET_CAN_RAW_DEFAULT_TX_DEADLINE / 1000000)
-              *CLK_TCK);
+          timeout = USEC2TICK(CONFIG_NET_CAN_RAW_DEFAULT_TX_DEADLINE);
           priv->txmb[txmb].deadline.tv_sec = ts.tv_sec +
               CONFIG_NET_CAN_RAW_DEFAULT_TX_DEADLINE / 1000000;
           priv->txmb[txmb].deadline.tv_usec = (ts.tv_nsec / 1000) +
               CONFIG_NET_CAN_RAW_DEFAULT_TX_DEADLINE % 1000000;
+
+          if (priv->txmb[txmb].deadline.tv_usec >= 1000000)
+            {
+              priv->txmb[txmb].deadline.tv_sec++;
+              priv->txmb[txmb].deadline.tv_usec -= 1000000;
+            }
         }
       else
         {
@@ -813,9 +822,11 @@ static int imxrt_transmit(struct imxrt_driver_s *priv)
   NETDEV_TXPACKETS(&priv->dev);
 
 #ifdef TX_TIMEOUT_WQ
-  /* Setup the TX timeout watchdog (perhaps restarting the timer) */
+  /* Setup the TX timeout watchdog (perhaps restarting the timer).  Only a
+   * timeout of -1 means no deadline; 0 is a deadline inside this tick.
+   */
 
-  if (timeout > 0)
+  if (timeout >= 0)
     {
       wd_start(&priv->txtimeout[txmb], timeout + 1,
                imxrt_txtimeout_expiry, (wdparm_t)priv);
@@ -1161,6 +1172,11 @@ static void imxrt_tx_work(void *arg)
   struct imxrt_driver_s *priv = (struct imxrt_driver_s *)arg;
 
   imxrt_sample_errors(priv);
+
+  /* A sender reaches the mailboxes under net_lock, so this pass holds it. */
+
+  net_lock();
+
   imxrt_txdone(priv);
 
 #ifdef TX_TIMEOUT_WQ
@@ -1174,8 +1190,13 @@ static void imxrt_tx_work(void *arg)
 
   modifyreg32(priv->base + IMXRT_CAN_IMASK1_OFFSET, 0, IFLAG1_TX);
 
-  net_lock();
-  if (priv->bifup)
+  /* Poll only when a mailbox is free.  A sender may have refilled the
+   * mailbox this pass retired, and a poll without a free mailbox lets the
+   * socket layer report a frame as sent that imxrt_transmit() then has
+   * nowhere to put.
+   */
+
+  if (priv->bifup && !imxrt_txringfull(priv))
     {
       devif_poll(&priv->dev, imxrt_txpoll);
     }
@@ -1345,6 +1366,16 @@ static void imxrt_txtimeout_abort(struct imxrt_driver_s *priv)
 
       mb = flexcan_get_mb(priv, RXMBCOUNT + 1 + mbi);
       mb->cs.code = CAN_TXMB_ABORT;
+
+      /* Retire the deadline with the frame, as imxrt_txdone() does for a
+       * completion.  An aborting mailbox is no longer CAN_TXMB_DATAORREMOTE,
+       * so imxrt_txmb_next() hands it out again; a deadline left set here
+       * expires on every later pass, counting a timeout each time and
+       * aborting whatever has since been loaded into the mailbox.
+       */
+
+      deadline->tv_sec  = 0;
+      deadline->tv_usec = 0;
     }
 }
 
