@@ -364,7 +364,26 @@ config IMXRT_IOMUX_VER2
 	bool
 	default n
 
+config IMXRT_CAAM
+	bool
+	default n
+	---help---
+		Enable the CAAM job ring driver
+		(arch/arm/src/imxrt/imxrt_caam.c).  Present on RT117x-class
+		SoCs.
+
 menu "i.MX RT Peripheral Selection"
+
+config IMXRT_RNG
+	bool "CAAM true random number generator"
+	default n
+	depends on ARCH_FAMILY_IMXRT117x
+	select IMXRT_CAAM
+	select ARCH_HAVE_RNG
+	---help---
+		Register /dev/random and /dev/urandom, both backed by the CAAM
+		true random number generator. Without this the entropy pool is
+		never seeded from hardware.
 
 config IMXRT_EDMA
 	bool "eDMA"
