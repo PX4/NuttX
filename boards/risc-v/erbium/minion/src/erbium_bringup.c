@@ -65,3 +65,37 @@ void board_late_initialize(void)
 #endif
 }
 #endif
+
+/****************************************************************************
+ * Name: board_app_initialize
+ *
+ * Description:
+ *   Perform application specific initialization for BOARDIOC_INIT. All
+ *   board initialization is done in board_late_initialize() when it is
+ *   enabled; otherwise mount the board filesystems here.
+ *
+ * Input Parameters:
+ *   arg - Unused.
+ *
+ * Returned Value:
+ *   Zero (OK) on success; a negated errno value on failure.
+ *
+ ****************************************************************************/
+
+int board_app_initialize(uintptr_t arg)
+{
+#if !defined(CONFIG_BOARD_LATE_INITIALIZE) && defined(CONFIG_FS_PROCFS)
+  int ret;
+
+  ret = nx_mount(NULL, "/proc", "procfs", 0, NULL);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: procfs mount failed: %d\n", ret);
+      return ret;
+    }
+#endif
+
+  UNUSED(arg);
+  return OK;
+}
+
