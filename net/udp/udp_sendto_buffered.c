@@ -287,6 +287,14 @@ static int sendto_next_transfer(FAR struct udp_conn_s *conn)
       return -EHOSTUNREACH;
     }
 
+  /* Sanity check if the packet len (with IP hdr) is greater than the MTU */
+
+  if (wrb->wb_iob->io_pktlen > NETDEV_PKTSIZE(dev) - NET_LL_HDRLEN(dev))
+    {
+      nerr("ERROR: Packet too long to send!\n");
+      return -EMSGSIZE;
+    }
+
   /* If this is not the same device that we used in the last call to
    * udp_callback_alloc(), then we need to release and reallocate the old
    * callback instance.
