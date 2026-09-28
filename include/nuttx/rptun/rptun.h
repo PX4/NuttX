@@ -47,6 +47,12 @@
 #define RPTUNIOC_STOP               _RPTUNIOC(101)
 #define RPTUNIOC_RESET              _RPTUNIOC(102)
 
+/* RPTUNIOC_STOP argument: the remote will not outlive the stop, so skip the
+ * name-service teardown that would otherwise wait on it for every endpoint.
+ */
+
+#define RPTUN_STOP_NO_NS            1
+
 #define RPTUN_NOTIFY_ALL            (UINT32_MAX - 0)
 
 #define RPTUN_CMD_DEFAULT     0x0
