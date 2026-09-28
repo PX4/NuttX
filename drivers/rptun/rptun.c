@@ -658,7 +658,7 @@ static int rptun_ioctl(FAR struct rpmsg_s *rpmsg, int cmd, unsigned long arg)
           }
         break;
       case RPTUNIOC_STOP:
-        ret = rptun_dev_stop(&priv->rproc, true);
+        ret = rptun_dev_stop(&priv->rproc, arg != RPTUN_STOP_NO_NS);
         break;
       case RPTUNIOC_RESET:
         RPTUN_RESET(priv->dev, arg);
