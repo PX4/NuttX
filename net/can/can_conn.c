@@ -147,6 +147,11 @@ FAR struct can_conn_s *can_alloc(void)
   conn = (FAR struct can_conn_s *)dq_remfirst(&g_free_can_connections);
   if (conn != NULL)
     {
+      /* Recycled connections keep stale readahead queue pointers. */
+
+      conn->readahead.qh_head = NULL;
+      conn->readahead.qh_tail = NULL;
+
       /* FIXME SocketCAN default behavior enables loopback */
 
 #ifdef CONFIG_NET_CANPROTO_OPTIONS
