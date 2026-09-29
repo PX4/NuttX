@@ -240,6 +240,7 @@ static int sendto_next_transfer(FAR struct udp_conn_s *conn)
 {
   FAR struct udp_wrbuffer_s *wrb;
   FAR struct net_driver_s *dev;
+  unsigned int mss;
 
   /* Set the UDP "connection" to the destination address of the write buffer
    * at the head of the queue.
@@ -285,6 +286,23 @@ static int sendto_next_transfer(FAR struct udp_conn_s *conn)
     {
       nwarn("WARNING: device is DOWN\n");
       return -EHOSTUNREACH;
+    }
+
+  /* Sanity check if the payload (io_pktlen, no headers) exceeds the MSS */
+
+#if defined(NEED_IPDOMAIN_SUPPORT)
+  mss = (conn->domain == PF_INET) ? UDP_MSS(dev, IPv4_HDRLEN)
+                                  : UDP_MSS(dev, IPv6_HDRLEN);
+#elif defined(CONFIG_NET_IPv4)
+  mss = UDP_MSS(dev, IPv4_HDRLEN);
+#else
+  mss = UDP_MSS(dev, IPv6_HDRLEN);
+#endif
+
+  if (wrb->wb_iob->io_pktlen > mss)
+    {
+      nerr("ERROR: Packet too long to send!\n");
+      return -EMSGSIZE;
     }
 
   /* If this is not the same device that we used in the last call to
