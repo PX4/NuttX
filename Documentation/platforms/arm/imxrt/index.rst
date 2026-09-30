@@ -253,6 +253,38 @@ USB
 Console communication over USB is supported via CDC-ACM. Only USB Device is currently supported
 for i.MX RT in NuttX
 
+Multicore: RT1170 CM4 over RPTUN
+================================
+
+The i.MX RT1170 pairs the Cortex-M7 with a Cortex-M4. NuttX runs on the CM7 and can load, release
+and hold a firmware on the CM4 through the NuttX RPTUN device on top of the OpenAMP framework
+(``CONFIG_IMXRT_RPTUN``, which selects ``CONFIG_RPTUN_LOADER``). The CM4 firmware is the virtio
+device side and provides the resource table in its ELF image; it may be bare metal.
+
+The board registers the remote with :c:func:`imxrt_rptun_init`, passing the remote name, the ELF
+path, the address environment (CM4 device addresses to CM7 physical addresses) and the boot vector.
+The driver:
+
+- Programs the boot vector into ``IOMUXC_LPSR_GPR0/1`` and reads it back.
+- Releases the core with ``SRC_SCR.BT_RELEASE_M4`` and holds it again with the M4 core slice
+  software reset. The slice stays under reset until its first release, so a reset completion is only
+  awaited when restarting a core that was already released.
+- Keeps a CM4 lockup local by setting ``SRC_SRMR`` so it does not reset the whole chip.
+- Exchanges virtqueue kicks with the CM4 on MU-A channel 0. Neither side reads the mailbox word; a
+  kick into a full mailbox is coalesced with the pending one and the receiver rescans every
+  virtqueue.
+
+Memory map rules the board must follow:
+
+- The CM7 reaches the CM4 TCM through the LMEM backdoor window at ``IMXRT_OCRAM_M4_BASE``. Only the
+  first 128 KB of that window, the CM4 code TCM, is reachable; writes to the second half do not
+  reach the system TCM. The resource table, vrings and rpmsg buffers must live in the code TCM.
+- The CM4 boots from the backdoor alias of its code TCM (``0x20200000``), as NXP MCMGR does; the
+  CM4-native ``0x1FFE0000`` does not boot.
+- The board maps the memory the CM4 writes as non-cacheable (for example an MPU region over the
+  shared window) before calling :c:func:`imxrt_rptun_init`. The driver cleans the D-cache over the
+  loaded image before releasing the core.
+
 Supported Boards
 ================
 

@@ -409,6 +409,17 @@ config IMXRT_WDOG
 	default n
 	depends on WATCHDOG
 
+config IMXRT_RPTUN
+	bool "RPTUN transport to the CM4 core"
+	default n
+	depends on ARCH_FAMILY_IMXRT117x && RPTUN
+	select RPTUN_LOADER
+	---help---
+		rpmsg/virtio transport to the Cortex-M4 of the dual-core i.MX RT1170.
+		The CM7 loads the CM4 ELF, releases the core and signals it over the
+		MU-A mailbox.  The board supplies the memory map and the ELF path
+		through imxrt_rptun_init().
+
 menu "FlexIO Peripherals"
 
 config IMXRT_FLEXIO1
