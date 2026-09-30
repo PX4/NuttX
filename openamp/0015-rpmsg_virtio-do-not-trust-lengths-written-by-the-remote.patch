@@ -1,0 +1,52 @@
+Subject: [PATCH 15/15] rpmsg_virtio: do not trust lengths written by the remote
+
+On the driver side every TX buffer is h2r_buf_size long and every RX
+buffer r2h_buf_size long; used->len and rpmsg_hdr.len come from the
+remote. A used->len of 0 turned into a 4 GB payload capacity, a header
+length larger than the buffer let endpoint callbacks read past it.
+
+---
+--- a/lib/rpmsg/rpmsg_virtio.c
++++ open-amp/lib/rpmsg/rpmsg_virtio.c
+@@ -196,9 +196,11 @@
+ 		if (!data && rvdev->svq->vq_free_cnt) {
+ 			data = rpmsg_virtio_shm_pool_get_buffer(rvdev->shpool,
+ 					rvdev->config.h2r_buf_size);
+-			*len = rvdev->config.h2r_buf_size;
+ 			*idx = 0;
+ 		}
++		/* used->len was written by the remote; the buffer is ours */
++		if (data)
++			*len = rvdev->config.h2r_buf_size;
+ 	} else if (VIRTIO_ROLE_IS_DEVICE(rvdev->vdev)) {
+ 		data = virtqueue_get_available_buffer(rvdev->svq, idx, len);
+ 	}
+@@ -224,6 +226,9 @@
+ 
+ 	if (VIRTIO_ROLE_IS_DRIVER(rvdev->vdev)) {
+ 		data = virtqueue_get_buffer(rvdev->rvq, len, idx);
++		/* used->len was written by the remote; never exceed our buffer */
++		if (data && *len > rvdev->config.r2h_buf_size)
++			*len = rvdev->config.r2h_buf_size;
+ 	}
+ 
+ 	if (VIRTIO_ROLE_IS_DEVICE(rvdev->vdev)) {
+@@ -578,9 +583,16 @@
+ 
+ 		rp_hdr->reserved = idx;
+ 
+-		/* Get the channel node from the remote device channels list. */
++		/* Get the channel node from the remote device channels list.
++		 * The header was written by the remote: a payload length that
++		 * does not fit the buffer is dropped without a callback.
++		 */
+ 		metal_mutex_acquire(&rdev->lock);
+-		ept = rpmsg_get_ept_from_addr(rdev, rp_hdr->dst);
++		if (len >= sizeof(*rp_hdr) &&
++		    rp_hdr->len <= len - sizeof(*rp_hdr))
++			ept = rpmsg_get_ept_from_addr(rdev, rp_hdr->dst);
++		else
++			ept = NULL;
+ 		rpmsg_ept_incref(ept);
+ 		RPMSG_BUF_HELD_INC(rp_hdr);
+ 		metal_mutex_release(&rdev->lock);
