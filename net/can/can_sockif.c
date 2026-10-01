@@ -228,8 +228,12 @@ static int can_setup(FAR struct socket *psock)
        */
 
 #if CONFIG_NET_RECV_BUFSIZE > 0
+#  ifdef CONFIG_NET_CAN_SOCK_RXBUF
+      conn->recv_buffsize = CAN_RXQ_CLAMP(CONFIG_NET_RECV_BUFSIZE);
+#  else
       conn->recv_buffnum = (CONFIG_NET_RECV_BUFSIZE + CONFIG_IOB_BUFSIZE - 1)
                             / CONFIG_IOB_BUFSIZE;
+#  endif
 #endif
 
       /* Attach the connection instance to the socket */
@@ -370,13 +374,13 @@ static int can_poll_local(FAR struct socket *psock, FAR struct pollfd *fds,
                           bool setup)
 {
   FAR struct can_conn_s *conn;
-  FAR struct can_poll_s *info;
+  FAR struct can_poll_s *info = NULL;
   FAR struct devif_callback_s *cb;
   pollevent_t eventset = 0;
   int ret = OK;
+  int i;
 
   conn = psock->s_conn;
-  info = conn->pollinfo;
 
   /* FIXME add NETDEV_DOWN support */
 
@@ -385,6 +389,25 @@ static int can_poll_local(FAR struct socket *psock, FAR struct pollfd *fds,
   if (setup)
     {
       net_lock();
+
+      /* Take the first free slot.  Every poll of the socket gets one of
+       * its own, so concurrent polls do not overwrite each other.
+       */
+
+      for (i = 0; i < CONFIG_NET_CAN_NPOLLWAITERS; i++)
+        {
+          if (conn->pollinfo[i].fds == NULL)
+            {
+              info = &conn->pollinfo[i];
+              break;
+            }
+        }
+
+      if (info == NULL)
+        {
+          ret = -EBUSY;
+          goto errout_with_lock;
+        }
 
       info->dev = conn->dev;
 
@@ -428,16 +451,18 @@ static int can_poll_local(FAR struct socket *psock, FAR struct pollfd *fds,
 
       /* Check for read data availability now */
 
-      if (!IOB_QEMPTY(&conn->readahead))
+      if (!can_rxq_empty(conn))
         {
           /* Normal data may be read without blocking. */
 
           eventset |= POLLRDNORM;
         }
 
-      if (psock_can_cansend(psock) >= 0)
+      if (conn->dev == NULL && psock_can_cansend(psock) >= 0)
         {
-          /* A CAN frame may be sent without blocking. */
+          /* An unbound socket has no driver to ask, so a send is reported
+           * possible.
+           */
 
           eventset |= POLLWRNORM;
         }
@@ -445,6 +470,16 @@ static int can_poll_local(FAR struct socket *psock, FAR struct pollfd *fds,
       /* Check if any requested events are already in effect */
 
       poll_notify(&fds, 1, eventset);
+
+      /* Ask the driver of a bound socket to poll for TX data.  It polls
+       * only when it has a free mailbox, and the resulting CAN_POLL event
+       * is what reports POLLOUT, so POLLOUT reflects the mailbox state.
+       */
+
+      if ((fds->events & POLLOUT) != 0 && conn->dev != NULL)
+        {
+          netdev_txnotify_dev(conn->dev);
+        }
 
 errout_with_lock:
       net_unlock();
@@ -455,6 +490,8 @@ errout_with_lock:
 
       if (info != NULL)
         {
+          net_lock();
+
           /* Cancel any response notifications */
 
           can_callback_free(info->dev, conn, info->cb);
@@ -463,9 +500,14 @@ errout_with_lock:
 
           info->fds->priv = NULL;
 
-          /* Then free the poll info container */
+          /* Then free the poll info container.  The slot is free once fds
+           * is NULL, so it is cleared under the lock together with the
+           * callback that could still reach it.
+           */
 
+          info->fds   = NULL;
           info->psock = NULL;
+          net_unlock();
         }
     }
 

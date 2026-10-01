@@ -200,11 +200,44 @@ int can_setsockopt(FAR struct socket *psock, int level, int option,
           buffersize = MIN(buffersize, CONFIG_NET_MAX_RECV_BUFSIZE);
 #endif
 
+#ifdef CONFIG_NET_CAN_SOCK_RXBUF
+          conn->recv_buffsize = CAN_RXQ_CLAMP(buffersize);
+#else
           conn->recv_buffnum = (buffersize + CONFIG_IOB_BUFSIZE - 1)
                               / CONFIG_IOB_BUFSIZE;
+#endif
 
           break;
         }
+#endif
+
+#ifdef CONFIG_NET_CAN_RAW_RXNOTIFY
+      case CAN_RAW_RXNOTIFY:
+        {
+          FAR const struct can_rxnotify_s *notify = value;
+
+          if (value_len != sizeof(struct can_rxnotify_s))
+            {
+              return -EINVAL;
+            }
+
+          net_lock();
+
+          /* The worker is cleared before the queued one is cancelled, so a
+           * frame arriving while this runs cannot re-queue it afterwards.
+           */
+
+          conn->rxnotify_worker = notify->worker;
+          conn->rxnotify_arg    = notify->arg;
+
+          if (notify->worker == NULL)
+            {
+              work_cancel(HPWORK, &conn->rxnotify_work);
+            }
+
+          net_unlock();
+        }
+        break;
 #endif
 
       default:
