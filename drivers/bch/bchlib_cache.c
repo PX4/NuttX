@@ -125,11 +125,6 @@ int bchlib_flushsector(FAR struct bchlib_s *bch)
       /* Write the sector to the media */
 
       ret = inode->u.i_bops->write(inode, bch->buffer, bch->sector, 1);
-      if (ret < 0)
-        {
-          ferr("Write failed: %zd\n", ret);
-          return (int)ret;
-        }
 
 #if defined(CONFIG_BCH_ENCRYPTION)
       /* Computation overhead to save memory for extra sector buffer
@@ -138,6 +133,12 @@ int bchlib_flushsector(FAR struct bchlib_s *bch)
 
       bch_cypher(bch, CYPHER_DECRYPT);
 #endif
+
+      if (ret < 0)
+        {
+          ferr("Write failed: %zd\n", ret);
+          return (int)ret;
+        }
 
       /* The sector is now in sync with the media */
 

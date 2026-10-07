@@ -424,9 +424,16 @@ static int bch_ioctl(FAR struct file *filep, int cmd, unsigned long arg)
 
       case BIOC_FLUSH:
         {
+          ret = bchlib_semtake(bch);
+          if (ret < 0)
+            {
+              return ret;
+            }
+
           /* Flush any dirty pages remaining in the cache */
 
           ret = bchlib_flushsector(bch);
+          bchlib_semgive(bch);
         }
         break;
 

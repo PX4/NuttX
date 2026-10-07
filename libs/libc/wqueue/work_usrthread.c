@@ -265,20 +265,15 @@ void work_process(FAR struct usr_wqueue_s *wqueue)
     }
   else
     {
-      struct timespec now;
       struct timespec delay;
-      struct timespec rqtp;
 
       /* Wait awhile to check the work list.  We will wait here until
        * either the time elapses or until we are awakened by a signal.
        * Interrupts will be re-enabled while we wait.
        */
 
-      clock_gettime(CLOCK_REALTIME, &now);
       clock_ticks2time(next, &delay);
-      clock_timespec_add(&now, &delay, &rqtp);
-
-      sigtimedwait(&sigset, NULL, &rqtp);
+      sigtimedwait(&sigset, NULL, &delay);
     }
 
   sigprocmask(SIG_SETMASK, &oldset, NULL);

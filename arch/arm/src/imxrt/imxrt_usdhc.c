@@ -39,6 +39,7 @@
 #include <nuttx/wqueue.h>
 #include <nuttx/semaphore.h>
 #include <nuttx/mmcsd.h>
+#include <nuttx/kmalloc.h>
 
 #include <nuttx/irq.h>
 #include <arch/board/board.h>
@@ -100,10 +101,6 @@
 /* Maximum watermark value */
 
 #define USDHC_MAX_WATERMARK         128
-
-/* Block size for multi-block transfers */
-
-#define SDMMC_MAX_BLOCK_SIZE        (512)
 
 /* Data transfer / Event waiting interrupt mask bits */
 
@@ -181,12 +178,11 @@ struct imxrt_dev_s
 
   volatile uint8_t xfrflags;          /* Used to synchronize SDIO and DMA
                                        * completion */
-                                      /* DMA buffer for unaligned transfers */
 #if defined(CONFIG_ARMV7M_DCACHE)
-  uint32_t blocksize;                 /* Current block size */
-  uint8_t  rxbuffer[SDMMC_MAX_BLOCK_SIZE]
-                   __attribute__((aligned(ARMV7M_DCACHE_LINESIZE)));
-  bool     unaligned_rx;              /* buffer is not cache-line aligned */
+  uint8_t *rxbuffer;                  /* DMA buffer for unaligned transfers */
+  size_t rxbuflen;                    /* Allocated DMA buffer capacity */
+  size_t rxbytes;                     /* Bytes to copy after DMA completion */
+  bool unaligned_rx;                  /* Buffer is not cache-line aligned */
 #endif
 #endif
 
@@ -279,9 +275,6 @@ static void imxrt_dataconfig(struct imxrt_dev_s *priv, bool bwrite,
 #ifndef CONFIG_IMXRT_USDHC_DMA
 static void imxrt_transmit(struct imxrt_dev_s *priv);
 static void imxrt_receive(struct imxrt_dev_s *priv);
-#if defined(CONFIG_ARMV7M_DCACHE)
-static void imxrt_recvdma(struct imxrt_dev_s *priv);
-#endif
 #endif
 
 static void imxrt_eventtimeout(wdparm_t arg);
@@ -777,18 +770,6 @@ static void imxrt_dataconfig(struct imxrt_dev_s *priv, bool bwrite,
   regval |= timeout << USDHC_SYSCTL_DTOCV_SHIFT;
   putreg32(regval, priv->addr + IMXRT_USDHC_SYSCTL_OFFSET);
 
-#if defined(CONFIG_IMXRT_USDHC_DMA) && defined(CONFIG_ARMV7M_DCACHE)
-      /* If cache is enabled, and this is an unaligned receive,
-       * receive one block at a time to the internal buffer
-       */
-
-      if (!bwrite && priv->unaligned_rx)
-        {
-          DEBUGASSERT(priv->blocksize <= sizeof(priv->rxbuffer));
-          datalen = priv->blocksize;
-        }
-#endif
-
   /* Set the watermark level */
 
   /* Set the Read Watermark Level to the datalen to be read (limited to half
@@ -1006,81 +987,6 @@ static void imxrt_receive(struct imxrt_dev_s *priv)
 #endif
 
 /****************************************************************************
- * Name: imxrt_recvdma
- *
- * Description:
- *   Receive SDIO data in dma mode
- *
- * Input Parameters:
- *   priv  - Instance of the SDMMC private state structure.
- *
- * Returned Value:
- *   None
- *
- ****************************************************************************/
-
-#if defined(CONFIG_IMXRT_USDHC_DMA) && defined(CONFIG_ARMV7M_DCACHE)
-static void imxrt_recvdma(struct imxrt_dev_s *priv)
-{
-  unsigned int watermark;
-
-  if (priv->unaligned_rx)
-    {
-      /* If we are receiving multiple blocks to an unaligned buffers,
-       * we receive them one-by-one
-       */
-
-      /* Copy the received data to client buffer */
-
-      memcpy(priv->buffer, priv->rxbuffer, priv->blocksize);
-
-      /* Invalidate the cache before receiving next block */
-
-      up_invalidate_dcache((uintptr_t)priv->rxbuffer,
-                           (uintptr_t)priv->rxbuffer + priv->blocksize);
-
-      /* Update how much there is left to receive */
-
-      priv->remaining -= priv->blocksize;
-    }
-  else
-    {
-      /* In an aligned case, we have always received all blocks */
-
-      priv->remaining = 0;
-    }
-
-  if (priv->remaining == 0)
-    {
-      /* no data remaining, end the transfer */
-
-      imxrt_endtransfer(priv, SDIOWAIT_TRANSFERDONE);
-    }
-  else
-    {
-      /* We end up here only in unaligned rx-buffers case, and are receiving
-       * the data one block at a time
-       */
-
-      /* Update where to receive the following block */
-
-      priv->buffer = (uint32_t *)((uintptr_t)priv->buffer + priv->blocksize);
-
-      watermark = (priv->blocksize + 3) >> 2;
-      if (watermark > (USDHC_MAX_WATERMARK / 2))
-        {
-          watermark = (USDHC_MAX_WATERMARK / 2);
-        }
-
-      /* Re-enable datapath and wait for next block */
-
-      putreg32(watermark << USDHC_WML_RD_SHIFT,
-               priv->addr + IMXRT_USDHC_WML_OFFSET);
-    }
-}
-
-#endif
-/****************************************************************************
  * Name: imxrt_eventtimeout
  *
  * Description:
@@ -1276,11 +1182,8 @@ static int imxrt_interrupt(int irq, void *context, FAR void *arg)
       if ((pending & USDHC_INT_TC) != 0)
         {
           /* Terminate the transfer */
-#if defined(CONFIG_IMXRT_USDHC_DMA) && defined(CONFIG_ARMV7M_DCACHE)
-          imxrt_recvdma(priv);
-#else
+
           imxrt_endtransfer(priv, SDIOWAIT_TRANSFERDONE);
-#endif
         }
 
       /* ... data block send/receive CRC failure */
@@ -2218,8 +2121,6 @@ static void imxrt_blocksetup(FAR struct sdio_dev_s *dev,
 
   /* Configure block size for next transfer */
 
-  priv->blocksize = blocklen;
-
   putreg32(USDHC_BLKATTR_SIZE(blocklen) | USDHC_BLKATTR_CNT(nblocks),
            priv->addr + IMXRT_USDHC_BLKATTR_OFFSET);
 }
@@ -2849,6 +2750,20 @@ static sdio_eventset_t imxrt_eventwait(FAR struct sdio_dev_s *dev)
 #ifdef CONFIG_IMXRT_USDHC_DMA
   priv->xfrflags = 0;
 #endif
+#if defined(CONFIG_IMXRT_USDHC_DMA) && defined(CONFIG_ARMV7M_DCACHE)
+  if (priv->unaligned_rx && wkupevent == SDIOWAIT_TRANSFERDONE)
+    {
+      /* DMA completes the entire transfer before TC.  Invalidate again
+       * before reading it, then copy in task context rather than the ISR.
+       */
+
+      up_invalidate_dcache((uintptr_t)priv->rxbuffer,
+                          (uintptr_t)priv->rxbuffer + priv->rxbytes);
+      memcpy(priv->buffer, priv->rxbuffer, priv->rxbytes);
+      priv->unaligned_rx = false;
+    }
+#endif
+
   imxrt_dumpsamples(priv);
   return wkupevent;
 }
@@ -2965,9 +2880,37 @@ static int imxrt_dmarecvsetup(FAR struct sdio_dev_s *dev,
        * buffer instead.
        */
 
-      up_invalidate_dcache((uintptr_t)priv->rxbuffer,
-                           (uintptr_t)priv->rxbuffer + priv->blocksize);
+      size_t alloclen;
+      FAR uint8_t *rxbuffer;
 
+      if (buflen > SIZE_MAX - (ARMV7M_DCACHE_LINESIZE - 1))
+        {
+          return -EOVERFLOW;
+        }
+
+      alloclen = (buflen + ARMV7M_DCACHE_LINESIZE - 1) &
+                 ~(size_t)(ARMV7M_DCACHE_LINESIZE - 1);
+      if (alloclen > priv->rxbuflen)
+        {
+          rxbuffer = kmm_memalign(ARMV7M_DCACHE_LINESIZE, alloclen);
+          if (rxbuffer == NULL)
+            {
+              return -ENOMEM;
+            }
+
+          /* Retain the buffer for reuse by this controller.  Allocation
+           * and replacement happen in task context, before starting DMA.
+           */
+
+          kmm_free(priv->rxbuffer);
+          priv->rxbuffer = rxbuffer;
+          priv->rxbuflen = alloclen;
+        }
+
+      up_invalidate_dcache((uintptr_t)priv->rxbuffer,
+                          (uintptr_t)priv->rxbuffer + alloclen);
+
+      priv->rxbytes = buflen;
       priv->unaligned_rx = true;
     }
   else
