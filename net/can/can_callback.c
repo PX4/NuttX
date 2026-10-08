@@ -27,9 +27,13 @@
 #include <nuttx/config.h>
 #if defined(CONFIG_NET) && defined(CONFIG_NET_CAN)
 
+#include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
+#include <errno.h>
 #include <debug.h>
 
+#include <nuttx/clock.h>
 #include <nuttx/net/netconfig.h>
 #include <nuttx/net/netdev.h>
 #include <nuttx/mm/iob.h>
@@ -45,6 +49,8 @@
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+
+#ifndef CONFIG_NET_CAN_SOCK_RXBUF
 
 /****************************************************************************
  * Name: can_data_event
@@ -98,6 +104,125 @@ can_data_event(FAR struct net_driver_s *dev, FAR struct can_conn_s *conn,
   dev->d_len = 0;
   return ret;
 }
+#endif /* !CONFIG_NET_CAN_SOCK_RXBUF */
+
+#ifdef CONFIG_NET_CAN_SOCK_RXBUF
+
+/****************************************************************************
+ * Name: can_accepts
+ *
+ * Description:
+ *   Check whether a socket wants a received frame.  This runs before the
+ *   frame is copied into the receive buffer of the socket, so a
+ *   frame the socket does not want costs neither a slot nor a copy.
+ *
+ * Input Parameters:
+ *   dev  - The device which was active when the frame was received
+ *   conn - A pointer to the CAN connection structure
+ *
+ * Returned Value:
+ *   True if the socket wants the frame.
+ *
+ * Assumptions:
+ *   This function can be called from an interrupt.
+ *
+ ****************************************************************************/
+
+static bool can_accepts(FAR struct net_driver_s *dev,
+                        FAR struct can_conn_s *conn)
+{
+#ifdef CONFIG_NET_CANPROTO_OPTIONS
+  canid_t can_id;
+
+  memcpy(&can_id, dev->d_appdata, sizeof(canid_t));
+  if (can_recv_filter(conn, can_id) == 0)
+    {
+      return false;
+    }
+#endif
+
+  /* Do not pass frames with DLC > 8 to a legacy socket */
+
+#if defined(CONFIG_NET_CANPROTO_OPTIONS) && defined(CONFIG_NET_CAN_CANFD)
+  if (!_SO_GETOPT(conn->sconn.s_options, CAN_RAW_FD_FRAMES))
+#endif
+    {
+      if (dev->d_len > sizeof(struct can_frame))
+        {
+          return false;
+        }
+    }
+
+  return true;
+}
+
+/****************************************************************************
+ * Name: can_rxq_push
+ *
+ * Description:
+ *   Append one received frame to the receive buffer of a socket as
+ *   a struct can_rxhdr_s followed by the frame itself.  The record carries
+ *   the arrival time if the socket asked for SO_TIMESTAMP.
+ *
+ * Input Parameters:
+ *   conn  - The CAN connection that is to retain the frame
+ *   frame - The frame, in the device buffer
+ *   len   - The length of the frame
+ *
+ * Returned Value:
+ *   The number of frame bytes retained, or -ENOBUFS if the record does not
+ *   fit in the free space or would exceed the SO_RCVBUF limit of the
+ *   socket.
+ *
+ * Assumptions:
+ *   This function can be called from an interrupt.
+ *
+ ****************************************************************************/
+
+static int can_rxq_push(FAR struct can_conn_s *conn,
+                        FAR const void *frame, uint16_t len)
+{
+  struct can_rxhdr_s hdr;
+#ifdef CONFIG_NET_TIMESTAMP
+  struct timespec ts;
+#endif
+  irqstate_t flags;
+  size_t record;
+
+  record  = sizeof(hdr) + len;
+  hdr.len = len;
+
+#ifdef CONFIG_NET_TIMESTAMP
+  /* Every record carries the arrival time, so a frame retained before the
+   * socket set SO_TIMESTAMP still has one.  recvmsg() hands it out only
+   * when the option is set.  The clock is read outside the lock below.
+   */
+
+  clock_systime_timespec(&ts);
+  hdr.ts.tv_sec  = ts.tv_sec;
+  hdr.ts.tv_usec = ts.tv_nsec / 1000;
+#endif
+
+  /* Some CAN drivers deliver a received frame from their receive interrupt
+   * handler, so the buffer is guarded by an irqsave spinlock.
+   */
+
+  flags = spin_lock_irqsave(&conn->rxq_lock);
+
+  if (circbuf_space(&conn->rxq) < record ||
+      circbuf_used(&conn->rxq) + record > CAN_RXQ_LIMIT(conn))
+    {
+      spin_unlock_irqrestore(&conn->rxq_lock, flags);
+      return -ENOBUFS;
+    }
+
+  circbuf_write(&conn->rxq, &hdr, sizeof(hdr));
+  circbuf_write(&conn->rxq, frame, len);
+
+  spin_unlock_irqrestore(&conn->rxq_lock, flags);
+  return len;
+}
+#endif
 
 /****************************************************************************
  * Public Functions
@@ -120,6 +245,88 @@ can_data_event(FAR struct net_driver_s *dev, FAR struct can_conn_s *conn,
 uint16_t can_callback(FAR struct net_driver_s *dev,
                       FAR struct can_conn_s *conn, uint16_t flags)
 {
+#ifdef CONFIG_NET_CAN_SOCK_RXBUF
+  bool newdata = (flags & CAN_NEWDATA) != 0;
+
+  /* Some sanity checking */
+
+  if (conn)
+    {
+      if (newdata)
+        {
+          if (!can_accepts(dev, conn))
+            {
+              /* The filters of the socket, or its CAN_RAW_FD_FRAMES
+               * setting, reject the frame.  Nothing is copied and nothing
+               * is dropped: another socket may still want it.
+               */
+
+              dev->d_len = 0;
+              return flags & ~CAN_NEWDATA;
+            }
+
+          /* Retain the frame in the receive buffer of this
+           * socket before any listener runs, so a reader always finds it
+           * there and the shared I/O buffer pool is never touched.
+           */
+
+          if (can_rxq_push(conn, dev->d_appdata, dev->d_len) < 0)
+            {
+              ninfo("Dropped %d bytes\n", dev->d_len);
+
+#ifdef CONFIG_NET_STATISTICS
+              g_netstats.can.drop++;
+#endif
+              NETDEV_RXDROPPED(dev);
+            }
+          else
+            {
+#ifdef CONFIG_NET_CAN_NOTIFIER
+              /* Provide notification(s) that additional CAN read-ahead
+               * data is available.
+               */
+
+              can_readahead_signal(conn);
+#endif
+              /* Run the worker the socket registered with
+               * CAN_RAW_RXNOTIFY.  A driver that delivers a batch of
+               * frames in one pass queues it on the first frame of the
+               * batch, so the socket is woken once per batch.
+               */
+
+              can_rxnotify(conn);
+            }
+
+          /* The listeners run even when the frame was dropped, so a reader
+           * blocked on an already full buffer is woken and takes the
+           * oldest record out of it.
+           */
+        }
+
+      /* Deliver the event now if the network can be locked without
+       * blocking.  Otherwise the frame stays retained without a wakeup;
+       * the next frame, recvmsg() or poll() finds it.
+       */
+
+      if (net_trylock() == OK)
+        {
+          flags = devif_conn_event(dev, flags, conn->sconn.list);
+          net_unlock();
+        }
+
+      if (newdata)
+        {
+          /* The frame is retained whether or not a listener took it, so
+           * the device buffer is free again.
+           */
+
+          flags &= ~CAN_NEWDATA;
+          dev->d_len = 0;
+        }
+    }
+
+  return flags;
+#else
   /* Some sanity checking */
 
   if (conn)
@@ -170,7 +377,10 @@ uint16_t can_callback(FAR struct net_driver_s *dev,
     }
 
   return flags;
+#endif
 }
+
+#ifndef CONFIG_NET_CAN_SOCK_RXBUF
 
 /****************************************************************************
  * Name: can_datahandler
@@ -226,6 +436,14 @@ uint16_t can_datahandler(FAR struct net_driver_s *dev,
 
       can_readahead_signal(conn);
 #endif
+      /* Run the worker the socket registered with CAN_RAW_RXNOTIFY.  A
+       * driver that delivers a batch of frames in one pass queues it on
+       * the first frame of the batch, so the socket is woken once per
+       * batch.
+       */
+
+      can_rxnotify(conn);
+
       ret = iob->io_pktlen;
 
       /* Device buffer has been enqueued, clear the handle */
@@ -245,5 +463,6 @@ errout:
   netdev_iob_release(dev);
   return ret;
 }
+#endif /* !CONFIG_NET_CAN_SOCK_RXBUF */
 
 #endif /* CONFIG_NET && CONFIG_NET_CAN */
