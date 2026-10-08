@@ -1,2 +1,6 @@
 /risc-v/[a-d]*
 /risc-v/e[0-r]*
+
+# Erbium also supports the CMake build.
+CMake,minion:nsh
+CMake,minion:ostest
