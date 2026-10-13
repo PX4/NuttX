@@ -387,6 +387,14 @@ static int cdcacm_sndpacket(FAR struct cdcacm_dev_s *priv)
 
   flags = enter_critical_section();
 
+  /* Nothing can be sent if we are not configured (or already unbound) */
+
+  if (priv->config == CDCACM_CONFIGIDNONE || priv->epbulkin == NULL)
+    {
+      leave_critical_section(flags);
+      return -ENOTCONN;
+    }
+
   /* Use our bulk IN endpoint for the transfer */
 
   ep = priv->epbulkin;
@@ -677,9 +685,10 @@ static int cdcacm_release_rxpending(FAR struct cdcacm_dev_s *priv)
    */
 
 #ifdef CONFIG_CDCACM_IFLOWCONTROL
-  if (priv->rxenabled && !priv->iactive)
+  if (priv->config != CDCACM_CONFIGIDNONE &&
+      priv->rxenabled && !priv->iactive)
 #else
-  if (priv->rxenabled)
+  if (priv->config != CDCACM_CONFIGIDNONE && priv->rxenabled)
 #endif
     {
       /* Process pending RX packets while the queue is not empty and while
@@ -855,6 +864,12 @@ static int cdcacm_serialstate(FAR struct cdcacm_dev_s *priv)
 
   flags = enter_critical_section();
 
+  if (priv->config == CDCACM_CONFIGIDNONE || priv->epintin == NULL)
+    {
+      ret = -ENOTCONN;
+      goto errout_with_flags;
+    }
+
   /* Use our interrupt IN endpoint for the transfer */
 
   ep = priv->epintin;
@@ -925,6 +940,8 @@ errout_with_flags:
 
 static void cdcacm_resetconfig(FAR struct cdcacm_dev_s *priv)
 {
+  irqstate_t flags;
+
   /* Are we configured? */
 
   if (priv->config != CDCACM_CONFIGIDNONE)
@@ -949,6 +966,20 @@ static void cdcacm_resetconfig(FAR struct cdcacm_dev_s *priv)
       EP_DISABLE(priv->epbulkin);
       EP_DISABLE(priv->epbulkout);
     }
+
+  /* Read requests that completed but were never handed to the serial
+   * upper half are still linked in rxpending.  They are not queued in the
+   * endpoint, so EP_DISABLE did not return them.  Drop them now: otherwise
+   * cdcacm_setconfig() would resubmit requests that are still linked in
+   * rxpending, and after cdcacm_unbind() the containers would be left
+   * pointing at freed requests.
+   */
+
+  flags = enter_critical_section();
+  wd_cancel(&priv->rxfailsafe);
+  sq_init(&priv->rxpending);
+  priv->nrdq = 0;
+  leave_critical_section(flags);
 }
 
 /****************************************************************************
@@ -1202,7 +1233,10 @@ static void cdcacm_rdcomplete(FAR struct usbdev_ep_s *ep,
     case -ESHUTDOWN: /* Disconnection */
       {
         usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_RDSHUTDOWN), 0);
-        priv->nrdq--;
+        if (priv->nrdq != 0)
+          {
+            priv->nrdq--;
+          }
       }
       break;
 
@@ -2855,6 +2889,15 @@ static bool cdcuart_txempty(FAR struct uart_dev_s *dev)
   if (!priv)
     {
       usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_INVALIDARG), 0);
+      return true;
+    }
+#endif
+
+#ifdef CONFIG_SERIAL_REMOVABLE
+  /* Nothing can drain once the USB connection is gone */
+
+  if (dev->disconnected)
+    {
       return true;
     }
 #endif
