@@ -229,6 +229,7 @@ static bool    cdcuart_rxflowcontrol(FAR struct uart_dev_s *dev,
 #endif
 static void    cdcuart_txint(FAR struct uart_dev_s *dev, bool enable);
 static bool    cdcuart_txempty(FAR struct uart_dev_s *dev);
+static int     cdcuart_release(FAR struct uart_dev_s *dev);
 
 /****************************************************************************
  * Private Data
@@ -279,7 +280,8 @@ static const struct uart_ops_s g_uartops =
   NULL,                  /* send */
   cdcuart_txint,         /* txinit */
   NULL,                  /* txready */
-  cdcuart_txempty        /* txempty */
+  cdcuart_txempty,       /* txempty */
+  cdcuart_release        /* release */
 };
 
 /****************************************************************************
@@ -2865,6 +2867,28 @@ static bool cdcuart_txempty(FAR struct uart_dev_s *dev)
 }
 
 /****************************************************************************
+ * Name: cdcuart_release
+ *
+ * Description:
+ *   This is called to release some resource about the device when device
+ *   was close and unregistered.
+ *
+ ****************************************************************************/
+
+static int cdcuart_release(FAR struct uart_dev_s *dev)
+{
+  FAR struct cdcacm_dev_s *priv = (FAR struct cdcacm_dev_s *)dev->priv;
+
+  usbtrace(CDCACM_CLASSAPI_RELEASE, 0);
+
+  /* And free the memory resources. */
+
+  wd_cancel(&priv->rxfailsafe);
+  kmm_free(priv);
+  return OK;
+}
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -3158,8 +3182,20 @@ void cdcacm_uninitialize(FAR void *handle)
 #ifndef CONFIG_CDCACM_COMPOSITE
   usbdev_unregister(&drvr->drvr);
 
-  /* And free the memory resources. */
+  /* And free the memory resources.  If the TTY is still open, the upper
+   * half serial driver still references priv: defer the free to the last
+   * close (see cdcuart_release()).
+   */
 
+  nxsem_wait_uninterruptible(&priv->serdev.closesem);
+  if (priv->serdev.open_count > 0)
+    {
+      priv->serdev.unlinked = true;
+      nxsem_post(&priv->serdev.closesem);
+      return;
+    }
+
+  nxsem_post(&priv->serdev.closesem);
   wd_cancel(&priv->rxfailsafe);
   kmm_free(priv);
 
