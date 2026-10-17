@@ -1,0 +1,41 @@
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+config ERBIUM_UART_CLOCK
+	int "UART input clock (Hz)"
+	default 6666667
+	range 1 2147483647
+	---help---
+		UART peripheral clock after the Erbium divide-by-30 prescaler,
+		with a 200 MHz system clock.
+
+config ERBIUM_MTIMER_FREQ
+	int "Machine timer frequency (Hz)"
+	default 2000000
+	range 1 2147483647
+	---help---
+		Machine timer frequency after the reference clock divider and
+		timer prescaler. The ET-platform emulator defaults to 2 MHz.
+
+config ERBIUM_MCODE_EMULATION
+	bool "Emulate the M-code floating-point instructions"
+	default y
+	depends on ARCH_FPU && !ARCH_USE_S_MODE
+	---help---
+		ET-Minion has no hardware for FCVT.L.S, FCVT.LU.S, FCVT.S.L,
+		FCVT.S.LU, FDIV.S and FSQRT.S. They raise exception 30 (M-code
+		emulation). GCC emits the conversions for every conversion between
+		float and a 64-bit integer type (long, int64_t, size_t, time_t),
+		and prebuilt code, such as a toolchain's libm, contains FDIV.S and
+		FSQRT.S. With this option the trap handler performs them in
+		software, with the RISC-V rounding and flag rules and the
+		ET-Minion subnormal rules: a subnormal input reads as zero and
+		sets fflags bit 31, and a result that is tiny after rounding is
+		flushed to zero. Each instruction then costs a trap of a few
+		hundred instructions. Without this option they stop the system
+		with an "M-code emulation" exception report. FENCE.I, SFENCE.VMA
+		and the ET packed instructions are never emulated.
