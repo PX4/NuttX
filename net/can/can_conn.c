@@ -153,6 +153,10 @@ void can_free(FAR struct can_conn_s *conn)
 
   dq_rem(&conn->sconn.node, &g_active_can_connections);
 
+  /* Free the readahead queue */
+
+  iob_free_queue(&conn->readahead);
+
   /* Free the connection. */
 
   NET_BUFPOOL_FREE(g_can_connections, conn);
