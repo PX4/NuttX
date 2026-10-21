@@ -60,6 +60,12 @@ config IMX9_EDMA
 	default n
 	select ARCH_DMA
 
+config IMX9_FLEXSPI
+	bool "FlexSPI1"
+	default n
+	---help---
+		FlexSPI1 controller driver (same as arm64/imx9).
+
 menu "FLEXCAN Peripherals"
 
 config IMX9_FLEXCAN

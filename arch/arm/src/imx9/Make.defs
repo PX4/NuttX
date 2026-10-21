@@ -60,6 +60,10 @@ ifeq ($(CONFIG_IMX9_GPIO_IRQ),y)
   CHIP_CSRCS += imx9_gpioirq.c
 endif
 
+ifeq ($(CONFIG_IMX9_FLEXSPI),y)
+  CHIP_CSRCS += imx9_flexspi.c
+endif
+
 ifeq ($(CONFIG_IMX9_FLEXIO),y)
   CHIP_CSRCS += imx9_flexio.c
 endif

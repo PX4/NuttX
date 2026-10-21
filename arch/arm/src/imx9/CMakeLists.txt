@@ -63,6 +63,10 @@ if(CONFIG_IMX9_GPIO_IRQ)
   list(APPEND SRCS imx9_gpioirq.c)
 endif()
 
+if(CONFIG_IMX9_FLEXSPI)
+  list(APPEND SRCS imx9_flexspi.c)
+endif()
+
 if(CONFIG_IMX9_FLEXIO)
   list(APPEND SRCS imx9_flexio.c)
 endif()
