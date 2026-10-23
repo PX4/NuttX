@@ -1937,6 +1937,10 @@ static sdio_capset_t stm32_capabilities(struct sdio_dev_s *dev)
     {
       caps |= SDIO_CAPS_1BIT_ONLY;
     }
+  else
+    {
+      caps |= SDIO_CAPS_4BIT;
+    }
 
 #ifdef CONFIG_STM32F7_SDMMC_DMA
   caps |= SDIO_CAPS_DMASUPPORTED;
