@@ -1,0 +1,10 @@
+--- ./littlefs/littlefs/lfs.c
++++ ./littlefs/littlefs/lfs.c
+@@ -2390,3 +2390,6 @@ fixmlist:;
+ 
+-            while (d->id >= d->m.count && d->m.split) {
++            // a removed file keeps its null pair, moving it onto the tail
++            // would make its next sync overwrite an unrelated entry
++            while (!lfs_pair_isnull(d->m.pair) &&
++                    d->id >= d->m.count && d->m.split) {
+                 // we split and id is on tail now
