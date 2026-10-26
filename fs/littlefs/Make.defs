@@ -47,6 +47,7 @@ $(LITTLEFS_TARBALL):
 .littlefsunpack: $(LITTLEFS_TARBALL)
 	$(Q) tar zxf littlefs/$(LITTLEFS_TARBALL) -C littlefs
 	$(Q) mv littlefs/littlefs-$(LITTLEFS_VERSION) littlefs/littlefs
+	$(Q) git apply littlefs/lfs_removed_open_file.patch
 	$(Q) touch littlefs/.littlefsunpack
 
 context:: .littlefsunpack
