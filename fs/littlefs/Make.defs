@@ -72,6 +72,7 @@ ifeq ($(CONFIG_FS_LITTLEFS_LOCAL_PATCHES),y)
 	$(Q) git apply littlefs/lfs_getpath.patch
 	$(Q) git apply littlefs/lfs_getsetattr.patch
 endif
+	$(Q) git apply littlefs/lfs_removed_open_file.patch
 	$(Q) touch littlefs/.littlefsunpack
 
 # Download and unpack tarball if no git repo found
