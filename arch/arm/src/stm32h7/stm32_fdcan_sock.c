@@ -1114,6 +1114,7 @@ static void fdcan_receive_work(void *arg)
       rf = &priv->rx[index];
 
       /* Read the frame contents */
+      net_lock();
 
 #ifdef CONFIG_NET_CAN_CANFD
       if (rf->header.fdf) /* CAN FD frame */
@@ -1208,6 +1209,7 @@ static void fdcan_receive_work(void *arg)
        */
 
       priv->dev.d_buf = priv->tx_pool;
+      net_unlock();
     }
 
   /* Check for errors and abort-transmission requests */
@@ -1319,7 +1321,9 @@ static void fdcan_txdone_work(void *arg)
    * Poll the network for new data to transmit
    */
 
+  net_lock();
   devif_poll(&priv->dev, fdcan_txpoll);
+  net_unlock();
 
   leave_critical_section(flags);
 }
