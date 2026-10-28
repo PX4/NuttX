@@ -154,17 +154,17 @@ static struct rptun_rsc_s *imx9_rptun_get_resource(struct rptun_dev_s *dev)
   struct imx9_rptun_dev_s *priv =
       container_of(dev, struct imx9_rptun_dev_s, rptun);
 
-  if (priv->shmem != NULL)
-    {
-      return &priv->shmem->rsc;
-    }
-
   priv->shmem = (struct imx9_rptun_shmem_s *)VRING_SHMEM;
+
+#ifdef CONFIG_IMX9_RPTUN_ALWAYS_COPY_RSC_TABLE
+  imx9_rsctable_copy();
+#else
   if (priv->shmem->rsc.rsc_tbl_hdr.offset
       != g_imx9_rsc_table.rsc_tbl_hdr.offset)
     {
       imx9_rsctable_copy();
     }
+#endif
 
   return &priv->shmem->rsc;
 }
