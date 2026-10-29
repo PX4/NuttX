@@ -229,6 +229,7 @@ static bool    cdcuart_rxflowcontrol(FAR struct uart_dev_s *dev,
 #endif
 static void    cdcuart_txint(FAR struct uart_dev_s *dev, bool enable);
 static bool    cdcuart_txempty(FAR struct uart_dev_s *dev);
+static int     cdcuart_release(FAR struct uart_dev_s *dev);
 
 /****************************************************************************
  * Private Data
@@ -279,7 +280,8 @@ static const struct uart_ops_s g_uartops =
   NULL,                  /* send */
   cdcuart_txint,         /* txinit */
   NULL,                  /* txready */
-  cdcuart_txempty        /* txempty */
+  cdcuart_txempty,       /* txempty */
+  cdcuart_release        /* release */
 };
 
 /****************************************************************************
@@ -384,6 +386,14 @@ static int cdcacm_sndpacket(FAR struct cdcacm_dev_s *priv)
 #endif
 
   flags = enter_critical_section();
+
+  /* Nothing can be sent if we are not configured (or already unbound) */
+
+  if (priv->config == CDCACM_CONFIGIDNONE || priv->epbulkin == NULL)
+    {
+      leave_critical_section(flags);
+      return -ENOTCONN;
+    }
 
   /* Use our bulk IN endpoint for the transfer */
 
@@ -675,9 +685,10 @@ static int cdcacm_release_rxpending(FAR struct cdcacm_dev_s *priv)
    */
 
 #ifdef CONFIG_CDCACM_IFLOWCONTROL
-  if (priv->rxenabled && !priv->iactive)
+  if (priv->config != CDCACM_CONFIGIDNONE &&
+      priv->rxenabled && !priv->iactive)
 #else
-  if (priv->rxenabled)
+  if (priv->config != CDCACM_CONFIGIDNONE && priv->rxenabled)
 #endif
     {
       /* Process pending RX packets while the queue is not empty and while
@@ -853,6 +864,12 @@ static int cdcacm_serialstate(FAR struct cdcacm_dev_s *priv)
 
   flags = enter_critical_section();
 
+  if (priv->config == CDCACM_CONFIGIDNONE || priv->epintin == NULL)
+    {
+      ret = -ENOTCONN;
+      goto errout_with_flags;
+    }
+
   /* Use our interrupt IN endpoint for the transfer */
 
   ep = priv->epintin;
@@ -923,6 +940,8 @@ errout_with_flags:
 
 static void cdcacm_resetconfig(FAR struct cdcacm_dev_s *priv)
 {
+  irqstate_t flags;
+
   /* Are we configured? */
 
   if (priv->config != CDCACM_CONFIGIDNONE)
@@ -947,6 +966,20 @@ static void cdcacm_resetconfig(FAR struct cdcacm_dev_s *priv)
       EP_DISABLE(priv->epbulkin);
       EP_DISABLE(priv->epbulkout);
     }
+
+  /* Read requests that completed but were never handed to the serial
+   * upper half are still linked in rxpending.  They are not queued in the
+   * endpoint, so EP_DISABLE did not return them.  Drop them now: otherwise
+   * cdcacm_setconfig() would resubmit requests that are still linked in
+   * rxpending, and after cdcacm_unbind() the containers would be left
+   * pointing at freed requests.
+   */
+
+  flags = enter_critical_section();
+  wd_cancel(&priv->rxfailsafe);
+  sq_init(&priv->rxpending);
+  priv->nrdq = 0;
+  leave_critical_section(flags);
 }
 
 /****************************************************************************
@@ -1200,7 +1233,10 @@ static void cdcacm_rdcomplete(FAR struct usbdev_ep_s *ep,
     case -ESHUTDOWN: /* Disconnection */
       {
         usbtrace(TRACE_CLSERROR(USBSER_TRACEERR_RDSHUTDOWN), 0);
-        priv->nrdq--;
+        if (priv->nrdq != 0)
+          {
+            priv->nrdq--;
+          }
       }
       break;
 
@@ -2857,11 +2893,42 @@ static bool cdcuart_txempty(FAR struct uart_dev_s *dev)
     }
 #endif
 
+#ifdef CONFIG_SERIAL_REMOVABLE
+  /* Nothing can drain once the USB connection is gone */
+
+  if (dev->disconnected)
+    {
+      return true;
+    }
+#endif
+
   /* When all of the allocated write requests have been returned to the
    * txfree, then there is no longer any TX data in flight.
    */
 
   return priv->nwrq >= CONFIG_CDCACM_NWRREQS;
+}
+
+/****************************************************************************
+ * Name: cdcuart_release
+ *
+ * Description:
+ *   This is called to release some resource about the device when device
+ *   was close and unregistered.
+ *
+ ****************************************************************************/
+
+static int cdcuart_release(FAR struct uart_dev_s *dev)
+{
+  FAR struct cdcacm_dev_s *priv = (FAR struct cdcacm_dev_s *)dev->priv;
+
+  usbtrace(CDCACM_CLASSAPI_RELEASE, 0);
+
+  /* And free the memory resources. */
+
+  wd_cancel(&priv->rxfailsafe);
+  kmm_free(priv);
+  return OK;
 }
 
 /****************************************************************************
@@ -3158,8 +3225,20 @@ void cdcacm_uninitialize(FAR void *handle)
 #ifndef CONFIG_CDCACM_COMPOSITE
   usbdev_unregister(&drvr->drvr);
 
-  /* And free the memory resources. */
+  /* And free the memory resources.  If the TTY is still open, the upper
+   * half serial driver still references priv: defer the free to the last
+   * close (see cdcuart_release()).
+   */
 
+  nxsem_wait_uninterruptible(&priv->serdev.closesem);
+  if (priv->serdev.open_count > 0)
+    {
+      priv->serdev.unlinked = true;
+      nxsem_post(&priv->serdev.closesem);
+      return;
+    }
+
+  nxsem_post(&priv->serdev.closesem);
   wd_cancel(&priv->rxfailsafe);
   kmm_free(priv);
 

@@ -723,6 +723,24 @@ static int uart_close(FAR struct file *filep)
    */
 
   uart_reset_sem(dev);
+
+  /* If the driver was unregistered while we still had it open, this was
+   * the last reference: let the lower half release its resources now.
+   */
+
+  if (dev->unlinked)
+    {
+      uart_givesem(&dev->closesem);
+      nxsem_destroy(&dev->xmit.sem);
+      nxsem_destroy(&dev->recv.sem);
+      nxsem_destroy(&dev->closesem);
+      nxsem_destroy(&dev->xmitsem);
+      nxsem_destroy(&dev->recvsem);
+      nxsem_destroy(&dev->pollsem);
+      uart_release(dev);
+      return OK;
+    }
+
   uart_givesem(&dev->closesem);
   return OK;
 }
