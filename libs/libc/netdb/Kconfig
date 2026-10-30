@@ -3,11 +3,11 @@
 # see the file kconfig-language.txt in the NuttX tools repository.
 #
 
-config LIBC_NETDB
-	bool
-	default n
-
 menu "NETDB Support"
+
+config LIBC_NETDB
+	bool "Enable libc netdb"
+	default n
 
 config LIBC_GAISTRERROR
 	bool "Enable gai_strerror"
