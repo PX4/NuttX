@@ -114,17 +114,21 @@ static int imx9_mu_interrupt(int irq, void *context, void *args)
                 }
             }
         }
+    }
 
-      for (int i = 0; i < NR_OF_GPI; i++)
+  /* GPI doorbells are independent of RFP */
+
+  gsr &= getreg32(IMX9_MU_GIER(dev->mubase));
+
+  for (int i = 0; i < NR_OF_GPI; i++)
+    {
+      if (gsr & (1 << i))
         {
-          if (gsr & (1 << i))
-            {
-              putreg32((1 << i), IMX9_MU_GSR(dev->mubase));
+          putreg32((1 << i), IMX9_MU_GSR(dev->mubase));
 
-              if (dev->gpi_callback)
-                {
-                  dev->gpi_callback(i, dev);
-                }
+          if (dev->gpi_callback)
+            {
+              dev->gpi_callback(i, dev);
             }
         }
     }
@@ -158,7 +162,7 @@ struct imx9_mudev_s *imx95_mu_init(int index)
   else
 #endif
 #ifdef CONFIG_IMX9_MU7
-      if ((index == 7))
+  if ((index == 7))
     {
       priv = &g_mu7_dev;
     }
@@ -166,7 +170,7 @@ struct imx9_mudev_s *imx95_mu_init(int index)
   else
 #endif
 #ifdef CONFIG_IMX9_MU8
-      if ((index == 8))
+  if ((index == 8))
     {
       priv = &g_mu8_dev;
     }
@@ -233,7 +237,8 @@ void imx95_mu_send_msg(struct imx9_mudev_s *priv, uint32_t reg_index,
   /* Wait TX register to be empty. */
 
   while ((getreg32(IMX9_MU_TSR(priv->mubase)) & (1UL << reg_index)) == 0UL)
-    ;
+    {
+    }
 
   putreg32(msg, IMX9_MU_TR1(priv->mubase) + (reg_index * sizeof(uint32_t)));
 }
