@@ -28,6 +28,7 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
+#include <stdbool.h>
 
 #include "hardware/imxrt_enet.h"
 
@@ -99,6 +100,25 @@ int imxrt_netinitialize(int intf);
 #ifdef CONFIG_IMXRT_ENET_PHYINIT
 int imxrt_phy_boardinitialize(int intf);
 #endif
+
+/****************************************************************************
+ * Function: imxrt_eth_has_phy
+ *
+ * Description:
+ *   Report whether a PHY is attached to the ENET MII/RMII interface.  The
+ *   driver provides a weak default that returns true.  A board with a
+ *   direct MAC-to-MAC link overrides it and returns false; the driver then
+ *   skips MDIO and configures the MAC for 100 Mbps full duplex.
+ *
+ * Input Parameters:
+ *   intf - Always zero for now.
+ *
+ * Returned Value:
+ *   true if a PHY is attached; false otherwise.
+ *
+ ****************************************************************************/
+
+bool imxrt_eth_has_phy(int intf);
 
 #undef EXTERN
 #if defined(__cplusplus)

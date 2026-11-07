@@ -518,6 +518,8 @@ static int imxrt_writemii(struct imxrt_driver_s *priv, uint8_t phyaddr,
 static int imxrt_readmii(struct imxrt_driver_s *priv, uint8_t phyaddr,
              uint8_t regaddr, uint16_t *data);
 static int imxrt_initphy(struct imxrt_driver_s *priv, bool renogphy);
+static void imxrt_initmac(struct imxrt_driver_s *priv, bool fullduplex,
+                          bool mbps100);
 #if defined(CLAUSE45)
 static int imxrt_readmmd(struct imxrt_driver_s *priv, uint8_t phyaddr,
                          uint8_t mmd, uint16_t regaddr, uint16_t *data);
@@ -1405,7 +1407,10 @@ static int imxrt_ifup_action(struct net_driver_s *dev, bool resetphy)
 
   /* Configure the MII interface */
 
-  imxrt_initmii(priv);
+  if (imxrt_eth_has_phy(0))
+    {
+      imxrt_initmii(priv);
+    }
 
   /* Set the MAC address */
 
@@ -1416,20 +1421,27 @@ static int imxrt_ifup_action(struct net_driver_s *dev, bool resetphy)
 
   /* Configure the PHY */
 
-#if defined(CONFIG_ETH0_PHY_MULTI)
-  ret = imxrt_determine_phy(priv);
-  if (ret < 0)
+  if (imxrt_eth_has_phy(0))
     {
-      nerr("ERROR: Failed to determine the PHY: %d\n", ret);
-      return ret;
-    }
+#if defined(CONFIG_ETH0_PHY_MULTI)
+      ret = imxrt_determine_phy(priv);
+      if (ret < 0)
+        {
+          nerr("ERROR: Failed to determine the PHY: %d\n", ret);
+          return ret;
+        }
 #endif
 
-  ret = imxrt_initphy(priv, resetphy);
-  if (ret < 0)
+      ret = imxrt_initphy(priv, resetphy);
+      if (ret < 0)
+        {
+          nerr("ERROR: Failed to configure the PHY: %d\n", ret);
+          return ret;
+        }
+    }
+  else
     {
-      nerr("ERROR: Failed to configure the PHY: %d\n", ret);
-      return ret;
+      imxrt_initmac(priv, true, true);
     }
 
   /* Handle promiscuous mode */
@@ -1921,6 +1933,13 @@ static int imxrt_ioctl(struct net_driver_s *dev, int cmd, unsigned long arg)
         {
           struct mii_ioctl_data_s *req =
             (struct mii_ioctl_data_s *)((uintptr_t)arg);
+          if (!imxrt_eth_has_phy(0))
+            {
+              req->val_out = (MII_MSR == req->reg_num) ?
+                             MII_MSR_LINKSTATUS : 0;
+              ret = OK;
+            }
+          else
 #if defined(CLAUSE45)
           if (
 #  if defined(CONFIG_ETH0_PHY_MULTI)
@@ -1944,7 +1963,9 @@ static int imxrt_ioctl(struct net_driver_s *dev, int cmd, unsigned long arg)
         {
           struct mii_ioctl_data_s *req =
             (struct mii_ioctl_data_s *)((uintptr_t)arg);
-          ret = imxrt_writemii(priv, req->phy_id, req->reg_num, req->val_in);
+          ret = imxrt_eth_has_phy(0) ?
+                imxrt_writemii(priv, req->phy_id, req->reg_num,
+                               req->val_in) : -EIO;
         }
         break;
 #endif /* CONFIG_NETDEV_PHY_IOCTL */
@@ -2237,6 +2258,7 @@ static int imxrt_determine_phy(struct imxrt_driver_s *priv)
           if (retries <= 3 && ret == 0 &&
               phydata == g_board_phys[priv->current_phy].id1)
             {
+              retries = 0;
               do
                 {
                   nxsched_usleep(100);
@@ -2510,6 +2532,70 @@ static int imxrt_readmmd(struct imxrt_driver_s *priv, uint8_t phyaddr,
 #endif
 
 /****************************************************************************
+ * Function: imxrt_initmac
+ *
+ * Description:
+ *   Configure the ENET MAC RCR, TCR, and RACC registers for the selected
+ *   duplex and speed.
+ *
+ ****************************************************************************/
+
+static void imxrt_initmac(struct imxrt_driver_s *priv, bool fullduplex,
+                          bool mbps100)
+{
+  uint32_t rcr;
+  uint32_t tcr;
+  uint32_t racc;
+
+  /* Set up the transmit and receive control registers based on the
+   * configuration and the link speed and duplex.
+   */
+
+#ifdef CONFIG_IMXRT_ENETUSEMII
+  rcr = ENET_RCR_CRCFWD |
+        (CONFIG_NET_ETH_PKTSIZE + CONFIG_NET_GUARDSIZE)
+          << ENET_RCR_MAX_FL_SHIFT |
+        ENET_RCR_MII_MODE;
+#else
+  rcr = ENET_RCR_RMII_MODE | ENET_RCR_CRCFWD |
+        (CONFIG_NET_ETH_PKTSIZE + CONFIG_NET_GUARDSIZE)
+          << ENET_RCR_MAX_FL_SHIFT |
+        ENET_RCR_MII_MODE;
+#endif
+  tcr = 0;
+
+  imxrt_enet_putreg32(priv, rcr, IMXRT_ENET_RCR_OFFSET);
+  imxrt_enet_putreg32(priv, tcr, IMXRT_ENET_TCR_OFFSET);
+
+  /* Enable Discard Of Frames With MAC Layer Errors.
+   * Enable Discard Of Frames With Wrong Protocol Checksum.
+   * Bit 1: Enable discard of frames with wrong IPv4 header checksum.
+   */
+
+  racc = ENET_RACC_PRODIS | ENET_RACC_LINEDIS | ENET_RACC_IPDIS;
+  imxrt_enet_putreg32(priv, racc, IMXRT_ENET_RACC_OFFSET);
+
+  /* Setup half or full duplex */
+
+  if (fullduplex)
+    {
+      tcr |= ENET_TCR_FDEN;
+    }
+  else
+    {
+      rcr |= ENET_RCR_DRT;
+    }
+
+  if (!mbps100)
+    {
+      rcr |= ENET_RCR_RMII_10T;
+    }
+
+  imxrt_enet_putreg32(priv, rcr, IMXRT_ENET_RCR_OFFSET);
+  imxrt_enet_putreg32(priv, tcr, IMXRT_ENET_TCR_OFFSET);
+}
+
+/****************************************************************************
  * Function: imxrt_initphy
  *
  * Description:
@@ -2529,11 +2615,10 @@ static int imxrt_readmmd(struct imxrt_driver_s *priv, uint8_t phyaddr,
 
 static inline int imxrt_initphy(struct imxrt_driver_s *priv, bool renogphy)
 {
-  uint32_t rcr;
-  uint32_t tcr;
-  uint32_t racc;
   uint16_t phydata;
   uint8_t phyaddr    = BOARD_PHY_ADDR;
+  bool fullduplex;
+  bool mbps100;
   int retries;
   int ret;
 
@@ -2865,34 +2950,6 @@ static inline int imxrt_initphy(struct imxrt_driver_s *priv, bool renogphy)
 #  endif
 #endif
 
-  /* Set up the transmit and receive control registers based on the
-   * configuration and the auto negotiation results.
-   */
-
-#ifdef CONFIG_IMXRT_ENETUSEMII
-  rcr = ENET_RCR_CRCFWD |
-        (CONFIG_NET_ETH_PKTSIZE + CONFIG_NET_GUARDSIZE)
-          << ENET_RCR_MAX_FL_SHIFT |
-        ENET_RCR_MII_MODE;
-#else
-  rcr = ENET_RCR_RMII_MODE | ENET_RCR_CRCFWD |
-        (CONFIG_NET_ETH_PKTSIZE + CONFIG_NET_GUARDSIZE)
-          << ENET_RCR_MAX_FL_SHIFT |
-        ENET_RCR_MII_MODE;
-#endif
-  tcr = 0;
-
-  imxrt_enet_putreg32(priv, rcr, IMXRT_ENET_RCR_OFFSET);
-  imxrt_enet_putreg32(priv, tcr, IMXRT_ENET_TCR_OFFSET);
-
-  /* Enable Discard Of Frames With MAC Layer Errors.
-   * Enable Discard Of Frames With Wrong Protocol Checksum.
-   * Bit 1: Enable discard of frames with wrong IPv4 header checksum.
-   */
-
-  racc = ENET_RACC_PRODIS | ENET_RACC_LINEDIS | ENET_RACC_IPDIS;
-  imxrt_enet_putreg32(priv, racc, IMXRT_ENET_RACC_OFFSET);
-
   /* Setup half or full duplex */
 
   if (BOARD_PHY_ISDUPLEX(phydata))
@@ -2900,14 +2957,14 @@ static inline int imxrt_initphy(struct imxrt_driver_s *priv, bool renogphy)
       /* Full duplex */
 
       ninfo("%s: Full duplex\n",  BOARD_PHY_NAME);
-      tcr |= ENET_TCR_FDEN;
+      fullduplex = true;
     }
   else
     {
       /* Half duplex */
 
       ninfo("%s: Half duplex\n",  BOARD_PHY_NAME);
-      rcr |= ENET_RCR_DRT;
+      fullduplex = false;
     }
 
   if (BOARD_PHY_10BASET(phydata))
@@ -2915,13 +2972,14 @@ static inline int imxrt_initphy(struct imxrt_driver_s *priv, bool renogphy)
       /* 10 Mbps */
 
       ninfo("%s: 10 Base-T\n",  BOARD_PHY_NAME);
-      rcr |= ENET_RCR_RMII_10T;
+      mbps100 = false;
     }
   else if (BOARD_PHY_100BASET(phydata))
     {
       /* 100 Mbps */
 
       ninfo("%s: 100 Base-T\n",  BOARD_PHY_NAME);
+      mbps100 = true;
     }
   else
     {
@@ -2932,8 +2990,7 @@ static inline int imxrt_initphy(struct imxrt_driver_s *priv, bool renogphy)
       return -EIO;
     }
 
-  imxrt_enet_putreg32(priv, rcr, IMXRT_ENET_RCR_OFFSET);
-  imxrt_enet_putreg32(priv, tcr, IMXRT_ENET_TCR_OFFSET);
+  imxrt_initmac(priv, fullduplex, mbps100);
   return OK;
 }
 
@@ -3261,6 +3318,29 @@ int imxrt_netinitialize(int intf)
 
   UNUSED(ret);
   return OK;
+}
+
+/****************************************************************************
+ * Function: imxrt_eth_has_phy
+ *
+ * Description:
+ *   Report whether a PHY is attached to the ENET MII/RMII interface.  The
+ *   driver calls this at ifup.  This default returns true.  A board with a
+ *   direct MAC-to-MAC link overrides it and returns false; the driver then
+ *   skips MDIO and configures the MAC for 100 Mbps full duplex.
+ *
+ * Input Parameters:
+ *   intf - Always zero for now.
+ *
+ * Returned Value:
+ *   true if a PHY is attached; false otherwise.
+ *
+ ****************************************************************************/
+
+bool weak_function imxrt_eth_has_phy(int intf)
+{
+  UNUSED(intf);
+  return true;
 }
 
 /****************************************************************************
