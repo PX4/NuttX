@@ -331,7 +331,8 @@
 #define MKI2C_OUTPUT(p) (((p) & (GPIO_PORT_MASK | GPIO_PIN_MASK)) | I2C_OUTPUT)
 
 #define I2C_CR1_TXRX (I2C_CR1_RXIE | I2C_CR1_TXIE)
-#define I2C_CR1_ALLINTS (I2C_CR1_TXRX | I2C_CR1_TCIE | I2C_CR1_ERRIE)
+#define I2C_CR1_ALLINTS (I2C_CR1_TXRX | I2C_CR1_TCIE | I2C_CR1_ERRIE | \
+                         I2C_CR1_NACKIE)
 
 /* I2C event tracing
  *
@@ -795,8 +796,8 @@ static uint32_t stm32l4_i2c_toticks(int msgc, struct i2c_msg_s *msgs)
 static inline
 void stm32l4_i2c_enableinterrupts(struct stm32l4_i2c_priv_s *priv)
 {
-    stm32l4_i2c_modifyreg32(priv, STM32L4_I2C_CR1_OFFSET, 0,
-                            (I2C_CR1_TXRX | I2C_CR1_NACKIE));
+  stm32l4_i2c_modifyreg32(priv, STM32L4_I2C_CR1_OFFSET, 0,
+                          (I2C_CR1_TXRX | I2C_CR1_NACKIE));
 }
 #endif
 
@@ -2628,7 +2629,7 @@ static int stm32l4_i2c_process(struct i2c_master_s *dev,
         }
       else if (status & I2C_INT_PECERR)
         {
-      /* PEC Error in reception (SMBus Only) */
+          /* PEC Error in reception (SMBus Only) */
 
           i2cerr("ERROR: I2C PEC Error\n");
           errval = EPROTO;
@@ -2908,37 +2909,37 @@ static int stm32l4_i2c_pm_prepare(struct pm_callback_s *cb, int domain,
 
   switch (pmstate)
     {
-    case PM_NORMAL:
-    case PM_IDLE:
-      break;
+      case PM_NORMAL:
+      case PM_IDLE:
+        break;
 
-    case PM_STANDBY:
-    case PM_SLEEP:
+      case PM_STANDBY:
+      case PM_SLEEP:
 
-      /* Check if exclusive lock for I2C bus is held. */
+        /* Check if exclusive lock for I2C bus is held. */
 
-      if (nxsem_get_value(&priv->sem_excl, &sval) < 0)
-        {
-          DEBUGPANIC();
-          return -EINVAL;
-        }
+        if (nxsem_get_value(&priv->sem_excl, &sval) < 0)
+          {
+            DEBUGPANIC();
+            return -EINVAL;
+          }
 
-      if (sval <= 0)
-        {
-          /* Exclusive lock is held, do not allow entry to deeper PM
-           * states.
-           */
+        if (sval <= 0)
+          {
+            /* Exclusive lock is held, do not allow entry to deeper PM
+             * states.
+             */
 
-          return -EBUSY;
-        }
+            return -EBUSY;
+          }
 
-      break;
+        break;
 
-    default:
+      default:
 
-      /* Should not get here */
+        /* Should not get here */
 
-      break;
+        break;
     }
 
   return OK;
