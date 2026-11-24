@@ -116,9 +116,12 @@ uint16_t can_callback(FAR struct net_driver_s *dev,
   if (conn)
     {
 #ifdef CONFIG_NET_TIMESTAMP
-      /* TIMESTAMP sockopt is activated, create timestamp and copy to iob */
+      /* TIMESTAMP sockopt is activated, create timestamp and copy to iob.
+       * d_appdata can be NULL on STM32H7 FDCAN HPWORK; writing through it
+       * hardfaults (IMPRECISERR in can_callback).
+       */
 
-      if (conn->sconn.s_timestamp)
+      if (conn->sconn.s_timestamp && dev->d_appdata != NULL)
         {
           struct timespec *ts = (struct timespec *)
                                                 &dev->d_appdata[dev->d_len];
@@ -130,23 +133,26 @@ uint16_t can_callback(FAR struct net_driver_s *dev,
         }
 #endif
 
-      /* Try to lock the network when successful send data to the listener */
+      /* Hold the net lock across both the listener callback and the
+       * read-ahead queue. can_datahandler() requires the lock; the old
+       * path unlocked first and then queued, which hardfaulted
+       * (IMPRECISERR) on STM32H7 FDCAN HPWORK in can_datahandler /
+       * can_readahead_signal.
+       *
+       * If the lock is busy, leave CAN_NEWDATA set so can_input()
+       * returns -EAGAIN and the driver retries.
+       */
 
       if (net_trylock() == OK)
         {
           flags = devif_conn_event(dev, conn, flags, conn->sconn.list);
+
+          if ((flags & CAN_NEWDATA) != 0)
+            {
+              flags = can_data_event(dev, conn, flags);
+            }
+
           net_unlock();
-        }
-
-      /* Either we did not get the lock or there is no application listening
-       * If we did not get a lock we store the frame in the read-ahead buffer
-       */
-
-      if ((flags & CAN_NEWDATA) != 0)
-        {
-          /* Data was not handled.. dispose of it appropriately */
-
-          flags = can_data_event(dev, conn, flags);
         }
     }
 
