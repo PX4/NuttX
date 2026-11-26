@@ -572,30 +572,20 @@ static void tcp_recvfrom_initialize(FAR struct tcp_conn_s *conn,
 
 static ssize_t tcp_recvfrom_result(int result, struct tcp_recvfrom_s *pstate)
 {
-  /* Check for a error/timeout detected by the event handler.  Errors are
-   * signaled by negative errno values for the rcv length
+  /* Check if any data were received. If so, then return their length and
+   * ignore any error codes.
    */
 
-  if (pstate->ir_result < 0)
+  if (pstate->ir_recvlen > 0)
     {
-      /* This might return EAGAIN on a timeout or ENOTCONN on loss of
-       * connection (TCP only)
-       */
-
-      return pstate->ir_result;
+      return pstate->ir_recvlen;
     }
 
-  /* If net_timedwait failed, then we were probably reawakened by a signal.
-   * In this case, net_timedwait will have returned negated errno
-   * appropriately.
+  /* If no data were received, return the error code instead. The event
+   * handler error is prioritized over any previous error.
    */
 
-  if (result < 0)
-    {
-      return result;
-    }
-
-  return pstate->ir_recvlen;
+  return (pstate->ir_result < 0) ? pstate->ir_result : result;
 }
 
 /****************************************************************************
