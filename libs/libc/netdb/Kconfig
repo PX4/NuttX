@@ -6,8 +6,16 @@
 config LIBC_NETDB
 	bool
 	default n
+    select LIBC_NETDB_CORE
 
 menu "NETDB Support"
+
+config LIBC_NETDB_CORE
+    bool "Enable minimal netdb core API"
+    default n
+    ---help---
+        Enable minimal netdb functions backends.
+        Provides freeaddrinfo(), gai_strerror(), getaddrinfo(), getnameinfo().
 
 config LIBC_GAISTRERROR
 	bool "Enable gai_strerror"
