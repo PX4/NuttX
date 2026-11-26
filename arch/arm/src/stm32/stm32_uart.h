@@ -40,7 +40,11 @@
     defined(CONFIG_STM32_STM32F37XX)
 #  include "hardware/stm32f30xxx_uart.h"
 #elif defined(CONFIG_STM32_STM32F4XXX)
-#  include "hardware/stm32f40xxx_uart.h"
+#  if defined(CONFIG_STM32_STM32F427A)
+#     include "hardware/stm32f427ax_uart.h"
+#  else
+#     include "hardware/stm32f40xxx_uart.h"
+#  endif
 #elif defined(CONFIG_STM32_STM32G4XXX)
 #  include "hardware/stm32g4xxxx_uart.h"
 #else
